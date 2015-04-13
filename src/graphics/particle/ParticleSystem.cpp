@@ -183,41 +183,26 @@ void ParticleSystem::SetTexture(const char * _pszTex, int _iNbTex, int _iTime) {
 	}
 }
 
-static void VectorRotateY(Vec3f & _eIn, Vec3f & _eOut, float _fAngle) {
-	float c = std::cos(_fAngle);
-	float s = std::sin(_fAngle);
-	_eOut.x = (_eIn.x * c) + (_eIn.z * s);
-	_eOut.y =  _eIn.y;
-	_eOut.z = (_eIn.z * c) - (_eIn.x * s);
-}
-
-static void VectorRotateZ(Vec3f & _eIn, Vec3f & _eOut, float _fAngle) {
-	float c = std::cos(_fAngle);
-	float s = std::sin(_fAngle);
-	_eOut.x = (_eIn.x * c) + (_eIn.y * s);
-	_eOut.y = (_eIn.y * c) - (_eIn.x * s);
-	_eOut.z =  _eIn.z;
-}
-
 void ParticleSystem::SetParticleParams(Particle * pP) {
 
 	pP->p3Pos = Vec3f_ZERO;
 	
-	if((m_parameters.m_spawnFlags & PARTICLE_CIRCULAR) == PARTICLE_CIRCULAR
-	   && (m_parameters.m_spawnFlags & PARTICLE_BORDER) == PARTICLE_BORDER) {
+	if((m_parameters.m_spawnFlags & PARTICLE_CIRCULAR) == PARTICLE_CIRCULAR) {
+		
 		float randd = rnd() * 360.f;
-		pP->p3Pos.x = std::sin(randd) * m_parameters.m_pos.x;
-		pP->p3Pos.y = rnd() * m_parameters.m_pos.y;
-		pP->p3Pos.z = std::cos(randd) * m_parameters.m_pos.z;
-	} else if((m_parameters.m_spawnFlags & PARTICLE_CIRCULAR) == PARTICLE_CIRCULAR) {
-		float randd = rnd() * 360.f;
-		pP->p3Pos.x = std::sin(randd) * rnd() * m_parameters.m_pos.x;
-		pP->p3Pos.y = rnd() * m_parameters.m_pos.y;
-		pP->p3Pos.z = std::cos(randd) * rnd() * m_parameters.m_pos.z;
+		pP->p3Pos.x = std::sin(randd);
+		pP->p3Pos.y = rnd();
+		pP->p3Pos.z = std::cos(randd);
+		
+		if(!(m_parameters.m_spawnFlags & PARTICLE_BORDER) == PARTICLE_BORDER) {
+			pP->p3Pos *= Vec3f(rnd(), 1.f, rnd());
+		}
 	} else {
-		pP->p3Pos = m_parameters.m_pos * randomVec(-1.f, 1.f);
+		pP->p3Pos = randomVec(-1.f, 1.f);
 	}
-
+	
+	pP->p3Pos *= m_parameters.m_pos;
+	
 	float fTTL = m_parameters.m_life + rnd() * m_parameters.m_lifeRandom;
 	pP->m_timeToLive = checked_range_cast<long>(fTTL);
 	pP->fOneOnTTL = 1.0f / (float)pP->m_timeToLive;
@@ -230,8 +215,8 @@ void ParticleSystem::SetParticleParams(Particle * pP) {
 	
 	vv1 = -Vec3f_Y_AXIS;
 	
-	VectorRotateZ(vv1, vvz, fAngleX); 
-	VectorRotateY(vvz, vv1, glm::radians(rnd() * 360.0f));
+	vvz = VRotateZ(vv1, glm::degrees(fAngleX));
+	vv1 = VRotateY(vvz, rnd() * 360.0f);
 	
 	vvz = Vec3f(eMat * Vec4f(vv1, 1.f));
 

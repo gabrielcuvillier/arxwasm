@@ -611,18 +611,6 @@ glm::quat angleToQuatForArrow(const Anglef & angle) {
 	return glm::toQuat(tmat);
 }
 
-Vec3f angleToVecForArrow(const Anglef & angle) {
-	float anglea = glm::radians(angle.getYaw());
-	float angleb = glm::radians(angle.getPitch());
-	
-	Vec3f vect;
-	vect.x=-std::sin(angleb)*std::cos(anglea);
-	vect.y= std::sin(anglea);
-	vect.z= std::cos(angleb)*std::cos(anglea);
-	
-	return vect;
-}
-
 glm::quat angleToQuatForExtraRotation(const Anglef & angle) {
 	Anglef vt1;
 	vt1.setYaw(angle.getRoll());
@@ -634,10 +622,8 @@ glm::quat angleToQuatForExtraRotation(const Anglef & angle) {
 
 std::pair<Vec3f, Vec3f> angleToFrontUpVecForSound(const Anglef & angle) {
 	
-	float t = glm::radians(MAKEANGLE(angle.getPitch()));
-	Vec3f front(-std::sin(t), 0.f, std::cos(t));
-	front = glm::normalize(front);
-
+	Vec3f front = angleToVectorXZ(angle.getPitch());
+	
 	//TODO Hardcoded up vector
 	Vec3f up(0.f, 1.f, 0.f);
 	
@@ -680,6 +666,17 @@ Vec3f angleToVectorXZ(float angleDegrees) {
 Vec3f angleToVectorXZ_180offset(float angleDegrees) {
 	float t = glm::radians(angleDegrees);
 	return Vec3f(std::sin(t), 0.f, -std::cos(t));
+}
+
+Vec3f angleToVector(const Anglef & angle) {
+	Vec3f cam_vector = angleToVectorXZ(angle.getPitch());
+	
+	float yaw = glm::radians(angle.getYaw());
+	cam_vector.x *= std::cos(yaw);
+	cam_vector.y = std::sin(yaw);
+	cam_vector.z *= std::cos(yaw);
+	
+	return cam_vector;
 }
 
 //A x B = <Ay*Bz - Az*By, Az*Bx - Ax*Bz, Ax*By - Ay*Bx>

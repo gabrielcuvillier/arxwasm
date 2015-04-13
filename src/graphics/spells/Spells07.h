@@ -79,7 +79,7 @@ public:
 	bool m_isMassLightning;
 	
 private:
-	int		nbtotal;
+	size_t nbtotal;
 	long	lNbSegments;
 	float	fColor1[3];
 	float	fColor2[3];
@@ -87,12 +87,8 @@ private:
 	float	fSize;
 	float	fLengthMin;
 	float	fLengthMax;
-	float	fAngleXMin;
-	float	fAngleXMax;
-	float	fAngleYMin;
-	float	fAngleYMax;
-	float	fAngleZMin;
-	float	fAngleZMax;
+	Vec3f fAngleMin;
+	Vec3f fAngleMax;
 	Vec3f eSrc;
 	Vec3f eDest;
 	TextureContainer * tex_light;
@@ -105,7 +101,9 @@ private:
 		Vec3f f;
 	};
 	
-	CLightningNode	cnodetab[2000];
+	static const size_t MAX_NODES = 2000;
+	
+	CLightningNode	cnodetab[MAX_NODES];
 	
 	struct LIGHTNING;
 	void BuildS(LIGHTNING * lightingInfo);

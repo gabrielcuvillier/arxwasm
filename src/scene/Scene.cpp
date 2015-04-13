@@ -373,10 +373,7 @@ bool ARX_SCENE_PORTAL_ClipIO(Entity * io, const Vec3f & position) {
 		return false;
 
 	if(portals) {
-		Vec3f posi;
-		posi.x=position.x;
-		posi.y=position.y-60; //20
-		posi.z=position.z;
+		Vec3f posi = position + Vec3f(0, -60, 0); // -20 ?
 		long room_num;
 
 		if(io) {
@@ -547,8 +544,11 @@ static long ARX_PORTALS_GetRoomNumForCamera(float * height) {
 	float dist=0.f;
 
 	while(dist<=20.f) {
-		float vvv = glm::radians(ACTIVECAM->angle.getPitch());
-		ep=CheckInPoly(ACTIVECAM->orgTrans.pos + Vec3f(std::sin(vvv) * dist, 0.f, -std::cos(vvv) * dist));
+		
+		Vec3f tmpPos = ACTIVECAM->orgTrans.pos;
+		tmpPos += angleToVectorXZ_180offset(ACTIVECAM->angle.getPitch()) * dist;
+		
+		ep = CheckInPoly(tmpPos);
 
 		if(ep && ep->room > -1) {
 			if(height)

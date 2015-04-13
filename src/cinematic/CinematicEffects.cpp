@@ -199,46 +199,50 @@ void FX_DreamPrecalc(CinematicBitmap * bi, float amp, float fps) {
 	float a = DreamAng;
 	float a2 = DreamAng2;
 	
-	float s1 = bi->m_count.x * std::cos(glm::radians(0.f));
-	float s2 = bi->m_count.y * std::cos(glm::radians(0.f));
-	int nx = (bi->m_count.x + 1) << 1;
-	int ny = (bi->m_count.y + 1) << 1;
-	float nnx = ((float)nx) + s1;
-	float nny = ((float)ny) + s2;
+	Vec2f s;
+	s.x = bi->m_count.x * std::cos(glm::radians(0.f));
+	s.y = bi->m_count.y * std::cos(glm::radians(0.f));
 	
-	float ox, oy;
+	Vec2i n;
+	n.x = (bi->m_count.x + 1) << 1;
+	n.y = (bi->m_count.y + 1) << 1;
 	
-	ox = amp * ((2 * (std::sin(nnx / 20) + std::sin(nnx * nny / 2000)
-	                  + std::sin((nnx + nny) / 100) + std::sin((nny - nnx) / 70) + std::sin((nnx + 4 * nny) / 70)
-	                  + 2 * std::sin(hypot(256 - nnx, (150 - nny / 8)) / 40))));
-	oy = amp * (((std::cos(nnx / 31) + std::cos(nnx * nny / 1783) +
-	              + 2 * std::cos((nnx + nny) / 137) + std::cos((nny - nnx) / 55) + 2 * std::cos((nnx + 8 * nny) / 57)
-	              + std::cos(hypot(384 - nnx, (274 - nny / 9)) / 51))));
+	Vec2f nn;
+	nn.x = ((float)n.x) + s.x;
+	nn.y = ((float)n.y) + s.y;
+	
+	Vec2f o;
+	o.x = amp * ((2 * (std::sin(nn.x / 20) + std::sin(nn.x * nn.y / 2000)
+	                  + std::sin((nn.x + nn.y) / 100) + std::sin((nn.y - nn.x) / 70) + std::sin((nn.x + 4 * nn.y) / 70)
+	                  + 2 * std::sin(hypot(256 - nn.x, (150 - nn.y / 8)) / 40))));
+	o.y = amp * (((std::cos(nn.x / 31) + std::cos(nn.x * nn.y / 1783) +
+	              + 2 * std::cos((nn.x + nn.y) / 137) + std::cos((nn.y - nn.x) / 55) + 2 * std::cos((nn.x + 8 * nn.y) / 57)
+	              + std::cos(hypot(384 - nn.x, (274 - nn.y / 9)) / 51))));
 	
 	float * t = DreamTable;
-	ny = ((bi->m_count.y * bi->grid.m_scale) + 1);
+	n.y = ((bi->m_count.y * bi->grid.m_scale) + 1);
 	
-	while(ny) {
-		nx = ((bi->m_count.x * bi->grid.m_scale) + 1);
-		while(nx) {
-			s1 = bi->m_count.x * std::cos(glm::radians(a));
-			s2 = bi->m_count.y * std::cos(glm::radians(a2));
+	while(n.y) {
+		n.x = ((bi->m_count.x * bi->grid.m_scale) + 1);
+		while(n.x) {
+			s.x = bi->m_count.x * std::cos(glm::radians(a));
+			s.y = bi->m_count.y * std::cos(glm::radians(a2));
 			a -= 15.f;
 			a2 += 8.f;
 			
-			nnx = ((float)nx) + s1;
-			nny = ((float)ny) + s2;
+			nn.x = ((float)n.x) + s.x;
+			nn.y = ((float)n.y) + s.y;
 			
-			*t++ = (float)(-ox + amp * ((2 * (std::sin(nnx / 20) + std::sin(nnx * nny / 2000)
-			                                  + std::sin((nnx + nny) / 100) + std::sin((nny - nnx) / 70) + std::sin((nnx + 4 * nny) / 70)
-			                                  + 2 * std::sin(hypot(256 - nnx, (150 - nny / 8)) / 40)))));
-			*t++ = (float)(-oy + amp * (((std::cos(nnx / 31) + std::cos(nnx * nny / 1783) +
-			                              + 2 * std::cos((nnx + nny) / 137) + std::cos((nny - nnx) / 55) + 2 * std::cos((nnx + 8 * nny) / 57)
-			                              + std::cos(hypot(384 - nnx, (274 - nny / 9)) / 51)))));
+			*t++ = (float)(-o.x + amp * ((2 * (std::sin(nn.x / 20) + std::sin(nn.x * nn.y / 2000)
+			                                  + std::sin((nn.x + nn.y) / 100) + std::sin((nn.y - nn.x) / 70) + std::sin((nn.x + 4 * nn.y) / 70)
+			                                  + 2 * std::sin(hypot(256 - nn.x, (150 - nn.y / 8)) / 40)))));
+			*t++ = (float)(-o.y + amp * (((std::cos(nn.x / 31) + std::cos(nn.x * nn.y / 1783) +
+			                              + 2 * std::cos((nn.x + nn.y) / 137) + std::cos((nn.y - nn.x) / 55) + 2 * std::cos((nn.x + 8 * nn.y) / 57)
+			                              + std::cos(hypot(384 - nn.x, (274 - nn.y / 9)) / 51)))));
 			
-			nx--;
+			n.x--;
 		}
-		ny--;
+		n.y--;
 	}
 	
 	DreamAng += 4.f * fps;

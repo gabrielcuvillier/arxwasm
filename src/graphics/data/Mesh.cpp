@@ -751,7 +751,7 @@ int EERIELaunchRay3(const Vec3f & orgn, const Vec3f & dest,  Vec3f * hit, EERIEP
 // Computes the visibility from a point to another... (sort of...)
 bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hit)
 {
-	float ix,iy,iz;
+	Vec3f i;
 	long px,pz;
 
 	float pas = 35.f;
@@ -761,10 +761,8 @@ bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hi
 	float iter,t;
 	
 	//current ray pos
-	float x = orgn.x;
-	float y = orgn.y;
-	float z = orgn.z;
-
+	Vec3f tmpPos = orgn;
+	
 	float distance;
 	float nearest = distance = fdist(orgn, dest);
 
@@ -772,60 +770,56 @@ bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hi
 		pas = distance * .5f;
 
 	// ray incs
-	float dx = (dest.x - orgn.x);
-	float dy = (dest.y - orgn.y);
-	float dz = (dest.z - orgn.z);
-
+	Vec3f d = dest - orgn;
+	
 	// absolute ray incs
-	float adx = glm::abs(dx);
-	float ady = glm::abs(dy);
-	float adz = glm::abs(dz);
-
-	if(adx >= ady && adx >= adz) {
-		if(adx != dx)
-			ix = -pas;
+	Vec3f ad = glm::abs(d);
+	
+	if(ad.x >= ad.y && ad.x >= ad.z) {
+		if(ad.x != d.x)
+			i.x = -pas;
 		else
-			ix = pas;
+			i.x = pas;
 
-		iter = adx / pas;
+		iter = ad.x / pas;
 		t = 1.f / (iter);
-		iy = dy * t;
-		iz = dz * t;
-	} else if(ady >= adx && ady >= adz) {
-		if(ady != dy)
-			iy = -pas;
+		i.y = d.y * t;
+		i.z = d.z * t;
+	} else if(ad.y >= ad.x && ad.y >= ad.z) {
+		if(ad.y != d.y)
+			i.y = -pas;
 		else
-			iy = pas;
+			i.y = pas;
 
-		iter = ady / pas;
+		iter = ad.y / pas;
 		t = 1.f / (iter);
-		ix = dx * t;
-		iz = dz * t;
+		i.x = d.x * t;
+		i.z = d.z * t;
 	} else {
-		if(adz != dz)
-			iz = -pas;
+		if(ad.z != d.z)
+			i.z = -pas;
 		else
-			iz = pas;
+			i.z = pas;
 
-		iter = adz / pas;
+		iter = ad.z / pas;
 		t = 1.f / (iter);
-		ix = dx * t;
-		iy = dy * t;
+		i.x = d.x * t;
+		i.y = d.y * t;
 	}
 
 	float dd;
-	x -= ix;
-	y -= iy;
-	z -= iz;
+	tmpPos.x -= i.x;
+	tmpPos.y -= i.y;
+	tmpPos.z -= i.z;
 
 	while(iter > 0.f) {
 		iter -= 1.f;
-		x += ix;
-		y += iy;
-		z += iz;
+		tmpPos.x += i.x;
+		tmpPos.y += i.y;
+		tmpPos.z += i.z;
 
-		px = (long)(x * ACTIVEBKG->Xmul);
-		pz = (long)(z * ACTIVEBKG->Zmul);
+		px = (long)(tmpPos.x * ACTIVEBKG->Xmul);
+		pz = (long)(tmpPos.z * ACTIVEBKG->Zmul);
 
 		if(px < 0 || px > ACTIVEBKG->Xsize - 1 || pz < 0 || pz > ACTIVEBKG->Zsize - 1)
 			break;
@@ -836,9 +830,9 @@ bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hi
 			EERIEPOLY * ep = eg->polyin[k];
 
 			if (ep)
-			if ((ep->min.y - pas < y) && (ep->max.y + pas > y))
-			if ((ep->min.x - pas < x) && (ep->max.x + pas > x))
-			if ((ep->min.z - pas < z) && (ep->max.z + pas > z))
+			if ((ep->min.y - pas < tmpPos.y) && (ep->max.y + pas > tmpPos.y))
+			if ((ep->min.x - pas < tmpPos.x) && (ep->max.x + pas > tmpPos.x))
+			if ((ep->min.z - pas < tmpPos.z) && (ep->max.z + pas > tmpPos.z))
 			if (RayCollidingPoly(orgn, dest, ep, hit)) {
 				dd = fdist(orgn, *hit);
 
