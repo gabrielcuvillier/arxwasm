@@ -21,7 +21,6 @@ if(POLICY CMP0020)
 	cmake_policy(SET CMP0020 NEW)
 endif()
 
-
 # Define configuration options
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -35,9 +34,9 @@ option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_TOOLS "Build tools" ON)
 set(def_BUILD_CRASHREPORTER ON)
 if(MACOSX)
-	set(def_BUILD_CRASHREPORTER OFF)
+ set(def_BUILD_CRASHREPORTER OFF)
 elseif(WIN32 AND NOT MSVC)
-	set(def_BUILD_CRASHREPORTER OFF)
+ set(def_BUILD_CRASHREPORTER OFF)
 endif()
 option(BUILD_CRASHREPORTER "Build the crash reporter" ${def_BUILD_CRASHREPORTER})
 option(BUILD_PROFILER "Build the profiler GUI" ON)
@@ -45,6 +44,18 @@ option(BUILD_PROFILER_INSTRUMENT "Enable instrumentation for the profiler" OFF)
 option(BUILD_EDIT_LOADSAVE "Build save/load functions only used by the editor" ON)
 option(BUILD_IO_LIBRARY "Build shared library for reading and writing arx data" ON)
 option(INSTALL_SCRIPTS "Install the data install script" ON)
+
+#Disable every external tool for NACL, we just want the executable
+if (NACL)
+  set(BUILD_TESTS OFF)
+  set(BUILD_TOOLS OFF)
+  set(BUILD_CRASHREPORTER OFF)
+  set(BUILD_PROFILER OFF)
+  set(BUILD_PROFILER_INSTRUMENT OFF)
+  set(BUILD_EDIT_LOADSAVE OFF)
+  set(BUILD_IO_LIBRARY OFF)
+  set(INSTALL_SCRIPTS OFF)
+endif()
 
 # Optional dependencies
 option(USE_OPENAL "Build the OpenAL audio backend" ON)
@@ -54,6 +65,11 @@ option(USE_NATIVE_FS "Use the native filesystem backend directly instead of boos
 # Alternative dependencies
 set(WITH_SDL CACHE STRING "The SDL version to use: 1 or 2 or empty (use any)")
 set(WITH_QT CACHE STRING "The Qt version to use: 4 or 5 or empty (use any)")
+
+#Force SDL 2 with NACL, as SDL 1 have issues
+if (NACL)
+  set(WITH_SDL 2)
+endif()
 
 # Build types
 option(UNITY_BUILD "Unity build" OFF)
@@ -68,9 +84,15 @@ if(DEBUG)
 	add_definitions(-DARX_DEBUG=1)
 endif()
 
+#Disable CXX11 on NACL (compilation problems)
+if (NACL)
+  set(USE_CXX11 OFF)
+endif()
+
 # Static libs
 set(default_USE_STATIC_LIBS OFF)
-if(WIN32)
+# Win32 and NACL (using newlib) must use static libraries
+if(WIN32 OR NACL)
 	set(default_USE_STATIC_LIBS ON)
 endif()
 option(USE_STATIC_LIBS          "Statically link libraries" ${default_USE_STATIC_LIBS})
@@ -146,6 +168,36 @@ elseif(MACOSX)
 	set(DATA_DIR_PREFIXES "/Applications"                 CACHE STRING "Data dir paths")
 	set(USER_DIR          "ArxLibertatis"                 CACHE STRING "User dir names")
 	set(USER_DIR_PREFIXES "$HOME/Library/Application Support" CACHE STRING "User dir paths")
+#Special data directories on NACL (mounts to HTML5FS and HTTPFS, see Startup.cpp)
+elseif(NACL)
+  set(DATA_DIR
+      "."
+		  CACHE STRING "Data dir names"
+	  )
+	  set(DATA_DIR_PREFIXES
+		  "/mnt/arx/paks"
+		  CACHE STRING "Data dir paths"
+	  )
+	  set(USER_DIR
+		  "arx"
+		  CACHE STRING "User dir names"
+	  )
+	  set(USER_DIR_PREFIXES
+		  "/home/user"
+		  CACHE STRING "User dir paths"
+	  )
+	  set(CONFIG_DIR
+		  "arx"
+		  CACHE STRING "Config dir names"
+	  )
+	  set(CONFIG_DIR_PREFIXES
+		  "/home/user"
+		  CACHE STRING "Config dir paths"
+	  )
+	  set(IGNORE_EXE_DIR
+		  "/usr/bin:/usr/games:/usr/games/bin:/usr/local/bin:/usr/local/games:/usr/local/games/bin"
+		  CACHE STRING "Executable locations that should not be used as a data dir"
+	  )
 else()
 	set(DATA_DIR
 		"games/arx:arx"
@@ -217,7 +269,10 @@ if((NOT LAST_CMAKE_CXX_FLAGS STREQUAL CMAKE_CXX_FLAGS)
 	force_recheck_library(Threads)
 	force_recheck_library(OpenAL)
 	force_recheck_library(OpenGL)
-	force_recheck_library(GLEW)
+  #GLEW not supported on NACL
+  if (NOT NACL) 
+  	force_recheck_library(GLEW)
+  endif()
 	force_recheck_library(Boost)
 	force_recheck_library(QtCore QT_QTCORE)
 	force_recheck_library(QtGui QT_QTGUI)
@@ -266,47 +321,70 @@ list(APPEND ARX_LIBRARIES ${ZLIB_LIBRARIES})
 
 # FreeType
 use_static_libs(Freetype)
+#Force include directory of FreeType on NACL (it is not clear why FreeType is not detected without this)
+if (NACL)
+  set(FREETYPE_INCLUDE_DIRS	${PLATFORM_PREFIX}/${PLATFORM_ROOT}/usr/include/freetype2)
+endif()
 find_package(Freetype REQUIRED)
 if(Freetype_USE_STATIC_LIBS)
-	# Freetype may require other libraries depending on how it was configured
-	find_package(PkgConfig QUIET)
-	pkg_check_modules(PC_Freetype freetype2)
-	foreach(lib IN LISTS PC_Freetype_STATIC_LIBRARIES)
-		if(lib MATCHES "(^|/|\\\\)(lib)?z(lib)?(\\.so|\\.a||.dll|\\.lib)?$")
-			if(NOT Freetype_LINKING_ZLIB)
+  if (NOT NACL)
+	  # Freetype may require other libraries depending on how it was configured
+	  find_package(PkgConfig QUIET)
+	  pkg_check_modules(PC_Freetype freetype2)
+	  foreach(lib IN LISTS PC_Freetype_STATIC_LIBRARIES)
+		  if(lib MATCHES "(^|/|\\\\)(lib)?z(lib)?(\\.so|\\.a||.dll|\\.lib)?$")
+			  if(NOT Freetype_LINKING_ZLIB)
+				  message(STATUS "FreeType: statically linking ZLIB")
+				  set(Freetype_LINKING_ZLIB 1 CACHE INTERNAL "foobar")
+			  endif()
+			  # We always link ZLIB
+			  list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
+		  elseif(lib MATCHES "(^|/|\\\\)(lib)?freetype")
+			  # The main lib we linked above
+		  elseif(lib MATCHES "(^|/|\\\\)(lib)?bz(ip)?2")
+			  if(NOT Freetype_LINKING_BZip2)
+				  message(STATUS "FreeType: statically linking BZip2")
+				  set(Freetype_LINKING_BZip2 1 CACHE INTERNAL "foobar")
+			  endif()
+			  find_package(BZip2 REQUIRED)
+			  list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
+		  elseif(lib MATCHES "(^|/|\\\\)(lib)?png")
+			  if(NOT Freetype_LINKING_PNG)
+				  message(STATUS "FreeType: statically linking libpng")
+				  set(Freetype_LINKING_PNG 1 CACHE INTERNAL "foobar")
+			  endif()
+			  find_package(PNG REQUIRED)
+			  list(APPEND FREETYPE_LIBRARIES ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
+		  else()
+			  # We don't know this library so we can't easily search for a static version.
+			  # Just looking for a static library with the same name is generally not enough
+			  # as it too may require other libraries (and naming can differ).
+			  message(WARNING "FreeType: linking unknown library \"${lib}\"")
+			  if(EXISTS "${lib}" OR lib MATCHES "(/|\\\\)")
+				  list(APPEND FREETYPE_LIBRARIES "${lib}")
+			  else()
+				  list(APPEND FREETYPE_LIBRARIES "-l${lib}")
+			  endif()
+		  endif()
+	  endforeach()
+  # On NACL, we can't use pkg-config because it is compiled for NACL and not the host. So we hardcode required dependencies
+  else()
 				message(STATUS "FreeType: statically linking ZLIB")
 				set(Freetype_LINKING_ZLIB 1 CACHE INTERNAL "foobar")
-			endif()
-			# We always link ZLIB
-			list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
-		elseif(lib MATCHES "(^|/|\\\\)(lib)?freetype")
-			# The main lib we linked above
-		elseif(lib MATCHES "(^|/|\\\\)(lib)?bz(ip)?2")
-			if(NOT Freetype_LINKING_BZip2)
-				message(STATUS "FreeType: statically linking BZip2")
+        list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
+
+        message(STATUS "FreeType: statically linking BZip2")
 				set(Freetype_LINKING_BZip2 1 CACHE INTERNAL "foobar")
-			endif()
-			find_package(BZip2 REQUIRED)
-			list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
-		elseif(lib MATCHES "(^|/|\\\\)(lib)?png")
-			if(NOT Freetype_LINKING_PNG)
-				message(STATUS "FreeType: statically linking libpng")
+			  find_package(BZip2 REQUIRED)
+			  check_link_library(BZip2 BZIP2_LIBRARIES)
+			  list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
+
+        message(STATUS "FreeType: statically linking libpng")
 				set(Freetype_LINKING_PNG 1 CACHE INTERNAL "foobar")
-			endif()
-			find_package(PNG REQUIRED)
-			list(APPEND FREETYPE_LIBRARIES ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
-		else()
-			# We don't know this library so we can't easily search for a static version.
-			# Just looking for a static library with the same name is generally not enough
-			# as it too may require other libraries (and naming can differ).
-			message(WARNING "FreeType: linking unknown library \"${lib}\"")
-			if(EXISTS "${lib}" OR lib MATCHES "(/|\\\\)")
-				list(APPEND FREETYPE_LIBRARIES "${lib}")
-			else()
-				list(APPEND FREETYPE_LIBRARIES "-l${lib}")
-			endif()
-		endif()
-	endforeach()
+        find_package(PNG REQUIRED)
+  			check_link_library(PNG PNG_LIBRARIES)
+	  		list(APPEND FREETYPE_LIBRARIES ${PNG_LIBRARIES})
+  endif()
 endif()
 use_static_libs_restore()
 if(NOT MSVC)
@@ -317,13 +395,23 @@ list(APPEND ARX_LIBRARIES ${FREETYPE_LIBRARIES})
 
 # OpenGL
 if(USE_OPENGL)
-	find_package(OpenGL ${OPTIONAL_DEPENDENCY})
-	find_package(GLEW ${OPTIONAL_DEPENDENCY})
-	add_definitions(-DGLEW_NO_GLU)
-	if(NOT MSVC AND OPENGL_FOUND AND GLEW_FOUND)
-		check_link_library(OpenGL OPENGL_gl_LIBRARY)
-		check_link_library(GLEW GLEW_LIBRARIES)
-	endif()
+  if (NOT NACL)
+  	find_package(OpenGL ${OPTIONAL_DEPENDENCY})
+	  find_package(GLEW ${OPTIONAL_DEPENDENCY})
+	  add_definitions(-DGLEW_NO_GLU)
+	  if(NOT MSVC AND OPENGL_FOUND AND GLEW_FOUND)
+	  	check_link_library(OpenGL OPENGL_gl_LIBRARY)
+	  	check_link_library(GLEW GLEW_LIBRARIES)
+	  endif()
+  else()
+    # On NACL, Regal library is used as a wrapper to OPENGL ES 2
+    # So there is no GL/gl.h, libGL, etc...
+    set(OPENGL_INCLUDE_DIR 		${PLATFORM_PREFIX}/${PLATFORM_ROOT}/usr/include)
+    set(OPENGL_gl_LIBRARY    	${PLATFORM_PREFIX}/${PLATFORM_ROOT}/usr/lib/libRegal.a)
+    set(OPENGL_LIBRARIES	    ${PLATFORM_PREFIX}/${PLATFORM_ROOT}/usr/lib/libglslopt.a) # this is required too
+    find_package(OpenGL ${OPTIONAL_DEPENDENCY})
+    check_link_library(OpenGL OPENGL_gl_LIBRARY)
+  endif()
 endif()
 
 # OpenAL
@@ -342,7 +430,12 @@ if(NOT ARX_HAVE_SDL AND (NOT WITH_SDL OR WITH_SDL EQUAL 2))
 	else()
 		set(SDL_OPTIONAL_DEPENDENCY ${OPTIONAL_DEPENDENCY})
 	endif()
-	set(SDL2_BUILDING_LIBRARY 1) # we don't need SDL2main!
+  # On NACL, we need SDL2main so that initializations are done correctly
+  if (NACL)	
+    set(SDL2_BUILDING_LIBRARY 0) 
+  else()
+    set(SDL2_BUILDING_LIBRARY 1) # we don't need SDL2main
+  endif()
 	find_package(SDL2 ${OPTIONAL_DEPENDENCY})
 	if(SDL2_FOUND)
 		if(NOT MSVC)
@@ -377,6 +470,17 @@ add_definitions(-DBOOST_ALL_NO_LIB)
 find_package(GLM REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIRS})
 add_definitions(-DGLM_FORCE_RADIANS)
+
+#On NACL, PPAPI libraries are required
+if (NACL)
+  #list(APPEND BASE_LIBRARIES "-Wl,-undefined=PSUserCreateInstance")
+  list(APPEND BASE_LIBRARIES "-Wl,-undefined=PSUserMainGet")
+  list(APPEND BASE_LIBRARIES "-lppapi_simple")
+  list(APPEND BASE_LIBRARIES "-lnacl_io")
+  list(APPEND BASE_LIBRARIES "-lppapi_gles2")
+  list(APPEND BASE_LIBRARIES "-lppapi_cpp")
+  list(APPEND BASE_LIBRARIES "-lppapi")
+endif()
 
 # Qt and DbgHelp
 set(ARX_HAVE_CRASHREPORTER 0)
@@ -462,7 +566,7 @@ endif()
 
 if(NOT MSVC)
 	
-	if(USE_STATIC_LIBS)
+	if(USE_STATIC_LIBS AND NOT NACL) # NACL do not support these options
 		add_ldflag("-static-libstdc++")
 		add_ldflag("-static-libgcc")
 	endif()
@@ -599,7 +703,7 @@ if(NOT MSVC)
 		if(ARX_HAVE_SYS_STAT_H AND ARX_HAVE_SYS_ERRNO_H AND ARX_HAVE_DIRENT_H
 		   AND ARX_HAVE_READDIR_R AND ARX_HAVE_GETCWD
 			 AND ((((ARX_HAVE_DIRFD AND ARX_HAVE_FPATHCONF) OR ARX_HAVE_PATHCONF)
-			       AND ARX_HAVE_PC_NAME_MAX) OR ARX_HAVE_NAME_MAX))
+			       AND ARX_HAVE_PC_NAME_MAX) OR ARX_HAVE_NAME_MAX OR NACL)) # NACL have a POSIX filesystem, we just have to do a small hack
 			set(ARX_HAVE_POSIX_FILESYSTEM 1)
 		elseif(STRICT_USE)
 			message(FATAL_ERROR "Missing dependencies for native filesystem backend.")
@@ -928,7 +1032,7 @@ if(USE_OPENAL AND OPENAL_FOUND)
 endif()
 
 # Graphics
-if(USE_OPENGL AND OPENGL_FOUND AND GLEW_FOUND)
+if(USE_OPENGL AND OPENGL_FOUND AND (GLEW_FOUND OR NACL)) # GLEW is not required on NACL
 	list(APPEND GRAPHICS_SOURCES ${GRAPHICS_OPENGL_SOURCES})
 	list(APPEND ARX_LIBRARIES ${GLEW_LIBRARIES} ${OPENGL_gl_LIBRARY})
 	include_directories(SYSTEM ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIR})
@@ -954,7 +1058,9 @@ if(ARX_HAVE_SDL)
 		list(APPEND ARX_LIBRARIES ${SDL_LIBRARY})
 		include_directories(SYSTEM ${SDL_INCLUDE_DIR})
 	endif()
-	add_definitions(-DNO_SDL_GLEXT) # we use GLEW for that
+  if (NOT NACL)
+  	add_definitions(-DNO_SDL_GLEXT) # we use GLEW for that
+  endif()
 endif()
 
 # Logging
