@@ -23,7 +23,13 @@
 #include "graphics/texture/TextureStage.h"
 
 #include <map>
+
+#ifdef __native_client__
+#include <GL/Regal.h>
+#else
 #include <GL/glew.h>
+#endif
+
 
 class OpenGLRenderer;
 class GLTexture2D;

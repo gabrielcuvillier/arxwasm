@@ -31,6 +31,17 @@
 #include "platform/CrashHandler.h"
 #include "window/RenderWindow.h"
 
+#ifdef __native_client__
+  #define GLEW_ARB_texture_non_power_of_two 0
+  #define GLEW_ARB_draw_elements_base_vertex 0
+  #define GLEW_ARB_map_buffer_range 0
+  #define GLEW_EXT_texture_filter_anisotropic 0
+  #define GLEW_VERSION_2_0 0
+  #define GLEW_VERSION_3_0 0
+  #define GLEW_ARB_shader_objects 0
+  #define GLEW_ARB_vertex_program 0
+#endif
+  
 static const char vertexShaderSource[] = "void main() {\n"
 	"	// Convert pre-transformed D3D vertices to OpenGL vertices.\n"
 	"	float w = 1.0 / gl_Vertex.w;\n"
@@ -133,6 +144,8 @@ static GLuint loadVertexShader(const char * source) {
 
 void OpenGLRenderer::initialize() {
 	
+#ifdef __native_client__
+#else
 	if(glewInit() != GLEW_OK) {
 		LogError << "GLEW init failed";
 		return;
@@ -140,7 +153,8 @@ void OpenGLRenderer::initialize() {
 	
 	LogInfo << "Using GLEW " << glewGetString(GLEW_VERSION);
 	CrashHandler::setVariable("GLEW version", glewGetString(GLEW_VERSION));
-	
+#endif
+
 	LogInfo << "Using OpenGL " << glGetString(GL_VERSION);
 	CrashHandler::setVariable("OpenGL version", glGetString(GL_VERSION));
 	
@@ -200,8 +214,12 @@ void OpenGLRenderer::reinit() {
 			m_hasTextureNPOT = false;
 		}
 	}
-	
+
+#ifdef __native_client__
+  useVertexArrays = false;
+#else
 	useVertexArrays = true;
+#endif
 	
 	if(!GLEW_ARB_draw_elements_base_vertex) {
 		LogWarning << "Missing OpenGL extension ARB_draw_elements_base_vertex!";

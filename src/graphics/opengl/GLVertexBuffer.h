@@ -25,6 +25,11 @@
 #include "graphics/Math.h"
 #include "graphics/opengl/OpenGLRenderer.h"
 
+#ifdef __native_client__
+  #define GLEW_ARB_map_buffer_range 0
+  #define GLEW_ARB_draw_elements_base_vertex 0
+#endif
+
 #include "io/log/Logger.h"
 
 template <class Vertex>
@@ -251,7 +256,7 @@ public:
 		bindBuffer(buffer);
 		
 		setVertexArray<Vertex>(NULL, this);
-		
+    
 		if(GLEW_ARB_draw_elements_base_vertex) {
 			
 			glDrawRangeElementsBaseVertex(arxToGlPrimitiveType[primitive], 0, count - 1, nbindices, GL_UNSIGNED_SHORT, indices, offset);

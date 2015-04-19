@@ -21,7 +21,13 @@
 #define ARX_GRAPHICS_OPENGL_GLTEXTURE2D_H
 
 #include <boost/intrusive/list_hook.hpp>
+
+#ifdef __native_client__
+#include <GL/Regal.h>
+#else
 #include <GL/glew.h>
+#endif
+
 
 #include "graphics/texture/Texture.h"
 #include "graphics/texture/TextureStage.h"

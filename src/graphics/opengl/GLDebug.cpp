@@ -21,7 +21,12 @@
 
 #include <cstring>
 
+#ifdef __native_client__
+#include <GL/Regal.h>
+#define GLEW_ARB_debug_output 0
+#else
 #include <GL/glew.h>
+#endif
 
 #include "io/log/Logger.h"
 
