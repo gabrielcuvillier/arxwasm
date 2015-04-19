@@ -55,7 +55,11 @@ void Thread::start() {
 	
 	sched_param param;
 	param.sched_priority = priority;
-	pthread_attr_setschedparam(&attr, &param);
+#ifdef __native_client__
+  #pragma message ("Unable to set thread priority")
+#else
+  pthread_attr_setschedparam(&attr, &param);
+#endif
 	
 	pthread_create(&thread, NULL, entryPoint, this);
 	
@@ -72,6 +76,11 @@ void Thread::setPriority(Priority _priority) {
 	int policy = SCHED_RR;
 #endif
 	
+#ifdef __native_client__
+  #pragma message ("Unable to set thread priority")
+  ARX_UNUSED(_priority);
+  ARX_UNUSED(policy);
+#else
 	int min = sched_get_priority_min(policy);
 	int max = sched_get_priority_max(policy);
 	
@@ -82,6 +91,7 @@ void Thread::setPriority(Priority _priority) {
 		param.sched_priority = priority;
 		pthread_setschedparam(thread, policy, &param);
 	}
+#endif
 }
 
 Thread::~Thread() { }
