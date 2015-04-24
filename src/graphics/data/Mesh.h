@@ -97,6 +97,9 @@ struct EERIE_BACKGROUND
 	long		  nbanchors;
 	ANCHOR_DATA * anchors;
 	char		name[256];
+  
+  private:
+    EERIE_BACKGROUND & operator=(EERIE_BACKGROUND const &);
 };
 
 extern long EERIEDrawnPolys;
