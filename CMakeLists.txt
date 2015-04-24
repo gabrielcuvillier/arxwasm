@@ -171,11 +171,11 @@ elseif(MACOSX)
 elseif(NACL)
   # Special data directories on NACL (corresponding to HTML5FS and HTTPFS mounts. See Startup.cpp)
   set(DATA_DIR
-      "."
+      "arx"
 		  CACHE STRING "Data dir names"
 	  )
 	  set(DATA_DIR_PREFIXES
-		  "/mnt/arx/paks"
+		  "/mnt"
 		  CACHE STRING "Data dir paths"
 	  )
 	  set(USER_DIR

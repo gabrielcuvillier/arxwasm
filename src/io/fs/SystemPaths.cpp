@@ -37,6 +37,13 @@
 #include "platform/Environment.h"
 #include "platform/ProgramOptions.h"
 
+#ifdef __native_client__
+#include <sys/mount.h>
+#include <sys/stat.h>
+#include <nacl_io/nacl_io.h>
+#include <ppapi_simple/ps_main.h>
+#endif
+
 namespace fs {
 
 SystemPaths paths;
@@ -275,6 +282,25 @@ std::vector<path> SystemPaths::getSearchPaths(bool filter) const {
 static SystemPaths::InitParams cmdLineInitParams;
 
 ExitStatus SystemPaths::init() {
+  
+#ifdef __native_client__
+    std::cout<< nacl_io_init_ppapi(PSGetInstanceId(), PSGetInterface) << std::endl;
+    
+		std::cout<< umount("/") << std::endl;
+		std::cout<< mount("", "/", "memfs", 0, NULL) << std::endl;
+		std::cout<< mkdir("/home", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
+		std::cout<< mkdir("/home/user", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
+		std::cout<< mkdir("/mnt", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
+    std::cout<< mkdir("/mnt/arx", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
+		//std::cout<< mkdir("/mnt/html5", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
+    //std::cout<< mount("/",  "/mnt/html5", "html5fs", 0, "type=PERSISTENT") << std::endl;
+		//std::cout<< mkdir("/mnt/html5/home", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
+    //std::cout<< mount("/home", "/home/user", "html5fs", 0, "type=PERSISTENT") << std::endl;
+		std::cout<< mount("./arx", 				"/mnt/arx", "httpfs", 0, "") << std::endl;
+    
+    //std::cout << fs::copy_file("/mnt/arx/cfg_default.ini", "/home/user/arx/cfg.ini") << std::endl;
+    
+#endif  
 	return init(cmdLineInitParams);
 }
 
