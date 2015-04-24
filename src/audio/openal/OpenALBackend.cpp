@@ -35,6 +35,10 @@
 #include "platform/Platform.h"
 #include "platform/CrashHandler.h"
 
+#ifdef __native_client__
+#include <ppapi_simple/ps_main.h>
+#endif
+
 namespace audio {
 
 class Sample;
@@ -99,6 +103,10 @@ aalError OpenALBackend::init(const char * requestedDeviceName) {
 	if(device) {
 		return AAL_ERROR_INIT;
 	}
+  
+#ifdef __native_client__	
+	alSetPpapiInfo(PSGetInstanceId(), PSGetInterface);	
+#endif
 	
 	// Clear error
 	ALenum error = alGetError();
