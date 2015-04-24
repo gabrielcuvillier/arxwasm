@@ -34,6 +34,12 @@
 #include "platform/CrashHandler.h"
 #include "platform/Platform.h"
 
+#ifdef __native_client__
+#include <GL/Regal.h>
+#include <ppapi_simple/ps_main.h>
+#include <ppapi/c/ppb_opengles2.h>
+#endif
+
 SDL2Window * SDL2Window::s_mainWindow = NULL;
 
 SDL2Window::SDL2Window()
@@ -198,6 +204,10 @@ bool SDL2Window::initialize() {
 			}
 			continue;
 		}
+    
+#ifdef __native_client__
+    RegalMakeCurrent((int32_t)m_glcontext,(PPB_OpenGLES2*)PSGetInterface(PPB_OPENGLES2_INTERFACE));
+#endif
 		
 		// Verify that the MSAA setting matches what was requested
 		int msaaEnabled, msaaValue;
