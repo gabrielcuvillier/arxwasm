@@ -213,7 +213,12 @@ else(MSVC)
 			   AND (NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "-g(|[0-9]|gdb)"))
 				add_cxxflag("-g2")
 			endif()
-			
+      
+      if(PNACL)
+        check_compiler_flag(RESULT "-Os")
+        string(REGEX REPLACE "-O[0-9]" "-Os" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${RESULT}")
+      endif()
 		endif()
 		
 	endif(SET_OPTIMIZATION_FLAGS)
