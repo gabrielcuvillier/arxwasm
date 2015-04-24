@@ -91,13 +91,18 @@ void GLTexture2D::Upload() {
 	if(storedSize != size) {
 		flags &= ~HasMipmaps;
 	}
-	
+  
+#ifdef __native_client__
+#pragma message( "Problems with Mimaps and fitering with OpenGL ES 2" )
+  flags &= ~HasMipmaps;
+#endif
+
 	if(hasMipmaps()) {
 		glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 	} else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	}
-	
+  
 	// TODO handle GL_MAX_TEXTURE_SIZE
 	
 	if(storedSize != size) {
