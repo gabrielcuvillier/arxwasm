@@ -847,14 +847,23 @@ bool ArxGame::initGame()
 	ARX_MISSILES_ClearAll();
 	spells.init();
 
-	ARX_SPELLS_ClearAllSymbolDraw();
+	ARX_SPELLS_ClearAllSymbolDraw(); 
 	ARX_PARTICLES_ClearAll();
 	ARX_MAGICAL_FLARES_FirstInit();
 	
 	LastLoadedScene.clear();
 	
-	// DefaultBkg = EERIE_BACKGROUND();
-	//memset(&DefaultBkg, 0, sizeof(DefaultBkg));
+#ifdef __native_client__
+  // On native client, fixed what seems to be a compiler bug or toolchain bug (?):
+  // When the default assignement operator of EERIE_BACKGROUND is called to initialize DefaultBkg (static data), 
+  // memory seems to gets corrupted in the program leading to "random" crashes later on (crash location depends on the size of the executable).
+  // It may come from bad default initialization of the multidimensional array present in EERIE_BACKGROUND.
+  
+  // DefaultBkg = EERIE_BACKGROUND();
+  memset(&DefaultBkg, 0, sizeof(DefaultBkg));
+#else
+  DefaultBkg = EERIE_BACKGROUND();
+#endif
 	ACTIVEBKG=&DefaultBkg;
 	InitBkg(ACTIVEBKG,MAX_BKGX,MAX_BKGZ,BKG_SIZX,BKG_SIZZ);
 	

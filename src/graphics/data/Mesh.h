@@ -98,8 +98,12 @@ struct EERIE_BACKGROUND
 	ANCHOR_DATA * anchors;
 	char		name[256];
   
+#ifdef __native_client__
+  // On Native Client, prevent default assignment operator to be called, as it lead to random crashes 
+  // See ArxGame::InitGame() for some details. 
   private:
     EERIE_BACKGROUND & operator=(EERIE_BACKGROUND const &);
+#endif
 };
 
 extern long EERIEDrawnPolys;
