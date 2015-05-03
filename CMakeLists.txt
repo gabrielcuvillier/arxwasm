@@ -1189,9 +1189,16 @@ list(APPEND ARX_SOURCES "${VERSION_FILE}")
 
 # Add executables
 
-add_executable_shared(arx "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
-set_binary_type(arx WIN32)
-set_binary_installdir(arx "${GAMESBINDIR}")
+if (NACL)
+  add_executable_shared("arx${PLATFORM_EXE_SUFFIX}" "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
+  if (PNACL)
+    pnacl_finalize("arx${PLATFORM_EXE_SUFFIX}")
+  endif()
+else()
+  add_executable_shared(arx "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
+  set_binary_type(arx WIN32)
+  set_binary_installdir(arx "${GAMESBINDIR}")
+endif()
 
 if(ARX_HAVE_CRASHREPORTER)
 	
@@ -1568,6 +1575,8 @@ if(BUILD_TESTS)
 endif()
 
 
+if(NACL)
+else()
 # Install Arx Libertatis data files
 # TODO these should be zipped up once we support that
 install(DIRECTORY data/core/ DESTINATION "${INSTALL_DATADIR}")
@@ -1584,6 +1593,7 @@ if(CMAKE_VERSION VERSION_LESS 2.8.12)
 	endforeach()
 else()
 	file(GENERATE OUTPUT "$<TARGET_FILE_DIR:arx>/data" CONTENT "${arx_core_dir}\n")
+endif()
 endif()
 
 # Install the data install script
