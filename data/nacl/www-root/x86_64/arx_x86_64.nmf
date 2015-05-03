@@ -2,7 +2,7 @@
   "files": {},
   "program": {
     "x86-64": {
-      "url": "arx_x86_64.nexe"
+      "url": "arx.nexe"
     }
   }
 }
