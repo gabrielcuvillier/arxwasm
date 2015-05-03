@@ -175,8 +175,8 @@ elseif(NACL)
 		  CACHE STRING "Data dir names"
 	  )
 	  set(DATA_DIR_PREFIXES
-		  "/mnt"
-		  CACHE STRING "Data dir paths"
+      "/mnt/http:/tmp"
+      CACHE STRING "Data dir paths"
 	  )
 	  set(USER_DIR
 		  "arx"

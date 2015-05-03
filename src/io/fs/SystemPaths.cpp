@@ -284,23 +284,31 @@ static SystemPaths::InitParams cmdLineInitParams;
 ExitStatus SystemPaths::init() {
   
 #ifdef __native_client__
-    std::cout<< nacl_io_init_ppapi(PSGetInstanceId(), PSGetInterface) << std::endl;
+    // On NACL, we are going to use special filesystems and directories
     
-		std::cout<< umount("/") << std::endl;
-		std::cout<< mount("", "/", "memfs", 0, NULL) << std::endl;
-		std::cout<< mkdir("/home", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
-		std::cout<< mkdir("/home/user", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
-		std::cout<< mkdir("/mnt", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
-    std::cout<< mkdir("/mnt/arx", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
-		//std::cout<< mkdir("/mnt/html5", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
-    //std::cout<< mount("/",  "/mnt/html5", "html5fs", 0, "type=PERSISTENT") << std::endl;
-		//std::cout<< mkdir("/mnt/html5/home", S_IRWXU | S_IRWXG | S_IRWXO) << std::endl;
-    //std::cout<< mount("/home", "/home/user", "html5fs", 0, "type=PERSISTENT") << std::endl;
-		std::cout<< mount("./arx", 				"/mnt/arx", "httpfs", 0, "") << std::endl;
+    nacl_io_init_ppapi(PSGetInstanceId(), PSGetInterface);
     
-    //std::cout << fs::copy_file("/mnt/arx/cfg_default.ini", "/home/user/arx/cfg.ini") << std::endl;
+		// Mount memfs on "/" 
+    umount("/");
+		mount("", "/", "memfs", 0, NULL);
+    // "/home/user" will contain config and user data
+		mkdir("/home", S_IRWXU | S_IRWXG | S_IRWXO);
+		mkdir("/home/user", S_IRWXU | S_IRWXG | S_IRWXO);
     
+    // Mount httpfs on "/mnt/http/arx", for game data access on HTTP server
+    // Note: game data must be under "arx" subfolder of the www root
+		mkdir("/mnt", S_IRWXU | S_IRWXG | S_IRWXO);
+    mkdir("/mnt/http", S_IRWXU | S_IRWXG | S_IRWXO);
+    mkdir("/mnt/http/arx", S_IRWXU | S_IRWXG | S_IRWXO);
+    mount("./arx","/mnt/http/arx", "httpfs", 0, "");
+    
+    // Mount html5fs on "/tmp/arx", for game data access in local html5 filesystem
+    // Note: game data must be under "arx" subfolder of the local html5 filesystem root
+    mkdir("/tmp", S_IRWXU | S_IRWXG | S_IRWXO);
+    mkdir("/tmp/arx", S_IRWXU | S_IRWXG | S_IRWXO);
+    mount("/arx", "/tmp/arx", "html5fs", 0, "type=TEMPORARY");  // FS is temporary
 #endif  
+
 	return init(cmdLineInitParams);
 }
 
