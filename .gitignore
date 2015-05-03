@@ -1,3 +1,5 @@
 build_nacl
 build_pnacl
 *~
+*.pexe
+*.nexe
