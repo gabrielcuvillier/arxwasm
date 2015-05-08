@@ -1188,17 +1188,9 @@ list(APPEND ARX_SOURCES "${VERSION_FILE}")
 
 
 # Add executables
-
-if (NACL)
-  add_executable_shared("arx${PLATFORM_EXE_SUFFIX}" "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
-  if (PNACL)
-    pnacl_finalize("arx${PLATFORM_EXE_SUFFIX}")
-  endif()
-else()
-  add_executable_shared(arx "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
-  set_binary_type(arx WIN32)
-  set_binary_installdir(arx "${GAMESBINDIR}")
-endif()
+add_executable_shared(arx "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
+set_binary_type(arx WIN32)
+set_binary_installdir(arx "${GAMESBINDIR}")
 
 if(ARX_HAVE_CRASHREPORTER)
 	
