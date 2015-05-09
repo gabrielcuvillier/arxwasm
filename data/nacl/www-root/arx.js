@@ -83,10 +83,16 @@ function uploadDidChange(event) {
         var files = event.target.files;
         for (var i = 0, file; file = files[i]; ++i) {
           (function(f) {
-            dirEntry.getFile(f.name, {create: true, exclusive: true}, function(fileEntry) {
+            dirEntry.getFile(f.name, {create: true}, function(fileEntry) {
               fileEntry.createWriter(function(fileWriter) {
+                function done(evt) {
+                  updateStatus(f.name + ' copied to html5 filesystem.');                
+                };
+                function error(evt) {
+                  updateStatus('Error while copying ' + f.name);
+                };
+                fileWriter.onwriteend = done
                 fileWriter.write(f);
-                updateStatus(f.name + ' copied to html5 filesystem.');
               });
             }, fileErrorHandler);
           })(file);
