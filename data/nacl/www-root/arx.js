@@ -36,9 +36,26 @@ function runArx() {
     console.log("Exit code:", embed.exitStatus);
   }
 
+  function progress_handler(evt) {
+    if (evt.total != 0) {
+      var progress = Number((evt.loaded * 100 / evt.total).toFixed(0));
+      document.getElementById(LOADING_STATUS_ID).innerHTML = "Loading: " + progress + "%";  
+
+      if (progress > 94) {
+        document.getElementById(LOADING_STATUS_ID).innerHTML += "<br/>" + "Please, wait some more time while approaching 100%...";
+      }
+    }
+  }
+
+  function load_handler(evt) {
+    document.getElementById(LOADING_STATUS_ID).innerHTML = "Loading: success.";
+  }
+
   embed.addEventListener('loadstart', log_handler("loadstart"));
   embed.addEventListener('progress', log_handler("progress"));
+  embed.addEventListener('progress', progress_handler);
   embed.addEventListener('load', log_handler("load"));
+  embed.addEventListener('load', load_handler);
   embed.addEventListener('error', log_handler("error"));
   embed.addEventListener('abort', log_handler("abort"));
   embed.addEventListener('loadend', log_handler("loadend"));
