@@ -291,22 +291,27 @@ ExitStatus SystemPaths::init() {
 		// Mount memfs on "/" 
     umount("/");
 		mount("", "/", "memfs", 0, NULL);
-    // "/home/user" will contain config and user data
-		mkdir("/home", S_IRWXU | S_IRWXG | S_IRWXO);
-		mkdir("/home/user", S_IRWXU | S_IRWXG | S_IRWXO);
     
-    // Mount httpfs on "/mnt/http/arx", for game data access on HTTP server
+    // Mount persistent html5fs on /home/user/arx", for user data access stored in local html5 filesystem
+    // Note: user data must be under "arx" subfolder of the persistent html5 filesystem root
+    mkdir("/home", S_IRWXU | S_IRWXG | S_IRWXO);
+    mkdir("/home/user", S_IRWXU | S_IRWXG | S_IRWXO);
+    mount("/", "/home/user", "html5fs", 15 * 1024 * 1024, "type=PERSISTENT");  // FS is persistent
+    mkdir("/home/user/arx", S_IRWXU | S_IRWXG | S_IRWXO);
+    
+    // Mount temporary html5fs on "/tmp/arx", for game data access stored in local html5 filesystem 
+    // Note: game data must be under "arx" subfolder of the temporary html5 filesystem root
+    mkdir("/tmp", S_IRWXU | S_IRWXG | S_IRWXO);
+    mkdir("/tmp/arx", S_IRWXU | S_IRWXG | S_IRWXO);
+    mount("/arx", "/tmp/arx", "html5fs", 0, "type=TEMPORARY");  // FS is temporary
+    
+    // Mount httpfs on "/mnt/http/arx", for game data access stored on HTTP server
     // Note: game data must be under "arx" subfolder of the www root
 		mkdir("/mnt", S_IRWXU | S_IRWXG | S_IRWXO);
     mkdir("/mnt/http", S_IRWXU | S_IRWXG | S_IRWXO);
     mkdir("/mnt/http/arx", S_IRWXU | S_IRWXG | S_IRWXO);
     mount("./arx","/mnt/http/arx", "httpfs", 0, "");
     
-    // Mount html5fs on "/tmp/arx", for game data access in local html5 filesystem
-    // Note: game data must be under "arx" subfolder of the local html5 filesystem root
-    mkdir("/tmp", S_IRWXU | S_IRWXG | S_IRWXO);
-    mkdir("/tmp/arx", S_IRWXU | S_IRWXG | S_IRWXO);
-    mount("/arx", "/tmp/arx", "html5fs", 0, "type=TEMPORARY");  // FS is temporary
 #endif  
 
 	return init(cmdLineInitParams);
