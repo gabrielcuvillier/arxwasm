@@ -4,6 +4,7 @@
     <title>Arx Libertaris PNaCl</title>
     <style>
       body {background-color:black}
+      body {color:white}
       h1   {color:white}
       p    {color:white}
     </style>
@@ -12,16 +13,23 @@
       var MODULE_MIMETYPE='application/x-pnacl';
       var MODULE_WIDTH=800;
       var MODULE_HEIGHT=600;
-      
+ 
       var STATUS_ID = 'status';
-      var MAIN_ID = 'arx_main';
+      var SELECT_DATA_ID = 'select_data';
+      var LAUNCH_ARX_ID = 'launch_arx';
+      var LOAD_STATUS_ID = 'load_status';
+      var MAIN_ID = 'main';
     </script>
     <script type="text/javascript" src="arx.js"></script>
   </head>
   <body>
-    <h1>Arx Libertatis PNaCl</h1>
-    <p id='status'></p>
-    <div id='arx_main'/>
+    <h1>Arx Libertatis PNaCl</h1> 
+    <div id='status'></div>
+    <div id='select_data'></div>
+    <br/>
+    <div id='launch_arx'></div>
+    <div id='load_status'></div>
+    <div id='main'></div>
     <br />
   </body>
 </html>

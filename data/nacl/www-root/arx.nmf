@@ -2,10 +2,12 @@
   "program": {
     "portable": {
       "pnacl-translate": {
-        "url": "arx.pexe"
+        "url": "arx.pexe",
+        "optlevel": 1
       },
       "pnacl-debug": {
-        "url": "arx_unstripped.bc"
+        "url": "arx_unstripped.bc",
+        "optlevel": 0
       }
     }
   }
