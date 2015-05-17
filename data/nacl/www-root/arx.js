@@ -141,21 +141,33 @@ function uploadDidChange(event) {
     }, fileErrorHandler);
 }
 
+function enableArxUpload(optional) {
+  str = 'Select game data (*.pak files, and cfg_default.ini) to copy to local html5 filesystem.';
+  if (optional === true) {
+    updateStatus('[optional] ' + str);
+  }
+  else {
+    updateStatus(str);
+  }
+  
+  document.getElementById(SELECT_DATA_ID).innerHTML = '<input type="file" id="infile" multiple>';
+  document.getElementById('infile').addEventListener( 'change',
+                                                      uploadDidChange,
+                                                      false);   
+}
+
 function loadFromLocalStorage() {
   updateStatus('Searching for Arx data in local html5 filesystem (temporary: /' + ARX_DIR + '/' + PAK_FILE + ').');
   
   function loadSuccess() {
     updateStatus('Found Arx data in local html5 filesystem.');
+    enableArxUpload(true); // optional
     enableArxLaunch();
   }
 
   function loadFailure() {
     updateStatus('Arx data not found in local html5 filesystem.');
-    updateStatus('Select game data (all PAK files and cfg_default.ini) to copy to local html5 filesystem.');
-    document.getElementById(SELECT_DATA_ID).innerHTML = '<input type="file" id="infile" multiple>';
-    document.getElementById('infile').addEventListener( 'change',
-                                                        uploadDidChange,
-                                                        false);        
+    enableArxUpload(false); // mandatory
   }
 
   window.webkitRequestFileSystem(window.TEMPORARY, 1024 * 1024 * 1024,
