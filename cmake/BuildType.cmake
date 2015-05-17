@@ -106,7 +106,7 @@ else(MSVC)
 
   if(PNACL)
     #Exceptions must be enabled manualy on pnacl, and are required for Arx to function properly
-    add_ldflag("-Wl,--pnacl-exceptions=sjlj")
+    add_ldflag("--pnacl-exceptions=sjlj")
   endif()
 	
 	if(SET_WARNING_FLAGS)
