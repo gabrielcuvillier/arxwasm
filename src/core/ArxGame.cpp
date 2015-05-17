@@ -433,7 +433,12 @@ bool ArxGame::initWindow(RenderWindow * window) {
 	
 	m_MainWindow->setTitle(arx_version);
 	m_MainWindow->setMinTextureUnits(3);
-	m_MainWindow->setMaxMSAALevel(config.video.antialiasing ? 8 : 1);
+  #ifdef __native_client__
+    // Disable antialiasing on NACL, as it do to not work at all
+    m_MainWindow->setMaxMSAALevel(1);
+  #else
+    m_MainWindow->setMaxMSAALevel(config.video.antialiasing ? 8 : 1);
+  #endif
 	m_MainWindow->setVSync(config.video.vsync ? 1 : 0);
 	
 	setWindowSize(config.video.fullscreen);
