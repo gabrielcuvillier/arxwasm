@@ -142,6 +142,13 @@ public:
 		ARX_UNUSED(timeDelta);
 	}
 	
+	virtual Vec3f getPosition();
+	Vec3f getCasterPosition();
+	Vec3f getTargetPosition();
+	
+	void updateCasterHand();
+	void updateCasterPosition();
+	
 	SpellHandle m_thisHandle;
 	
 	EntityHandle m_caster; //!< Number of the source interactive obj (0==player)

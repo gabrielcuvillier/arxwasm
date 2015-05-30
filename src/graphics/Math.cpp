@@ -234,7 +234,7 @@ static int coplanar_tri_tri(const float N[3], const float V0[3], const float V1[
 // VERIFIED (Cyril 2001/10/19)
 // OPTIMIZED (Cyril 2001/10/19) removed divisions, need some more optims perhaps...
 //***********************************************************************************************
-static int tri_tri_intersect(const EERIE_TRI * VV, const EERIE_TRI * UU)  {
+static int tri_tri_intersect(const EERIE_TRI & VV, const EERIE_TRI & UU)  {
 	
 	float E1[3], E2[3];
 	float N1[3], N2[3], d1, d2;
@@ -258,13 +258,13 @@ static int tri_tri_intersect(const EERIE_TRI * VV, const EERIE_TRI * UU)  {
 	const float * U1;
 	const float * U2;
 
-	V0 = glm::value_ptr(VV->v[0]);
-	V1 = glm::value_ptr(VV->v[1]);
-	V2 = glm::value_ptr(VV->v[2]);
+	V0 = glm::value_ptr(VV.v[0]);
+	V1 = glm::value_ptr(VV.v[1]);
+	V2 = glm::value_ptr(VV.v[2]);
 
-	U0 = glm::value_ptr(UU->v[0]);
-	U1 = glm::value_ptr(UU->v[1]);
-	U2 = glm::value_ptr(UU->v[2]);
+	U0 = glm::value_ptr(UU.v[0]);
+	U1 = glm::value_ptr(UU.v[1]);
+	U2 = glm::value_ptr(UU.v[2]);
 
 	/* compute plane equation of triangle(V0,V1,V2) */
 	SUB(E1, V1, V0);
@@ -356,31 +356,34 @@ static int tri_tri_intersect(const EERIE_TRI * VV, const EERIE_TRI * UU)  {
 #undef SUB
 
 // Computes Bounding Box for a triangle
-static inline void Triangle_ComputeBoundingBox(EERIE_3D_BBOX * bb, const EERIE_TRI * v) {
-	bb->min.x = std::min(v->v[0].x, v->v[1].x);
-	bb->min.x = std::min(bb->min.x, v->v[2].x);
+static inline EERIE_3D_BBOX Triangle_ComputeBoundingBox(const EERIE_TRI & v) {
+	EERIE_3D_BBOX bb;
+	
+	bb.min.x = std::min(v.v[0].x, v.v[1].x);
+	bb.min.x = std::min(bb.min.x, v.v[2].x);
 
-	bb->max.x = std::max(v->v[0].x, v->v[1].x);
-	bb->max.x = std::max(bb->max.x, v->v[2].x);
+	bb.max.x = std::max(v.v[0].x, v.v[1].x);
+	bb.max.x = std::max(bb.max.x, v.v[2].x);
 
-	bb->min.y = std::min(v->v[0].y, v->v[1].y);
-	bb->min.y = std::min(bb->min.y, v->v[2].y);
+	bb.min.y = std::min(v.v[0].y, v.v[1].y);
+	bb.min.y = std::min(bb.min.y, v.v[2].y);
 
-	bb->max.y = std::max(v->v[0].y, v->v[1].y);
-	bb->max.y = std::max(bb->max.y, v->v[2].y);
+	bb.max.y = std::max(v.v[0].y, v.v[1].y);
+	bb.max.y = std::max(bb.max.y, v.v[2].y);
 
-	bb->min.z = std::min(v->v[0].z, v->v[1].z);
-	bb->min.z = std::min(bb->min.z, v->v[2].z);
+	bb.min.z = std::min(v.v[0].z, v.v[1].z);
+	bb.min.z = std::min(bb.min.z, v.v[2].z);
 
-	bb->max.z = std::max(v->v[0].z, v->v[1].z);
-	bb->max.z = std::max(bb->max.z, v->v[2].z);
+	bb.max.z = std::max(v.v[0].z, v.v[1].z);
+	bb.max.z = std::max(bb.max.z, v.v[2].z);
+	
+	return bb;
 }
 
-bool Triangles_Intersect(const EERIE_TRI * v, const EERIE_TRI * u)
+bool Triangles_Intersect(const EERIE_TRI & v, const EERIE_TRI & u)
 {
-	EERIE_3D_BBOX bb1, bb2;
-	Triangle_ComputeBoundingBox(&bb1, v);
-	Triangle_ComputeBoundingBox(&bb2, u);
+	EERIE_3D_BBOX bb1 = Triangle_ComputeBoundingBox(v);
+	EERIE_3D_BBOX bb2 = Triangle_ComputeBoundingBox(u);
 
 	if (bb1.max.y < bb2.min.y) return false;
 
@@ -620,12 +623,15 @@ glm::quat angleToQuatForExtraRotation(const Anglef & angle) {
 	return QuatFromAngles(vt1);
 }
 
-std::pair<Vec3f, Vec3f> angleToFrontUpVecForSound(const Anglef & angle) {
+std::pair<Vec3f, Vec3f> angleToFrontUpVec(const Anglef & angle) {
 	
-	Vec3f front = angleToVectorXZ(angle.getPitch());
+	Vec3f front = angleToVector(angle);
+	Vec3f up = angleToVector(angle + Anglef(90.f, 0, 0));
 	
-	//TODO Hardcoded up vector
-	Vec3f up(0.f, 1.f, 0.f);
+	arx_assert(glm::abs(glm::dot(front, up)) < 5.f * glm::epsilon<float>(),
+	           "front=(%f,%f,%f) and up=(%f,%f,%f) should be orthogonal; dot=%1f*epsilon",
+	           front.x, front.y, front.z, up.x, up.y, up.z,
+	           glm::dot(front, up) / glm::epsilon<float>());
 	
 	return std::make_pair(front, up);
 }
@@ -680,29 +686,20 @@ Vec3f angleToVector(const Anglef & angle) {
 }
 
 //A x B = <Ay*Bz - Az*By, Az*Bx - Ax*Bz, Ax*By - Ay*Bx>
-void CalcFaceNormal(EERIEPOLY * ep, const TexturedVertex * v) {
+Vec3f CalcFaceNormal(const TexturedVertex * v) {
 	
-	float Ax, Ay, Az, Bx, By, Bz;
-	Ax = v[1].p.x - v[0].p.x;
-	Ay = v[1].p.y - v[0].p.y;
-	Az = v[1].p.z - v[0].p.z;
+	Vec3f A = v[1].p - v[0].p;
+	Vec3f B = v[2].p - v[0].p;
 	
-	Bx = v[2].p.x - v[0].p.x;
-	By = v[2].p.y - v[0].p.y;
-	Bz = v[2].p.z - v[0].p.z;
-	
-	ep->norm = Vec3f(Ay * Bz - Az * By, Az * Bx - Ax * Bz, Ax * By - Ay * Bx);
-	ep->norm = glm::normalize(ep->norm);
+	return glm::normalize(Vec3f(A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x));
 }
 
-void CalcObjFaceNormal(const Vec3f * v0, const Vec3f * v1, const Vec3f * v2,
-                       EERIE_FACE * ef) {
+Vec3f CalcObjFaceNormal(const Vec3f & v0, const Vec3f & v1, const Vec3f & v2) {
 	
-	Vec3f A = *v1 - *v0;
-	Vec3f B = *v2 - *v0;
+	Vec3f A = v1 - v0;
+	Vec3f B = v2 - v0;
 	
-	ef->norm = Vec3f(A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x);
-	ef->norm = glm::normalize(ef->norm);
+	return glm::normalize(Vec3f(A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x));
 }
 
 void MatrixSetByVectors(glm::mat4x4 & m, const Vec3f & d, const Vec3f & u)

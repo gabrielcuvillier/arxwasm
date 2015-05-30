@@ -262,9 +262,7 @@ void CRuneOfGuarding::Create(Vec3f _eSrc) {
 		light->intensity = 0.7f + 2.3f;
 		light->fallend = 500.f;
 		light->fallstart = 400.f;
-		light->rgb.r = 1.0f;
-		light->rgb.g = 0.2f;
-		light->rgb.b = 0.2f;
+		light->rgb = Color3f(1.0f, 0.2f, 0.2f);
 		light->pos = eSrc - Vec3f(0.f, 50.f, 0.f);
 		light->time_creation = (unsigned long)(arxtime);
 		light->duration = 200;
@@ -283,9 +281,7 @@ void CRuneOfGuarding::Update(float timeDelta) {
 		light->intensity = 0.7f + 2.3f * fa;
 		light->fallend = 350.f;
 		light->fallstart = 150.f;
-		light->rgb.r = 1.0f;
-		light->rgb.g = 0.2f;
-		light->rgb.b = 0.2f;
+		light->rgb = Color3f(1.0f, 0.2f, 0.2f);
 		light->time_creation = (unsigned long)(arxtime);
 		light->duration = 200;
 	}
@@ -696,7 +692,7 @@ void CMultiPoisonProjectile::Render()
 			light->duration	= 200;
 		}
 
-		AddPoisonFog(&projectile->eCurPos, m_level + 7);
+		AddPoisonFog(projectile->eCurPos, m_level + 7);
 
 		if(m_timcreation + 1600 < (unsigned long)(arxtime)) {
 			
@@ -716,7 +712,7 @@ void CMultiPoisonProjectile::Render()
 	}
 }
 
-void CMultiPoisonProjectile::AddPoisonFog(Vec3f * pos, float power) {
+void CMultiPoisonProjectile::AddPoisonFog(const Vec3f & pos, float power) {
 	
 	int iDiv = 4 - config.video.levelOfDetail;
 	
@@ -739,7 +735,7 @@ void CMultiPoisonProjectile::AddPoisonFog(Vec3f * pos, float power) {
 		float speed = 1.f;
 		float fval = speed * 0.2f;
 		pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
-		pd->ov = *pos + randomVec(-100.f, 100.f);
+		pd->ov = pos + randomVec(-100.f, 100.f);
 		pd->scale = Vec3f(8.f, 8.f, 10.f);
 		pd->move = Vec3f((speed - rnd()) * fval, (speed - speed * rnd()) * (1.f / 15),
 		                 (speed - rnd()) * fval);
@@ -1011,15 +1007,19 @@ void CLevitate::AddStone(const Vec3f & pos) {
 	while(nb--) {
 		if(!tstone[nb].actif) {
 			nbstone++;
-			tstone[nb].actif = 1;
-			tstone[nb].numstone = rand() & 1;
-			tstone[nb].pos = pos;
-			tstone[nb].yvel = rnd() * -5.f;
-			tstone[nb].ang = Anglef(rnd() * 360.f, rnd() * 360.f, rnd() * 360.f);
-			tstone[nb].angvel = Anglef(5.f * rnd(), 6.f * rnd(), 3.f * rnd());
-			tstone[nb].scale = Vec3f(0.2f + rnd() * 0.3f);
-			tstone[nb].time = Random::get(2000, 2500);
-			tstone[nb].currtime = 0;
+			
+			T_STONE stone;
+			stone.actif = 1;
+			stone.numstone = Random::get(0, 1);
+			stone.pos = pos;
+			stone.yvel = rnd() * -5.f;
+			stone.ang = Anglef(rnd(), rnd(), rnd()) * Anglef(360.f, 360.f, 360.f);
+			stone.angvel = Anglef(rnd(), rnd(), rnd()) * Anglef(5.f, 6.f, 3.f);
+			stone.scale = Vec3f(0.2f + rnd() * 0.3f);
+			stone.time = Random::get(2000, 2500);
+			stone.currtime = 0;
+			
+			tstone[nb] = stone;
 			break;
 		}
 	}
@@ -1034,23 +1034,25 @@ void CLevitate::DrawStone()
 	int	nb = 256;
 
 	while(nb--) {
-		if(this->tstone[nb].actif) {
-			float a = (float)this->tstone[nb].currtime / (float)this->tstone[nb].time;
+		T_STONE & s = tstone[nb];
+		
+		if(s.actif) {
+			float a = (float)s.currtime / (float)s.time;
 
 			if(a > 1.f) {
 				a = 1.f;
-				this->tstone[nb].actif = 0;
+				s.actif = 0;
 			}
 
 			Color4f col = Color4f(Color3f::white, 1.f - a);
 
-			EERIE_3DOBJ * obj = (tstone[nb].numstone == 0) ? stone0 : stone1;
+			EERIE_3DOBJ * obj = (s.numstone == 0) ? stone0 : stone1;
 			
-			Draw3DObject(obj, tstone[nb].ang, tstone[nb].pos, tstone[nb].scale, Color4f(col), mat);
+			Draw3DObject(obj, s.ang, s.pos, s.scale, Color4f(col), mat);
 			
 			PARTICLE_DEF * pd = createParticle();
 			if(pd) {
-				pd->ov = tstone[nb].pos;
+				pd->ov = s.pos;
 				pd->move = Vec3f(0.f, 3.f * rnd(), 0.f);
 				pd->siz = 3.f + 3.f * rnd();
 				pd->tolive = 1000;
@@ -1062,13 +1064,13 @@ void CLevitate::DrawStone()
 			
 			//update mvt
 			if(!arxtime.is_paused()) {
-				a = (((float)this->currframetime) * 100.f) / (float)this->tstone[nb].time;
-				tstone[nb].pos.y += tstone[nb].yvel * a;
-				tstone[nb].ang += tstone[nb].angvel * a;
+				a = (((float)this->currframetime) * 100.f) / (float)s.time;
+				s.pos.y += s.yvel * a;
+				s.ang += s.angvel * a;
 
-				this->tstone[nb].yvel *= 1.f - (1.f / 100.f);
+				s.yvel *= 1.f - (1.f / 100.f);
 
-				this->tstone[nb].currtime += this->currframetime;
+				s.currtime += this->currframetime;
 			}
 		}
 	}

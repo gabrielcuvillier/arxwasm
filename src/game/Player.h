@@ -304,7 +304,7 @@ struct ARXCHARACTER {
 	
 	RuneFlags rune_flags;
 	bool hasRune(Rune rune) {
-		return rune_flags & (RuneFlag)(1<<rune);
+		return (rune_flags & (RuneFlag)(1 << rune)) != 0;
 	}
 	
 	
@@ -373,7 +373,7 @@ void ARX_PLAYER_Manage_Movement();
 void ARX_PLAYER_Manage_Death();
 void ARX_PLAYER_Quest_Add(const std::string & quest, bool _bLoad = false);
 void ARX_PLAYER_Quest_Init();
-void ARX_PLAYER_FrontPos(Vec3f * pos);
+Vec3f ARX_PLAYER_FrontPos();
 void ARX_PLAYER_ComputePlayerFullStats();
 void ARX_PLAYER_MakeFreshHero();
 void ARX_PLAYER_QuickGeneration();

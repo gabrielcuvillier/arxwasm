@@ -111,9 +111,7 @@ long getParticleCount() {
 	return ParticleCount;
 }
 
-void ARX_PARTICLES_Spawn_Lava_Burn(Vec3f * poss, Entity * io) {
-	
-	Vec3f pos = *poss;
+void ARX_PARTICLES_Spawn_Lava_Burn(Vec3f pos, Entity * io) {
 	
 	if(io && io->obj && !io->obj->facelist.empty()) {
 		size_t num = 0;
@@ -450,7 +448,7 @@ void ARX_PARTICLES_Spawn_Blood2(const Vec3f & pos, float dmgs, Color col, Entity
 	}
 }
 
-void ARX_PARTICLES_Spawn_Blood(Vec3f * pos, float dmgs, EntityHandle source) {
+void ARX_PARTICLES_Spawn_Blood(const Vec3f & pos, float dmgs, EntityHandle source) {
 	
 	if(source < 0) {
 		return;
@@ -461,7 +459,7 @@ void ARX_PARTICLES_Spawn_Blood(Vec3f * pos, float dmgs, EntityHandle source) {
 	long count = entities[source]->obj->grouplist.size();
 	for(long i = 0; i < count; i += 2) {
 		long vertex = entities[source]->obj->grouplist[i].origin;
-		float dist = glm::distance2(*pos, entities[source]->obj->vertexlist3[vertex].v);
+		float dist = glm::distance2(pos, entities[source]->obj->vertexlist3[vertex].v);
 		if(dist < nearest_dist) {
 			nearest_dist = dist;
 			nearest = i;
@@ -547,7 +545,7 @@ void MakePlayerAppearsFX(Entity * io) {
 	MakeCoolFx(io->pos);
 	MakeCoolFx(io->pos);
 	AddRandomSmoke(io, 30);
-	ARX_PARTICLES_Add_Smoke(&io->pos, 1 | 2, 20); // flag 1 = randomize pos
+	ARX_PARTICLES_Add_Smoke(io->pos, 1 | 2, 20); // flag 1 = randomize pos
 }
 
 void AddRandomSmoke(Entity * io, long amount) {
@@ -580,7 +578,7 @@ void AddRandomSmoke(Entity * io, long amount) {
 }
 
 // flag 1 = randomize pos
-void ARX_PARTICLES_Add_Smoke(Vec3f * pos, long flags, long amount, Color3f * rgb) {
+void ARX_PARTICLES_Add_Smoke(const Vec3f & pos, long flags, long amount, Color3f * rgb) {
 	
 	Vec3f mod = (flags & 1) ? randomVec(-50.f, 50.f) : Vec3f_ZERO;
 	
@@ -591,7 +589,7 @@ void ARX_PARTICLES_Add_Smoke(Vec3f * pos, long flags, long amount, Color3f * rgb
 			return;
 		}
 		
-		pd->ov = *pos + mod;
+		pd->ov = pos + mod;
 		if(flags & 2) {
 			pd->siz = rnd() * 20.f + 15.f;
 			pd->scale = randomVec(40.f, 55.f);
@@ -943,7 +941,7 @@ void ARX_PARTICLES_SpawnWaterSplash(const Vec3f & _ePos) {
 	}
 }
 
-void SpawnFireballTail(Vec3f * poss, Vec3f * vecto, float level, long flags) {
+void SpawnFireballTail(const Vec3f & poss, const Vec3f & vecto, float level, long flags) {
 	
 	if(!explo[0]) {
 		return;
@@ -978,14 +976,14 @@ void SpawnFireballTail(Vec3f * poss, Vec3f * vecto, float level, long flags) {
 		
 		if(nn == 1) {
 			pd->delay = Random::get(150, 250);
-			pd->ov = *poss + *vecto * Vec3f(pd->delay);
+			pd->ov = poss + vecto * Vec3f(pd->delay);
 		} else {
-			pd->ov = *poss;
+			pd->ov = poss;
 		}
 	}
 }
 
-void LaunchFireballBoom(Vec3f * poss, float level, Vec3f * direction, Color3f * rgb) {
+void LaunchFireballBoom(const Vec3f & poss, float level, Vec3f * direction, Color3f * rgb) {
 	
 	level *= 1.6f;
 	
@@ -999,7 +997,7 @@ void LaunchFireballBoom(Vec3f * poss, float level, Vec3f * direction, Color3f * 
 	}
 	
 	pd->special = FIRE_TO_SMOKE | FADE_IN_AND_OUT | PARTICLE_ANIMATED;
-	pd->ov = *poss;
+	pd->ov = poss;
 	pd->move = (direction) ? *direction : Vec3f(0.f, -rnd() * 5.f, 0.f);
 	pd->tolive = Random::get(1600, 2200);
 	pd->tc = explo[0];

@@ -58,6 +58,7 @@ const std::string
 const int
 	levelOfDetail = 2,
 	fogDistance = 10,
+	maxAnisotropicFiltering = 9001,
 	volume = 10,
 	sfxVolume = 10,
 	speechVolume = 10,
@@ -71,6 +72,8 @@ const bool
 	showCrosshair = true,
 	antialiasing = true,
 	vsync = true,
+	colorkeyAlphaToCoverage = true,
+	colorkeyAntialiasing = true,
 	eax = false,
 	invertMouse = false,
 	autoReadyWeapon = false,
@@ -149,7 +152,10 @@ const std::string
 	fogDistance = "fog",
 	showCrosshair = "show_crosshair",
 	antialiasing = "antialiasing",
-	vsync = "vsync";
+	vsync = "vsync",
+	maxAnisotropicFiltering = "max_anisotropic_filtering",
+	colorkeyAlphaToCoverage = "colorkey_alpha_to_coverage",
+	colorkeyAntialiasing = "colorkey_antialiasing";
 
 // Window options
 const std::string
@@ -370,6 +376,9 @@ bool Config::save() {
 	writer.writeKey(Key::showCrosshair, video.showCrosshair);
 	writer.writeKey(Key::antialiasing, video.antialiasing);
 	writer.writeKey(Key::vsync, video.vsync);
+	writer.writeKey(Key::maxAnisotropicFiltering, video.maxAnisotropicFiltering);
+	writer.writeKey(Key::colorkeyAlphaToCoverage, video.colorkeyAlphaToCoverage);
+	writer.writeKey(Key::colorkeyAntialiasing, video.colorkeyAntialiasing);
 	
 	// window
 	writer.beginSection(Section::Window);
@@ -457,6 +466,10 @@ bool Config::init(const fs::path & file) {
 	video.showCrosshair = reader.getKey(Section::Video, Key::showCrosshair, Default::showCrosshair);
 	video.antialiasing = reader.getKey(Section::Video, Key::antialiasing, Default::antialiasing);
 	video.vsync = reader.getKey(Section::Video, Key::vsync, Default::vsync);
+	video.maxAnisotropicFiltering = reader.getKey(Section::Video, Key::maxAnisotropicFiltering, Default::maxAnisotropicFiltering);
+	video.maxAnisotropicFiltering = std::max(0, video.maxAnisotropicFiltering);
+	video.colorkeyAlphaToCoverage = reader.getKey(Section::Video, Key::colorkeyAlphaToCoverage, Default::colorkeyAlphaToCoverage);
+	video.colorkeyAntialiasing = reader.getKey(Section::Video, Key::colorkeyAntialiasing, Default::colorkeyAntialiasing);
 	
 	// Get window settings
 	window.framework = reader.getKey(Section::Window, Key::windowFramework, Default::windowFramework);

@@ -75,8 +75,7 @@ void MagicSightSpell::Update(float timeDelta)
 	ARX_UNUSED(timeDelta);
 	
 	if(m_caster == PlayerEntityHandle) {
-		Vec3f pos;
-		ARX_PLAYER_FrontPos(&pos);
+		Vec3f pos = ARX_PLAYER_FrontPos();
 		ARX_SOUND_RefreshPosition(m_snd_loop, pos);
 		
 		if(subj.focal > IMPROVED_FOCAL)
@@ -143,13 +142,13 @@ void MagicMissileSpell::Launch()
 		Entity * io = entities[m_caster];
 		
 		if(ValidIONum(io->targetinfo)) {
-			Vec3f * p1 = &m_caster_pos;
-			Vec3f * p2 = &entities[io->targetinfo]->pos;
-			afAlpha = -(glm::degrees(getAngle(p1->y, p1->z, p2->y, p2->z + glm::distance(Vec2f(p2->x, p2->z), Vec2f(p1->x, p1->z))))); //alpha entre orgn et dest;
+			const Vec3f & p1 = m_caster_pos;
+			const Vec3f & p2 = entities[io->targetinfo]->pos;
+			afAlpha = -(glm::degrees(getAngle(p1.y, p1.z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1.x, p1.z))))); //alpha entre orgn et dest;
 		} else if (ValidIONum(m_target)) {
-			Vec3f * p1 = &m_caster_pos;
-			Vec3f * p2 = &entities[m_target]->pos;
-			afAlpha = -(glm::degrees(getAngle(p1->y, p1->z, p2->y, p2->z + glm::distance(Vec2f(p2->x, p2->z), Vec2f(p1->x, p1->z))))); //alpha entre orgn et dest;
+			const Vec3f & p1 = m_caster_pos;
+			const Vec3f & p2 = entities[m_target]->pos;
+			afAlpha = -(glm::degrees(getAngle(p1.y, p1.z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1.x, p1.z))))); //alpha entre orgn et dest;
 		}
 	}
 	
@@ -377,29 +376,23 @@ void DouseSpell::Launch()
 		switch(spell->m_type) {
 			
 			case SPELL_FIREBALL: {
-				CSpellFx * pCSpellFX = spell->m_pSpellFx;
-				if(pCSpellFX) {
-					CFireBall * pCF = (CFireBall *)pCSpellFX;
-					float radius = std::max(m_level * 2.f, 12.f);
-					if(closerThan(target, pCF->eCurPos,
-					              fPerimeter + radius)) {
-						spell->m_level -= m_level;
-						if(spell->m_level < 1) {
-							spells.endSpell(spell);
-						}
+				Vec3f pos = spell->getPosition();
+				float radius = std::max(m_level * 2.f, 12.f);
+				if(closerThan(target, pos, fPerimeter + radius)) {
+					spell->m_level -= m_level;
+					if(spell->m_level < 1) {
+						spells.endSpell(spell);
 					}
 				}
 				break;
 			}
 			
 			case SPELL_FIRE_FIELD: {
-				Vec3f pos;
-				if(GetSpellPosition(&pos, spell)) {
-					if(closerThan(target, pos, fPerimeter + 200)) {
-						spell->m_level -= m_level;
-						if(spell->m_level < 1) {
-							spells.endSpell(spell);
-						}
+				Vec3f pos = spell->getPosition();
+				if(closerThan(target, pos, fPerimeter + 200)) {
+					spell->m_level -= m_level;
+					if(spell->m_level < 1) {
+						spells.endSpell(spell);
 					}
 				}
 				break;

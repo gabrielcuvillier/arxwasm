@@ -32,6 +32,7 @@
 #include "audio/Stream.h"
 #include "audio/Sample.h"
 #include "audio/Mixer.h"
+#include "graphics/Math.h"
 #include "io/resource/ResourcePath.h"
 #include "io/log/Logger.h"
 #include "math/Vector.h"
@@ -60,7 +61,7 @@ aalError OpenALSource::sourcePlay() {
 	AL_CHECK_ERROR("getting source state")
 	
 	if(val == AL_STOPPED) {
-			return updateBuffers();
+		return updateBuffers();
 	} else if(val == AL_INITIAL || val == AL_PAUSED) {
 		alSourcePlay(source);
 		AL_CHECK_ERROR("playing source")
@@ -341,6 +342,7 @@ aalError OpenALSource::fillBuffer(size_t i, size_t size) {
 	const PCMFormat & f = sample->getFormat();
 	if((f.channels != 1 && f.channels != 2) || (f.quality != 8 && f.quality != 16)) {
 		LogError << "Unsupported audio format: quality=" << f.quality << " channels=" << f.channels;
+		delete[] data;
 		return AAL_ERROR_SYSTEM;
 	}
 	
@@ -399,20 +401,24 @@ aalError OpenALSource::setPitch(float p) {
 	return AAL_OK;
 }
 
-aalError OpenALSource::setPan(float p) {
+aalError OpenALSource::setPan(float pan) {
 	
 	if(!alIsSource(source) || !(channel.flags & FLAG_PAN)) {
 		return AAL_ERROR_INIT;
 	}
 	
-	float oldPan = channel.pan;
+	channel.pan = glm::clamp(pan, -1.f, 1.f);
 	
-	channel.pan = glm::clamp(p, -1.f, 1.f);
-	
-	if(channel.pan != 0.f && oldPan == 0.f) {
-		// TODO OpenAL doesn't have a pan feature, but it isn't used much (only in abiances?)
-		ALWarning << "paning not supported";
+	if(channel.pan != 0.f && sample->getFormat().channels != 1) {
+		ALWarning << "panning only supported for mono samples";
+		return AAL_ERROR_SYSTEM;
 	}
+	
+	// Emulate pan using a listener-relative position
+	float distance = 0.1f; // something within the min attenuation distance;
+	Vec3f position = distance * angleToVectorXZ(-channel.pan * 90.f);
+	alSource3f(source, AL_POSITION, position.x, position.z, position.y); // xzy swizzle
+	AL_CHECK_ERROR("setting source pan")
 	
 	return AAL_OK;
 }

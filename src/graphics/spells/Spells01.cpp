@@ -151,13 +151,9 @@ static void LaunchMagicMissileExplosion(const Vec3f & _ePos, bool mrCheat) {
 		light->fallend   = 420.f;
 
 		if(mrCheat) {
-			light->rgb.r = 1.f;
-			light->rgb.g = 0.3f;
-			light->rgb.b = .8f;
+			light->rgb = Color3f(1.f, 0.3f, .8f);
 		} else {
-			light->rgb.r = 0.f;
-			light->rgb.g = 0.f;
-			light->rgb.b = .8f;
+			light->rgb = Color3f(0.f, 0.f, .8f);
 		}
 
 		light->pos = _ePos;
@@ -479,13 +475,9 @@ void CMultiMagicMissile::Create(Vec3f aePos, float afAlpha, float afBeta)
 			el->fallstart	= 80.f;
 			
 			if(m_mrCheat) {
-				el->rgb.r = 1;
-				el->rgb.g = 0.3f;
-				el->rgb.b = 0.8f;
+				el->rgb = Color3f(1.f, 0.3f, 0.8f);
 			} else {
-				el->rgb.r = 0;
-				el->rgb.g = 0;
-				el->rgb.b = 1;
+				el->rgb = Color3f(0.f, 0.f, 1.f);
 			}
 			
 			el->pos	 = pMM->eSrc;
@@ -531,7 +523,7 @@ void CMultiMagicMissile::CheckCollision(float level, EntityHandle caster)
 			DamageCreate(damage);
 			
 			Color3f rgb(.3f, .3f, .45f);
-			ARX_PARTICLES_Add_Smoke(&missile->eCurPos, 0, 6, &rgb);
+			ARX_PARTICLES_Add_Smoke(missile->eCurPos, 0, 6, &rgb);
 		}
 	}
 }

@@ -555,7 +555,9 @@ long ARX_SOUND_PlayMenu(SourceId & sample_id, float pitch, SoundLoopMode loop) {
 }
 
 static void ARX_SOUND_IOFrontPos(const Entity * io, Vec3f & pos) {
-	if(io) {
+	if(io == entities.player()) {
+		pos = ARX_PLAYER_FrontPos();
+	} else if(io) {
 		pos = io->pos;
 		pos += angleToVectorXZ(io->angle.getPitch()) * 100.f;
 		pos += Vec3f(0.f, -100.f, 0.f);
@@ -732,7 +734,7 @@ long ARX_SOUND_PlayScript(const res::path & name, const Entity * io, float pitch
 	channel.falloff.end = ARX_SOUND_DEFAULT_FALLEND;
 	
 	if(io) {
-		GetItemWorldPositionSound(io, &channel.position);
+		channel.position = GetItemWorldPositionSound(io);
 		if(loop != ARX_SOUND_PLAY_LOOPED) {
 			if (ACTIVECAM && fartherThan(ACTIVECAM->orgTrans.pos, channel.position, ARX_SOUND_REFUSE_DISTANCE)) {
 				// TODO the sample will never be freed!
@@ -803,7 +805,7 @@ long ARX_SOUND_PlayCinematic(const res::path & name, bool isSpeech) {
 	channel.falloff.end = ARX_SOUND_DEFAULT_FALLEND;
 	
 	if (ACTIVECAM) {
-		std::pair<Vec3f, Vec3f> frontUp = angleToFrontUpVecForSound(ACTIVECAM->angle);
+		std::pair<Vec3f, Vec3f> frontUp = angleToFrontUpVec(ACTIVECAM->angle);
 		
 		ARX_SOUND_SetListener(ACTIVECAM->orgTrans.pos, frontUp.first, frontUp.second);
 	}

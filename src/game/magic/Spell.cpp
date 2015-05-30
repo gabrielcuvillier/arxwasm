@@ -20,6 +20,7 @@
 #include "game/EntityManager.h"
 #include "game/Player.h"
 #include "game/magic/Spell.h"
+#include "scene/Interactive.h"
 
 #include "core/GameTime.h"
 
@@ -51,6 +52,51 @@ void SpellBase::BaseEnd() {
 	
 	delete m_pSpellFx;
 	m_pSpellFx = NULL;
+}
+
+Vec3f SpellBase::getPosition() {
+	return getCasterPosition();
+}
+
+Vec3f SpellBase::getCasterPosition() {
+	if(ValidIONum(m_caster)) {
+		return entities[m_caster]->pos;
+	} else {
+		// should not happen
+		return Vec3f_ZERO;
+	}
+}
+
+Vec3f SpellBase::getTargetPosition() {
+	if(ValidIONum(m_target)) {
+		return entities[m_target]->pos;
+	} else {
+		// should not happen
+		return Vec3f_ZERO;
+	}
+}
+
+void SpellBase::updateCasterHand() {
+	
+	// Create hand position if a hand is defined
+	if(m_caster == PlayerEntityHandle) {
+		m_hand_group = entities[m_caster]->obj->fastaccess.primary_attach;
+	} else {
+		m_hand_group = entities[m_caster]->obj->fastaccess.left_attach;
+	}
+	
+	if(m_hand_group != -1) {
+		m_hand_pos = entities[m_caster]->obj->vertexlist3[m_hand_group].v;
+	}
+}
+
+void SpellBase::updateCasterPosition() {
+	
+	if(m_caster == PlayerEntityHandle) {
+		m_caster_pos = player.pos;
+	} else {
+		m_caster_pos = entities[m_caster]->pos;
+	}
 }
 
 Vec3f SpellBase::getTargetPos(EntityHandle source, EntityHandle target)

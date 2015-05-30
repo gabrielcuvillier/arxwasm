@@ -29,6 +29,7 @@
 #include "graphics/spells/Spells02.h"
 #include "graphics/RenderBatcher.h"
 #include "graphics/Renderer.h"
+#include "io/log/Logger.h"
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
 
@@ -144,8 +145,7 @@ void DetectTrapSpell::End()
 void DetectTrapSpell::Update(float timeDelta)
 {
 	if(m_caster == PlayerEntityHandle) {
-		Vec3f pos;
-		ARX_PLAYER_FrontPos(&pos);
+		Vec3f pos = ARX_PLAYER_FrontPos();
 		ARX_SOUND_RefreshPosition(m_snd_loop, pos);
 	}
 
@@ -192,7 +192,6 @@ void ArmorSpell::Launch()
 		io->halo.color.g = 0.5f;
 		io->halo.color.b = 0.25f;
 		io->halo.radius = 45.f;
-		io->halo.dynlight = LightHandle::Invalid;
 	}
 	
 	m_targets.push_back(m_target);
@@ -221,10 +220,13 @@ void ArmorSpell::Update(float timeDelta)
 		io->halo.color.g = 0.5f;
 		io->halo.color.b = 0.25f;
 		io->halo.radius = 45.f;
-		io->halo.dynlight = LightHandle::Invalid;
 	}
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_target]->pos);
+}
+
+Vec3f ArmorSpell::getPosition() {
+	return getTargetPosition();
 }
 
 LowerArmorSpell::LowerArmorSpell()
@@ -262,7 +264,6 @@ void LowerArmorSpell::Launch()
 			io->halo.color.g = 0.05f;
 			io->halo.color.b = 0.0f;
 			io->halo.radius = 45.f;
-			io->halo.dynlight = LightHandle::Invalid;
 			
 			m_longinfo_lower_armor = 1;
 		} else {
@@ -299,13 +300,16 @@ void LowerArmorSpell::Update(float timeDelta)
 			io->halo.color.g = 0.05f;
 			io->halo.color.b = 0.0f;
 			io->halo.radius = 45.f;
-			io->halo.dynlight = LightHandle::Invalid;
 			
 			m_longinfo_lower_armor = 1;
 		}
 	}
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_target]->pos);
+}
+
+Vec3f LowerArmorSpell::getPosition() {
+	return getTargetPosition();
 }
 
 HarmSpell::HarmSpell()

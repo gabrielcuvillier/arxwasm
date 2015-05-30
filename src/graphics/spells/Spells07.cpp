@@ -514,11 +514,8 @@ void CConfuse::Render() {
 	mat.setBlendType(RenderMaterial::Additive);
 	mat.setTexture(tex_trail);
 	
-	Vec3f stitepos = eCurPos;
 	Anglef stiteangle = Anglef(0.f, -glm::degrees(arxtime.get_updated() * ( 1.0f / 500 )), 0.f);
-	Color3f stitecolor = Color3f::white;
-	Vec3f stitescale = Vec3f_ONE;
-	Draw3DObject(spapi, stiteangle, stitepos, stitescale, stitecolor, mat);
+	Draw3DObject(spapi, stiteangle, eCurPos, Vec3f_ONE, Color3f::white, mat);
 	
 	for(i = 0; i < 6; i++) {
 		
@@ -529,7 +526,7 @@ void CConfuse::Render() {
 		
 		float ang = rnd() * 360.f;
 		float rad = rnd() * 15.f;
-		pd->ov = stitepos;
+		pd->ov = eCurPos;
 		pd->ov += angleToVectorXZ(ang) * rad;
 		
 		pd->move = Vec3f(0.f, rnd() * 3.f + 1.f, 0.f);
@@ -539,15 +536,14 @@ void CConfuse::Render() {
 		pd->special = PARTICLE_GOLDRAIN | FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION
 		              | DISSIPATING;
 		pd->fparam = 0.0000001f;
-		float t1 = rnd() * 0.4f + 0.4f;
-		float t2 = rnd() * 0.6f + 0.2f;
-		float t3 = rnd() * 0.4f + 0.4f;
-		while(glm::abs(t1 - t2) > 0.3f && glm::abs(t2 - t3) > 0.3f) {
-			t1 = rnd() * 0.4f + 0.4f;
-			t2 = rnd() * 0.6f + 0.2f;
-			t3 = rnd() * 0.4f + 0.4f;
+		
+		Color3f baseColor = Color3f(0.4f, 0.2f, 0.4f);
+		Color3f randomFactor = Color3f(0.4f, 0.6f, 0.4f);
+		Color3f c = baseColor + Color3f(rnd(), rnd(), rnd()) * randomFactor;
+		while(glm::abs(c.r - c.g) > 0.3f && glm::abs(c.g - c.b) > 0.3f) {
+			c = baseColor + Color3f(rnd(), rnd(), rnd()) * randomFactor;
 		}
-		pd->rgb = Color3f(t1 * 0.8f, t2 * 0.8f, t3 * 0.8f);
+		pd->rgb = c * Color3f(0.8f, 0.8f, 0.8f);
 	}
 	
 	if(!lightHandleIsValid(lLightId))
@@ -562,7 +558,7 @@ void CConfuse::Render() {
 		light->rgb.r = 0.3f + rnd() * ( 1.0f / 5 );
 		light->rgb.g = 0.3f;
 		light->rgb.b = 0.5f + rnd() * ( 1.0f / 5 );
-		light->pos = stitepos;
+		light->pos = eCurPos;
 		light->duration = 200;
 		light->extras = 0;
 	}
@@ -808,10 +804,9 @@ void CIceField::Render()
 		stitescale.y = tSize[i].y;
 		stitescale.x = tSize[i].z;
 
-		if(tType[i] == 0)
-			Draw3DObject(smotte, stiteangle, stitepos, stitescale, stitecolor, mat);
-		else
-			Draw3DObject(stite, stiteangle, stitepos, stitescale, stitecolor, mat);
+		EERIE_3DOBJ * obj = (tType[i] == 0) ? smotte : stite;
+		
+		Draw3DObject(obj, stiteangle, stitepos, stitescale, stitecolor, mat);
 	}
 	
 	for(i = 0; i < iMax * 0.5f; i++) {

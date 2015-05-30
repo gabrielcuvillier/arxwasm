@@ -129,27 +129,7 @@ struct PARTICLE_DEF {
 };
 
 //-----------------------------------------------------------------------------
-struct FOG_DEF
-{
-	bool		exist;
-	Vec3f	pos;
-	Color3f	rgb;
-	float		size;
-	long		special;
-	float		scale;
-	Vec3f	move;
-	Anglef	angle;
-	float		speed;
-	float		rotatespeed;
-	long		tolive;
-	long		blend;
-	float		frequency;
-	unsigned long lastupdate;
-};
 
-#define FOG_DIRECTIONAL 1
-
-static const size_t MAX_FOG = 100;
 static const int MAX_POLYBOOM = 4000;
 static const float FLARE_MUL = 2.f;
 
@@ -159,7 +139,6 @@ static const float BOOM_RADIUS2 = 250.f;
 extern short OPIPOrgb;
 extern short PIPOrgb;
 extern std::vector<POLYBOOM> polyboom;
-extern FOG_DEF fogs[MAX_FOG];
 extern TextureContainer * fire2;
 extern long NewSpell;
 
@@ -182,10 +161,10 @@ long getParticleCount();
 void ARX_PARTICLES_FirstInit();
 void ARX_PARTICLES_ClearAll();
 void ARX_PARTICLES_Update(EERIE_CAMERA * cam);
-void ARX_PARTICLES_Spawn_Blood(Vec3f * pos, float dmgs, EntityHandle source);
+void ARX_PARTICLES_Spawn_Blood(const Vec3f & pos, float dmgs, EntityHandle source);
 void ARX_PARTICLES_Spawn_Blood2(const Vec3f & pos, float dmgs, Color col, Entity * io);
-void ARX_PARTICLES_Spawn_Lava_Burn(Vec3f * pos, Entity * io = NULL);
-void ARX_PARTICLES_Add_Smoke(Vec3f * pos, long flags, long amount, Color3f * rgb = NULL); // flag 1 = randomize pos
+void ARX_PARTICLES_Spawn_Lava_Burn(Vec3f pos, Entity * io = NULL);
+void ARX_PARTICLES_Add_Smoke(const Vec3f & pos, long flags, long amount, Color3f * rgb = NULL); // flag 1 = randomize pos
 void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, float dmgs, long flags);
 void ARX_PARTICLES_Spawn_Splat(const Vec3f & pos, float dmgs, Color col);
 void ARX_PARTICLES_SpawnWaterSplash(const Vec3f & pos);
@@ -195,7 +174,7 @@ void ARX_BOOMS_Add(const Vec3f & pos, long type = 0);
 
 
 
-void LaunchFireballBoom(Vec3f * poss, float level, Vec3f * direction = NULL, Color3f * rgb = NULL);
-void SpawnFireballTail(Vec3f *, Vec3f *, float, long);
+void LaunchFireballBoom(const Vec3f & poss, float level, Vec3f * direction = NULL, Color3f * rgb = NULL);
+void SpawnFireballTail(const Vec3f &, const Vec3f &, float, long);
 
 #endif // ARX_GRAPHICS_PARTICLE_PARTICLEEFFECTS_H

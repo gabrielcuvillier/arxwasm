@@ -386,7 +386,7 @@ void IO_UnlinkAllLinkedObjects(Entity * io) {
 			continue;
 		}
 		
-		linked->angle = Anglef(rnd() * 40.f + 340.f, rnd() * 360.f, 0.f);
+		linked->angle = Anglef(rnd(), rnd(), 0.f) * Anglef(40.f, 360.f, 0.f) + Anglef(340.f, 0.f, 0.f);
 		linked->soundtime = 0;
 		linked->soundcount = 0;
 		linked->gameFlags |= GFLAG_NO_PHYS_IO_COL;
@@ -756,7 +756,6 @@ static void ARX_INTERACTIVE_ClearIODynData(Entity * io) {
 		return;
 	
 	lightHandleDestroy(io->dynlight);
-	lightHandleDestroy(io->halo.dynlight);
 	
 	delete io->symboldraw;
 	io->symboldraw = NULL;
@@ -886,7 +885,6 @@ void RestoreInitialIOStatusOfIO(Entity * io)
 		io->halo_native.flags = 0;
 
 		ARX_HALO_SetToNative(io);
-		io->halo.dynlight = LightHandle::Invalid;
 
 		io->forcedmove = Vec3f_ZERO;
 		io->ioflags &= ~IO_NO_COLLISIONS;
@@ -1021,7 +1019,6 @@ void RestoreInitialIOStatusOfIO(Entity * io)
 		else io->collision = 0;
 
 		if(io->ioflags & IO_FIX) {
-			memset(io->_fixdata, 0, sizeof(IO_FIXDATA));
 			io->_fixdata->trapvalue = -1;
 		}
 	}
@@ -1166,14 +1163,14 @@ void ARX_INTERACTIVE_TeleportBehindTarget(Entity * io)
 			scr_timer[num].times = 1;
 			entities[t]->show = SHOW_FLAG_TELEPORTING;
 			AddRandomSmoke(io, 10);
-			ARX_PARTICLES_Add_Smoke(&io->pos, 3, 20);
+			ARX_PARTICLES_Add_Smoke(io->pos, 3, 20);
 			Vec3f pos;
 			pos.x = entities[t]->pos.x;
 			pos.y = entities[t]->pos.y + entities[t]->physics.cyl.height * ( 1.0f / 2 );
 			pos.z = entities[t]->pos.z;
 			io->requestRoomUpdate = true;
 			io->room = -1;
-			ARX_PARTICLES_Add_Smoke(&pos, 3, 20);
+			ARX_PARTICLES_Add_Smoke(pos, 3, 20);
 			MakeCoolFx(io->pos);
 			io->gameFlags |= GFLAG_INVISIBILITY;
 		}
@@ -1433,8 +1430,7 @@ Entity * AddFix(const res::path & classPath, EntityInstance instance, AddInterac
 	
 	Entity * io = new Entity(classPath, instance);
 	
-	io->_fixdata = (IO_FIXDATA *)malloc(sizeof(IO_FIXDATA));
-	memset(io->_fixdata, 0, sizeof(IO_FIXDATA));
+	io->_fixdata = new IO_FIXDATA;
 	io->ioflags = IO_FIX;
 	io->_fixdata->trapvalue = -1;
 	
@@ -2032,7 +2028,7 @@ Entity * InterClick(const Vec2s & pos) {
 }
 
 // Need To upgrade to a more precise collision.
-long IsCollidingAnyInter(const Vec3f & pos, Vec3f * size) {
+long IsCollidingAnyInter(const Vec3f & pos, const Vec3f & size) {
 	
 	for(size_t i = 0; i < entities.size(); i++) {
 		const EntityHandle handle = EntityHandle(i);
@@ -2051,7 +2047,7 @@ long IsCollidingAnyInter(const Vec3f & pos, Vec3f * size) {
 			if(IsCollidingInter(io, tempPos))
 				return i;
 
-			tempPos.y += size->y;
+			tempPos.y += size.y;
 
 			if(IsCollidingInter(io, tempPos))
 				return i;
@@ -2134,7 +2130,7 @@ bool ARX_INTERACTIVE_CheckFULLCollision(PHYSICS_BOX_DATA * pbox, EntityHandle so
 
 		if((io->ioflags & IO_NPC) && io->_npcdata->lifePool.current > 0.f) {
 			for(long kk = 0; kk < pbox->nb_physvert; kk++)
-				if(PointInCylinder(io->physics.cyl, &pbox->vert[kk].pos))
+				if(PointInCylinder(io->physics.cyl, pbox->vert[kk].pos))
 					return true;
 		} else if(io->ioflags & IO_FIX) {
 			long step;

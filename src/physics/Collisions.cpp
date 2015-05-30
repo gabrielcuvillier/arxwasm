@@ -112,7 +112,7 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 	
 	float anything = 999999.f;
 
-	if(PointInCylinder(cyl, &ep->center)) {
+	if(PointInCylinder(cyl, ep->center)) {
 		POLYIN = 1;
 		
 		if(ep->norm.y < 0.5f)
@@ -135,7 +135,7 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 			for(long o = 0; o < 5; o++) {
 				float p = (float)o * (1.f/5);
 				center = ep->v[n].p * p + ep->center * (1.f - p);
-				if(PointInCylinder(cyl, &center)) {
+				if(PointInCylinder(cyl, center)) {
 					anything = std::min(anything, center.y);
 					POLYIN = 1;
 
@@ -147,7 +147,7 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 
 		if(ep->area > 2000.f || (flags & CFLAG_EXTRA_PRECISION)) {
 			center = (ep->v[n].p + ep->v[r].p) * 0.5f;
-			if(PointInCylinder(cyl, &center)) {
+			if(PointInCylinder(cyl, center)) {
 				anything = std::min(anything, center.y);
 				POLYIN = 1;
 
@@ -157,7 +157,7 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 
 			if(ep->area > 4000.f || (flags & CFLAG_EXTRA_PRECISION)) {
 				center = (ep->v[n].p + ep->center) * 0.5f;
-				if(PointInCylinder(cyl, &center)) {
+				if(PointInCylinder(cyl, center)) {
 					anything = std::min(anything, center.y);
 					POLYIN = 1;
 
@@ -168,7 +168,7 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 
 			if(ep->area > 6000.f || (flags & CFLAG_EXTRA_PRECISION)) {
 				center = (center + ep->v[n].p) * 0.5f;
-				if(PointInCylinder(cyl, &center)) {
+				if(PointInCylinder(cyl, center)) {
 					anything = std::min(anything, center.y);
 					POLYIN = 1;
 
@@ -178,7 +178,7 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 			}
 		}
 
-		if(PointInCylinder(cyl, &ep->v[n].p)) {
+		if(PointInCylinder(cyl, ep->v[n].p)) {
 			
 			anything = std::min(anything, ep->v[n].p.y);
 			POLYIN = 1;
@@ -283,7 +283,7 @@ bool IsCollidingIO(Entity * io,Entity * ioo) {
 			ioo->physics.cyl.radius += 25.f;
 
 			for(size_t j = 0; j < io->obj->vertexlist3.size(); j++) {
-				if(PointInCylinder(ioo->physics.cyl, &io->obj->vertexlist3[j].v)) {
+				if(PointInCylinder(ioo->physics.cyl, io->obj->vertexlist3[j].v)) {
 					ioo->physics.cyl.radius = old;
 					return true;
 				}
@@ -369,8 +369,7 @@ void PushIO_ON_Top(Entity * ioo, float ydec) {
 								if(ydec <= 0) {
 									io->pos.y += ydec;
 								} else {
-									Cylinder cyl;
-									GetIOCyl(io, cyl);
+									Cylinder cyl = GetIOCyl(io);
 									cyl.origin.y += ydec;
 									if(CheckAnythingInCylinder(cyl, io ,0) >= 0) {
 										io->pos.y += ydec;
@@ -398,10 +397,9 @@ bool IsAnyNPCInPlatform(Entity * pfrm) {
 		   && !(io->ioflags & IO_NO_COLLISIONS)
 		   && io->show == SHOW_FLAG_IN_SCENE
 		) {
-			Cylinder cyl;
-			GetIOCyl(io, cyl);
+			Cylinder cyl = GetIOCyl(io);
 
-			if(CylinderPlatformCollide(&cyl, pfrm) != 0.f)
+			if(CylinderPlatformCollide(cyl, pfrm) != 0.f)
 				return true;
 		}
 	}
@@ -409,16 +407,16 @@ bool IsAnyNPCInPlatform(Entity * pfrm) {
 	return false;
 }
 
-float CylinderPlatformCollide(Cylinder * cyl, Entity * io) {
+float CylinderPlatformCollide(const Cylinder & cyl, Entity * io) {
  
 	float miny = io->bbox3D.min.y;
 	float maxy = io->bbox3D.max.y;
 	
-	if(maxy <= cyl->origin.y + cyl->height || miny >= cyl->origin.y) {
+	if(maxy <= cyl.origin.y + cyl.height || miny >= cyl.origin.y) {
 		return 0.f;
 	}
 	
-	if(In3DBBoxTolerance(cyl->origin, io->bbox3D, cyl->radius)) {
+	if(In3DBBoxTolerance(cyl.origin, io->bbox3D, cyl.radius)) {
 		return 1.f;
 	}
 	
@@ -582,7 +580,7 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 	
 			{
 				Cylinder & io_cyl = io->physics.cyl;
-				GetIOCyl(io, io_cyl);
+				io_cyl = GetIOCyl(io);
 				float dealt = 0;
 
 				if (	(io->gameFlags & GFLAG_PLATFORM)
@@ -597,7 +595,7 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 								anything = -99999.f;
 						} else {
 						for(size_t ii = 0; ii < io->obj->vertexlist3.size(); ii++) {
-							long res = PointInUnderCylinder(cyl, &io->obj->vertexlist3[ii].v);
+							long res = PointInUnderCylinder(cyl, io->obj->vertexlist3[ii].v);
 
 							if(res > 0) {
 								if(res == 2)
@@ -623,7 +621,7 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 							c.z *= ( 1.0f / 3 );
 							c.y = io->bbox3D.min.y;
 
-							long res = PointInUnderCylinder(cyl, &c);
+							long res = PointInUnderCylinder(cyl, c);
 
 							if(res > 0) {
 								if(res == 2)

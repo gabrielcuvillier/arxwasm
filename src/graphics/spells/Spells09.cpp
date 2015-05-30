@@ -74,7 +74,6 @@ CSummonCreature::CSummonCreature()
 	, bIntro(true)
 	, sizeF(0.f)
 	, fSizeIntro(0.f)
-	, fRand(rand())
 	, fTexWrap(0.f)
 	, fColorBorder(Color3f::white)
 	, fColorRays2(Color3f::black)
@@ -167,7 +166,6 @@ void CSummonCreature::Create(Vec3f aeSrc, float afBeta)
 	sizeF = 0;
 	fSizeIntro = 0.0f;
 	fTexWrap = 0;
-	fRand = (float) rand();
 	end = 40 - 1;
 	bIntro = true;
 
@@ -495,8 +493,6 @@ void CNegateMagic::Update(float timeDelta) {
 
 void CNegateMagic::Render() {
 	
-	int i = 0;
-	
 	Vec3f stitepos = eSrc - Vec3f(0.f, 10.f, 0.f);
 
 	if(ulCurrentTime >= ulDuration)
@@ -508,7 +504,7 @@ void CNegateMagic::Render() {
 	mat.setTexture(tex_sol);
 	mat.setBlendType(RenderMaterial::Additive);
 	
-	for(i = 0; i < 360; i++) {
+	for(int i = 0; i < 360; i++) {
 		float t = rnd();
 		if(t < 0.04f) {
 			

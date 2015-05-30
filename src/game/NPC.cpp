@@ -489,7 +489,7 @@ static long ARX_NPC_GetNextAttainableNodeIncrement(Entity * io) {
 
 		io->physics.targetpos.y += 60.f; // FAKE Gravity !
 		IO_PHYSICS phys = io->physics;
-		GetIOCyl(io, phys.cyl);
+		phys.cyl = GetIOCyl(io);
 
 		// Now we try the physical move for real
 		if(io->physics.startpos == io->physics.targetpos
@@ -507,7 +507,7 @@ static long ARX_NPC_GetNextAttainableNodeIncrement(Entity * io) {
 /*!
  * \brief Checks for nearest VALID anchor for a cylinder from a position
  */
-static long AnchorData_GetNearest(Vec3f * pos, Cylinder * cyl, long except = -1) {
+static long AnchorData_GetNearest(const Vec3f & pos, const Cylinder & cyl, long except = -1) {
 	long returnvalue = -1;
 	float distmax = std::numeric_limits<float>::max();
 	EERIE_BACKGROUND * eb = ACTIVEBKG;
@@ -517,10 +517,10 @@ static long AnchorData_GetNearest(Vec3f * pos, Cylinder * cyl, long except = -1)
 			continue;
 
 		if(eb->anchors[i].nblinked) {
-			float d = glm::distance2(eb->anchors[i].pos, *pos);
+			float d = glm::distance2(eb->anchors[i].pos, pos);
 
-			if ((d < distmax) && (eb->anchors[i].height <= cyl->height)
-			        && (eb->anchors[i].radius >= cyl->radius)
+			if ((d < distmax) && (eb->anchors[i].height <= cyl.height)
+			        && (eb->anchors[i].radius >= cyl.radius)
 			        && (!(eb->anchors[i].flags & ANCHOR_FLAG_BLOCKED)))
 			{
 				returnvalue = i;
@@ -532,18 +532,18 @@ static long AnchorData_GetNearest(Vec3f * pos, Cylinder * cyl, long except = -1)
 	return returnvalue;
 }
 
-static long AnchorData_GetNearest_2(float beta, Vec3f * pos, Cylinder * cyl) {
+static long AnchorData_GetNearest_2(float beta, const Vec3f & pos, const Cylinder & cyl) {
 	
 	float d = glm::radians(beta);
 	Vec3f vect(-std::sin(d), 0, std::cos(d));
 	vect = glm::normalize(vect);
 
-	Vec3f posi = *pos;
+	Vec3f posi = pos;
 	posi.x += vect.x * 50.f;
 	// XXX should this really be vect.x ? copy-paste error ?
 	posi.z += vect.x * 50.f;
 	
-	return AnchorData_GetNearest(&posi, cyl);
+	return AnchorData_GetNearest(posi, cyl);
 }
 
 bool ARX_NPC_LaunchPathfind(Entity * io, EntityHandle target)
@@ -635,7 +635,7 @@ bool ARX_NPC_LaunchPathfind(Entity * io, EntityHandle target)
 		io->physics.startpos = pos1;
 		io->physics.targetpos = pos2;
 		IO_PHYSICS phys = io->physics;
-		GetIOCyl(io, phys.cyl);
+		phys.cyl = GetIOCyl(io);
 
 		// Now we try the physical move for real
 		if(io->physics.startpos == io->physics.targetpos
@@ -661,20 +661,20 @@ wander:
 	{
 		if ((io->_npcdata->behavior & BEHAVIOUR_WANDER_AROUND)
 		        ||	(io->_npcdata->behavior & BEHAVIOUR_FLEE))
-			from = AnchorData_GetNearest(&pos1, &io->physics.cyl);
+			from = AnchorData_GetNearest(pos1, io->physics.cyl);
 		else
-			from = AnchorData_GetNearest_2(io->angle.getPitch(), &pos1, &io->physics.cyl);
+			from = AnchorData_GetNearest_2(io->angle.getPitch(), pos1, io->physics.cyl);
 	}
 	else from = MUST_SELECT_Start_Anchor;
 
 	long to;
 
 	if (io->_npcdata->behavior & BEHAVIOUR_FLEE)
-		to = AnchorData_GetNearest(&pos2, &io->physics.cyl, from);
+		to = AnchorData_GetNearest(pos2, io->physics.cyl, from);
 	else if (io->_npcdata->behavior & BEHAVIOUR_WANDER_AROUND)
 		to = from;
 	else
-		to = AnchorData_GetNearest(&pos2, &io->physics.cyl);
+		to = AnchorData_GetNearest(pos2, io->physics.cyl);
 
 	if(from != -1 && to != -1) {
 		if(from == to && !(io->_npcdata->behavior & BEHAVIOUR_WANDER_AROUND))
@@ -967,7 +967,7 @@ void ARX_PHYSICS_Apply() {
 				std::vector<EERIE_VERTEX>::iterator it = Random::getIterator(io->obj->vertexlist);
 				
 				ARX_PARTICLES_Spawn_Splat(it->v, 20.f, Color::red);
-				ARX_PARTICLES_Spawn_Blood(&it->v, 20.f, io->index());
+				ARX_PARTICLES_Spawn_Blood(it->v, 20.f, io->index());
 			}
 
 			io->destroyOne();
@@ -980,7 +980,7 @@ void ARX_PHYSICS_Apply() {
 		   && (ep->type & POLY_LAVA)
 		   && glm::abs(ep->center.y - io->pos.y) < 40
 		) {
-			ARX_PARTICLES_Spawn_Lava_Burn(&io->pos, io);
+			ARX_PARTICLES_Spawn_Lava_Burn(io->pos, io);
 
 			if(io->ioflags & IO_NPC) {
 				const float LAVA_DAMAGE = 10.f;
@@ -1490,13 +1490,12 @@ static bool TryIOAnimMove(Entity * io, long animnum) {
 	
 	if(!io || !io->anims[animnum])
 		return false;
-
-	Vec3f trans, trans2;
-	GetAnimTotalTranslate(io->anims[animnum], 0, &trans);
-	trans2 = VRotateY(trans, MAKEANGLE(180.f - io->angle.getPitch()));
+	
+	Vec3f trans = GetAnimTotalTranslate(io->anims[animnum], 0);
+	Vec3f trans2 = VRotateY(trans, MAKEANGLE(180.f - io->angle.getPitch()));
 	
 	IO_PHYSICS phys = io->physics;
-	GetIOCyl(io, phys.cyl);
+	phys.cyl = GetIOCyl(io);
 
 	phys.startpos = io->pos;
 	phys.targetpos = io->pos + trans2;
@@ -1831,10 +1830,12 @@ float GetIORadius(Entity * io) {
 	return glm::clamp(io->original_radius * io->scale, 25.f, 60.f);
 }
 
-void GetIOCyl(Entity * io, Cylinder & cyl) {
+Cylinder GetIOCyl(Entity * io) {
+	Cylinder cyl;
 	cyl.height = GetIOHeight(io);
 	cyl.radius = GetIORadius(io);
 	cyl.origin = io->pos;
+	return cyl;
 }
 
 /*!
@@ -2307,7 +2308,7 @@ static void ManageNPCMovement(Entity * io)
 	io->physics.targetpos.z = io->pos.z + io->move.z + ForcedMove.z;
 	// IO_PHYSICS phys;	// XS : Moved to func beginning
 	phys = io->physics;
-	GetIOCyl(io, phys.cyl);
+	phys.cyl = GetIOCyl(io);
 
 	CollisionFlags levitate = 0;
 
@@ -2327,7 +2328,7 @@ static void ManageNPCMovement(Entity * io)
 	}
 
 	phys = io->physics;
-	GetIOCyl(io, phys.cyl);
+	phys.cyl = GetIOCyl(io);
 	
 	io->forcedmove -= ForcedMove;
 		
@@ -2390,8 +2391,8 @@ static void ManageNPCMovement(Entity * io)
 	   && !(io->_npcdata->behavior & BEHAVIOUR_FLEE)
 	) {
 		if(ValidIONum(io->_npcdata->pathfind.truetarget)) {
-			Vec3f * p = &entities[io->_npcdata->pathfind.truetarget]->pos;
-			long t = AnchorData_GetNearest(p, &io->physics.cyl); 
+			Vec3f p = entities[io->_npcdata->pathfind.truetarget]->pos;
+			long t = AnchorData_GetNearest(p, io->physics.cyl);
 
 			if(t != -1 && t != io->_npcdata->pathfind.list[io->_npcdata->pathfind.listnb - 1]) {
 				float d = glm::distance(ACTIVEBKG->anchors[t].pos, ACTIVEBKG->anchors[io->_npcdata->pathfind.list[io->_npcdata->pathfind.listnb-1]].pos);
@@ -2658,28 +2659,24 @@ Entity * ARX_NPC_GetFirstNPCInSight(Entity * ioo)
 		long grp = ioo->obj->fastaccess.head_group_origin;
 
 		if(grp < 0) {
-			orgn.x = ioo->pos.x;
-			orgn.y = ioo->pos.y - 90.f;
-			orgn.z = ioo->pos.z;
-
+			orgn = ioo->pos + Vec3f(0.f, -90.f, 0.f);
+			
 			if(ioo == entities.player())
 				orgn.y = player.pos.y + 90.f;
 		}
 		else
-			GetVertexPos(ioo, ioo->obj->fastaccess.head_group_origin, &orgn);
+			orgn = GetVertexPos(ioo, ioo->obj->fastaccess.head_group_origin);
 
 		grp = io->obj->fastaccess.head_group_origin;
 
 		if(grp < 0) {
-			dest.x = io->pos.x;
-			dest.y = io->pos.y - 90.f;
-			dest.z = io->pos.z;
-
+			dest = io->pos + Vec3f(0.f, -90.f, 0.f);
+			
 			if(io == entities.player())
 				dest.y = player.pos.y + 90.f;
 		}
 		else
-			GetVertexPos(io, io->obj->fastaccess.head_group_origin, &dest);
+			dest = GetVertexPos(io, io->obj->fastaccess.head_group_origin);
 
 
 		float aa = getAngle(orgn.x, orgn.z, dest.x, dest.z);
@@ -3073,12 +3070,8 @@ void ManageIgnition_2(Entity * io) {
 			light->fallend   = std::max(io->ignition * 25.f, 240.f);
 			float v = std::max((io->ignition * ( 1.0f / 10 )), 0.5f);
 			v = std::min(v, 1.f);
-			light->rgb.r = (1.f - rnd() * 0.2f) * v;
-			light->rgb.g = (0.8f - rnd() * 0.2f) * v;
-			light->rgb.b = (0.6f - rnd() * 0.2f) * v;
-			light->pos.x = position.x;
-			light->pos.y = position.y - 30.f;
-			light->pos.z = position.z;
+			light->rgb = (Color3f(1.f, 0.8f, 0.6f) - Color3f(rnd(), rnd(), rnd()) * Color3f(0.2f, 0.2f, 0.2f)) * v;
+			light->pos = position + Vec3f(0.f, -30.f, 0.f);
 			light->ex_flaresize = 40.f; //16.f;
 			light->extras |= EXTRAS_FLARE;
 		}

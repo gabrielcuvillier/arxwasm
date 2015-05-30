@@ -79,6 +79,11 @@ void InvisibilitySpell::Update(float timeDelta)
 	}	
 }
 
+Vec3f InvisibilitySpell::getPosition() {
+	return getTargetPosition();
+}
+
+
 ManaDrainSpell::ManaDrainSpell()
 	: m_light(LightHandle::Invalid)
 	, m_damage(DamageHandle::Invalid)
@@ -236,6 +241,11 @@ void ManaDrainSpell::Update(float timeDelta)
 	ARX_SOUND_RefreshPosition(m_snd_loop, cabalpos);
 }
 
+Vec3f ManaDrainSpell::getPosition() {
+	return getTargetPosition();
+}
+
+
 ExplosionSpell::ExplosionSpell()
 	: m_light(LightHandle::Invalid)
 	, m_damage(DamageHandle::Invalid)
@@ -293,7 +303,7 @@ void ExplosionSpell::Launch()
 			Color3f rgb(0.1f + rnd() * (1.f/3), 0.1f + rnd() * (1.f/3),
 			            0.8f + rnd() * (1.f/5));
 			Vec3f posi = target + Vec3f(0.f, j * 2, 0.f);
-			LaunchFireballBoom(&posi, 16, &dir, &rgb);
+			LaunchFireballBoom(posi, 16, &dir, &rgb);
 		}
 	}
 	
@@ -327,7 +337,7 @@ void ExplosionSpell::Update(float timeDelta)
 			pos.y=light->pos.y-std::sin(r2)*260;
 			pos.z=light->pos.z+std::cos(rr)*260;
 			Color3f rgb(0.1f + rnd()*(1.f/3), 0.1f + rnd()*(1.0f/3), 0.8f + rnd()*(1.0f/5));
-			LaunchFireballBoom(&pos, static_cast<float>(lvl), NULL, &rgb);
+			LaunchFireballBoom(pos, static_cast<float>(lvl), NULL, &rgb);
 		} else if(choice > .6f) {
 			rr=glm::radians(rnd()*360.f);
 			r2=glm::radians(rnd()*360.f);
@@ -341,7 +351,7 @@ void ExplosionSpell::Update(float timeDelta)
 			pos.x=light->pos.x-std::sin(rr)*160;
 			pos.y=light->pos.y-std::sin(r2)*160;
 			pos.z=light->pos.z+std::cos(rr)*160;
-			ARX_PARTICLES_Add_Smoke(&pos, 2, 20); // flag 1 = randomize pos
+			ARX_PARTICLES_Add_Smoke(pos, 2, 20); // flag 1 = randomize pos
 		}
 	}	
 }
@@ -513,4 +523,8 @@ void LifeDrainSpell::Update(float timeDelta)
 	cabalangle.setPitch(-cabalangle.getPitch());
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, cabalpos);
+}
+
+Vec3f LifeDrainSpell::getPosition() {
+	return getTargetPosition();
 }

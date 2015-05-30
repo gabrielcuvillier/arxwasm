@@ -185,10 +185,10 @@ void EERIE_LIGHT_GlobalAdd(const EERIE_LIGHT * el)
 	}
 }
 
-void EERIE_LIGHT_MoveAll(const Vec3f * trans) {
+void EERIE_LIGHT_MoveAll(const Vec3f & trans) {
 	for(size_t i = 0; i < MAX_LIGHTS; i++) {
 		if(GLight[i]) {
-			GLight[i]->pos += *trans;
+			GLight[i]->pos += trans;
 		}
 	}
 }
@@ -360,7 +360,7 @@ void PrecalcDynamicLighting(long x0, long z0, long x1, long z1) {
 	}
 }
 
-void PrecalcIOLighting(const Vec3f * pos, float radius) {
+void PrecalcIOLighting(const Vec3f & pos, float radius) {
 
 	TOTIOPDL = 0;
 
@@ -371,10 +371,10 @@ void PrecalcIOLighting(const Vec3f * pos, float radius) {
 		   && el->exist
 		   && el->m_ignitionStatus
 		   && !(el->extras & EXTRAS_SEMIDYNAMIC)
-		   && (el->pos.x >= pos->x - radius)
-		   && (el->pos.x <= pos->x + radius)
-		   && (el->pos.z >= pos->z - radius)
-		   && (el->pos.z <= pos->z + radius)
+		   && (el->pos.x >= pos.x - radius)
+		   && (el->pos.x <= pos.x + radius)
+		   && (el->pos.z >= pos.z - radius)
+		   && (el->pos.z <= pos.z + radius)
 		) {
 				RecalcLight(el);
 				IO_PDL[TOTIOPDL] = el;

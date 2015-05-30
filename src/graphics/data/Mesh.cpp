@@ -184,20 +184,20 @@ EERIEPOLY * CheckInPoly(const Vec3f & poss, float * needY)
 {
 	long px = poss.x * ACTIVEBKG->Xmul;
 	long pz = poss.z * ACTIVEBKG->Zmul;
-
+	
 	if(pz <= 0 || pz >= ACTIVEBKG->Zsize - 1 || px <= 0 || px >= ACTIVEBKG->Xsize - 1)
 		return NULL;
-
+	
 	float rx = poss.x - ((float)px * ACTIVEBKG->Xdiv);
 	float rz = poss.z - ((float)pz * ACTIVEBKG->Zdiv);
-
-
+	
+	
 	short pzi, pza, pxi, pxa;
-
+	
 	(void)checked_range_cast<short>(pz - 1);
 	(void)checked_range_cast<short>(pz + 1);
 	short sPz = static_cast<short>(pz);
-
+	
 	if (rz < -40.f) {
 		pzi = sPz - 1;
 		pza = sPz - 1;
@@ -211,11 +211,11 @@ EERIEPOLY * CheckInPoly(const Vec3f & poss, float * needY)
 		pzi = sPz;
 		pza = sPz;
 	}
-
+	
 	(void)checked_range_cast<short>(px + 1);
 	(void)checked_range_cast<short>(px - 1);
 	short sPx = static_cast<short>(px);
-
+	
 	if(rx < -40.f) {
 		pxi = sPx - 1;
 		pxa = sPx - 1;
@@ -229,38 +229,38 @@ EERIEPOLY * CheckInPoly(const Vec3f & poss, float * needY)
 		pxi = sPx;
 		pxa = sPx;
 	}
-
+	
 	EERIEPOLY * found = NULL;
 	float foundY = 0.f;
-
+	
 	for(short z = pzi; z <= pza; z++)
 	for(short x = pxi; x <= pxa; x++) {
-			EERIE_BKG_INFO * feg = &ACTIVEBKG->fastdata[x][z];
-
-			for(short k = 0; k < feg->nbpolyin; k++) {
-				EERIEPOLY * ep = feg->polyin[k];
-
-				if(poss.x >= ep->min.x
-				&& poss.x <= ep->max.x
-				&& poss.z >= ep->min.z
-				&& poss.z <= ep->max.z
-				&& !(ep->type & (POLY_WATER | POLY_TRANS | POLY_NOCOL))
-				&& ep->max.y >= poss.y
-				&& ep != found
-				&& PointIn2DPolyXZ(ep, poss.x, poss.z)
-				&& GetTruePolyY(ep, poss, &rz)
-				&& rz >= poss.y
-				&& (!found || (found && rz <= foundY))
-				) {
-					found = ep;
-					foundY = rz;
-				}
+		const EERIE_BKG_INFO & feg = ACTIVEBKG->fastdata[x][z];
+		
+		for(short k = 0; k < feg.nbpolyin; k++) {
+			EERIEPOLY * ep = feg.polyin[k];
+			
+			if(poss.x >= ep->min.x
+			&& poss.x <= ep->max.x
+			&& poss.z >= ep->min.z
+			&& poss.z <= ep->max.z
+			&& !(ep->type & (POLY_WATER | POLY_TRANS | POLY_NOCOL))
+			&& ep->max.y >= poss.y
+			&& ep != found
+			&& PointIn2DPolyXZ(ep, poss.x, poss.z)
+			&& GetTruePolyY(ep, poss, &rz)
+			&& rz >= poss.y
+			&& (!found || (found && rz <= foundY))
+			) {
+				found = ep;
+				foundY = rz;
 			}
+		}
 	}
-
+	
 	if(needY)
 		*needY = foundY;
-
+	
 	return found;
 }
 
@@ -498,19 +498,14 @@ static void EERIERTPPolyCam(EERIEPOLY * ep, EERIE_CAMERA * cam) {
 //*************************************************************************************
 //*************************************************************************************
 
-long GetVertexPos(Entity * io, long id, Vec3f * pos)
-{
-	if (!io) return 0;
+Vec3f GetVertexPos(Entity * io, long id) {
+	
+	arx_assert(io);
 
-	if (id != -1)
-	{
-		*pos = io->obj->vertexlist3[id].v;
-		return 1;
-	}
-	else
-	{
-		*pos = io->pos + Vec3f(0.f, GetIOHeight(io), 0.f);
-		return 2;
+	if(id != -1) {
+		return io->obj->vertexlist3[id].v;
+	} else {
+		return io->pos + Vec3f(0.f, GetIOHeight(io), 0.f);
 	}
 }
 
@@ -1046,13 +1041,13 @@ static void EERIEPOLY_Add_PolyIn(EERIE_BKG_INFO * eg, EERIEPOLY * ep) {
 	eg->nbpolyin++;
 }
 
-static bool PointInBBox(Vec3f * point, EERIE_2D_BBOX * bb) {
+static bool PointInBBox(const Vec3f & point, const EERIE_2D_BBOX & bb) {
 	
-	if ((point->x > bb->max.x)
-			||	(point->x < bb->min.x)
-			||	(point->z > bb->max.y)
-			||	(point->z < bb->min.y)
-	   )
+	if(   point.x > bb.max.x
+	   || point.x < bb.min.x
+	   || point.z > bb.max.y
+	   || point.z < bb.min.y
+	)
 		return false;
 
 	return true;
@@ -1094,16 +1089,16 @@ void EERIEPOLY_Compute_PolyIn()
 				
 				long nbvert = (ep2->type & POLY_QUAD) ? 4 : 3;
 				
-				if(PointInBBox(&ep2->center, &bb)) {
+				if(PointInBBox(ep2->center, bb)) {
 					EERIEPOLY_Add_PolyIn(eg, ep2);
 				} else {
 					for(long k = 0; k < nbvert; k++) {
-						if(PointInBBox(&ep2->v[k].p, &bb)) {
+						if(PointInBBox(ep2->v[k].p, bb)) {
 							EERIEPOLY_Add_PolyIn(eg, ep2);
 							break;
 						} else {
 							Vec3f pt = (ep2->v[k].p + ep2->center) * .5f;
-							if(PointInBBox(&pt, &bb)) {
+							if(PointInBBox(pt, bb)) {
 								EERIEPOLY_Add_PolyIn(eg, ep2);
 								break;
 							}
@@ -1181,8 +1176,11 @@ static void EERIE_PORTAL_Blend_Portals_And_Rooms() {
 		return;
 
 	for(size_t num = 0; num < portals->portals.size(); num++) {
-		CalcFaceNormal(&portals->portals[num].poly, portals->portals[num].poly.v);
-		EERIEPOLY * ep = &portals->portals[num].poly;
+		EERIE_PORTALS & portal = portals->portals[num];
+		EERIEPOLY * ep = &portal.poly;
+		
+		portal.poly.norm = CalcFaceNormal(portal.poly.v);
+		
 		ep->center = ep->v[0].p;
 
 		long to = (ep->type & POLY_QUAD) ? 4 : 3;
@@ -1206,7 +1204,7 @@ static void EERIE_PORTAL_Blend_Portals_And_Rooms() {
 		ep->norm2.x = d;
 
 		for(size_t nroom = 0; nroom < portals->rooms.size(); nroom++) {
-			if(nroom == portals->portals[num].room_1 || nroom == portals->portals[num].room_2)
+			if(nroom == portal.room_1 || nroom == portal.room_2)
 			{
 				portals->rooms[nroom].portals = (long *)realloc(portals->rooms[nroom].portals, sizeof(long) * (portals->rooms[nroom].nb_portals + 1));
 				portals->rooms[nroom].portals[portals->rooms[nroom].nb_portals] = num;
@@ -2045,7 +2043,8 @@ static int BkgAddPoly(EERIEPOLY * ep, EERIE_3DOBJ * eobj) {
 	epp->type = ep->type;
 	epp->type &= ~POLY_QUAD;
 	
-	CalcFaceNormal(epp, epp->v);
+	epp->norm = CalcFaceNormal(epp->v);
+	
 	epp->area = fdist((epp->v[0].p + epp->v[1].p) * .5f, epp->v[2].p)
 	            * fdist(epp->v[0].p, epp->v[1].p) * .5f;
 	
@@ -2528,7 +2527,7 @@ void SceneAddMultiScnToBackground(EERIE_MULTI3DSCENE * ms) {
 			}
 		}
 		
-		EERIE_LIGHT_MoveAll(&ms->pos);
+		EERIE_LIGHT_MoveAll(ms->pos);
 		ARX_PrepareBackgroundNRMLs();
 		EERIEPOLY_Compute_PolyIn();
 		EERIE_PORTAL_Blend_Portals_And_Rooms();

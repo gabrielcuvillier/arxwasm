@@ -95,6 +95,10 @@ void BlessSpell::Update(float timeDelta)
 	}
 }
 
+Vec3f BlessSpell::getPosition() {
+	return getTargetPosition();
+}
+
 void DispellFieldSpell::Launch()
 {
 	m_duration = 10;
@@ -188,7 +192,6 @@ void FireProtectionSpell::Launch()
 		io->halo.color.g = 0.3f;
 		io->halo.color.b = 0.f;
 		io->halo.radius = 45.f;
-		io->halo.dynlight = LightHandle::Invalid;
 	}
 	
 	m_targets.push_back(m_target);
@@ -219,10 +222,13 @@ void FireProtectionSpell::Update(float timeDelta)
 		io->halo.color.g = 0.3f;
 		io->halo.color.b = 0.f;
 		io->halo.radius = 45.f;
-		io->halo.dynlight = LightHandle::Invalid;
 	}
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_target]->pos);
+}
+
+Vec3f FireProtectionSpell::getPosition() {
+	return getTargetPosition();
 }
 
 void ColdProtectionSpell::Launch()
@@ -254,7 +260,6 @@ void ColdProtectionSpell::Launch()
 		io->halo.color.g = 0.2f;
 		io->halo.color.b = 0.45f;
 		io->halo.radius = 45.f;
-		io->halo.dynlight = LightHandle::Invalid;
 	}
 	
 	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_COLD_PROTECTION_LOOP,
@@ -285,10 +290,13 @@ void ColdProtectionSpell::Update(float timeDelta)
 		io->halo.color.g = 0.2f;
 		io->halo.color.b = 0.45f;
 		io->halo.radius = 45.f;
-		io->halo.dynlight = LightHandle::Invalid;
 	}
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_target]->pos);
+}
+
+Vec3f ColdProtectionSpell::getPosition() {
+	return getTargetPosition();
 }
 
 bool TelekinesisSpell::CanLaunch()
@@ -369,4 +377,8 @@ void CurseSpell::Update(float timeDelta)
 		curse->eTarget = target;
 		curse->Render();
 	}
+}
+
+Vec3f CurseSpell::getPosition() {
+	return getTargetPosition();
 }

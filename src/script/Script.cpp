@@ -1782,7 +1782,7 @@ long ARX_SCRIPT_GetSystemIOScript(Entity * io, const std::string & name) {
 	return -1;
 }
 
-static long Manage_Specific_RAT_Timer(SCR_TIMER * st) {
+static bool Manage_Specific_RAT_Timer(SCR_TIMER * st) {
 	
 	Entity * io = st->io;
 	GetTargetPos(io);
@@ -1790,39 +1790,33 @@ static long Manage_Specific_RAT_Timer(SCR_TIMER * st) {
 	target = glm::normalize(target);
 	Vec3f targ = VRotateY(target, rnd() * 60.f - 30.f);
 	target = io->target + targ * 100.f;
-
-	if (ARX_INTERACTIVE_ConvertToValidPosForIO(io, &target))
-	{
+	
+	if(ARX_INTERACTIVE_ConvertToValidPosForIO(io, &target)) {
 		ARX_INTERACTIVE_Teleport(io, target);
 		Vec3f pos = io->pos;
 		pos.y += io->physics.cyl.height * ( 1.0f / 2 );
 		
-		ARX_PARTICLES_Add_Smoke(&pos, 3, 20);
+		ARX_PARTICLES_Add_Smoke(pos, 3, 20);
 		AddRandomSmoke(io, 20);
 		MakeCoolFx(io->pos);
 		io->show = SHOW_FLAG_IN_SCENE;
-
-		for (long kl = 0; kl < 10; kl++)
-		{
+		
+		for(long kl = 0; kl < 10; kl++) {
 			FaceTarget2(io);
 		}
-
+		
 		io->gameFlags &= ~GFLAG_INVISIBILITY;
 		st->times = 1;
-	}
-	else
-	{
+	} else {
 		st->times++;
-
 		st->msecs = static_cast<long>(st->msecs * ( 1.0f / 2 ));
-
-
-		if (st->msecs < 100) st->msecs = 100;
-
-		return 1;
+		if(st->msecs < 100)
+			st->msecs = 100;
+		
+		return true;
 	}
-
-	return 0;
+	
+	return false;
 }
 
 void ARX_SCRIPT_Timer_Check() {

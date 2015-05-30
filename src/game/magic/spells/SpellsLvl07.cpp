@@ -217,6 +217,10 @@ void FlyingEyeSpell::Update(float timeDelta)
 	}
 }
 
+Vec3f FlyingEyeSpell::getPosition() {
+	return eyeball.pos;
+}
+
 FireFieldSpell::FireFieldSpell()
 	: m_light(LightHandle::Invalid)
 	, m_damage(DamageHandle::Invalid)
@@ -350,6 +354,18 @@ void FireFieldSpell::Update(float timeDelta)
 	}
 }
 
+Vec3f FireFieldSpell::getPosition() {
+	CSpellFx *pCSpellFX = m_pSpellFx;
+
+	if(pCSpellFX) {
+		CFireField *pFireField = (CFireField *) pCSpellFX;
+			
+		return pFireField->pos;
+	} else {
+		return Vec3f_ZERO;
+	}
+}
+
 IceFieldSpell::IceFieldSpell()
 	: m_light(LightHandle::Invalid)
 	, m_damage(DamageHandle::Invalid)
@@ -451,6 +467,19 @@ void IceFieldSpell::Update(float timeDelta)
 	}
 }
 
+Vec3f IceFieldSpell::getPosition()
+{
+	CSpellFx *pCSpellFX = m_pSpellFx;
+
+	if(pCSpellFX) {
+		CIceField *pIceField = (CIceField *) pCSpellFX;
+			
+		return pIceField->eSrc;
+	} else {
+		return Vec3f_ZERO;
+	}
+}
+
 void LightningStrikeSpell::Launch()
 {
 	CLightning * effect = new CLightning();
@@ -476,25 +505,23 @@ void LightningStrikeSpell::End()
 	ARX_SOUND_PlaySFX(SND_SPELL_LIGHTNING_END, &entities[m_caster]->pos);
 }
 
-static void GetChestPos(EntityHandle num, Vec3f * p) {
+static Vec3f GetChestPos(EntityHandle num) {
 	
 	if(num == 0) {
-		p->x = player.pos.x;
-		p->y = player.pos.y + 70.f;
-		p->z = player.pos.z;
-		return;
+		return player.pos + Vec3f(0.f, 70.f, 0.f);
 	}
 
 	if(ValidIONum(num)) {
 		long idx = GetGroupOriginByName(entities[num]->obj, "chest");
 
 		if(idx >= 0) {
-			*p = entities[num]->obj->vertexlist3[idx].v;
+			return entities[num]->obj->vertexlist3[idx].v;
 		} else {
-			p->x = entities[num]->pos.x;
-			p->y = entities[num]->pos.y - 120.f;
-			p->z = entities[num]->pos.z;
+			return entities[num]->pos + Vec3f(0.f, -120.f, 0.f);
 		}
+	} else {
+		// should not happen
+		return Vec3f_ZERO;
 	}
 }
 
@@ -519,21 +546,15 @@ void LightningStrikeSpell::Update(float timeDelta)
 			falpha = -player.angle.getYaw();
 			fBeta = player.angle.getPitch();
 		} else {
-			// IO source
 			fBeta = caster->angle.getPitch();
-			if(ValidIONum(caster->targetinfo)
-			   && caster->targetinfo != m_caster) {
-				Vec3f * p1 = &m_caster_pos;
-				Vec3f p2;
-				GetChestPos(caster->targetinfo, &p2); 
-				falpha = MAKEANGLE(glm::degrees(getAngle(p1->y, p1->z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1->x, p1->z))))); //alpha entre orgn et dest;
-			}
-			else if (ValidIONum(m_target))
-			{
-				Vec3f * p1 = &m_caster_pos;
-				Vec3f p2;
-				GetChestPos(m_target, &p2); //
-				falpha = MAKEANGLE(glm::degrees(getAngle(p1->y, p1->z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1->x, p1->z))))); //alpha entre orgn et dest;
+			if(ValidIONum(caster->targetinfo) && caster->targetinfo != m_caster) {
+				const Vec3f & p1 = m_caster_pos;
+				Vec3f p2 = GetChestPos(caster->targetinfo);
+				falpha = MAKEANGLE(glm::degrees(getAngle(p1.y, p1.z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1.x, p1.z))))); //alpha entre orgn et dest;
+			} else if(ValidIONum(m_target)) {
+				const Vec3f & p1 = m_caster_pos;
+				Vec3f p2 = GetChestPos(m_target);
+				falpha = MAKEANGLE(glm::degrees(getAngle(p1.y, p1.z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1.x, p1.z))))); //alpha entre orgn et dest;
 			}
 		}
 		
@@ -593,4 +614,8 @@ void ConfuseSpell::Update(float timeDelta)
 		effect->Update(timeDelta);
 		effect->Render();
 	}
+}
+
+Vec3f ConfuseSpell::getPosition() {
+	return getTargetPosition();
 }

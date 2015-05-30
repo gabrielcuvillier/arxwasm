@@ -175,7 +175,7 @@ glm::quat angleToQuatForArrow(const Anglef & angle);
 
 glm::quat angleToQuatForExtraRotation(const Anglef & angle);
 
-std::pair<Vec3f, Vec3f> angleToFrontUpVecForSound(const Anglef & angle);
+std::pair<Vec3f, Vec3f> angleToFrontUpVec(const Anglef & angle);
 
 // VECTORS Functions
 
@@ -203,9 +203,9 @@ Vec3f angleToVectorXZ_180offset(float angleDegrees);
 
 Vec3f angleToVector(const Anglef & angle);
 
-void CalcFaceNormal(EERIEPOLY * ep, const TexturedVertex * v);
-void CalcObjFaceNormal(const Vec3f * v0, const Vec3f * v1, const Vec3f * v2, EERIE_FACE * ef);
-bool Triangles_Intersect(const EERIE_TRI * v, const EERIE_TRI * u);
+Vec3f CalcFaceNormal(const TexturedVertex * v);
+Vec3f CalcObjFaceNormal(const Vec3f & v0, const Vec3f & v1, const Vec3f & v2);
+bool Triangles_Intersect(const EERIE_TRI & v, const EERIE_TRI & u);
 
 inline float square(float x) {
 	return x * x;
@@ -227,35 +227,35 @@ inline float fdist(const Vec2f & from, const Vec2f & to) {
 	return ffsqrt(glm::distance2(from, to));
 }
 
-inline bool PointInCylinder(const Cylinder & cyl, const Vec3f * pt) {
+inline bool PointInCylinder(const Cylinder & cyl, const Vec3f & pt) {
 	
 	float pos1 = cyl.origin.y + cyl.height;
 	
-	if(pt->y < std::min(cyl.origin.y, pos1)) {
+	if(pt.y < std::min(cyl.origin.y, pos1)) {
 		return false;
 	}
 	
-	if(pt->y > std::max(cyl.origin.y, pos1)) {
+	if(pt.y > std::max(cyl.origin.y, pos1)) {
 		return false;
 	}
 	
-	if(!fartherThan(Vec2f(cyl.origin.x, cyl.origin.z), Vec2f(pt->x, pt->z), cyl.radius)) {
+	if(!fartherThan(Vec2f(cyl.origin.x, cyl.origin.z), Vec2f(pt.x, pt.z), cyl.radius)) {
 		return true;
 	}
 	
 	return false;
 }
 
-inline long PointInUnderCylinder(const Cylinder & cyl, const Vec3f * pt) {
+inline long PointInUnderCylinder(const Cylinder & cyl, const Vec3f & pt) {
 	
 	float pos1 = cyl.origin.y + cyl.height;
 	
-	if(pt->y < std::min(cyl.origin.y, pos1)) {
+	if(pt.y < std::min(cyl.origin.y, pos1)) {
 		return 0;
 	}
 	
-	if(!fartherThan(Vec2f(cyl.origin.x, cyl.origin.z), Vec2f(pt->x, pt->z), cyl.radius)) {
-		return (pt->y > std::max(cyl.origin.y, pos1)) ? 1 : 2;
+	if(!fartherThan(Vec2f(cyl.origin.x, cyl.origin.z), Vec2f(pt.x, pt.z), cyl.radius)) {
+		return (pt.y > std::max(cyl.origin.y, pos1)) ? 1 : 2;
 	}
 	
 	return 0;

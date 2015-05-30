@@ -21,6 +21,7 @@ if(POLICY CMP0020)
 	cmake_policy(SET CMP0020 NEW)
 endif()
 
+
 # Define configuration options
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -34,9 +35,9 @@ option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_TOOLS "Build tools" ON)
 set(def_BUILD_CRASHREPORTER ON)
 if(MACOSX)
- set(def_BUILD_CRASHREPORTER OFF)
+	set(def_BUILD_CRASHREPORTER OFF)
 elseif(WIN32 AND NOT MSVC)
- set(def_BUILD_CRASHREPORTER OFF)
+	set(def_BUILD_CRASHREPORTER OFF)
 endif()
 option(BUILD_CRASHREPORTER "Build the crash reporter" ${def_BUILD_CRASHREPORTER})
 option(BUILD_PROFILER "Build the profiler GUI" ON)
@@ -322,47 +323,48 @@ list(APPEND ARX_LIBRARIES ${ZLIB_LIBRARIES})
 # FreeType
 use_static_libs(Freetype)
 find_package(Freetype REQUIRED)
-if(Freetype_USE_STATIC_LIBS)
+has_static_libs(Freetype FREETYPE_LIBRARIES)
+if(Freetype_HAS_STATIC_LIBS)
   if (NOT NACL)
-	  # Freetype may require other libraries depending on how it was configured
-	  find_package(PkgConfig QUIET)
-	  pkg_check_modules(PC_Freetype freetype2)
-	  foreach(lib IN LISTS PC_Freetype_STATIC_LIBRARIES)
-		  if(lib MATCHES "(^|/|\\\\)(lib)?z(lib)?(\\.so|\\.a||.dll|\\.lib)?$")
-			  if(NOT Freetype_LINKING_ZLIB)
-				  message(STATUS "FreeType: statically linking ZLIB")
-				  set(Freetype_LINKING_ZLIB 1 CACHE INTERNAL "foobar")
-			  endif()
-			  # We always link ZLIB
-			  list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
-		  elseif(lib MATCHES "(^|/|\\\\)(lib)?freetype")
-			  # The main lib we linked above
-		  elseif(lib MATCHES "(^|/|\\\\)(lib)?bz(ip)?2")
-			  if(NOT Freetype_LINKING_BZip2)
-				  message(STATUS "FreeType: statically linking BZip2")
-				  set(Freetype_LINKING_BZip2 1 CACHE INTERNAL "foobar")
-			  endif()
-			  find_package(BZip2 REQUIRED)
-			  list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
-		  elseif(lib MATCHES "(^|/|\\\\)(lib)?png")
-			  if(NOT Freetype_LINKING_PNG)
-				  message(STATUS "FreeType: statically linking libpng")
-				  set(Freetype_LINKING_PNG 1 CACHE INTERNAL "foobar")
-			  endif()
-			  find_package(PNG REQUIRED)
-			  list(APPEND FREETYPE_LIBRARIES ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
-		  else()
-			  # We don't know this library so we can't easily search for a static version.
-			  # Just looking for a static library with the same name is generally not enough
-			  # as it too may require other libraries (and naming can differ).
-			  message(WARNING "FreeType: linking unknown library \"${lib}\"")
-			  if(EXISTS "${lib}" OR lib MATCHES "(/|\\\\)")
-				  list(APPEND FREETYPE_LIBRARIES "${lib}")
-			  else()
-				  list(APPEND FREETYPE_LIBRARIES "-l${lib}")
-			  endif()
-		  endif()
-	  endforeach()  
+	# Freetype may require other libraries depending on how it was configured
+	find_package(PkgConfig QUIET)
+	pkg_check_modules(PC_Freetype freetype2)
+	foreach(lib IN LISTS PC_Freetype_STATIC_LIBRARIES)
+		if(lib MATCHES "(^|/|\\\\)(lib)?z(lib)?(\\.so|\\.a||.dll|\\.lib)?$")
+			if(NOT Freetype_LINKING_ZLIB)
+				message(STATUS "FreeType: linking ZLIB")
+				set(Freetype_LINKING_ZLIB 1 CACHE INTERNAL "foobar")
+			endif()
+			# We always link ZLIB
+			list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
+		elseif(lib MATCHES "(^|/|\\\\)(lib)?freetype")
+			# The main lib we linked above
+		elseif(lib MATCHES "(^|/|\\\\)(lib)?bz(ip)?2")
+			if(NOT Freetype_LINKING_BZip2)
+				message(STATUS "FreeType: linking BZip2")
+				set(Freetype_LINKING_BZip2 1 CACHE INTERNAL "foobar")
+			endif()
+			find_package(BZip2 REQUIRED)
+			list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
+		elseif(lib MATCHES "(^|/|\\\\)(lib)?png")
+			if(NOT Freetype_LINKING_PNG)
+				message(STATUS "FreeType: linking libpng")
+				set(Freetype_LINKING_PNG 1 CACHE INTERNAL "foobar")
+			endif()
+			find_package(PNG REQUIRED)
+			list(APPEND FREETYPE_LIBRARIES ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
+		else()
+			# We don't know this library so we can't easily search for a static version.
+			# Just looking for a static library with the same name is generally not enough
+			# as it too may require other libraries (and naming can differ).
+			message(WARNING "FreeType: linking unknown library \"${lib}\"")
+			if(EXISTS "${lib}" OR lib MATCHES "(/|\\\\)")
+				list(APPEND FREETYPE_LIBRARIES "${lib}")
+			else()
+				list(APPEND FREETYPE_LIBRARIES "-l${lib}")
+			endif()
+		endif()
+	endforeach()
   else()
     # On NACL, we can't use pkg-config because it is compiled for NACL and not for the host. 
     # So we manually add required dependencies: ZLIB BZIP2 PNG
@@ -812,6 +814,7 @@ set(GRAPHICS_SOURCES
 	src/graphics/font/Font.cpp
 	src/graphics/font/FontCache.cpp
 	src/graphics/image/Image.cpp
+	src/graphics/image/ImageColorKey.cpp
 	src/graphics/image/stb_image.cpp
 	src/graphics/image/stb_image_write.cpp
 	src/graphics/particle/Particle.cpp
@@ -1188,6 +1191,7 @@ list(APPEND ARX_SOURCES "${VERSION_FILE}")
 
 
 # Add executables
+
 add_executable_shared(arx "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
 set_binary_type(arx WIN32)
 set_binary_installdir(arx "${GAMESBINDIR}")

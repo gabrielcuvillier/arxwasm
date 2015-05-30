@@ -139,7 +139,6 @@ private:
 	float	fOneOnDurationOuttro;
 	float	sizeF;
 	float	fSizeIntro;
-	float	fRand;
 	float	fTexWrap;
 	float	fColorBorder[3];
 	float	fColorRays2[3];
@@ -172,7 +171,7 @@ private:
 	int nbstone;
 	T_STONE tstone[256];
 	
-	void AddStone(Vec3f * pos);
+	void AddStone(const Vec3f & pos);
 	void DrawStone();
 };
 

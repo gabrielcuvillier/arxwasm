@@ -91,7 +91,7 @@ static bool IsPointInField(const Vec3f & pos) {
 				cyl.radius = 35.f;
 				cyl.origin = pos + Vec3f(0.f, 17.5f, 0.f);
 
-				if(CylinderPlatformCollide(&cyl, pfrm) != 0.f) {
+				if(CylinderPlatformCollide(cyl, pfrm) != 0.f) {
 					return true;
 				}
 			}
@@ -322,7 +322,7 @@ static EERIEPOLY * CheckArrowPolyCollision(const Vec3f & start, const Vec3f & en
 			pol2.v[1] = ep->v[1].p;
 			pol2.v[2] = ep->v[2].p;
 
-			if(Triangles_Intersect(&pol2, &pol)) {
+			if(Triangles_Intersect(pol2, pol)) {
 				return ep;
 			}
 
@@ -330,7 +330,7 @@ static EERIEPOLY * CheckArrowPolyCollision(const Vec3f & start, const Vec3f & en
 				pol2.v[0] = ep->v[1].p;
 				pol2.v[1] = ep->v[3].p;
 				pol2.v[2] = ep->v[2].p;
-				if(Triangles_Intersect(&pol2, &pol)) {
+				if(Triangles_Intersect(pol2, pol)) {
 					return ep;
 				}
 			}
@@ -344,13 +344,13 @@ static EERIEPOLY * CheckArrowPolyCollision(const Vec3f & start, const Vec3f & en
 static void CheckExp(long i) {
 	
 	if((Thrown[i].flags & ATO_FIERY) && !(Thrown[i].flags & ATO_UNDERWATER)) {
+		const Vec3f & pos = Thrown[i].position;
 
-		ARX_BOOMS_Add(Thrown[i].position);
-		LaunchFireballBoom(&Thrown[i].position, 10);
-		DoSphericDamage(Thrown[i].position, 4.f * 2, 50.f,
-						DAMAGE_AREA, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL, PlayerEntityHandle);
-		ARX_SOUND_PlaySFX(SND_SPELL_FIRE_HIT, &Thrown[i].position);
-		ARX_NPC_SpawnAudibleSound(Thrown[i].position, entities.player());
+		ARX_BOOMS_Add(pos);
+		LaunchFireballBoom(pos, 10);
+		DoSphericDamage(pos, 4.f * 2, 50.f, DAMAGE_AREA, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL, PlayerEntityHandle);
+		ARX_SOUND_PlaySFX(SND_SPELL_FIRE_HIT, &pos);
+		ARX_NPC_SpawnAudibleSound(pos, entities.player());
 		LightHandle id = GetFreeDynLight();
 
 		if(lightHandleIsValid(id) && framedelay > 0) {
@@ -360,7 +360,7 @@ static void CheckExp(long i) {
 			light->fallstart = 400.f;
 			light->fallend   = 440.f;
 			light->rgb = Color3f(1.f - rnd() * .2f, .8f - rnd() * .2f, .6f - rnd() * .2f);
-			light->pos = Thrown[i].position;
+			light->pos = pos;
 			light->ex_flaresize = 40.f;
 			light->duration = 1500;
 		}

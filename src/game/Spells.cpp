@@ -315,155 +315,6 @@ void SpellManager::freeSlot(SpellBase * spell)
 	}
 }
 
-bool GetSpellPosition(Vec3f * pos, SpellBase * spell)
-{
-	switch(spell->m_type) {
-		case SPELL_ARMOR:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_LOWER_ARMOR:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_SPEED:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_BLESS:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_FIRE_PROTECTION:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_COLD_PROTECTION:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_CURSE:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_RUNE_OF_GUARDING: {
-			CSpellFx *pCSpellFX = spell->m_pSpellFx;
-
-			if(pCSpellFX) {
-				CRuneOfGuarding *pCRG = (CRuneOfGuarding *) pCSpellFX;
-					
-				*pos = pCRG->eSrc;
-				return true;
-			}
-		}
-		break;
-		case SPELL_PARALYSE:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_CREATE_FIELD: {
-			CSpellFx *pCSpellFX = spell->m_pSpellFx;
-
-			if(pCSpellFX) {
-				CCreateField *pCreateField = (CCreateField *) pCSpellFX;
-					
-				*pos = pCreateField->eSrc;
-				return true;
-			}
-		}
-		break;
-		case SPELL_SLOW_DOWN:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_FLYING_EYE:
-		{	
-			*pos = eyeball.pos;
-			return true;
-		}	
-		break;
-		case SPELL_FIRE_FIELD: {
-			CSpellFx *pCSpellFX = spell->m_pSpellFx;
-
-			if(pCSpellFX) {
-				CFireField *pFireField = (CFireField *) pCSpellFX;
-					
-				*pos = pFireField->pos;
-				return true;
-			}
-		}
-		break;
-		case SPELL_ICE_FIELD: {
-			CSpellFx *pCSpellFX = spell->m_pSpellFx;
-
-			if(pCSpellFX) {
-				CIceField *pIceField = (CIceField *) pCSpellFX;
-					
-				*pos = pIceField->eSrc;
-				return true;
-			}
-		}
-		break;
-		case SPELL_CONFUSE:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_INVISIBILITY:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_MANA_DRAIN:				
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_LIFE_DRAIN:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		case SPELL_INCINERATE:
-			if(ValidIONum(spell->m_target)) {
-				*pos = entities[spell->m_target]->pos;
-				return true;
-			}
-		break;
-		default:
-		break;
-	}
-
-	if(ValidIONum(spell->m_caster)) {
-		*pos = entities[spell->m_caster]->pos;
-		return true;
-	}
-
-	return false;
-}
-
 static const char * MakeSpellName(SpellType num) {
 	
 	switch(num) {
@@ -829,7 +680,7 @@ static bool CanPayMana(SpellBase * spell, float cost, bool _bSound = true) {
 	return false;
 }
 
-static EntityHandle TemporaryGetSpellTarget(const Vec3f * from) {
+static EntityHandle TemporaryGetSpellTarget(const Vec3f & from) {
 	
 	float mindist = std::numeric_limits<float>::max();
 	EntityHandle found = EntityHandle(0);
@@ -838,7 +689,7 @@ static EntityHandle TemporaryGetSpellTarget(const Vec3f * from) {
 		Entity * e = entities[handle];
 		
 		if(e && e->ioflags & IO_NPC) {
-			float dist = glm::distance2(*from, e->pos);
+			float dist = glm::distance2(from, e->pos);
 			if(dist < mindist) {
 				found = EntityHandle(i);
 				mindist = dist;
@@ -1198,30 +1049,19 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 	spell.m_target = target;
 	
 	if(target == EntityHandle::Invalid)
-		spell.m_target = TemporaryGetSpellTarget(&entities[spell.m_caster]->pos);
-
-	// Create hand position if a hand is defined
-	if(spell.m_caster == PlayerEntityHandle) {
-		spell.m_hand_group = entities[spell.m_caster]->obj->fastaccess.primary_attach;
-	} else {
-		spell.m_hand_group = entities[spell.m_caster]->obj->fastaccess.left_attach;
-	}
-
-	if(spell.m_hand_group != -1) {
-		spell.m_hand_pos = entities[spell.m_caster]->obj->vertexlist3[spell.m_hand_group].v;
-	}
+		spell.m_target = TemporaryGetSpellTarget(entities[spell.m_caster]->pos);
+	
+	spell.updateCasterHand();
+	spell.updateCasterPosition();
 	
 	float spellLevel;
-	Vec3f casterPos;
 	
 	if(source == PlayerEntityHandle) {
 		// Player source
 		spellLevel = Player_Magic_Level; // Level of caster
-		casterPos = player.pos;
 	} else {
 		// IO source
 		spellLevel = (float)glm::clamp(level, 1l, 10l);
-		casterPos = entities[source]->pos;
 	}
 
 	if(flags & SPELLCAST_FLAG_LAUNCHPRECAST) {
@@ -1233,7 +1073,6 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 	}
 	
 	spell.m_level = spellLevel;
-	spell.m_caster_pos = casterPos;
 	spell.m_flags = flags;
 	spell.m_pSpellFx = NULL;
 	spell.m_type = typ;

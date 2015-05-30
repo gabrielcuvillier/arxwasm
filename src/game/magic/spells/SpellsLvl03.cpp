@@ -84,6 +84,10 @@ void SpeedSpell::Update(float timeDelta)
 	}
 }
 
+Vec3f SpeedSpell::getPosition() {
+	return getTargetPosition();
+}
+
 void DispellIllusionSpell::Launch()
 {
 	ARX_SOUND_PlaySFX(SND_SPELL_DISPELL_ILLUSION);
@@ -269,7 +273,7 @@ void FireballSpell::Update(float timeDelta)
 	sphere.radius=std::max(m_level*2.f,12.f);
 	
 		if(effect->ulCurrentTime > effect->m_createBallDuration) {
-			SpawnFireballTail(&effect->eCurPos,&effect->eMove,(float)m_level,0);
+			SpawnFireballTail(effect->eCurPos, effect->eMove, (float)m_level, 0);
 		} else {
 			if(rnd()<0.9f) {
 				Vec3f move = Vec3f_ZERO;
@@ -277,14 +281,14 @@ void FireballSpell::Update(float timeDelta)
 				
 				dd = glm::clamp(dd, 1.f, m_level);
 				
-				SpawnFireballTail(&effect->eCurPos,&move,(float)dd,1);
+				SpawnFireballTail(effect->eCurPos, move, (float)dd, 1);
 			}
 		}
 	
 	if(!effect->bExplo)
 	if(CheckAnythingInSphere(sphere, m_caster, CAS_NO_SAME_GROUP)) {
 		ARX_BOOMS_Add(effect->eCurPos);
-		LaunchFireballBoom(&effect->eCurPos,(float)m_level);
+		LaunchFireballBoom(effect->eCurPos, (float)m_level);
 		
 		effect->eMove *= 0.5f;
 		effect->SetTTL(1500);
@@ -298,6 +302,17 @@ void FireballSpell::Update(float timeDelta)
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, effect->eCurPos);
 }
+
+Vec3f FireballSpell::getPosition() {
+	
+	if(m_pSpellFx) {
+		CFireBall * pCF = (CFireBall *)m_pSpellFx;
+		return pCF->eCurPos;
+	} else {
+		return Vec3f_ZERO;
+	}
+}
+
 
 void CreateFoodSpell::Launch()
 {

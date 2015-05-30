@@ -527,7 +527,6 @@ void ARX_DAMAGES_ForceDeath(Entity * io_dead, Entity * io_killer) {
 		MasterCamera.exist = 0;
 
 	lightHandleDestroy(io_dead->dynlight);
-	lightHandleDestroy(io_dead->halo.dynlight);
 	
 	//Kill all speeches
 
@@ -1137,7 +1136,7 @@ static void ARX_DAMAGES_UpdateDamage(DamageHandle j, float tim) {
 								damagesdone = ARX_DAMAGES_DamageNPC(entities[handle], dmg, damage.params.source, true, &damage.params.pos);
 							}
 							if(damagesdone > 0 && (damage.params.flags & DAMAGE_SPAWN_BLOOD)) {
-								ARX_PARTICLES_Spawn_Blood(&damage.params.pos, damagesdone, damage.params.source);
+								ARX_PARTICLES_Spawn_Blood(damage.params.pos, damagesdone, damage.params.source);
 							}
 						}
 						if(damage.params.type & DAMAGE_TYPE_DRAIN_LIFE) {
