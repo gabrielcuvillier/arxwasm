@@ -21,7 +21,7 @@ function enableArxLaunch() {
 function runArx() {
   document.getElementById(SELECT_DATA_ID).innerHTML = '';
   document.getElementById(LAUNCH_ARX_ID).innerHTML = '';
-  updateStatus("Requesting persistent storage (for saves, config files, etc.).");
+  updateStatus("Requesting persistent storage (for saves, config files, etc.)...");
   window.webkitRequestFileSystem(window.PERSISTENT, 15 * 1024 * 1024, 
     function(fs) {
       updateStatus("Launching Arx.");
@@ -56,7 +56,7 @@ function runArx() {
           document.getElementById(LOAD_STATUS_ID).innerHTML = "Loading: " + progress + "%";  
 
           if (progress > 94) {
-            document.getElementById(LOAD_STATUS_ID).innerHTML += "<br/>" + "Please, wait some more time while approaching 100%...";
+            document.getElementById(LOAD_STATUS_ID).innerHTML += "<br/>" + "Note: the first time NaCl module is loaded, the remaining 5% might be quite long to complete... Please wait.";
           }
         }
       }
@@ -124,7 +124,7 @@ function uploadDidChange(event) {
                   updateStatus(f.name + ' copied to html5 filesystem.');        
 
                   if (f.name === PAK_FILE) {
-                    updateStatus("Found Arx data in local html5 filesystem.");
+                    updateStatus("Found Arx data in local html5 filesystem!");
                     enableArxLaunch();
                   }        
                 };
@@ -157,10 +157,10 @@ function enableArxUpload(optional) {
 }
 
 function loadFromLocalStorage() {
-  updateStatus('Searching for Arx data in local html5 filesystem (temporary: /' + ARX_DIR + '/' + PAK_FILE + ').');
+  updateStatus('Searching for Arx data in local html5 filesystem (temporary: /' + ARX_DIR + '/' + PAK_FILE + ')...');
   
   function loadSuccess() {
-    updateStatus('Found Arx data in local html5 filesystem.');
+    updateStatus('Found Arx data in local html5 filesystem!');
     enableArxUpload(true); // optional
     enableArxLaunch();
   }
@@ -180,17 +180,24 @@ function loadFromLocalStorage() {
 }
 
 window.onload = function() {
-  updateStatus('Searching for Arx data hosted on server (URL: ./' + ARX_DIR + '/' + PAK_FILE + ').');
-  var req = new XMLHttpRequest();
-  req.onload = function() {
-    if (this.status === 200) {
-      updateStatus('Found Arx data on server.');
-      enableArxLaunch();
-    } else {
-      updateStatus('Arx data not found on server.');
-      loadFromLocalStorage();
-    }
-  };
-  req.open('HEAD', ARX_DIR + '/' + PAK_FILE);
-  req.send(null);
+  var is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
+  
+  if (is_chrome === false) {
+    updateStatus('ERROR: Portable Native Client is only supported on Chrome Browser.');
+  }
+  else {
+    updateStatus('Searching for Arx data hosted on server (URL: ./' + ARX_DIR + '/' + PAK_FILE + ')...');
+    var req = new XMLHttpRequest();
+    req.onload = function() {
+      if (this.status === 200) {
+        updateStatus('Found Arx data on server!');
+        enableArxLaunch();
+      } else {
+        updateStatus('Arx data not found on server.');
+        loadFromLocalStorage();
+      }
+    };
+    req.open('HEAD', ARX_DIR + '/' + PAK_FILE);
+    req.send(null);
+  }
 };
