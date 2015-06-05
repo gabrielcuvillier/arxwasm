@@ -54,6 +54,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "animation/Animation.h"
 
+#include "core/Config.h"
 #include "core/Core.h"
 #include "core/Localisation.h"
 #include "core/GameTime.h"
@@ -176,9 +177,6 @@ static void ARX_SPEECH_Render() {
 	Vec2i sSize = hFontInBook->getTextSize("p");
 	sSize.y *= 3;
 	
-	GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	
 	int iEnd = igrec + sSize.y;
 	
 	for(size_t i = 0; i < MAX_SPEECH; i++) {
@@ -188,10 +186,13 @@ static void ARX_SPEECH_Render() {
 		}
 		
 		Rectf rect(
-			Vec2f(120 * g_sizeRatio.x - 16 * g_sizeRatio.x, igrec),
-			16 * g_sizeRatio.x,
-			16 * g_sizeRatio.x
+			Vec2f(120 * g_sizeRatio.x - 16 * minSizeRatio(), igrec),
+			16 * minSizeRatio(),
+			16 * minSizeRatio()
 		);
+		
+		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
+		GRenderer->SetBlendFunc(Renderer::BlendSrcAlpha, Renderer::BlendInvSrcAlpha);
 		
 		EERIEDrawBitmap(rect, .00001f, arx_logo_tc, Color::white);
 		
@@ -496,11 +497,18 @@ void ARX_SPEECH_Update() {
 
 		Rect::Num y = checked_range_cast<Rect::Num>(fZoneClippY);
 		Rect::Num h = checked_range_cast<Rect::Num>(fAdd);
+		
 		Rect clippingRect(0, y+1, g_size.width(), h);
+		if(config.video.limitSpeechWidth) {
+			s32 w = std::min(g_size.width(), s32(640 * g_sizeRatio.y));
+			clippingRect.left = (g_size.width() - w) / 2;
+			clippingRect.right = (g_size.width() + w) / 2;
+		}
+		
 		float height = (float)ARX_UNICODE_DrawTextInRect(
 							hFontInBook,
-							Vec2f(10.f, fDepY + fZoneClippHeight),
-							-10.f + (float)g_size.width(),
+							Vec2f(clippingRect.left + 10.f, fDepY + fZoneClippHeight),
+							clippingRect.right - 10.f,
 							speech->text,
 							Color::white,
 							&clippingRect);
@@ -509,11 +517,12 @@ void ARX_SPEECH_Update() {
 		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 		GRenderer->SetRenderState(Renderer::DepthTest, false);
 
-		EERIEDrawFill2DRectDegrad(0.f, fZoneClippY - 1.f,  static_cast<float>(g_size.width()),
-								  fZoneClippY + (sSize.y * 3 / 4), 0.f, Color::white, Color::black);
-		EERIEDrawFill2DRectDegrad(0.f, fZoneClippY + fZoneClippHeight - (sSize.y * 3 / 4),
-								  static_cast<float>(g_size.width()), fZoneClippY + fZoneClippHeight,
-								  0.f, Color::black, Color::white);
+		EERIEDrawFill2DRectDegrad(Vec2f(0.f, fZoneClippY - 1.f),
+		                          Vec2f(static_cast<float>(g_size.width()), fZoneClippY + (sSize.y * 3 / 4)),
+		                          0.f, Color::white, Color::black);
+		EERIEDrawFill2DRectDegrad(Vec2f(0.f, fZoneClippY + fZoneClippHeight - (sSize.y * 3 / 4)),
+		                          Vec2f(static_cast<float>(g_size.width()), fZoneClippY + fZoneClippHeight),
+		                          0.f, Color::black, Color::white);
 
 		GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendZero);
 		GRenderer->SetRenderState(Renderer::DepthTest, true);

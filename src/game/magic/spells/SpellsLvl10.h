@@ -22,25 +22,39 @@
 
 #include "game/magic/Spell.h"
 
+#include "graphics/effects/Lightning.h"
+
 class MassLightningStrikeSpell : public SpellBase {
 public:
 	MassLightningStrikeSpell();
+	~MassLightningStrikeSpell();
 	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
 	
 private:
-	Vec3f m_targetPos;
+	Vec3f m_pos;
 	bool m_soundEffectPlayed;
 	LightHandle m_light;
+	
+	std::vector<CLightning *> pTab;
 };
 
 class ControlTargetSpell : public SpellBase {
 public:
 	bool CanLaunch();
 	void Launch();
+	void End();
 	void Update(float timeDelta);
+	
+private:
+	unsigned long ulCurrentTime;
+	Vec3f eSrc;
+	Vec3f eTarget;
+	TextureContainer * tex_mm;
+	Vec3f pathways[40];
+	float fTrail;
 };
 
 class FreezeTimeSpell : public SpellBase {

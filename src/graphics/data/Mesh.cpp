@@ -602,8 +602,7 @@ extern EERIE_CAMERA raycam;
 
 static bool RayIn3DPolyNoCull(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp) {
 
-	EERIEPOLY ep;
-	memcpy(&ep, epp, sizeof(EERIEPOLY));
+	EERIEPOLY ep = *epp;
 	raycam.orgTrans.pos = orgn;
 	raycam.setTargetCamera(dest);
 	SP_PrepareCamera(&raycam);
@@ -743,17 +742,16 @@ int EERIELaunchRay3(const Vec3f & orgn, const Vec3f & dest,  Vec3f * hit, EERIEP
 	}
 }
 
+// TODO visible copy-paste
 // Computes the visibility from a point to another... (sort of...)
 bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hit)
 {
 	Vec3f i;
-	long px,pz;
-
 	float pas = 35.f;
 
 	Vec3f found_hit = Vec3f_ZERO;
 	EERIEPOLY *found_ep = NULL;
-	float iter,t;
+	float iter;
 	
 	//current ray pos
 	Vec3f tmpPos = orgn;
@@ -777,7 +775,7 @@ bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hi
 			i.x = pas;
 
 		iter = ad.x / pas;
-		t = 1.f / (iter);
+		float t = 1.f / (iter);
 		i.y = d.y * t;
 		i.z = d.z * t;
 	} else if(ad.y >= ad.x && ad.y >= ad.z) {
@@ -787,7 +785,7 @@ bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hi
 			i.y = pas;
 
 		iter = ad.y / pas;
-		t = 1.f / (iter);
+		float t = 1.f / (iter);
 		i.x = d.x * t;
 		i.z = d.z * t;
 	} else {
@@ -797,7 +795,7 @@ bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hi
 			i.z = pas;
 
 		iter = ad.z / pas;
-		t = 1.f / (iter);
+		float t = 1.f / (iter);
 		i.x = d.x * t;
 		i.y = d.y * t;
 	}
@@ -813,8 +811,8 @@ bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hi
 		tmpPos.y += i.y;
 		tmpPos.z += i.z;
 
-		px = (long)(tmpPos.x * ACTIVEBKG->Xmul);
-		pz = (long)(tmpPos.z * ACTIVEBKG->Zmul);
+		long px = (long)(tmpPos.x * ACTIVEBKG->Xmul);
+		long pz = (long)(tmpPos.z * ACTIVEBKG->Zmul);
 
 		if(px < 0 || px > ACTIVEBKG->Xsize - 1 || pz < 0 || pz > ACTIVEBKG->Zsize - 1)
 			break;

@@ -22,6 +22,9 @@
 
 #include "game/magic/Spell.h"
 
+#include "graphics/effects/Fissure.h"
+#include "graphics/spells/Spells06.h"
+
 class RiseDeadSpell : public SpellBase {
 public:
 	RiseDeadSpell();
@@ -34,6 +37,7 @@ public:
 private:
 	void GetTargetAndBeta(Vec3f & target, float & beta);
 	
+	CRiseDead m_fissure;
 	Vec3f m_targetPos;
 	EntityHandle m_entity;
 };
@@ -58,6 +62,9 @@ public:
 	
 	// TODO this is directly used in physics and projectile
 	EntityHandle m_entity;
+	
+private:
+	CCreateField m_field;
 };
 
 class DisarmTrapSpell : public SpellBase {

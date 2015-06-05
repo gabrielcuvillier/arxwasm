@@ -27,6 +27,8 @@
 #include "game/NPC.h"
 #include "game/Player.h"
 #include "game/Spells.h"
+#include "game/magic/spells/SpellsLvl05.h"
+#include "game/magic/spells/SpellsLvl06.h"
 #include "graphics/particle/ParticleEffects.h"
 
 #include "graphics/spells/Spells05.h"
@@ -92,18 +94,17 @@ void RiseDeadSpell::Launch()
 	m_fManaCostPerSecond = 1.2f;
 	m_entity = EntityHandle::Invalid;
 	
-	CRiseDead * effect = new CRiseDead();
-	effect->Create(target, beta);
-	effect->SetDuration(2000, 500, 1800);
-	effect->SetColorBorder(0.5, 0.5, 0.5);
-	effect->SetColorRays1(0.5, 0.5, 0.5);
-	effect->SetColorRays2(1, 0, 0);
+	m_fissure.Create(target, beta);
+	m_fissure.SetDuration(2000, 500, 1800);
+	m_fissure.SetColorBorder(Color3f(0.5, 0.5, 0.5));
+	m_fissure.SetColorRays1(Color3f(0.5, 0.5, 0.5));
+	m_fissure.SetColorRays2(Color3f(1.f, 0.f, 0.f));
 	
-	if(!lightHandleIsValid(effect->lLightId)) {
-		effect->lLightId = GetFreeDynLight();
+	if(!lightHandleIsValid(m_fissure.lLightId)) {
+		m_fissure.lLightId = GetFreeDynLight();
 	}
-	if(lightHandleIsValid(effect->lLightId)) {
-		EERIE_LIGHT * light = lightHandleGet(effect->lLightId);
+	if(lightHandleIsValid(m_fissure.lLightId)) {
+		EERIE_LIGHT * light = lightHandleGet(m_fissure.lLightId);
 		
 		light->intensity = 1.3f;
 		light->fallend = 450.f;
@@ -114,8 +115,7 @@ void RiseDeadSpell::Launch()
 		light->time_creation = (unsigned long)(arxtime);
 	}
 	
-	m_pSpellFx = effect;
-	m_duration = effect->GetDuration();
+	m_duration = m_fissure.GetDuration();
 }
 
 void RiseDeadSpell::End()
@@ -148,38 +148,34 @@ void RiseDeadSpell::End()
 			entity->destroyOne();
 		}
 	}
+	
+	endLightDelayed(m_fissure.lLightId, 500);
 }
 
-void RiseDeadSpell::Update(float timeDelta)
-{
-	CRiseDead * effect = static_cast<CRiseDead *>(m_pSpellFx);
-	if(!effect)
-		return;
+void RiseDeadSpell::Update(float timeDelta) {
 	
 	if(m_entity == -2) {
-		effect->lLightId = LightHandle::Invalid;
+		m_fissure.lLightId = LightHandle::Invalid;
 		return;
 	}
 	
 	m_duration+=200;
 	
-	effect->Update(timeDelta);
-	effect->Render();
+	m_fissure.Update(timeDelta);
+	m_fissure.Render();
 	
-	if(lightHandleIsValid(effect->lLightId)) {
-		EERIE_LIGHT * light = lightHandleGet(effect->lLightId);
+	if(lightHandleIsValid(m_fissure.lLightId)) {
+		EERIE_LIGHT * light = lightHandleGet(m_fissure.lLightId);
 		
 		light->intensity = 0.7f + 2.3f;
 		light->fallend = 500.f;
 		light->fallstart = 400.f;
-		light->rgb.r = 0.8f;
-		light->rgb.g = 0.2f;
-		light->rgb.b = 0.2f;
+		light->rgb = Color3f(0.8f, 0.2f, 0.2f);
 		light->duration=800;
 		light->time_creation = (unsigned long)(arxtime);
 	}
 	
-	unsigned long tim = effect->ulCurrentTime;
+	unsigned long tim = m_fissure.ulCurrentTime;
 	
 	if(tim > 3000 && m_entity == EntityHandle::Invalid) {
 		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &m_targetPos);
@@ -200,8 +196,7 @@ void RiseDeadSpell::Update(float timeDelta)
 				ARX_INTERACTIVE_HideGore(io);
 				RestoreInitialIOStatusOfIO(io);
 				
-				long lSpellsCaster = m_caster;
-				io->summoner = checked_range_cast<short>(lSpellsCaster);
+				io->summoner = m_caster;
 				
 				io->ioflags|=IO_NOSAVE;
 				m_entity = io->index();
@@ -218,14 +213,14 @@ void RiseDeadSpell::Update(float timeDelta)
 				
 				SendIOScriptEvent(io,SM_SUMMONED);
 					
-				Vec3f pos = effect->eSrc;
+				Vec3f pos = m_fissure.m_eSrc;
 				pos += Vec3f(rnd(), rnd(), rnd()) * 100.f;
 				pos += Vec3f(-50.f, 50.f, -50.f);
 				
 				MakeCoolFx(pos);
 			}
 			
-			effect->lLightId = LightHandle::Invalid;
+			m_fissure.lLightId = LightHandle::Invalid;
 		} else {
 			ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE);
 			m_entity = EntityHandle(-2); // FIXME inband signaling
@@ -233,7 +228,7 @@ void RiseDeadSpell::Update(float timeDelta)
 		}
 	} else if(!arxtime.is_paused() && tim < 4000) {
 	  if(rnd() > 0.95f) {
-			MakeCoolFx(effect->eSrc);
+			MakeCoolFx(m_fissure.m_eSrc);
 		}
 	}
 }
@@ -278,6 +273,7 @@ CreateFieldSpell::CreateFieldSpell()
 {
 }
 
+
 void CreateFieldSpell::Launch()
 {
 	unsigned long start = (unsigned long)(arxtime);
@@ -313,9 +309,6 @@ void CreateFieldSpell::Launch()
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_CREATE_FIELD, &target);
 	
-	CCreateField * effect  = new CCreateField();
-	m_pSpellFx = effect;
-	
 	res::path cls = "graph/obj3d/interactive/fix_inter/blue_cube/blue_cube";
 	Entity * io = AddFix(cls, -1, IO_IMMEDIATELOAD);
 	if(io) {
@@ -328,24 +321,24 @@ void CreateFieldSpell::Launch()
 		io->initpos = io->pos = target;
 		SendInitScriptEvent(io);
 		
-		effect->Create(target);
-		effect->SetDuration(m_duration);
-		effect->lLightId = GetFreeDynLight();
+		m_field.Create(target);
+		m_field.SetDuration(m_duration);
+		m_field.lLightId = GetFreeDynLight();
 		
-		if(lightHandleIsValid(effect->lLightId)) {
-			EERIE_LIGHT * light = lightHandleGet(effect->lLightId);
+		if(lightHandleIsValid(m_field.lLightId)) {
+			EERIE_LIGHT * light = lightHandleGet(m_field.lLightId);
 			
 			light->intensity = 0.7f + 2.3f;
 			light->fallend = 500.f;
 			light->fallstart = 400.f;
 			light->rgb = Color3f(0.8f, 0.0f, 1.0f);
-			light->pos = effect->eSrc - Vec3f(0.f, 150.f, 0.f);
+			light->pos = m_field.eSrc - Vec3f(0.f, 150.f, 0.f);
 		}
 		
-		m_duration = effect->GetDuration();
+		m_duration = m_field.GetDuration();
 		
 		if(m_flags & SPELLCAST_FLAG_RESTORE) {
-			effect->Update(4000);
+			m_field.Update(4000);
 		}
 		
 	} else {
@@ -353,51 +346,35 @@ void CreateFieldSpell::Launch()
 	}
 }
 
-void CreateFieldSpell::End()
-{
-	CCreateField *pCreateField = (CCreateField *) m_pSpellFx;
-
-	if(pCreateField && lightHandleIsValid(pCreateField->lLightId)) {
-		lightHandleGet(pCreateField->lLightId)->duration = 800;
-	}
-
+void CreateFieldSpell::End() {
+	
+	endLightDelayed(m_field.lLightId, 800);
+	
 	if(ValidIONum(m_entity)) {
 		delete entities[m_entity];
 	}
 }
 
-void CreateFieldSpell::Update(float timeDelta)
-{
-	CSpellFx *pCSpellFX = m_pSpellFx;
+void CreateFieldSpell::Update(float timeDelta) {
 	
-	if(pCSpellFX) {
 		if(ValidIONum(m_entity)) {
 			Entity * io = entities[m_entity];
 			
-			CCreateField * ccf=(CCreateField *)pCSpellFX;
-			io->pos = ccf->eSrc;
+			io->pos = m_field.eSrc;
 
 			if (IsAnyNPCInPlatform(io))
 			{
 				m_duration=0;
 			}
 		
-			pCSpellFX->Update(timeDelta);			
-			pCSpellFX->Render();
+			m_field.Update(timeDelta);
+			m_field.Render();
 		}
-	}
 }
 
 Vec3f CreateFieldSpell::getPosition() {
-	CSpellFx *pCSpellFX = m_pSpellFx;
-
-	if(pCSpellFX) {
-		CCreateField *pCreateField = (CCreateField *) pCSpellFX;
-			
-		return pCreateField->eSrc;
-	} else {
-		return Vec3f_ZERO;
-	}
+	
+	return m_field.eSrc;
 }
 
 void DisarmTrapSpell::Launch()
@@ -417,12 +394,9 @@ void DisarmTrapSpell::Launch()
 			continue;
 		}
 		
-		if(!spell->m_pSpellFx) {
-			continue;
-		}
+		Vec3f pos = static_cast<RuneOfGuardingSpell *>(spell)->getPosition();
 		
-		CSpellFx * effect = spell->m_pSpellFx;
-		if(sphere.contains(static_cast<CRuneOfGuarding *>(effect)->eSrc)) {
+		if(sphere.contains(pos)) {
 			spell->m_level -= m_level;
 			if(spell->m_level <= 0) {
 				spells.endSpell(spell);
@@ -431,8 +405,9 @@ void DisarmTrapSpell::Launch()
 	}
 }
 
-bool SlowDownSpell::CanLaunch()
-{
+
+bool SlowDownSpell::CanLaunch() {
+	
 	// TODO this seems to be the only spell that ends itself when cast twice
 	SpellBase * spell = spells.getSpellOnTarget(m_target, SPELL_SLOW_DOWN);
 	if(spell) {
@@ -447,39 +422,26 @@ void SlowDownSpell::Launch()
 {
 	ARX_SOUND_PlaySFX(SND_SPELL_SLOW_DOWN, &entities[m_target]->pos);
 	
-	m_duration = (m_caster == PlayerEntityHandle) ? 10000000 : 10000;
-	if(m_launchDuration > -1) {
-		m_duration = m_launchDuration;
-	}
-	m_pSpellFx = NULL;
+	m_duration = (m_launchDuration > -1) ? m_launchDuration : 10000;
+	
+	if(m_caster == PlayerEntityHandle)
+		m_duration = 10000000;
+	
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 1.2f;
-	
-	Vec3f targetPos = getTargetPos(m_caster, m_target);
-	
-	CSlowDown * effect = new CSlowDown();
-	effect->Create(targetPos);
-	effect->SetDuration(m_duration);
-	m_pSpellFx = effect;
-	m_duration = effect->GetDuration();
 	
 	m_targets.push_back(m_target);
 }
 
-void SlowDownSpell::End()
-{
+void SlowDownSpell::End() {
+	
 	ARX_SOUND_PlaySFX(SND_SPELL_SLOW_DOWN_END);
 	m_targets.clear();
 }
 
-void SlowDownSpell::Update(float timeDelta)
-{
-	CSpellFx *pCSpellFX = m_pSpellFx;
-
-	if(pCSpellFX) {
-		pCSpellFX->Update(timeDelta);
-		pCSpellFX->Render();
-	}
+void SlowDownSpell::Update(float timeDelta) {
+	
+	ARX_UNUSED(timeDelta);
 }
 
 Vec3f SlowDownSpell::getPosition() {

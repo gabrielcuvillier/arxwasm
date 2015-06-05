@@ -850,7 +850,7 @@ bool CheckEverythingInSphere(const Sphere & sphere, long source, EntityHandle ta
 	float sr180 = sphere.radius + 500.f;
 
 	for(long i = 0; i < TREATZONE_CUR; i++) {
-		if(targ > -1) {
+		if(ValidIONum(targ)) {
 			i = TREATZONE_CUR;
 			io = entities[targ];
 
@@ -1158,30 +1158,28 @@ bool CheckAnythingInSphere(const Sphere & sphere, EntityHandle source, CASFlags 
 }
 
 
-bool CheckIOInSphere(const Sphere & sphere, EntityHandle target, bool ignoreNoCollisionFlag) {
+bool CheckIOInSphere(const Sphere & sphere, const Entity & entity, bool ignoreNoCollisionFlag) {
 	
-	if(!ValidIONum(target))
-		return false;
-
-	Entity * io=entities[target];
+	ARX_PROFILE_FUNC();
+	
 	float sr30 = sphere.radius + 22.f;
 	float sr40 = sphere.radius + 27.f;
 	float sr180 = sphere.radius + 500.f;
 
-	if((ignoreNoCollisionFlag || !(io->ioflags & IO_NO_COLLISIONS))
-	   && (io->show == SHOW_FLAG_IN_SCENE)
-	   && (io->gameFlags & GFLAG_ISINTREATZONE)
-	   && (io->obj)
+	if((ignoreNoCollisionFlag || !(entity.ioflags & IO_NO_COLLISIONS))
+	   && (entity.show == SHOW_FLAG_IN_SCENE)
+	   && (entity.gameFlags & GFLAG_ISINTREATZONE)
+	   && (entity.obj)
 	) {
-		if(closerThan(io->pos, sphere.origin, sr180)) {
-			std::vector<EERIE_VERTEX> & vlist = io->obj->vertexlist3;
+		if(closerThan(entity.pos, sphere.origin, sr180)) {
+			std::vector<EERIE_VERTEX> & vlist = entity.obj->vertexlist3;
 
-			if(io->obj->grouplist.size()>10) {
+			if(entity.obj->grouplist.size()>10) {
 				long count=0;
-				long ii=io->obj->grouplist.size()-1;
+				long ii=entity.obj->grouplist.size()-1;
 
 				while(ii) {
-					if(closerThan(vlist[io->obj->grouplist[ii].origin].v, sphere.origin, sr40)) {
+					if(closerThan(vlist[entity.obj->grouplist[ii].origin].v, sphere.origin, sr40)) {
 						count++;
 
 						if(count>3)
@@ -1194,7 +1192,7 @@ bool CheckIOInSphere(const Sphere & sphere, EntityHandle target, bool ignoreNoCo
 
 			long count=0;
 			long step;
-			long nbv = io->obj->vertexlist.size();
+			long nbv = entity.obj->vertexlist.size();
 
 			if(nbv < 150)
 				step = 1;
@@ -1215,7 +1213,7 @@ bool CheckIOInSphere(const Sphere & sphere, EntityHandle target, bool ignoreNoCo
 						return true;
 				}
 
-				if(io->obj->vertexlist.size() < 120) {
+				if(entity.obj->vertexlist.size() < 120) {
 					for(size_t kk = 0; kk < vlist.size(); kk+=1) {
 						if(kk != ii) {
 							for(float nn = 0.2f; nn < 1.f; nn += 0.2f) {
@@ -1224,7 +1222,7 @@ bool CheckIOInSphere(const Sphere & sphere, EntityHandle target, bool ignoreNoCo
 									count++;
 
 									if(count > 3) {
-										if(io->ioflags & IO_FIX)
+										if(entity.ioflags & IO_FIX)
 											return true;
 
 										if(count > 6)
@@ -1237,7 +1235,7 @@ bool CheckIOInSphere(const Sphere & sphere, EntityHandle target, bool ignoreNoCo
 				}
 			}
 
-			if(count > 3 && (io->ioflags & IO_FIX))
+			if(count > 3 && (entity.ioflags & IO_FIX))
 				return true;
 		}
 	}
@@ -1565,7 +1563,7 @@ bool ARX_COLLISION_Move_Cylinder(IO_PHYSICS * ip, Entity * io, float MOVE_CYLIND
 	return true;
 }
 
-//TODO copy-paste
+// TODO visible copy-paste
 bool IO_Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hit)
 {
 	ARX_PROFILE_FUNC();
@@ -1654,7 +1652,7 @@ bool IO_Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f *
 			Entity * io = entities[handle];
 
 			if(io && (io->gameFlags & GFLAG_VIEW_BLOCKER)) {
-				if(CheckIOInSphere(sphere, handle)) {
+				if(CheckIOInSphere(sphere, *io)) {
 					dd = fdist(orgn, sphere.origin);
 
 					if(dd < nearest) {

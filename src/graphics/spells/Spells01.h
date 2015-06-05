@@ -67,6 +67,7 @@ public:
 	
 	float lightIntensityFactor;
 	
+	LightHandle lLightId;
 private:
 	int iLength;
 	int	iBezierPrecision;
@@ -74,27 +75,9 @@ private:
 	float fTrail;
 	float fOneOnBezierPrecision;
 	TextureContainer * tex_mm;
-	TexturedVertex pathways[6];
+	Vec3f pathways[6];
 	audio::SourceId snd_loop;
 	bool m_mrCheat;
-};
-
-class CMultiMagicMissile : public CSpellFx {
-	
-public:
-	explicit CMultiMagicMissile(size_t nb, bool mrCheat);
-	~CMultiMagicMissile();
-	
-	void CheckCollision(float level, EntityHandle caster);
-	bool CheckAllDestroyed();
-	
-	void Create(Vec3f aePos, float afAlpha, float afBeta);
-	void Update(float timeDelta);
-	void Render();
-	
-private:
-	bool m_mrCheat;
-	std::vector<CMagicMissile *> pTab;
 };
 
 #endif // ARX_GRAPHICS_SPELLS_SPELLS01_H

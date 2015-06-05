@@ -1130,6 +1130,9 @@ void FaceTarget2(Entity * io)
 		io->lastmove = VRotateY(temp, rot);
 	}
 	
+	arx_assert(isallfinite(io->move));
+	arx_assert(isallfinite(io->lastmove));
+	
 	// Needed angle to turn toward target
 	io->angle.setPitch(MAKEANGLE(io->angle.getPitch() - rot)); // -tt
 }
@@ -2836,7 +2839,7 @@ void ARX_NPC_NeedStepSound(Entity * io, const Vec3f & pos, const float volume, c
 		step_material = &io->stepmaterial;
 	}
 	
-	if(io == entities.player() && player.equiped[EQUIP_SLOT_LEGGINGS] > 0) {
+	if(io == entities.player()) {
 		if(ValidIONum(player.equiped[EQUIP_SLOT_LEGGINGS])) {
 			Entity * ioo = entities[player.equiped[EQUIP_SLOT_LEGGINGS]];
 			if(!ioo->stepmaterial.empty()) {
@@ -3068,8 +3071,7 @@ void ManageIgnition_2(Entity * io) {
 			light->intensity = std::max(io->ignition * ( 1.0f / 10 ), 1.f);
 			light->fallstart = std::max(io->ignition * 10.f, 100.f);
 			light->fallend   = std::max(io->ignition * 25.f, 240.f);
-			float v = std::max((io->ignition * ( 1.0f / 10 )), 0.5f);
-			v = std::min(v, 1.f);
+			float v = glm::clamp(io->ignition * 0.1f, 0.5f, 1.f);
 			light->rgb = (Color3f(1.f, 0.8f, 0.6f) - Color3f(rnd(), rnd(), rnd()) * Color3f(0.2f, 0.2f, 0.2f)) * v;
 			light->pos = position + Vec3f(0.f, -30.f, 0.f);
 			light->ex_flaresize = 40.f; //16.f;

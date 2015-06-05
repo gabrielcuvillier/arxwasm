@@ -106,9 +106,7 @@ void ManaDrainSpell::Launch()
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 2.f;
 	
-	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_MAGICAL_SHIELD,
-	                                       &m_caster_pos, 1.2f,
-	                                       ARX_SOUND_PLAY_LOOPED);
+	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_MAGICAL_SHIELD, &m_caster_pos, 1.2f, ARX_SOUND_PLAY_LOOPED);
 	
 	DamageParameters damage;
 	damage.radius = 150.f;
@@ -137,17 +135,10 @@ void ManaDrainSpell::End()
 {
 	DamageRequestEnd(m_damage);
 	
-	if(lightHandleIsValid(m_light)) {
-		EERIE_LIGHT * light = lightHandleGet(m_light);
-		
-		light->time_creation = (unsigned long)(arxtime);
-		light->duration = 600; 
-	}
+	endLightDelayed(m_light, 600);
 	
 	ARX_SOUND_Stop(m_snd_loop);
 }
-
-extern EERIE_3DOBJ * cabal;
 
 // TODO copy-paste cabal
 void ManaDrainSpell::Update(float timeDelta)
@@ -294,16 +285,12 @@ void ExplosionSpell::Launch()
 	
 	for(long i_angle = 0 ; i_angle < 360 ; i_angle += 12) {
 		for(long j = -100 ; j < 100 ; j += 50) {
-			float rr = glm::radians(float(i_angle));
-			Vec3f pos(target.x - std::sin(rr) * 360.f, target.y,
-			          target.z + std::cos(rr) * 360.f);
-			Vec3f dir = glm::normalize(Vec3f(pos.x - target.x, 
-                                        0.f,
-                                        pos.z - target.z)) * 60.f;
-			Color3f rgb(0.1f + rnd() * (1.f/3), 0.1f + rnd() * (1.f/3),
-			            0.8f + rnd() * (1.f/5));
+			Vec3f dir = angleToVectorXZ(i_angle) * 60.f;
+			
+			Color3f color = Color3f(0.1f, 0.1f, 0.8f) + Color3f(rnd(), rnd(), rnd()) * Color3f(1.f/3, 1.f/3, 1.f/5);
+			
 			Vec3f posi = target + Vec3f(0.f, j * 2, 0.f);
-			LaunchFireballBoom(posi, 16, &dir, &rgb);
+			LaunchFireballBoom(posi, 16, &dir, &color);
 		}
 	}
 	
@@ -320,10 +307,8 @@ void ExplosionSpell::Update(float timeDelta)
 	if(lightHandleIsValid(m_light)) {
 		EERIE_LIGHT * light = lightHandleGet(m_light);
 		
-		light->rgb.r = 0.1f+rnd()*( 1.0f / 3 );;
-		light->rgb.g = 0.1f+rnd()*( 1.0f / 3 );;
-		light->rgb.b = 0.8f+rnd()*( 1.0f / 5 );;
-		light->duration=200;
+		light->rgb = Color3f(0.1f, 0.1f, 0.8f) + Color3f(rnd(), rnd(), rnd()) * Color3f(1.f/3, 1.f/3, 1.f/5);
+		light->duration = 200;
 	
 		float rr,r2;
 		Vec3f pos;
@@ -336,8 +321,10 @@ void ExplosionSpell::Update(float timeDelta)
 			pos.x=light->pos.x-std::sin(rr)*260;
 			pos.y=light->pos.y-std::sin(r2)*260;
 			pos.z=light->pos.z+std::cos(rr)*260;
-			Color3f rgb(0.1f + rnd()*(1.f/3), 0.1f + rnd()*(1.0f/3), 0.8f + rnd()*(1.0f/5));
-			LaunchFireballBoom(pos, static_cast<float>(lvl), NULL, &rgb);
+			
+			Color3f color = Color3f(0.1f, 0.1f, 0.8f) + Color3f(rnd(), rnd(), rnd()) * Color3f(1.f/3, 1.f/3, 1.f/5);
+			
+			LaunchFireballBoom(pos, static_cast<float>(lvl), NULL, &color);
 		} else if(choice > .6f) {
 			rr=glm::radians(rnd()*360.f);
 			r2=glm::radians(rnd()*360.f);
@@ -356,20 +343,20 @@ void ExplosionSpell::Update(float timeDelta)
 	}	
 }
 
+
 void EnchantWeaponSpell::Launch()
 {
 	m_duration = 20;
 }
 
-void EnchantWeaponSpell::Update(float timeDelta)
-{
-	CSpellFx *pCSpellFX = m_pSpellFx;
-	
-	if(pCSpellFX) {
-		pCSpellFX->Update(timeDelta);
-		pCSpellFX->Render();
-	}	
+void EnchantWeaponSpell::End() {
+
 }
+
+void EnchantWeaponSpell::Update(float timeDelta) {
+	ARX_UNUSED(timeDelta);
+}
+
 
 LifeDrainSpell::LifeDrainSpell()
 	: m_light(LightHandle::Invalid)
@@ -392,9 +379,7 @@ void LifeDrainSpell::Launch()
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 12.f;
 	
-	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_MAGICAL_SHIELD,
-	                                       &m_caster_pos, 0.8f,
-	                                       ARX_SOUND_PLAY_LOOPED);
+	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_MAGICAL_SHIELD, &m_caster_pos, 0.8f, ARX_SOUND_PLAY_LOOPED);
 	
 	DamageParameters damage;
 	damage.radius = 150.f;
@@ -423,12 +408,7 @@ void LifeDrainSpell::End()
 {
 	DamageRequestEnd(m_damage);
 	
-	if(lightHandleIsValid(m_light)) {
-		EERIE_LIGHT * light = lightHandleGet(m_light);
-		
-		light->time_creation = (unsigned long)(arxtime);
-		light->duration = 600; 
-	}
+	endLightDelayed(m_light, 600);
 	
 	ARX_SOUND_Stop(m_snd_loop);
 }

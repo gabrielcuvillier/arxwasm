@@ -19,6 +19,7 @@
 
 #include "game/magic/spells/SpellsLvl04.h"
 
+#include "animation/AnimationRender.h"
 #include "core/Application.h"
 #include "core/GameTime.h"
 #include "game/Damage.h"
@@ -26,13 +27,16 @@
 #include "game/EntityManager.h"
 #include "game/Player.h"
 #include "game/Spells.h"
+#include "game/magic/spells/SpellsLvl04.h"
+#include "game/magic/spells/SpellsLvl06.h"
+#include "game/magic/spells/SpellsLvl07.h"
 #include "gui/Speech.h"
-#include "graphics/spells/Spells04.h"
+#include "graphics/particle/ParticleEffects.h"
 #include "graphics/spells/Spells06.h"
-#include "graphics/spells/Spells07.h"
 
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
+
 
 bool BlessSpell::CanLaunch()
 {
@@ -49,49 +53,102 @@ void BlessSpell::Launch()
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_BLESS);
 	
-	// TODO this tolive value is probably never read
-	m_duration = (m_launchDuration > -1) ? m_launchDuration : 2000000;
+	// TODO m_launchDuration is not used
+	// m_duration = (m_launchDuration > -1) ? m_launchDuration : 2000000;
+	m_duration = 20000;
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 0.3333f * m_level;
 	
-	CBless * effect = new CBless();
-	Vec3f target = entities[m_caster]->pos;
-	effect->Create(target);
-	effect->SetDuration(20000);
-	m_pSpellFx = effect;
-	m_duration = effect->GetDuration();
+	m_pos = entities[m_caster]->pos;
+	
+	m_yaw = 0.f;
+	m_scale = 0.f;
+	fRot = 0.f;
+	
+	tex_p1 = TextureContainer::Load("graph/obj3d/textures/(fx)_tsu_blueting");
+	tex_sol = TextureContainer::Load("graph/particles/(fx)_pentagram_bless");
 	
 	m_targets.push_back(m_target);
 }
 
-void BlessSpell::End()
-{
+void BlessSpell::End() {
+	
 	m_targets.clear();
 }
 
-void BlessSpell::Update(float timeDelta)
-{
-	if(m_pSpellFx) {
-		CBless * pBless=(CBless *)m_pSpellFx;
+void BlessSpell::Update(float timeDelta) {
+	
+	fRot += timeDelta * 0.25f;
+	
+	if(ValidIONum(m_target)) {
+		m_pos = entities[m_target]->pos;
+		
+		if(m_target == PlayerEntityHandle)
+			m_yaw = player.angle.getPitch();
+		else 
+			m_yaw = entities[m_target]->angle.getPitch();
+	}
+	
+	m_scale = (m_level + 10) * 6.f;
+	
+	Vec3f pos = m_pos + Vec3f(0, -5, 0);
+	
+	RenderMaterial mat;
+	mat.setCulling(Renderer::CullNone);
+	mat.setBlendType(RenderMaterial::Additive);
+	mat.setDepthTest(true);
+	mat.setLayer(RenderMaterial::Decal);
+	mat.setTexture(tex_sol);
+	
+	float fBetaRadCos = glm::cos(glm::radians(MAKEANGLE(m_yaw))) * m_scale;
+	float fBetaRadSin = glm::sin(glm::radians(MAKEANGLE(m_yaw))) * m_scale;
 
-		if(pBless) {
-			Anglef angle = Anglef::ZERO;
-			
-			if(ValidIONum(m_target)) {
-				pBless->eSrc = entities[m_target]->pos;
-				
-				if(m_target == PlayerEntityHandle)
-					angle.setPitch(player.angle.getPitch());
-				else 
-					angle.setPitch(entities[m_target]->angle.getPitch());
-			}
-			
-			pBless->Set_Angle(angle);
-			pBless->m_scale = (m_level + 10) * 6.f;
+	ColorRGBA color = Color::white.toRGB();
+	
+	{
+	TexturedQuad q;
+	
+	q.v[0].color = color;
+	q.v[1].color = color;
+	q.v[2].color = color;
+	q.v[3].color = color;
+	
+	q.v[0].uv = Vec2f_ZERO;
+	q.v[1].uv = Vec2f_X_AXIS;
+	q.v[2].uv = Vec2f_ONE;
+	q.v[3].uv = Vec2f_Y_AXIS;
+	
+	q.v[0].p.x = pos.x + fBetaRadCos - fBetaRadSin;
+	q.v[0].p.y = pos.y;
+	q.v[0].p.z = pos.z + fBetaRadSin + fBetaRadCos;
+	q.v[1].p.x = pos.x - fBetaRadCos - fBetaRadSin;
+	q.v[1].p.y = pos.y;
+	q.v[1].p.z = pos.z - fBetaRadSin + fBetaRadCos;
+	q.v[2].p.x = pos.x - fBetaRadCos + fBetaRadSin;
+	q.v[2].p.y = pos.y;
+	q.v[2].p.z = pos.z - fBetaRadSin - fBetaRadCos;
+	q.v[3].p.x = pos.x + fBetaRadCos + fBetaRadSin;
+	q.v[3].p.y = pos.y;
+	q.v[3].p.z = pos.z + fBetaRadSin - fBetaRadCos;
+	
+	drawQuadRTP(mat, q);
+	}
+	
+	for(int i = 0; i < 12; i++) {
+		
+		PARTICLE_DEF * pd = createParticle();
+		if(!pd) {
+			break;
 		}
-
-		m_pSpellFx->Update(timeDelta);
-		m_pSpellFx->Render();
+		
+		pd->ov = m_pos - Vec3f(0.f, 20.f, 0.f);
+		pd->move = Vec3f(3.f * frand2(), rnd() * 0.5f, 3.f * frand2());
+		pd->siz = 0.005f;
+		pd->tolive = Random::get(1000, 2000);
+		pd->tc = tex_p1;
+		pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
+		pd->fparam = 0.0000001f;
+		pd->rgb = Color3f(0.7f, 0.6f, 0.2f);
 	}
 }
 
@@ -108,7 +165,7 @@ void DispellFieldSpell::Launch()
 	for(size_t n = 0; n < MAX_SPELLS; n++) {
 		SpellBase * spell = spells[SpellHandle(n)];
 		
-		if(!spell || !spell->m_pSpellFx) {
+		if(!spell) {
 			continue;
 		}
 		
@@ -119,20 +176,20 @@ void DispellFieldSpell::Launch()
 			
 			case SPELL_CREATE_FIELD: {
 				if(m_caster != PlayerEntityHandle || spell->m_caster == PlayerEntityHandle) {
-					pos = static_cast<CCreateField *>(spell->m_pSpellFx)->eSrc;
+					pos = static_cast<CreateFieldSpell *>(spell)->getPosition();
 					cancel = true;
 				}
 				break;
 			}
 			
 			case SPELL_FIRE_FIELD: {
-				pos = static_cast<CFireField *>(spell->m_pSpellFx)->pos;
+				pos = static_cast<FireFieldSpell *>(spell)->getPosition();
 				cancel = true;
 				break;
 			}
 			
 			case SPELL_ICE_FIELD: {
-				pos = static_cast<CIceField *>(spell->m_pSpellFx)->eSrc;
+				pos = static_cast<IceFieldSpell *>(spell)->getPosition();
 				cancel = true;
 				break;
 			}
@@ -163,6 +220,7 @@ void DispellFieldSpell::Launch()
 	}
 }
 
+
 void FireProtectionSpell::Launch()
 {
 	spells.endByTarget(m_target, SPELL_FIRE_PROTECTION);
@@ -170,11 +228,10 @@ void FireProtectionSpell::Launch()
 	spells.endByCaster(m_caster, SPELL_LOWER_ARMOR);
 	spells.endByCaster(m_caster, SPELL_COLD_PROTECTION);
 	
-	if(m_launchDuration > -1) {
-		m_duration = m_launchDuration;
-	} else {
-		m_duration = (m_caster == PlayerEntityHandle) ? 2000000 : 20000;
-	}
+	m_duration = (m_launchDuration > -1) ? m_launchDuration : 20000;
+	
+	if(m_caster == PlayerEntityHandle)
+		m_duration = 2000000;
 	
 	if(m_caster == PlayerEntityHandle) {
 		m_target = PlayerEntityHandle;
@@ -188,17 +245,13 @@ void FireProtectionSpell::Launch()
 	if(ValidIONum(m_target)) {
 		Entity *io = entities[m_target];
 		io->halo.flags = HALO_ACTIVE;
-		io->halo.color.r = 0.5f;
-		io->halo.color.g = 0.3f;
-		io->halo.color.b = 0.f;
+		io->halo.color = Color3f(0.5f, 0.3f, 0.f);
 		io->halo.radius = 45.f;
 	}
 	
 	m_targets.push_back(m_target);
 	
-	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_FIRE_PROTECTION_LOOP, 
-	                                       &entities[m_target]->pos, 1.f, 
-	                                       ARX_SOUND_PLAY_LOOPED);
+	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_FIRE_PROTECTION_LOOP, &entities[m_target]->pos, 1.f, ARX_SOUND_PLAY_LOOPED);
 }
 
 void FireProtectionSpell::End()
@@ -218,9 +271,7 @@ void FireProtectionSpell::Update(float timeDelta)
 	if(ValidIONum(m_target)) {
 		Entity *io = entities[m_target];
 		io->halo.flags = HALO_ACTIVE;
-		io->halo.color.r = 0.5f;
-		io->halo.color.g = 0.3f;
-		io->halo.color.b = 0.f;
+		io->halo.color = Color3f(0.5f, 0.3f, 0.f);
 		io->halo.radius = 45.f;
 	}
 	
@@ -244,11 +295,10 @@ void ColdProtectionSpell::Launch()
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_COLD_PROTECTION_START, &entities[m_target]->pos);
 	
-	if(m_launchDuration > -1) {
-		m_duration = m_launchDuration;
-	} else {
-		m_duration = (m_caster == PlayerEntityHandle) ? 2000000 : 20000;
-	}
+	m_duration = (m_launchDuration > -1) ? m_launchDuration : 20000;
+	
+	if(m_caster == PlayerEntityHandle)
+		m_duration = 2000000;
 	
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 1.f;
@@ -256,15 +306,11 @@ void ColdProtectionSpell::Launch()
 	if(ValidIONum(m_target)) {
 		Entity *io = entities[m_target];
 		io->halo.flags = HALO_ACTIVE;
-		io->halo.color.r = 0.2f;
-		io->halo.color.g = 0.2f;
-		io->halo.color.b = 0.45f;
+		io->halo.color = Color3f(0.2f, 0.2f, 0.45f);
 		io->halo.radius = 45.f;
 	}
 	
-	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_COLD_PROTECTION_LOOP,
-	                                       &entities[m_target]->pos, 1.f,
-	                                       ARX_SOUND_PLAY_LOOPED);
+	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_COLD_PROTECTION_LOOP, &entities[m_target]->pos, 1.f, ARX_SOUND_PLAY_LOOPED);
 	
 	m_targets.push_back(m_target);
 }
@@ -286,9 +332,7 @@ void ColdProtectionSpell::Update(float timeDelta)
 	if(ValidIONum(m_target)) {
 		Entity *io = entities[m_target];
 		io->halo.flags = HALO_ACTIVE;
-		io->halo.color.r = 0.2f;
-		io->halo.color.g = 0.2f;
-		io->halo.color.b = 0.45f;
+		io->halo.color = Color3f(0.2f, 0.2f, 0.45f);
 		io->halo.radius = 45.f;
 	}
 	
@@ -325,6 +369,7 @@ void TelekinesisSpell::End()
 	ARX_SOUND_PlaySFX(SND_SPELL_TELEKINESIS_END, &entities[m_caster]->pos);
 }
 
+
 void CurseSpell::Launch()
 {
 	spells.endByCaster(m_target, SPELL_CURSE);
@@ -335,47 +380,61 @@ void CurseSpell::Launch()
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 0.5f * m_level;
 	
-	CCurse * effect = new CCurse();
-	
 	Vec3f target = getTargetPos(m_caster, m_target);
 	if(m_target == PlayerEntityHandle) {
 		target.y -= 200.f;
-	} else if(m_target > 0 && entities[m_target]) {
+	} else if(ValidIONum(m_target)) {
 		target.y += entities[m_target]->physics.cyl.height - 50.f;
 	}
 	
-	effect->Create(target);
-	effect->SetDuration(m_duration);
-	m_pSpellFx = effect;
-	m_duration = effect->GetDuration();
+	m_pos = target;
+	fRot = 0.f;
+	tex_p1 = TextureContainer::Load("graph/obj3d/textures/(fx)_tsu_blueting");
 	
 	m_targets.push_back(m_target);
 }
 
-void CurseSpell::End()
-{
+void CurseSpell::End() {
+	
 	m_targets.clear();
 }
 
-void CurseSpell::Update(float timeDelta)
-{
-	if(m_pSpellFx) {
-		CCurse * curse=(CCurse *)m_pSpellFx;
-		Vec3f target = Vec3f_ZERO;
-			
-		if(m_target >= PlayerEntityHandle && entities[m_target]) {
-			target = entities[m_target]->pos;
+void CurseSpell::Update(float timeDelta) {
+	
+	fRot += timeDelta * 0.25f;
+	
+	Vec3f target = Vec3f_ZERO;
+	if(ValidIONum(m_target)) {
+		target = entities[m_target]->pos;
 
-			if(m_target == PlayerEntityHandle)
-				target.y -= 200.f;
-			else
-				target.y += entities[m_target]->physics.cyl.height - 30.f;
+		if(m_target == PlayerEntityHandle)
+			target.y -= 200.f;
+		else
+			target.y += entities[m_target]->physics.cyl.height - 30.f;
+	}
+	m_pos = target;
+	
+	RenderMaterial mat;
+	mat.setCulling(Renderer::CullCW);
+	mat.setDepthTest(true);
+	mat.setBlendType(RenderMaterial::Opaque);
+	
+	Draw3DObject(svoodoo, Anglef(0, fRot, 0), m_pos, Vec3f_ONE, Color3f::white, mat);
+	
+	for(int i = 0; i < 4; i++) {
+		
+		PARTICLE_DEF * pd = createParticle();
+		if(!pd) {
+			break;
 		}
 		
-		curse->Update(timeDelta);
-		
-		curse->eTarget = target;
-		curse->Render();
+		pd->ov = m_pos;
+		pd->move = Vec3f(2.f * frand2(), rnd() * -10.f - 10.f, 2.f * frand2());
+		pd->siz = 0.015f;
+		pd->tolive = Random::get(1000, 1600);
+		pd->tc = tex_p1;
+		pd->special = ROTATING | MODULATE_ROTATION | DISSIPATING | SUBSTRACT | GRAVITY;
+		pd->fparam = 0.0000001f;
 	}
 }
 

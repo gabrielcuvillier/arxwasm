@@ -41,102 +41,66 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
 
-#ifndef ARX_GRAPHICS_SPELLS_SPELLS03_H
-#define ARX_GRAPHICS_SPELLS_SPELLS03_H
+#ifndef ARX_GRAPHICS_SPELLS_SPELLS07_H
+#define ARX_GRAPHICS_SPELLS_SPELLS07_H
 
+#include "game/Entity.h"
+#include "graphics/Vertex.h"
+#include "graphics/data/Mesh.h"
 #include "graphics/effects/SpellEffects.h"
-#include "graphics/effects/Trail.h"
 #include "graphics/particle/ParticleSystem.h"
-#include "graphics/particle/ParticleParams.h"
+#include "math/Types.h"
+#include "math/Vector.h"
 
 // Done By : Didier Pedreno
-class CFireBall : public CSpellFx {
+class CLightning : public CSpellFx {
 	
 public:
-	CFireBall();
-	~CFireBall();
+	CLightning();
 	
-	void SetTTL(unsigned long);
-	
-	void Create(Vec3f, float afBeta, float afAlpha);
-	void Kill();
-	
+	void Create(Vec3f, Vec3f);
 	void Update(float timeDelta);
 	void Render();
 	
-	Vec3f eSrc;
-	Vec3f eCurPos;
-	Vec3f eMove;
-	bool bExplo;
+	Vec3f m_pos;
+	float m_beta;
+	float m_alpha;
+	EntityHandle m_caster;
+	float m_level;
 	
-	unsigned long m_createBallDuration;
-private:
-
-};
-
-class CSpeed: public CSpellFx {
-	
-public:
-	~CSpeed();
-	
-	void Create(EntityHandle numinteractive);
-	void Update(float timeDelta);
-	void Render();
+	float	m_fDamage;
+	bool m_isMassLightning;
 	
 private:
-	EntityHandle num;
+	float fTotoro;
+	float fMySize;
+	size_t m_nbtotal;
+	long m_lNbSegments;
+	float m_invNbSegments;
+	float m_fSize;
+	float m_fLengthMin;
+	float m_fLengthMax;
+	Vec3f m_fAngleMin;
+	Vec3f m_fAngleMax;
+	Vec3f m_eSrc;
+	Vec3f m_eDest;
+	TextureContainer * m_tex_light;
+	int m_iTTL;
 	
-	struct SpeedTrail {
-		short vertexIndex;
-		Trail * trail;
-	};
-	
-	std::vector<SpeedTrail> m_trails;
-};
-
-#define MAX_ICE 150
-// Done By : did
-class CIceProjectile : public CSpellFx {
-	
-public:
-	CIceProjectile();
-	~CIceProjectile();
-	
-	void Create(Vec3f, float, float, EntityHandle caster);
-	void Update(float timeDelta);
-	void Render();
-	
-private:
-	int iNumber;
-	int iMax;
-	float fStep;
-	float fColor;
-	TextureContainer * tex_p1;
-	TextureContainer * tex_p2;
-	
-	struct Icicle {
-		int type;
+	struct CLightningNode {
 		Vec3f pos;
-		Vec3f size;
-		Vec3f sizeMax;
+		float size;
+		int parent;
+		Vec3f f;
 	};
-	Icicle m_icicles[MAX_ICE];
+	
+	static const size_t MAX_NODES = 2000;
+	
+	CLightningNode	m_cnodetab[MAX_NODES];
+	
+	struct LIGHTNING;
+	void BuildS(LIGHTNING * lightingInfo);
+	void ReCreate(float rootSize);
 };
 
-// Done By : did
-class CCreateFood : public CSpellFx {
-	
-public:
-	CCreateFood();
-	~CCreateFood();
-	
-	void Create();
-	void Update(float timeDelta);
-	void Render();
-	
-private:
-	Vec3f eSrc;
-	ParticleSystem * pPS;
-};
-
-#endif // ARX_GRAPHICS_SPELLS_SPELLS03_H
+#endif // ARX_GRAPHICS_SPELLS_SPELLS07_H

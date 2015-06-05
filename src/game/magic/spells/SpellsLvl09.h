@@ -22,6 +22,8 @@
 
 #include "game/magic/Spell.h"
 
+#include "graphics/effects/Fissure.h"
+
 class SummonCreatureSpell : public SpellBase {
 public:
 	SummonCreatureSpell();
@@ -34,6 +36,7 @@ public:
 private:
 	void GetTargetAndBeta(Vec3f & target, float & beta);
 	
+	CSummonCreature m_fissure;
 	Vec3f m_targetPos;
 	bool m_megaCheat;
 	long m_longinfo_summon_creature;
@@ -48,15 +51,22 @@ public:
 	void Update(float timeDelta);
 	
 private:
+	CSummonCreature m_fissure;
 	Vec3f m_targetPos;
 };
 
 class NegateMagicSpell : public SpellBase {
 public:
 	void Launch();
+	void End();
 	void Update(float timeDelta);
 	
 private:
+	Vec3f m_pos;
+	TextureContainer * tex_p2;
+	TextureContainer * tex_sol;
+	unsigned long ulCurrentTime;
+	
 	void LaunchAntiMagicField();
 };
 

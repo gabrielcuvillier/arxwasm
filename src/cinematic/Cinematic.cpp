@@ -50,16 +50,20 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "core/Application.h"
 
+#include "cinematic/CinematicFormat.h"
+#include "cinematic/CinematicTexture.h"
+#include "cinematic/CinematicEffects.h"
+#include "core/ArxGame.h"
+#include "core/Config.h"
+#include "core/Core.h"
 #include "graphics/Color.h"
 #include "graphics/Math.h"
 #include "graphics/Renderer.h"
 #include "graphics/Vertex.h"
 #include "graphics/data/Mesh.h"
-#include "cinematic/CinematicFormat.h"
-#include "cinematic/CinematicTexture.h"
-#include "cinematic/CinematicEffects.h"
 #include "graphics/texture/TextureStage.h"
 #include "graphics/texture/Texture.h"
+#include "graphics/DrawLine.h"
 
 #include "math/Angle.h"
 
@@ -80,16 +84,6 @@ static Color OldColorFlashBlanc;
 
 extern float	FlashAlpha;
 
-extern Rect g_size;
-
-static float ADJUSTX(float a) {
-	return (((((a)-(WIDTHS>>1))*((float)cinRenderSize.x/(float)WIDTHS))+(WIDTHS>>1)))*(640.f/(float)cinRenderSize.x);
-}
-
-static float ADJUSTY(float a) {
-	return (((((a)-(HEIGHTS>>1))*((float)cinRenderSize.y/(float)HEIGHTS))+(HEIGHTS>>1)))*(480.f/(float)cinRenderSize.y);
-}
-
 Cinematic::Cinematic(int _w, int _h)
 	: pos()
 	, angz()
@@ -99,7 +93,7 @@ Cinematic::Cinematic(int _w, int _h)
 	, numbitmapsuiv(-1)
 	, a()
 	, fx(-1)
-	, fxsuiv()
+	, m_fxsuiv()
 	, changekey(true)
 	, key(NULL)
 	, projectload(false)
@@ -110,15 +104,14 @@ Cinematic::Cinematic(int _w, int _h)
 	, colorflash()
 	, speed()
 	, idsound(-1)
-	, light()
-	, lightd()
+	, m_light()
+	, m_lightd()
 	, posgrille()
 	, angzgrille()
 	, posgrillesuiv()
 	, angzgrillesuiv()
 	, speedtrack()
 	, flTime()
-	, m_flIntensityRND(0.f)
 {
 	cinRenderSize.x = _w;
 	cinRenderSize.y = _h;
@@ -156,7 +149,8 @@ void Cinematic::OneTimeSceneReInit() {
 	
 	FlashBlancEnCours = false;
 	
-	m_flIntensityRND = 0.f;
+	flicker.reset();
+	flickerd.reset();
 	
 }
 
@@ -217,7 +211,7 @@ void Cinematic::New() {
 	
 	AddKey(key);
 	}
-	this->lightd = this->light;
+	m_lightd = m_light;
 	
 	SetCurrFrame(GetStartFrame());
 	
@@ -306,8 +300,10 @@ static void TransformLocalVertex(Vec3f * vbase, TexturedVertex * d3dv) {
 	d3dv->p.z = vbase->z + LocalPos.z;
 }
 
-void DrawGrille(CinematicGrid * grille, Color col, int fx, CinematicLight * light, Vec3f * posgrille, float angzgrille)
-{
+void DrawGrille(CinematicBitmap * bitmap, Color col, int fx, CinematicLight * light,
+                Vec3f * posgrille, float angzgrille, const CinematicFadeOut & fade) {
+	
+	CinematicGrid * grille = &bitmap->grid;
 	int nb = grille->m_nbvertexs;
 	Vec3f * v = grille->m_vertexs.data();
 	TexturedVertex * d3dv = AllTLVertex;
@@ -332,8 +328,6 @@ void DrawGrille(CinematicGrid * grille, Color col, int fx, CinematicLight * ligh
 			} else {
 				d3dv->color = col.toRGBA();
 			}
-			d3dv->p.x = ADJUSTX(d3dv->p.x);
-			d3dv->p.y = ADJUSTY(d3dv->p.y);
 			v++;
 			d3dv++;
 		}
@@ -347,15 +341,24 @@ void DrawGrille(CinematicGrid * grille, Color col, int fx, CinematicLight * ligh
 			} else {
 				d3dv->color = col.toRGBA();
 			}
-			d3dv->p.x = ADJUSTX(d3dv->p.x);
-			d3dv->p.y = ADJUSTY(d3dv->p.y);
 			v++;
 			d3dv++;
 		}
 	}
-
-	C_UV* uvs = grille->m_uvs.data();
-
+	
+	CinematicFadeOut fo;
+	bool fadeEdges = (config.video.cinematicWidescreenMode == CinematicFadeEdges)
+		&& (fade.left != 0.f || fade.right != 0.f || fade.top != 0.f || fade.bottom != 0.f);
+	if(fadeEdges) {
+		fo = fade;
+		float fade_witdh = 128.f;
+		fo.left   *= fade_witdh;
+		fo.right  *= fade_witdh;
+		fo.top    *= fade_witdh;
+		fo.bottom *= fade_witdh;
+	}
+	
+	C_UV * uvs = grille->m_uvs.data();
 	for(std::vector<C_INDEXED>::iterator it = grille->m_mats.begin(); it != grille->m_mats.end(); ++it)
 	{
 		C_INDEXED* mat = &(*it);
@@ -368,26 +371,60 @@ void DrawGrille(CinematicGrid * grille, Color col, int fx, CinematicLight * ligh
 		int	nb2 = mat->nbvertexs;
 		while(nb2--) {
 			AllTLVertex[uvs->indvertex].uv = uvs->uv;
+			
+			if(fadeEdges) {
+				
+				// Reconstruct position in the bitmap
+				Vec2f pos = Vec2f(mat->bitmapdep) + uvs->uv * Vec2f(mat->tex->getStoredSize());
+				
+				// Roughen up the lines
+				float fx = 0.75 + std::sin(pos.x) * 0.25;
+				float fy = 0.75 + std::sin(pos.y) * 0.25;
+				
+				float interp = 1.f;
+				if(pos.x < fo.left * fy) {
+					interp *= glm::clamp(pos.x / (fo.left * fy), 0.f, 1.f);
+				}
+				if(float(bitmap->m_size.x) - pos.x < fo.right * fy) {
+					interp *= glm::clamp((float(bitmap->m_size.x) - pos.x) / (fo.right * fy), 0.f, 1.f);
+				}
+				if(pos.y < fo.top * fx) {
+					interp *= glm::clamp(pos.y / (fo.top * fx), 0.f, 1.f);
+				}
+				if(float(bitmap->m_size.y) - pos.y < fo.bottom * fx) {
+					interp *= glm::clamp((float(bitmap->m_size.y) - pos.y) / (fo.bottom * fx), 0.f, 1.f);
+				}
+				
+				if(interp != 1.f) {
+					u8 iinterp = interp * (Color::Limits::max() / ColorLimits<float>::max());
+					Color color = Color::fromRGBA(AllTLVertex[uvs->indvertex].color);
+					color.a = std::min(color.a, iinterp);
+					AllTLVertex[uvs->indvertex].color = color.toRGBA();
+				}
+				
+			}
+			
 			uvs++;
 		}
 		
 		GRenderer->drawIndexed(Renderer::TriangleList, AllTLVertex, grille->m_nbvertexs,
 		                       &grille->m_inds.data()->i1 + mat->startind, mat->nbind);
 	}
+	
 }
 /*---------------------------------------------------------------*/
 void Cinematic::Render(float FDIFF) {
 	
 	CinematicBitmap * tb;
-
-	cinRenderSize.x = g_size.width();
-	cinRenderSize.y = g_size.height();
-
+	
+	bool resized = (cinRenderSize != g_size.size());
+	cinRenderSize = g_size.size();
+	
 	if(projectload) {
 		GRenderer->Clear(Renderer::ColorBuffer);
-
-		GereTrack(this, FDIFF);
-
+		
+		GereTrack(this, FDIFF, resized);
+		
 		//sound
 		if(changekey && idsound >= 0)
 			PlaySoundKeyFramer(idsound);
@@ -399,6 +436,11 @@ void Cinematic::Render(float FDIFF) {
 		GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpModulate, TextureStage::ArgTexture, TextureStage::ArgDiffuse);
 
 		GRenderer->GetTextureStage(1)->disableAlpha();
+		
+		if(config.video.cinematicWidescreenMode == CinematicLetterbox) {
+			float w = 640 * g_sizeRatio.y;
+			GRenderer->SetScissor(Rect(Vec2i((g_size.width() - w) / 2, 0), w, g_size.height()));
+		}
 		
 		//image key
 		tb = m_bitmaps[numbitmap];
@@ -424,7 +466,7 @@ void Cinematic::Render(float FDIFF) {
 		switch(fx & 0x0000ff00) {
 			case FX_DREAM:
 
-				if ((this->fxsuiv & 0x0000ff00) == FX_DREAM)
+				if ((m_fxsuiv & 0x0000ff00) == FX_DREAM)
 					FX_DreamPrecalc(tb, 15.f, (FPS > 1.f) ? GetTrackFPS() / FPS : 0.f);
 				else
 					FX_DreamPrecalc(tb, 15.f * a, (FPS > 1.f) ? GetTrackFPS() / FPS : 0.f);
@@ -435,11 +477,11 @@ void Cinematic::Render(float FDIFF) {
 		}
 
 		m_camera.orgTrans.pos = pos;
-		m_camera.setTargetCamera(m_camera.orgTrans.pos.x, m_camera.orgTrans.pos.y, 0.f);
+		m_camera.angle.setYaw(0);
 		m_camera.angle.setPitch(0);
 		m_camera.angle.setRoll(angz);
-		m_camera.clip = Rect(cinRenderSize.x, cinRenderSize.y);
-		m_camera.center = m_camera.clip.center();
+		m_camera.clip = g_size;
+		m_camera.center = g_size.center();
 		PrepareCamera(&m_camera, g_size);
 		SetActiveCamera(&m_camera);
 
@@ -452,33 +494,30 @@ void Cinematic::Render(float FDIFF) {
 
 		CinematicLight lightt, *l = NULL;
 
-		if(this->light.intensity >= 0.f && this->lightd.intensity >= 0.f) {
-			lightt = this->light;
-			lightt.pos.x += (float)(cinRenderSize.x >> 1);
-			lightt.pos.y += (float)(cinRenderSize.y >> 1);
+		static const float SPEEDINTENSITYRND = 60.f / 1000.f;
 
-			static const float SPEEDINTENSITYRND = 10.f;
-			float flIntensityRNDToReach = lightt.intensiternd * rnd();
-			m_flIntensityRND += (flIntensityRNDToReach - m_flIntensityRND) * FDIFF * SPEEDINTENSITYRND;
-			m_flIntensityRND = m_flIntensityRND < 0.f ? 0.f : m_flIntensityRND > 1.f ? 1.f : m_flIntensityRND;
-
-			LightRND = lightt.intensity + (lightt.intensiternd * rnd());
-
-			if(LightRND > 1.f)
-				LightRND = 1.f;
+		if(m_light.intensity >= 0.f && m_lightd.intensity >= 0.f) {
+			lightt = m_light;
+			
+			lightt.pos = lightt.pos * g_sizeRatio.y + Vec3f(g_size.center(), 0.f);
+			lightt.fallin *= g_sizeRatio.y;
+			lightt.fallout *= g_sizeRatio.y;
+			
+			flicker.update(FDIFF * SPEEDINTENSITYRND);
+			LightRND =  std::min(lightt.intensity + lightt.intensiternd * flicker.get(), 1.f);
 
 			l = &lightt;
 		}
 
 		if(tb->grid.m_nbvertexs)
-			DrawGrille(&tb->grid, col, fx, l, &posgrille, angzgrille);
+			DrawGrille(tb, col, fx, l, &posgrille, angzgrille, fadegrille);
 
 		//PASS #2
 		if(force & 1) {
 			switch(ti) {
 				case INTERP_NO:
 					m_camera.orgTrans.pos = possuiv;
-					m_camera.setTargetCamera(m_camera.orgTrans.pos.x, m_camera.orgTrans.pos.y, 0.f);
+					m_camera.angle.setYaw(0);
 					m_camera.angle.setPitch(0);
 					m_camera.angle.setRoll(angzsuiv);
 					PrepareCamera(&m_camera, g_size);
@@ -496,20 +535,21 @@ void Cinematic::Render(float FDIFF) {
 
 			l = NULL;
 
-			if(this->light.intensity >= 0.f && this->lightd.intensity >= 0.f) {
-				lightt = this->lightd;
-				lightt.pos.x += (float)(cinRenderSize.x >> 1);
-				lightt.pos.y += (float)(cinRenderSize.y >> 1);
-				LightRND = lightt.intensity + (lightt.intensiternd * rnd());
-
-				if(LightRND > 1.f)
-					LightRND = 1.f;
+			if(m_light.intensity >= 0.f && m_lightd.intensity >= 0.f) {
+				lightt = m_lightd;
+				
+				lightt.pos = lightt.pos * g_sizeRatio.y + Vec3f(g_size.center(), 0.f);
+				lightt.fallin *= g_sizeRatio.y;
+				lightt.fallout *= g_sizeRatio.y;
+				
+				flickerd.update(FDIFF * SPEEDINTENSITYRND);
+				LightRND =  std::min(lightt.intensity + lightt.intensiternd * flickerd.get(), 1.f);
 
 				l = &lightt;
 			}
 
 			if(tb->grid.m_nbvertexs)
-				DrawGrille(&tb->grid, col, fx, l, &posgrillesuiv, angzgrillesuiv);
+				DrawGrille(tb, col, fx, l, &posgrillesuiv, angzgrillesuiv, fadegrillesuiv);
 		}
 
 		//effets qui continuent avec le temps
@@ -549,5 +589,20 @@ void Cinematic::Render(float FDIFF) {
 		}
 		
 		CalcFPS();
+		
+		if(config.video.cinematicWidescreenMode == CinematicLetterbox) {
+			GRenderer->SetScissor(Rect::ZERO);
+		}
+		
+		if(g_debugInfo == InfoPanelGuiDebug) {
+			GRenderer->SetFillMode(Renderer::FillWireframe);
+			float x = 640.f / 2 * g_sizeRatio.y;
+			float c = g_size.center().x;
+			drawLine2D(c - x, 0.f, c - x, g_size.height(), 1.f, Color::red);
+			drawLine2D(c + x, 0.f, c + x, g_size.height(), 1.f, Color::red);
+			GRenderer->SetFillMode(Renderer::FillSolid);
+		}
+		
 	}
+	
 }

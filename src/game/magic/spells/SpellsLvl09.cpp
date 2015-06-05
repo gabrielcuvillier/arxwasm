@@ -30,10 +30,8 @@
 #include "game/Spells.h"
 #include "game/effect/Quake.h"
 #include "game/spell/Cheat.h"
-
+#include "graphics/RenderBatcher.h"
 #include "graphics/particle/ParticleEffects.h"
-
-#include "graphics/spells/Spells09.h"
 #include "physics/Collisions.h"
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
@@ -64,6 +62,7 @@ SummonCreatureSpell::SummonCreatureSpell()
 	
 }
 
+
 bool SummonCreatureSpell::CanLaunch()
 {
 	Vec3f target;
@@ -93,25 +92,23 @@ void SummonCreatureSpell::Launch()
 	m_megaCheat = (m_caster == PlayerEntityHandle && cur_mega == 10);
 	m_targetPos = target;
 	ARX_SOUND_PlaySFX(SND_SPELL_SUMMON_CREATURE, &m_targetPos);
-	CSummonCreature * effect = new CSummonCreature();
-	effect->Create(target, MAKEANGLE(player.angle.getPitch()));
-	effect->SetDuration(2000, 500, 1500);
-	effect->SetColorBorder(Color3f::red);
-	effect->SetColorRays1(Color3f::red);
-	effect->SetColorRays2(Color3f::yellow * .5f);
 	
-	effect->lLightId = GetFreeDynLight();
-	if(lightHandleIsValid(effect->lLightId)) {
-		EERIE_LIGHT * light = lightHandleGet(effect->lLightId);
+	m_fissure.Create(target, MAKEANGLE(player.angle.getPitch()));
+	m_fissure.SetDuration(2000, 500, 1500);
+	m_fissure.SetColorBorder(Color3f::red);
+	m_fissure.SetColorRays1(Color3f::red);
+	m_fissure.SetColorRays2(Color3f::yellow * .5f);
+	
+	m_fissure.lLightId = GetFreeDynLight();
+	if(lightHandleIsValid(m_fissure.lLightId)) {
+		EERIE_LIGHT * light = lightHandleGet(m_fissure.lLightId);
 		
 		light->intensity = 0.3f;
 		light->fallend = 500.f;
 		light->fallstart = 400.f;
 		light->rgb = Color3f::red;
-		light->pos = effect->eSrc;
+		light->pos = m_fissure.m_eSrc;
 	}
-	
-	m_pSpellFx = effect;
 }
 
 void SummonCreatureSpell::End()
@@ -120,7 +117,7 @@ void SummonCreatureSpell::End()
 		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &entities[m_longinfo2_entity]->pos);
 	}
 
-	lightHandleDestroy(m_pSpellFx->lLightId);
+	lightHandleDestroy(m_fissure.lLightId);
 	// need to killio
 	
 	if(ValidIONum(m_longinfo2_entity) && m_longinfo2_entity != PlayerEntityHandle) {
@@ -153,130 +150,119 @@ void SummonCreatureSpell::End()
 	m_longinfo2_entity = PlayerEntityHandle;
 }
 
-void SummonCreatureSpell::Update(float timeDelta)
-{
-	if(!arxtime.is_paused()) {
-		if(float(arxtime) - (float)m_timcreation <= 4000) {
-			if(rnd() > 0.7f) {
-				CSummonCreature * pSummon = (CSummonCreature *)m_pSpellFx;
-				if(pSummon) {
-					Vec3f pos = pSummon->eSrc;
-					MakeCoolFx(pos);
-				}
-			}
+void SummonCreatureSpell::Update(float timeDelta) {
+	
+	if(arxtime.is_paused())
+		return;
+	
+	if(float(arxtime) - (float)m_timcreation <= 4000) {
+		if(rnd() > 0.7f) {
+			Vec3f pos = m_fissure.m_eSrc;
+			MakeCoolFx(pos);
+		}
+		
+		m_fissure.Update(timeDelta);
+		m_fissure.Render();
+		
+		m_longinfo_summon_creature = 1;
+		m_longinfo2_entity = EntityHandle::Invalid;
 
-			CSpellFx *pCSpellFX = m_pSpellFx;
-
-			if(pCSpellFX) {
-				pCSpellFX->Update(timeDelta);
-				pCSpellFX->Render();
-			}	
-
-			m_longinfo_summon_creature = 1;
-			m_longinfo2_entity = EntityHandle::Invalid;
-
-		} else if(m_longinfo_summon_creature) {
-			lightHandleDestroy(m_pSpellFx->lLightId);
-
-			m_longinfo_summon_creature = 0;
-			ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &m_targetPos);
-			CSummonCreature *pSummon;
-			pSummon= (CSummonCreature *)m_pSpellFx;
-
-			if(pSummon) {
-				Cylinder phys;
-				phys.height = -200;
-				phys.radius = 50;
-				phys.origin = m_targetPos;
-				float anything = CheckAnythingInCylinder(phys, NULL, CFLAG_JUST_TEST);
-
-				if(glm::abs(anything) < 30) {
-				
-				long tokeep;
-				res::path cls;
-				if(m_megaCheat) {
-					if(rnd() > 0.5) {
-						tokeep = -1;
-						cls = "graph/obj3d/interactive/npc/wrat_base/wrat_base";
-					} else {
-						tokeep = 0;
-						cls = "graph/obj3d/interactive/npc/y_mx/y_mx";
-					}
-				} else if(rnd() > 0.997f || (sp_max && rnd() > 0.8f)
-				   || (cur_mr >= 3 && rnd() > 0.3f)) {
-					tokeep = 0;
-					cls = "graph/obj3d/interactive/npc/y_mx/y_mx";
-				} else if(rnd() > 0.997f || (cur_rf >= 3 && rnd() > 0.8f)
-				   || (cur_mr >= 3 && rnd() > 0.3f)) {
-					tokeep = -1;
-					cls = "graph/obj3d/interactive/npc/wrat_base/wrat_base";
-				} else if(m_level >= 9) {
-					tokeep = 1;
-					cls = "graph/obj3d/interactive/npc/demon/demon";
-				} else if(rnd() > 0.98f) {
+	} else if(m_longinfo_summon_creature) {
+		lightHandleDestroy(m_fissure.lLightId);
+		
+		m_longinfo_summon_creature = 0;
+		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &m_targetPos);
+		
+			Cylinder phys;
+			phys.height = -200;
+			phys.radius = 50;
+			phys.origin = m_targetPos;
+			float anything = CheckAnythingInCylinder(phys, NULL, CFLAG_JUST_TEST);
+			
+			if(glm::abs(anything) < 30) {
+			
+			long tokeep;
+			res::path cls;
+			if(m_megaCheat) {
+				if(rnd() > 0.5) {
 					tokeep = -1;
 					cls = "graph/obj3d/interactive/npc/wrat_base/wrat_base";
 				} else {
 					tokeep = 0;
-					cls = "graph/obj3d/interactive/npc/chicken_base/chicken_base";
+					cls = "graph/obj3d/interactive/npc/y_mx/y_mx";
 				}
-				
-				Entity * io = AddNPC(cls, -1, IO_IMMEDIATELOAD);
-				if(!io) {
-					cls = "graph/obj3d/interactive/npc/chicken_base/chicken_base";
-					tokeep = 0;
-					io = AddNPC(cls, -1, IO_IMMEDIATELOAD);
-				}
-				
-				if(io) {
-					RestoreInitialIOStatusOfIO(io);
-					
-					long lSpellsCaster = m_caster ; 
-					io->summoner = checked_range_cast<short>(lSpellsCaster);
-
-					io->scriptload = 1;
-					
-					if(tokeep == 1) {
-						io->ioflags |= IO_NOSAVE;
-					}
-					
-					io->pos = phys.origin;
-					SendInitScriptEvent(io);
-
-					if(tokeep < 0) {
-						io->scale=1.65f;
-						io->physics.cyl.radius=25;
-						io->physics.cyl.height=-43;
-						io->speed_modif=1.f;
-					}
-
-					if(ValidIONum(m_caster)) {
-						EVENT_SENDER = entities[m_caster];
-					} else {
-						EVENT_SENDER = NULL;
-					}
-
-					SendIOScriptEvent(io,SM_SUMMONED);
-					
-					for(long j = 0; j < 3; j++) {
-						Vec3f pos = pSummon->eSrc;
-						pos += Vec3f(rnd(), rnd(), rnd()) * 100.f;
-						pos += Vec3f(-50.f, 50.f, -50.f);
-						
-						MakeCoolFx(pos);
-					}
-
-					if(tokeep==1)
-						m_longinfo2_entity = io->index();
-					else
-						m_longinfo2_entity = EntityHandle::Invalid;
-				}
-				}
+			} else if(rnd() > 0.997f || (sp_max && rnd() > 0.8f)
+			   || (cur_mr >= 3 && rnd() > 0.3f)) {
+				tokeep = 0;
+				cls = "graph/obj3d/interactive/npc/y_mx/y_mx";
+			} else if(rnd() > 0.997f || (cur_rf >= 3 && rnd() > 0.8f)
+			   || (cur_mr >= 3 && rnd() > 0.3f)) {
+				tokeep = -1;
+				cls = "graph/obj3d/interactive/npc/wrat_base/wrat_base";
+			} else if(m_level >= 9) {
+				tokeep = 1;
+				cls = "graph/obj3d/interactive/npc/demon/demon";
+			} else if(rnd() > 0.98f) {
+				tokeep = -1;
+				cls = "graph/obj3d/interactive/npc/wrat_base/wrat_base";
+			} else {
+				tokeep = 0;
+				cls = "graph/obj3d/interactive/npc/chicken_base/chicken_base";
 			}
-		} else if(m_longinfo2_entity <= PlayerEntityHandle) {
-			m_duration = 0;
-		}
-	}	
+			
+			Entity * io = AddNPC(cls, -1, IO_IMMEDIATELOAD);
+			if(!io) {
+				cls = "graph/obj3d/interactive/npc/chicken_base/chicken_base";
+				tokeep = 0;
+				io = AddNPC(cls, -1, IO_IMMEDIATELOAD);
+			}
+			
+			if(io) {
+				RestoreInitialIOStatusOfIO(io);
+				
+				io->summoner = m_caster;
+				
+				io->scriptload = 1;
+				
+				if(tokeep == 1) {
+					io->ioflags |= IO_NOSAVE;
+				}
+				
+				io->pos = phys.origin;
+				SendInitScriptEvent(io);
+				
+				if(tokeep < 0) {
+					io->scale=1.65f;
+					io->physics.cyl.radius=25;
+					io->physics.cyl.height=-43;
+					io->speed_modif=1.f;
+				}
+				
+				if(ValidIONum(m_caster)) {
+					EVENT_SENDER = entities[m_caster];
+				} else {
+					EVENT_SENDER = NULL;
+				}
+				
+				SendIOScriptEvent(io,SM_SUMMONED);
+				
+				for(long j = 0; j < 3; j++) {
+					Vec3f pos = m_fissure.m_eSrc;
+					pos += Vec3f(rnd(), rnd(), rnd()) * 100.f;
+					pos += Vec3f(-50.f, 50.f, -50.f);
+					
+					MakeCoolFx(pos);
+				}
+				
+				if(tokeep==1)
+					m_longinfo2_entity = io->index();
+				else
+					m_longinfo2_entity = EntityHandle::Invalid;
+			}
+			}
+	} else if(m_longinfo2_entity <= PlayerEntityHandle) {
+		m_duration = 0;
+	}
 }
 
 bool FakeSummonSpell::CanLaunch()
@@ -300,55 +286,46 @@ void FakeSummonSpell::Launch()
 	}
 	m_targetPos = target;
 	ARX_SOUND_PlaySFX(SND_SPELL_SUMMON_CREATURE, &m_targetPos);
-	CSummonCreature * effect = new CSummonCreature();
-	effect->Create(target, MAKEANGLE(player.angle.getPitch()));
-	effect->SetDuration(2000, 500, 1500);
-	effect->SetColorBorder(Color3f::red);
-	effect->SetColorRays1(Color3f::red);
-	effect->SetColorRays2(Color3f::yellow * .5f);
 	
-	effect->lLightId = GetFreeDynLight();
+	m_fissure.Create(target, MAKEANGLE(player.angle.getPitch()));
+	m_fissure.SetDuration(2000, 500, 1500);
+	m_fissure.SetColorBorder(Color3f::red);
+	m_fissure.SetColorRays1(Color3f::red);
+	m_fissure.SetColorRays2(Color3f::yellow * .5f);
 	
-	if(lightHandleIsValid(effect->lLightId)) {
-		EERIE_LIGHT * light = lightHandleGet(effect->lLightId);
+	m_fissure.lLightId = GetFreeDynLight();
+	
+	if(lightHandleIsValid(m_fissure.lLightId)) {
+		EERIE_LIGHT * light = lightHandleGet(m_fissure.lLightId);
 		
 		light->intensity = 0.3f;
 		light->fallend = 500.f;
 		light->fallstart = 400.f;
 		light->rgb = Color3f::red;
-		light->pos = effect->eSrc;
+		light->pos = m_fissure.m_eSrc;
 	}
-	
-	m_pSpellFx = effect;
 }
 
 void FakeSummonSpell::End()
 {
 	ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &m_targetPos);
 	
-	lightHandleDestroy(m_pSpellFx->lLightId);
-	
-	lightHandleDestroy(m_pSpellFx->lLightId);
+	lightHandleDestroy(m_fissure.lLightId);
 }
 
 void FakeSummonSpell::Update(float timeDelta)
 {
 	if(!arxtime.is_paused()) {
 		if(rnd() > 0.7f) {
-			CSummonCreature * pSummon = (CSummonCreature *)m_pSpellFx;
-			if(pSummon) {
-				Vec3f pos = pSummon->eSrc;
-				MakeCoolFx(pos);
-			}
+			Vec3f pos = m_fissure.m_eSrc;
+			MakeCoolFx(pos);
 		}
 	}
-	CSpellFx *pCSpellFX = m_pSpellFx;
 	
-	if(pCSpellFX) {
-		pCSpellFX->Update(timeDelta);
-		pCSpellFX->Render();
-	}	
+	m_fissure.Update(timeDelta);
+	m_fissure.Render();
 }
+
 
 void NegateMagicSpell::Launch()
 {
@@ -362,33 +339,68 @@ void NegateMagicSpell::Launch()
 	m_fManaCostPerSecond = 2.f;
 	m_duration = (m_launchDuration > -1) ? m_launchDuration : 1000000;
 	
-	Vec3f targetPos = getTargetPos(m_caster, m_target);
+	m_pos = getTargetPos(m_caster, m_target);
 	
-	CNegateMagic * effect = new CNegateMagic();
-	effect->Create(targetPos);
-	effect->SetDuration(m_duration);
-	m_pSpellFx = effect;
-	m_duration = effect->GetDuration();
+	tex_p2 = TextureContainer::Load("graph/obj3d/textures/(fx)_tsu_bluepouf");
+	tex_sol = TextureContainer::Load("graph/obj3d/textures/(fx)_negate_magic");
 	
 	LaunchAntiMagicField();
+}
+
+void NegateMagicSpell::End() {
+	
 }
 
 void NegateMagicSpell::Update(float timeDelta)
 {
 	LaunchAntiMagicField();
-
-	CNegateMagic * effect = static_cast<CNegateMagic *>(m_pSpellFx);
-
-	if(effect) {
-		if(m_target == PlayerEntityHandle) {
-			effect->SetPos(player.basePosition());
-		} else {
-			effect->SetPos(entities[m_target]->pos);
+	
+	if(m_target == PlayerEntityHandle) {
+		m_pos = player.basePosition();
+	} else {
+		m_pos = entities[m_target]->pos;
+	}
+	
+	ulCurrentTime += timeDelta;
+	
+	
+	Vec3f stitepos = m_pos - Vec3f(0.f, 10.f, 0.f);
+	
+	RenderMaterial mat;
+	mat.setLayer(RenderMaterial::Decal);
+	mat.setDepthTest(true);
+	mat.setTexture(tex_sol);
+	mat.setBlendType(RenderMaterial::Additive);
+	
+	for(int i = 0; i < 360; i++) {
+		float t = rnd();
+		if(t < 0.04f) {
+			
+			PARTICLE_DEF * pd = createParticle();
+			if(!pd) {
+				break;
+			}
+			
+			pd->ov = stitepos + Vec3f(frand2() * 150.f, 0.f, frand2() * 150.f);
+			pd->move = Vec3f(0.f, -3.0f * rnd(), 0.f);
+			pd->siz = 0.3f;
+			pd->tolive = Random::get(2000, 4000);
+			pd->tc = tex_p2;
+			pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING
+			              | SUBSTRACT;
+			pd->fparam = 0.0000001f;
 		}
-		
-		effect->Update(timeDelta);
-		effect->Render();
-	}	
+	}
+	
+	Anglef stiteangle(0.f, -(float) ulCurrentTime * 0.02f, 0.f);
+	Color3f stitecolor = Color3f::gray(.4f);
+	float scalediff = std::sin(ulCurrentTime * 0.004f);
+	Vec3f stitescale = Vec3f(3.f + 0.5f * scalediff);
+	Draw3DObject(ssol, stiteangle, stitepos, stitescale, stitecolor, mat);
+	
+	stitecolor = Color3f(.5f, 0.f, .5f);
+	stitescale = Vec3f(3.1f + 0.2f * scalediff);
+	Draw3DObject(ssol, stiteangle, stitepos, stitescale, stitecolor, mat);
 }
 
 void NegateMagicSpell::LaunchAntiMagicField() {
@@ -435,9 +447,7 @@ void IncinerateSpell::Launch()
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_INCINERATE, &entities[m_target]->pos);
 	
-	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_INCINERATE_LOOP, 
-	                                       &entities[m_target]->pos, 1.f, 
-	                                       ARX_SOUND_PLAY_LOOPED);
+	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_INCINERATE_LOOP, &entities[m_target]->pos, 1.f, ARX_SOUND_PLAY_LOOPED);
 	
 	m_duration = 20000;
 	

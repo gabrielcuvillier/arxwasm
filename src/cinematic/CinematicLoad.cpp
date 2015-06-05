@@ -314,6 +314,32 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 			k.force = 1;
 		}
 		
+		// The cinematics were authored for 4:3 - if the light only fades off
+		// outside of that region, it should never fade off.
+		// This fixes ugly transitions when fallin and fallout are close together.
+		{
+			
+			float f = std::min(k.light.fallin, k.light.fallout);
+			
+			float d0 = glm::distance(Vec2f(k.light.pos), Vec2f(-320.f, -240.f));
+			float d1 = glm::distance(Vec2f(k.light.pos), Vec2f( 320.f, -240.f));
+			float d2 = glm::distance(Vec2f(k.light.pos), Vec2f( 320.f,  240.f));
+			float d3 = glm::distance(Vec2f(k.light.pos), Vec2f(-320.f,  240.f));
+			
+			if(f > std::max(std::max(d0, d1), std::max(d2, d3))) {
+				k.light.fallin = k.light.fallout = std::numeric_limits<float>::max() / 3;
+			}
+			
+		}
+		
+		// The final vertex positions were manually scaled to fit the whole screen
+		// when rendering cinematics. This applies the same scaling by moving
+		// the camera closer. We can do this because all bitmaps are at z == 0.
+		{
+			arx_assert(k.posgrille.z == 0.f);
+			k.pos.z *= 0.8f; // 0.8 == 512/640 == 384/480
+		}
+		
 		AddKeyLoad(k);
 		
 		LogDebug(" - " << i << ": frame " << k.frame << " image: " << k.numbitmap);
@@ -333,7 +359,7 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 			c->speed = k.speed;
 			c->idsound = idsound;
 			c->force = k.force;
-			c->light = k.light;
+			c->m_light = k.light;
 			c->posgrille = k.posgrille;
 			c->angzgrille = k.angzgrille;
 			c->speedtrack = k.speedtrack;

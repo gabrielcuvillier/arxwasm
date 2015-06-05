@@ -723,9 +723,13 @@ set(GRAPHICS_SOURCES
 	src/graphics/data/TextureContainer.cpp
 	src/graphics/effects/DrawEffects.cpp
 	src/graphics/effects/Fade.cpp
+	src/graphics/effects/Fissure.cpp
+	src/graphics/effects/FloatingStones.cpp
 	src/graphics/effects/Fog.cpp
 	src/graphics/effects/SpellEffects.cpp
 	src/graphics/effects/Halo.cpp
+	src/graphics/effects/Lightning.cpp
+	src/graphics/effects/RotatingCone.cpp
 	src/graphics/effects/Trail.cpp
 	src/graphics/font/Font.cpp
 	src/graphics/font/FontCache.cpp
@@ -739,14 +743,8 @@ set(GRAPHICS_SOURCES
 	src/graphics/particle/ParticleSystem.cpp
 	src/graphics/particle/MagicFlare.cpp
 	src/graphics/spells/Spells01.cpp
-	src/graphics/spells/Spells02.cpp
-	src/graphics/spells/Spells03.cpp
-	src/graphics/spells/Spells04.cpp
 	src/graphics/spells/Spells05.cpp
 	src/graphics/spells/Spells06.cpp
-	src/graphics/spells/Spells07.cpp
-	src/graphics/spells/Spells09.cpp
-	src/graphics/spells/Spells10.cpp
 	src/graphics/texture/PackedTexture.cpp
 	src/graphics/texture/Texture.cpp
 	src/graphics/texture/TextureStage.cpp

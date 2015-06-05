@@ -809,7 +809,7 @@ bool ArxGame::initGame()
 	
 	entities.init();
 	
-	memset(&player,0,sizeof(ARXCHARACTER));
+	player = ARXCHARACTER();
 	ARX_PLAYER_InitPlayer();
 	
 	CleanInventory();
@@ -935,8 +935,7 @@ bool ArxGame::initGame()
 	drawDebugInitialize();
 
 	FlyingEye_Init();
-	
-	cabal = LoadTheObj("editor/obj3d/cabal.teo", "cabal_teo maps");
+	LoadSpellModels();
 	
 	cameraobj = loadObject("graph/obj3d/interactive/system/camera/camera.teo");
 	markerobj = loadObject("graph/obj3d/interactive/system/marker/marker.teo");
@@ -1081,8 +1080,8 @@ static void ReleaseSystemObjects() {
 	}
 	
 	FlyingEye_Release();
-
-	delete cabal, cabal = NULL;
+	ReleaseSpellModels();
+	
 	delete cameraobj, cameraobj = NULL;
 	delete markerobj, markerobj = NULL;
 	delete arrowobj, arrowobj = NULL;
@@ -2016,7 +2015,6 @@ void ArxGame::renderLevel() {
 
 	// Speech Management
 	ARX_SPEECH_Check();
-	ARX_SPEECH_Update();
 
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
 
@@ -2062,6 +2060,11 @@ void ArxGame::renderLevel() {
 
 	if(FADEDIR)
 		ManageFade();
+	
+	GRenderer->SetScissor(Rect::ZERO);
+	
+	ARX_SPEECH_Update();
+	
 }
 
 void ArxGame::update() {	
@@ -2148,12 +2151,10 @@ void ArxGame::render() {
 	} else {
 		updateLevel();
 		
-#ifdef ARX_DEBUG
 		if(g_debugToggles[7])
-			setHudScale(3);
+			setHudScale(2);
 		else
 			setHudScale(1);
-#endif
 		
 		renderLevel();
 
