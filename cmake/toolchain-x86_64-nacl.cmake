@@ -39,7 +39,7 @@ set(OPENGL_gl_LIBRARY    	${PLATFORM_ROOT_DIR}/usr/lib/libRegal.a)
 set(OPENGL_LIBRARIES	    ${PLATFORM_ROOT_DIR}/usr/lib/libglslopt.a) # this is required too
 
 # PPAPI libraries
-set(PPAPI_SIMPLE_LIBRARY  "-Wl,-undefined=PSUserCreateInstance" "${PLATFORM_SDK_LIB_DIR}/libppapi_simple.a")
+set(PPAPI_SIMPLE_LIBRARY  "-Wl,-undefined=PSUserMainGet" "${PLATFORM_SDK_LIB_DIR}/libppapi_simple.a")
 set(NACL_IO_LIBRARY       "${PLATFORM_SDK_LIB_DIR}/libnacl_io.a")
 set(PPAPI_GLES2_LIBRARY   "${PLATFORM_SDK_LIB_DIR}/libppapi_gles2.a")
 set(PPAPI_CPP_LIBRARY     "${PLATFORM_SDK_LIB_DIR}/libppapi_cpp.a")
