@@ -3,3 +3,6 @@ build_pnacl
 *~
 *.pexe
 *.nexe
+build
+*.orig
+arx_
