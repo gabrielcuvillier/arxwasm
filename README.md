@@ -2,174 +2,111 @@
            /\                      \
            \_|         Arx         |
              |      Libertatis     |
-             |   __________________|__
+             |   __(PNACL_port)____|__
               \_/____________________/
 
+This is an experimental port of Arx Libertatis to Portable Native Client architecture (PNaCl), running on Google Chrome browser with Pepper API.
 
-Cross-platform port of Arx Fatalis
+## Status
 
-Arx Libertatis is based on the publicly released [Arx Fatalis source code](http://www.arkane-studios.com/uk/arx_downloads.php).
-The source code is availbale under the GPLv3+ license with some additonal terms - see the COPYING and LICENSE files for details.
+**Working!**    
+
+... but with a few limitations, some of which preventing enjoyable gameplay (see section 'Limitations').
+
+The game runs smoothly in Chrome browser, embedded as a PNaCl module in a HTML page. 
+
+It can be loaded directly from the 'Open Web', simply by opening an URL in the browser. In other words, there is no need to install a Chrome App, or use the Chrome Web Store.
+
+The game data is accessed either through HTTP, or a local HTML5 filesystem (which is also used for config files and saves).
+Obviously, I do not provide any game data, as it is licensed under a commercial license.
+
+The port have been tested with latest version of Chrome for Windows and Linux, both on x86 and x86_64 architectures.
+I did not tested with Chromebooks, or any ARM / MIPS based device. I'd be interested to know if this is working !
+
+## What is PNaCl?
+
+Portable Native Client is a sandboxing technology for running compiled C and C++ code at near-native speed in a secure sandbox, while remaining architecture independant.
+
+For now, this technology is used almost exclusively by the Google Chrome browser to run native applications embedded in web pages. But its usage could go beyond the browser. 
+
+## How to run
+
+The easier way to see the game running in your browser, is to go to the following URL using latest version Chrome: 
+
+http://arxpnacl.cad-labs.fr
+
+A basic website is hosted here, with the embedded PNaCl module ready to run.
+
+**But**... Obviously you will need the game data for anything to work !
+Technically, it could be provided directly by the server and accessed through HTTP (and as you may notice, the website is trying to do so). However, as the game data is licensed under a  commercial license, it is not conceivable to do so.
+
+So, you have to provide the game data yourself, by uploading it to a local temporary HTML5 filesystem.
+
+Here is how to do:
+
+- Get an original copy of the game.
+
+If you don't already own an original copy of the game, it can be bought for a cheap price from well known digital stores (GOG, Steam, ...).
+If you like immersive RPGs, and have ~30 hours available, don't hesitate: despite its many flaws, it is definitively an enjoyable game.
+
+Note there is a Demo version too. For the purpose of testing this port, it is a reasonable choice.
+
+More infos here: http://wiki.arx-libertatis.org/Getting_the_game_data
+
+- Extract game content
+
+Once you have the game, you will need to extract its content: the *.pak files. 
+
+Depending on where you got the game (original CD, digital download, etc.), the method is different.
+More infos here: http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux
+
+- Copy game content to HTML5 filesystem
+
+Once you have the .pak files, simply copy them to the local HTML5 filesystem using the "Select Files" button.
+Once all data is uploaded (be sure to wait for all selected files to complete), simply click on "Launch Arx" button...
+
+And here you go... Arx Fatalis is running in your browser!
+
+Note it will take quite some time to load the first time, because PNACL module is almost 10MB size. This is a lot of intermediate LLVM bytecode to compile to native code.
+
+End note: the hosted website is fully available in the source distribution. See section 'How to build' for more informations.
+
+## Limitations
+
+* Input handling
+
+  Even if things seems to work nicely, there is in fact an underlaying problem with mouse input handling, that prevent any real serious gameplay :(
+  When in "immersive/FPS" mode, the mouse is not captured correctly. As so, it is quite difficult to move in the world (unless using the keyboard to look around). Note there is no problem when in "menu mode" (menus, inventory, magic). 
+
+  This behavior is due to some understandable limitation of Pepper API regarding mouse capture: it is not possible to enforce the mouse position to 0,0. It is a common situation on a few platforms, but this is neither handled by Arx Libertatis nor by implementation of SDL2 on NACL. 
+
+  Volunteers welcome on this topic. 
+
+* Graphics
+
+  No Fullscreen.
+  
+  Limited OpenGL support (only V1.5)
+
+* Game Data
+<... section to complete ...>
+
+## How to Build
+
+Caution: unless you are already comfortable with the PNaCl platform and its toolchain, this is still not a straightforward process.
+
+<... section to complete ...>
+
+## Port implementation details
+See notes in PNACL_NOTES
+
+## Credits
+
+Arkane Studio, for creating this enjoyable-yet-flawed game, and released the game code under an open source license.
+
+Arx Libertatis team, for its impressive amount of work to enhance it.
+
+The Native Client team, for creating such a nice piece of technology.
 
 ## Contact
-
-Website: [http://arx-libertatis.org/](http://arx-libertatis.org/)
-
-Bug Tracker: [https://bugs.arx-libertatis.org/](https://bugs.arx-libertatis.org/)
-
-IRC: \#arxfatalis on irc.freenode.net
-
-Wiki: [http://wiki.arx-libertatis.org/](http://wiki.arx-libertatis.org/)
-
-Reddit: [http://www.reddit.com/r/ArxFatalis/](http://www.reddit.com/r/ArxFatalis/)
-
-## Dependencies
-
-* **[CMake](http://www.cmake.org/) 2.8**+ (compile-time only, 2.8.5+ under Windows)
-* **[zlib](http://zlib.net/)**
-* **[Boost](http://www.boost.org/) 1.48**+ (headers only)
-* **[GLM](http://glm.g-truc.net/) 0.9.2.7**+
-* **[FreeType](http://www.freetype.org/) 2.3.0**+
-* **OpenAL 1.1**+ ([OpenAL Soft](http://kcat.strangesoft.net/openal.html) strongly recommended!)
-
-Systems without Win32 or POSIX filesystem support will also the `filesystem` and `system` libraries from Boost.
-
-### Renderer
-
-There is currently a single rendering backend for OpenGL:
-
-* **[SDL](http://www.libsdl.org/)** **1.2.10**+ *or* **2.0.0**+
-* **OpenGL 1.5**+ (OpenGL 2.1 or newer is recommended)
-* **[GLEW](http://glew.sourceforge.net/) 1.5.2**+
-
-### Crash Reporter
-
-Arx Libertatis comes with an optional gui crash reporter which has additional dependencies:
-
-* **Qt 4.7**+ or **5** (`QtCore`, `QtGui`, `QtWidgets`^1 and `QtNetwork` libraries)
-* **GDB** (Linux-only, optional, run-time only)
-* **DbgHelp** (Windows-only)
-
-1. Qt 5 only
-
-While the crash reporter can be run without GDB, it's main usefulness comes from generating and submitting detailed back-traces in the event of a crash. On non-window systems we use GDB, the GNU Debugger, to accomplish that. If you want to help out the arx project, please install GDB before running arx. GDB is however purely a run-time dependency and is not needed when building the crash reporter.
-
-## Compile and install
-
-For Linux run:
-
-    $ mkdir build && cd build && cmake ..
-    $ make
-
-To install the binaries system-wide, run as root:
-
-    # make install
-
-Alternatively you can run the game by specifying the full path to the `arx` binary in the `build` directory.
-
-The wiki has more detailed instructions on [compiling under Linux](http://wiki.arx-libertatis.org/Downloading_and_Compiling_under_Linux).
-
-Getting all the dependencies set up for Windows is more tricky. Pre-build dependencies are available in the [ArxWindows repository](https://github.com/arx/ArxWindows) and [instructions on how to use them](http://wiki.arx-libertatis.org/Downloading_and_Compiling_under_Windows) are available on the wiki.
-
-### Build options:
-
-* `BUILD_TOOLS` (default=ON): Build tools
-* `BUILD_CRASHREPORTER` (default=ON): Build the Qt crash reporter gui (default OFF for Mac)
-* `UNITY_BUILD` (default=OFF): Unity build (faster build, better optimizations but no incremental build)
-* `CMAKE_BUILD_TYPE` (default=Release): Set to `Debug` for debug binaries
-* `DEBUG` (default=OFF^1): Enable debug output and runtime checks
-* `DEBUG_EXTRA` (default=OFF): Expensive debug options
-
-1. Enabled automatically if `CMAKE_BUILD_TYPE` is set to `Debug`.
-
-Install options:
-
-* `CMAKE_INSTALL_PREFIX` (default: `/usr/local` on UNIX and `C:/Program Files` on Windows): Where to install Arx Libertatis
-
-Set options by passing `-D<option>=<value>` to cmake.
-
-Backends that are not available are disabled by default. The `cmake` run should display a summary of the enabled backends at the end.
-
-Advanced options not listed here are documented in **OPTIONS.md**.
-
-## Data file, config and savegame locations
-
-You will need to [get either the full game or demo data of Arx Fatalis](http://wiki.arx-libertatis.org/Getting_the_game_data). To install the data files run
-
-    $ arx-install-data
-
-Where arx will look for data files and write config and save files depends on the operating system and environment - the wiki has a page detailing the [full data directory detection algorithm](http://wiki.arx-libertatis.org/Data_directories).
-
-The game will try to rename all used files in the user directory (but not the data directory) to lowercase on the first run. System-wide installations with case-sensitive filesystems always need to manually rename the files to lowercase - this is done automatically by the `arx-install-data` script.
-
-To print all directories searched by arx, run
-
-    $ arx --list-dirs
-
-By default, user, config and data files will be loaded from and saved to standard system locations depending on the OS:
-
-**Windows**:
-* user and config dir:<br>
-*XP*: `%USERPROFILE%\My Documents\My Games\Arx Libertatis`<br>
-*Vista* and up: `%USERPROFILE%\Saved Games\Arx Libertatis`
-* data dir: location stored in `HKCU\Software\ArxLibertatis\DataDir` or `HKLM\Software\ArxLibertatis\DataDir` registry keys
-
-**Mac OS X**:
-* user and config dir: `~/Library/Application Support/ArxLibertatis/`
-* data dir: `/Applications/ArxLibertatis/`
-
-**Linux** and others:
-* user dir: `~/.local/share/arx/`
-* config dir: `~/.config/arx/`
-* data dir: `/usr/share/games/arx/`, `/usr/local/share/games/arx/` and more
-
-Arx will also try to load data files from the directory containing the game executable.
-
-To use the current working directory for user, config and data files (e.g. for a portable install) run the game as
-
-    $ arx --no-data-dir --user-dir=. --config-dir=.
-
-## Run
-
-Provided the data files are installed at the correct location, you can simply play the game using the installed shortcut or by running
-
-    $ arx
-
-See the `arx --help` and `man arx` output for more details.
-
-## Tools
-
-* `arxunpak <pakfile> [<pakfile>...]` <br>
-  Extracts the .pak files containing the game assets.
-
-* `arxsavetool <command> <savefile> [<options>...]` - commands are:
-  * `extract <savefile>` <br>
-    Extract the contents of the given savefile to the current directory
-  * `add <savefile> [<files>...]` <br>
-    Add files to a savefile, create it if needed
-  * `fix <savefile>` <br>
-    Fix savegame issues created by previous builds of Arx Libertatis
-  * `view <savefile> [<ident>]` <br>
-    Print savegame information - leave out `<ident>` to list root files
-
-## Scripts
-
-The `arx-install-data` script can extract and install the game data under Linux and FreeBSD from the CD, demo, [GOG.com](http://www.gog.com/) installer or any Arx Fatalis install (such as on Steam) - simply run it and follow the GUI dialogs. Also see the [wiki page on installing the game data under Linux](http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux).
-
-Or, if you prefer a command-line interface, run it as
-
-    $ arx-install-data --cli
-
-More options and required tools (depending on the source file) are documented in the help output:
-
-    $ arx-install-data --help
-
-## Developer information
-
-To build developer documentation (doxygen), run this from the build directory:
-
-    $ make doc
-
-To check for coding style problems, run the following: (requires python)
-
-    $ make style
+dev at gabrielcuvillier dot fr
