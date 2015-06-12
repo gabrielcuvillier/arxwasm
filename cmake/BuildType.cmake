@@ -134,9 +134,14 @@ else(MSVC)
 		add_cxxflag("-Wbool-conversions")
 		add_cxxflag("-Wheader-guard")
 		add_cxxflag("-Wpessimizing-move")
-		
+    
 		if(NOT DEBUG_EXTRA)
-			
+		
+      if (PNACL) # too noisy on LLVM version of PNACL (occurs in Boost and GLM)
+        add_cxxflag("-Wno-undef")
+        add_cxxflag("-Wno-unused-local-typedef")
+      endif()
+    	
 			# icc
 			if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 				# '... was declared but never referenced'
