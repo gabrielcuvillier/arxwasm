@@ -16,7 +16,7 @@ set(PLATFORM_ROOT_DIR       "${PLATFORM_TOOLCHAIN_DIR}/${PLATFORM_ARCH_INTERNAL}
 
 set(CMAKE_SYSTEM_NAME       "Linux")
 set(CMAKE_SYSTEM_PROCESSOR  "${PLATFORM_ARCH_INTERNAL}")
-set(CMAKE_FIND_ROOT_PATH 	  "${PLATFORM_ROOT_DIR}" )
+set(CMAKE_FIND_ROOT_PATH 	  "${PLATFORM_ROOT_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
 set(CMAKE_AR                "${PLATFORM_TOOLCHAIN_DIR}/bin/${PLATFORM_ARCH}-ar")
 set(CMAKE_RANLIB            "${PLATFORM_TOOLCHAIN_DIR}/bin/${PLATFORM_ARCH}-ranlib")
 set(CMAKE_STRIP             "${PLATFORM_TOOLCHAIN_DIR}/bin/${PLATFORM_ARCH}-strip")
@@ -28,16 +28,22 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
-# Directories
+# SDK include and link directories
 include_directories(${PLATFORM_SDK_INC_DIR})
 
-# Force include directory of FreeType on NACL (it is not clear why FreeType is not detected without this)
+# Freetype: Default detection script does not work correctly as freetype include dir ends with the version number ("2")
+# Force include directory
 set(FREETYPE_INCLUDE_DIRS	${PLATFORM_ROOT_DIR}/usr/include/freetype2)
 
-# Regal library is used as a wrapper to OPENGL ES 2
+# OpenGL: Regal library is used as OpenGL wrapper on top of OpenGL ES 2
+# Force include directory and usage of specific libraries
 set(OPENGL_INCLUDE_DIR 		${PLATFORM_ROOT_DIR}/usr/include)
 set(OPENGL_gl_LIBRARY    	${PLATFORM_ROOT_DIR}/usr/lib/libRegal.a)
 set(OPENGL_LIBRARIES	    ${PLATFORM_ROOT_DIR}/usr/lib/libglslopt.a) # this is required too
+
+# GLM: For convenience, GLM library is stored as git submodule of the current project
+# Force include directory
+set(GLM_ROOT_DIR          glm)
 
 # PPAPI libraries
 set(PPAPI_SIMPLE_LIBRARY  "-Wl,-undefined=PSUserMainGet" "${PLATFORM_SDK_LIB_DIR}/libppapi_simple.a")
