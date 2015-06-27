@@ -190,8 +190,6 @@ EERIE_3DOBJ	* arrowobj=NULL;			// 3D Object for arrows
 EERIE_3DOBJ * cameraobj=NULL;			// Camera 3D Object		// NEEDTO: Remove for Final
 EERIE_3DOBJ * markerobj=NULL;			// Marker 3D Object		// NEEDTO: Remove for Final
 
-std::string WILLADDSPEECH;
-
 Vec2s STARTDRAG;
 Entity * COMBINE=NULL;
 
@@ -207,14 +205,14 @@ float STRIKE_AIMTIME=0.f;
 
 float framedelay=0.f;
 
-long LOAD_N_DONT_ERASE=0;
-long NO_TIME_INIT=0;
+bool LOAD_N_ERASE = true;
+bool TIME_INIT = true;
 
 Rect g_size(640, 480);
 Vec2f g_sizeRatio(1.f, 1.f);
 
 long CurrFightPos=0;
-long NO_PLAYER_POSITION_RESET=0;
+bool PLAYER_POSITION_RESET = true;
 
 float BOW_FOCAL=0;
 long PlayerWeaponBlocked=-1;
@@ -236,8 +234,7 @@ bool g_cursorOverBook = false;
 //-----------------------------------------------------------------------------
 // DEBUG FLAGS/Vars
 //-----------------------------------------------------------------------------
-bool FirstFrame=true;
-unsigned long WILLADDSPEECHTIME=0;
+bool g_requestLevelInit = true;
 unsigned long AimTime;
 //-----------------------------------------------------------------------------
 
@@ -321,6 +318,11 @@ Entity * FlyingOverObject(const Vec2s & pos)
 {
 	Entity* io = NULL;
 
+	// TODO do this properly!
+	if(player.torch && eMouseState == MOUSE_IN_TORCH_ICON) {
+		return player.torch;
+	}
+	
 	if((io = GetFromInventory(pos)) != NULL)
 		return io;
 
@@ -390,24 +392,39 @@ void SetEditMode(long ed, const bool stop_sound) {
 }
 
 
+bool GMOD_RESET = true;
 
-long NO_GMOD_RESET=0;
+Vec3f LastValidPlayerPos;
+Vec3f	WILL_RESTORE_PLAYER_POSITION;
+long WILL_RESTORE_PLAYER_POSITION_FLAG=0;
 
-static void FirstFrameProc() {
+void levelInit() {
+	
+	arx_assert(entities.player());
+	
+	LogDebug("Initializing level ...");
+	
+	g_requestLevelInit = true;
+
+	ARX_PARTICLES_FirstInit();
+	RenderBatcher::getInstance().reset();
+	
+	progressBarAdvance(2.f);
+	LoadLevelScreen();
 	
 	if(!pParticleManager)
 		pParticleManager = new ParticleManager();
 
-	if(!NO_GMOD_RESET)
+	if(GMOD_RESET)
 		ARX_GLOBALMODS_Reset();
 
-	NO_GMOD_RESET = 0;
+	GMOD_RESET = true;
 	
 	STARTDRAG = Vec2s_ZERO;
 	DANAEMouse = Vec2s_ZERO;
 	bookclick = false;
 	
-	if(!LOAD_N_DONT_ERASE)
+	if(LOAD_N_ERASE)
 		arxtime.init();
 
 	ARX_BOOMS_ClearAllPolyBooms();
@@ -417,7 +434,7 @@ static void FirstFrameProc() {
 	ARX_SPELLS_ClearAllSymbolDraw();
 	ARX_PARTICLES_ClearAll();
 
-	if(!LOAD_N_DONT_ERASE) {
+	if(LOAD_N_ERASE) {
 		CleanScriptLoadedIO();
 		RestoreInitialIOStatus();
 		DRAGINTER=NULL;
@@ -426,8 +443,6 @@ static void FirstFrameProc() {
 	ARX_SPELLS_ResetRecognition();
 	
 	eyeball.exist=0;
-	WILLADDSPEECHTIME=0;
-	WILLADDSPEECH.clear();
 	
 	for(size_t i = 0; i < MAX_DYNLIGHTS; i++) {
 		lightHandleGet((LightHandle)i)->exist = 0;
@@ -435,7 +450,7 @@ static void FirstFrameProc() {
 	
 	arxtime.update_last_frame_time();
 	
-	if(!LOAD_N_DONT_ERASE) {
+	if(LOAD_N_ERASE) {
 		CleanInventory();
 		ARX_SCRIPT_Timer_ClearAll();
 		UnlinkAllLinkedObjects();
@@ -446,7 +461,7 @@ static void FirstFrameProc() {
 	TSecondaryInventory=NULL;
 	ARX_FOGS_Render();
 
-	if(!LOAD_N_DONT_ERASE) {
+	if(LOAD_N_ERASE) {
 		arxtime.init();
 
 		if(!DONT_ERASE_PLAYER)
@@ -462,31 +477,12 @@ static void FirstFrameProc() {
 	}
 	
 	InitSnapShot(fs::paths.user / "snapshot");
-}
-Vec3f LastValidPlayerPos;
-Vec3f	WILL_RESTORE_PLAYER_POSITION;
-long WILL_RESTORE_PLAYER_POSITION_FLAG=0;
-
-void FirstFrameHandling() {
 	
-	arx_assert(entities.player());
-	
-	LogDebug("FirstFrameHandling");
-	Vec3f trans;
-	FirstFrame = true;
-
-	ARX_PARTICLES_FirstInit();
-	RenderBatcher::getInstance().reset();
-	
-	progressBarAdvance(2.f);
-	LoadLevelScreen();
-	
-	FirstFrameProc();
 	
 	if(FASTmse) {
 		FASTmse = 0;
 		if(LOADEDD) {
-			trans = Mscenepos;
+			Vec3f trans = Mscenepos;
 			player.pos = loddpos + trans;
 		} else {
 			player.pos.y += player.baseHeight();
@@ -508,7 +504,7 @@ void FirstFrameHandling() {
 		mse->pos.z=Mscenepos.z=Mscenepos.z+BKG_SIZZ-t2;
 		Mscenepos.y=mse->pos.y=-mse->cub.ymin-100.f-mse->point0.y;
 
-		if (!NO_PLAYER_POSITION_RESET)
+		if (PLAYER_POSITION_RESET)
 		{
 			player.pos.x = mse->pos.x+mse->point0.x;
 			player.pos.z = mse->pos.z+mse->point0.z;
@@ -525,12 +521,12 @@ void FirstFrameHandling() {
 		progressBarAdvance(2.f);
 		LoadLevelScreen();
 
-		trans = mse->pos;
+		Vec3f trans = mse->pos;
 
 		ReleaseMultiScene(mse);
 		mse=NULL;
 
-		if(!NO_PLAYER_POSITION_RESET) {
+		if(PLAYER_POSITION_RESET) {
 			if(LOADEDD) {
 				player.pos = loddpos + trans;
 			} else {
@@ -538,7 +534,7 @@ void FirstFrameHandling() {
 			}
 		}
 
-		NO_PLAYER_POSITION_RESET=0;
+		PLAYER_POSITION_RESET = true;
 
 		progressBarAdvance();
 		LoadLevelScreen();
@@ -566,23 +562,23 @@ void FirstFrameHandling() {
 	progressBarAdvance();
 	LoadLevelScreen();
 
-	if(!LOAD_N_DONT_ERASE)
+	if(LOAD_N_ERASE)
 		SetEditMode(0);
 
 	progressBarAdvance();
 	LoadLevelScreen();
 
-	LOAD_N_DONT_ERASE=0;
+	LOAD_N_ERASE = true;
 	DONT_ERASE_PLAYER=0;
 
 	progressBarAdvance();
 	LoadLevelScreen();
 
-	FirstFrame=false;
+	g_requestLevelInit = false;
 	PrepareIOTreatZone(1);
 	CURRENTLEVEL=GetLevelNumByName(LastLoadedScene.string());
 	
-	if(!NO_TIME_INIT)
+	if(TIME_INIT)
 		arxtime.init();
 	
 	arxtime.update_last_frame_time();
@@ -608,7 +604,7 @@ void FirstFrameHandling() {
 	PLAYER_MOUSELOOK_ON = false;
 	player.Interface &= ~INTER_NOTE;
 
-	if(NO_TIME_INIT) {
+	if(!TIME_INIT) {
 		arxtime.force_time_restore(FORCE_TIME_RESTORE);
 		arxtime.force_frame_time_restore(FORCE_TIME_RESTORE);
 	} else {
@@ -1138,7 +1134,6 @@ void ManageCombatModeAnimationsEND() {
 			||	(useanim->cur_anim == io->anims[ANIM_2H_UNREADY_PART_2])
 			||	(useanim->cur_anim == io->anims[ANIM_MISSILE_UNREADY_PART_2])	)
 		) {
-			io->_npcdata->ex_rotate->flags |= EXTRA_ROTATE_REALISTIC;
 			AcquireLastAnim(io);
 			useanim->cur_anim = NULL;
 		}
@@ -1308,7 +1303,7 @@ void DANAE_StartNewQuest()
 	progressBarAdvance(2.f);
 	LoadLevelScreen();
 	DanaeLoadLevel("graph/levels/level1/level1.dlf");
-	FirstFrame=true;
+	g_requestLevelInit = true;
 	START_NEW_QUEST=0;
 	BLOCK_PLAYER_CONTROLS = false;
 	fadeReset();

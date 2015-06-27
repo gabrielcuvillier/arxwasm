@@ -182,6 +182,12 @@ static void LaunchMagicMissileExplosion(const Vec3f & _ePos, bool mrCheat) {
 }
 
 
+
+MagicMissileSpell::MagicMissileSpell()
+	: SpellBase()
+	, m_mrCheat(false)
+{}
+
 MagicMissileSpell::~MagicMissileSpell() {
 	
 	for(size_t i = 0; i < pTab.size(); i++) {
@@ -421,7 +427,7 @@ void IgnitSpell::Launch()
 	m_lights.clear();
 	m_elapsed = 0;
 	
-	CheckForIgnition(m_srcPos, fPerimeter, 1, 1);
+	CheckForIgnition(Sphere(m_srcPos, fPerimeter), 1, 1);
 	
 	for(size_t ii = 0; ii < MAX_LIGHTS; ii++) {
 		EERIE_LIGHT * light = GLight[ii];
@@ -537,7 +543,7 @@ void DouseSpell::Launch()
 	
 	float fPerimeter = 400.f + m_level * 30.f;
 	
-	CheckForIgnition(target, fPerimeter, 0, 1);
+	CheckForIgnition(Sphere(target, fPerimeter), 0, 1);
 	
 	for(size_t ii = 0; ii < MAX_LIGHTS; ii++) {
 		EERIE_LIGHT * light = GLight[ii];

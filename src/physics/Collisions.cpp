@@ -73,22 +73,22 @@ bool DIRECT_PATH=true;
 
 //-----------------------------------------------------------------------------
 // Added immediate return (return anything;)
-inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
+inline float IsPolyInCylinder(const EERIEPOLY & ep, const Cylinder & cyl, long flag) {
 
 	long flags = flag;
 	POLYIN = 0;
 	float minf = cyl.origin.y + cyl.height;
 	float maxf = cyl.origin.y;
 
-	if(minf > ep->max.y || maxf < ep->min.y)
+	if(minf > ep.max.y || maxf < ep.min.y)
 		return 999999.f;
 	
-	long to = (ep->type & POLY_QUAD) ? 4 : 3;
+	long to = (ep.type & POLY_QUAD) ? 4 : 3;
 
 	float nearest = 99999999.f;
 
 	for(long num = 0; num < to; num++) {
-		float dd = fdist(Vec2f(ep->v[num].p.x, ep->v[num].p.z), Vec2f(cyl.origin.x, cyl.origin.z));
+		float dd = fdist(Vec2f(ep.v[num].p.x, ep.v[num].p.z), Vec2f(cyl.origin.x, cyl.origin.z));
 
 		if(dd < nearest) {
 			nearest = dd;
@@ -100,25 +100,25 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 
 	if(cyl.radius < 30.f
 	   || cyl.height > -80.f
-	   || ep->area > 5000.f
+	   || ep.area > 5000.f
 	) {
 		flags |= CFLAG_EXTRA_PRECISION;
 	}
 
 	if(!(flags & CFLAG_EXTRA_PRECISION)) {
-		if(ep->area < 100.f)
+		if(ep.area < 100.f)
 			return 999999.f;
 	}
 	
 	float anything = 999999.f;
 
-	if(PointInCylinder(cyl, ep->center)) {
+	if(PointInCylinder(cyl, ep.center)) {
 		POLYIN = 1;
 		
-		if(ep->norm.y < 0.5f)
-			anything = std::min(anything, ep->min.y);
+		if(ep.norm.y < 0.5f)
+			anything = std::min(anything, ep.min.y);
 		else
-			anything = std::min(anything, ep->center.y);
+			anything = std::min(anything, ep.center.y);
 
 		if(!(flags & CFLAG_EXTRA_PRECISION))
 			return anything;
@@ -134,7 +134,7 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 		if(flags & CFLAG_EXTRA_PRECISION) {
 			for(long o = 0; o < 5; o++) {
 				float p = (float)o * (1.f/5);
-				center = ep->v[n].p * p + ep->center * (1.f - p);
+				center = ep.v[n].p * p + ep.center * (1.f - p);
 				if(PointInCylinder(cyl, center)) {
 					anything = std::min(anything, center.y);
 					POLYIN = 1;
@@ -145,8 +145,8 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 			}
 		}
 
-		if(ep->area > 2000.f || (flags & CFLAG_EXTRA_PRECISION)) {
-			center = (ep->v[n].p + ep->v[r].p) * 0.5f;
+		if(ep.area > 2000.f || (flags & CFLAG_EXTRA_PRECISION)) {
+			center = (ep.v[n].p + ep.v[r].p) * 0.5f;
 			if(PointInCylinder(cyl, center)) {
 				anything = std::min(anything, center.y);
 				POLYIN = 1;
@@ -155,8 +155,8 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 					return anything;
 			}
 
-			if(ep->area > 4000.f || (flags & CFLAG_EXTRA_PRECISION)) {
-				center = (ep->v[n].p + ep->center) * 0.5f;
+			if(ep.area > 4000.f || (flags & CFLAG_EXTRA_PRECISION)) {
+				center = (ep.v[n].p + ep.center) * 0.5f;
 				if(PointInCylinder(cyl, center)) {
 					anything = std::min(anything, center.y);
 					POLYIN = 1;
@@ -166,8 +166,8 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 				}
 			}
 
-			if(ep->area > 6000.f || (flags & CFLAG_EXTRA_PRECISION)) {
-				center = (center + ep->v[n].p) * 0.5f;
+			if(ep.area > 6000.f || (flags & CFLAG_EXTRA_PRECISION)) {
+				center = (center + ep.v[n].p) * 0.5f;
 				if(PointInCylinder(cyl, center)) {
 					anything = std::min(anything, center.y);
 					POLYIN = 1;
@@ -178,9 +178,9 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 			}
 		}
 
-		if(PointInCylinder(cyl, ep->v[n].p)) {
+		if(PointInCylinder(cyl, ep.v[n].p)) {
 			
-			anything = std::min(anything, ep->v[n].p.y);
+			anything = std::min(anything, ep.v[n].p.y);
 			POLYIN = 1;
 
 			if(!(flags & CFLAG_EXTRA_PRECISION))
@@ -219,8 +219,8 @@ inline float IsPolyInCylinder(EERIEPOLY * ep, const Cylinder & cyl, long flag) {
 		}
 	} 
 //}*/
-	if(anything != 999999.f && ep->norm.y < 0.1f && ep->norm.y > -0.1f)
-		anything = std::min(anything, ep->min.y);
+	if(anything != 999999.f && ep.norm.y < 0.1f && ep.norm.y > -0.1f)
+		anything = std::min(anything, ep.min.y);
 
 	return anything;
 }
@@ -472,6 +472,8 @@ static bool CollidedFromBack(Entity * io,Entity * ioo) {
 // Else returns Y Offset to put cylinder in a proper place
 float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 	
+	ARX_PROFILE_FUNC();
+	
 	NPC_IN_CYLINDER = 0;
 	
 	long rad = (cyl.radius + 100) * ACTIVEBKG->Xmul;
@@ -493,17 +495,14 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 
 	float anything = 999999.f; 
 	
-	EERIEPOLY * ep;
-	
 	for(short z = pz - rad; z <= pz + rad; z++)
 	for(short x = px - rad; x <= px + rad; x++) {
-		float nearx,nearz;
 		float nearest = 99999999.f;
 
 		for(long num = 0; num < 4; num++) {
 
-			nearx = static_cast<float>(x * 100);
-			nearz = static_cast<float>(z * 100);
+			float nearx = static_cast<float>(x * 100);
+			float nearz = static_cast<float>(z * 100);
 
 			if(num == 1 || num == 2)
 				nearx += 100;
@@ -520,20 +519,19 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 
 		if(nearest > std::max(82.f, cyl.radius))
 			continue;
+		
+		const EERIE_BKG_INFO & feg = ACTIVEBKG->fastdata[x][z];
+		for(long k = 0; k < feg.nbpoly; k++) {
+			const EERIEPOLY & ep = feg.polydata[k];
 
-
-		EERIE_BKG_INFO * feg = &ACTIVEBKG->fastdata[x][z];
-		for(long k = 0; k < feg->nbpoly; k++) {
-			ep = &feg->polydata[k];
-
-			if(ep->type & (POLY_WATER | POLY_TRANS | POLY_NOCOL))
+			if(ep.type & (POLY_WATER | POLY_TRANS | POLY_NOCOL))
 				continue;
 
-			if(ep->min.y < anything) {
+			if(ep.min.y < anything) {
 				anything = std::min(anything, IsPolyInCylinder(ep, cyl, flags));
 
 				if(POLYIN) {
-					if(ep->type & POLY_CLIMB)
+					if(ep.type & POLY_CLIMB)
 						COLLIDED_CLIMB_POLY = 1;
 				}
 			}
@@ -542,7 +540,7 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 
 	float tempo;
 	
-	ep = CheckInPoly(cyl.origin + Vec3f(0.f, cyl.height, 0.f), &tempo);
+	EERIEPOLY * ep = CheckInPoly(cyl.origin + Vec3f(0.f, cyl.height, 0.f), &tempo);
 	
 	if(ep) {
 		anything = std::min(anything, tempo);
@@ -1564,24 +1562,20 @@ bool ARX_COLLISION_Move_Cylinder(IO_PHYSICS * ip, Entity * io, float MOVE_CYLIND
 }
 
 // TODO visible copy-paste
-bool IO_Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hit)
+bool IO_Visible(const Vec3f & orgn, const Vec3f & dest, Vec3f * hit)
 {
 	ARX_PROFILE_FUNC();
-
-	float ix,iy,iz;
-	long px,pz;
-
+	
+	Vec3f i;
 	float pas = 35.f;
- 
+
 	Vec3f found_hit = Vec3f_ZERO;
 	EERIEPOLY *found_ep = NULL;
-	float iter,t;
-
+	float iter;
+	
 	//current ray pos
-	float x = orgn.x;
-	float y = orgn.y;
-	float z = orgn.z;
-
+	Vec3f tmpPos = orgn;
+	
 	float distance;
 	float nearest = distance = fdist(orgn, dest);
 
@@ -1589,118 +1583,103 @@ bool IO_Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f *
 		pas = distance * .5f;
 
 	// ray incs
-	float dx = (dest.x - orgn.x);
-	float dy = (dest.y - orgn.y);
-	float dz = (dest.z - orgn.z);
-
+	Vec3f d = dest - orgn;
+	
 	// absolute ray incs
-	float adx = glm::abs(dx);
-	float ady = glm::abs(dy);
-	float adz = glm::abs(dz);
-
-	if(adx >= ady && adx >= adz) {
-		if(adx != dx)
-			ix = -pas;
+	Vec3f ad = glm::abs(d);
+	
+	if(ad.x >= ad.y && ad.x >= ad.z) {
+		if(ad.x != d.x)
+			i.x = -pas;
 		else
-			ix = pas;
+			i.x = pas;
 
-		iter = adx / pas;
-		t = 1.f / (iter);
-		iy = dy * t;
-		iz = dz * t;
-	} else if(ady >= adx && ady >= adz) {
-		if(ady != dy)
-			iy = -pas;
+		iter = ad.x / pas;
+		float t = 1.f / (iter);
+		i.y = d.y * t;
+		i.z = d.z * t;
+	} else if(ad.y >= ad.x && ad.y >= ad.z) {
+		if(ad.y != d.y)
+			i.y = -pas;
 		else
-			iy = pas;
+			i.y = pas;
 
-		iter = ady / pas;
-		t = 1.f / (iter);
-		ix = dx * t;
-		iz = dz * t;
+		iter = ad.y / pas;
+		float t = 1.f / (iter);
+		i.x = d.x * t;
+		i.z = d.z * t;
 	} else {
-		if(adz != dz)
-			iz = -pas;
+		if(ad.z != d.z)
+			i.z = -pas;
 		else
-			iz = pas;
+			i.z = pas;
 
-		iter = adz / pas;
-		t = 1.f / (iter);
-		ix = dx * t;
-		iy = dy * t;
+		iter = ad.z / pas;
+		float t = 1.f / (iter);
+		i.x = d.x * t;
+		i.y = d.y * t;
 	}
-
-	float dd;
-	x -= ix;
-	y -= iy;
-	z -= iz;
+	
+	tmpPos.x -= i.x;
+	tmpPos.y -= i.y;
+	tmpPos.z -= i.z;
 
 	while(iter > 0.f) {
 		iter -= 1.f;
-		x += ix;
-		y += iy;
-		z += iz;
+		tmpPos.x += i.x;
+		tmpPos.y += i.y;
+		tmpPos.z += i.z;
 
-		Sphere sphere;
-		sphere.origin.x=x;
-		sphere.origin.y=y;
-		sphere.origin.z=z;
-		sphere.radius=65.f;
-
+		Sphere sphere = Sphere(tmpPos, 65.f);
+		
 		for(size_t num = 0; num < entities.size(); num++) {
 			const EntityHandle handle = EntityHandle(num);
 			Entity * io = entities[handle];
 
 			if(io && (io->gameFlags & GFLAG_VIEW_BLOCKER)) {
 				if(CheckIOInSphere(sphere, *io)) {
-					dd = fdist(orgn, sphere.origin);
+					float dd = fdist(orgn, sphere.origin);
 
 					if(dd < nearest) {
-						hit->x=x;
-						hit->y=y;
-						hit->z=z;
+						hit->x=tmpPos.x;
+						hit->y=tmpPos.y;
+						hit->z=tmpPos.z;
 						return false;
 					}
 				}
 			}
 		}
 
-		px = (long)(x * ACTIVEBKG->Xmul);
-		pz = (long)(z * ACTIVEBKG->Zmul);
+		long px = (long)(tmpPos.x * ACTIVEBKG->Xmul);
+		long pz = (long)(tmpPos.z * ACTIVEBKG->Zmul);
 
 		if(px < 0 || px >= ACTIVEBKG->Xsize || pz < 0 || pz >= ACTIVEBKG->Zsize)
-			goto fini;
+			break;
 
-			EERIE_BKG_INFO * feg = &ACTIVEBKG->fastdata[px][pz];
+		EERIE_BKG_INFO * eg = &ACTIVEBKG->fastdata[px][pz];
 
-			for(long k = 0; k < feg->nbpolyin; k++) {
-				EERIEPOLY * ep = feg->polyin[k];
+		for(long k = 0; k < eg->nbpolyin; k++) {
+			EERIEPOLY * ep = eg->polyin[k];
 
-				if(!(ep->type & (POLY_WATER | POLY_TRANS | POLY_NOCOL)))
-				if((ep->min.y - pas < y) && (ep->max.y + pas > y))
-				if((ep->min.x - pas < x) && (ep->max.x + pas > x))
-				if((ep->min.z - pas < z) && (ep->max.z + pas > z))
-				{
-					if(RayCollidingPoly(orgn, dest, ep, hit)) {
-						dd = fdist(orgn, *hit);
-						if(dd < nearest) {
-							nearest = dd;
-							found_ep = ep;
-							found_hit = *hit;
-						}
-					}
+			if(!(ep->type & (POLY_WATER | POLY_TRANS | POLY_NOCOL)))
+			if((ep->min.y - pas < tmpPos.y) && (ep->max.y + pas > tmpPos.y))
+			if((ep->min.x - pas < tmpPos.x) && (ep->max.x + pas > tmpPos.x))
+			if((ep->min.z - pas < tmpPos.z) && (ep->max.z + pas > tmpPos.z))
+			if(RayCollidingPoly(orgn, dest, *ep, hit)) {
+				float dd = fdist(orgn, *hit);
+				if(dd < nearest) {
+					nearest = dd;
+					found_ep = ep;
+					found_hit = *hit;
 				}
 			}
-			
 		}
-		
-fini:
-	;
+	}
 	
 	if(!found_ep)
 		return true;
 
-	if(found_ep == epp)
+	if(found_ep == NULL)
 		return true;
 	
 	*hit = found_hit;

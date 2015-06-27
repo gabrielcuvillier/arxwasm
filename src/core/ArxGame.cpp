@@ -740,7 +740,7 @@ static bool HandleGameFlowTransitions() {
 
 	if(GameFlow::getTransition() == GameFlow::InGame) {
 		GameFlow::setTransition(GameFlow::NoTransition);
-		FirstFrame = true;
+		g_requestLevelInit = true;
 		return true;
 	}
 
@@ -1306,8 +1306,8 @@ void ArxGame::doFrame() {
 		
 	}
 	
-	if(FirstFrame) {
-		FirstFrameHandling();
+	if(g_requestLevelInit) {
+		levelInit();
 	} else {
 		update();
 		render();
@@ -2203,8 +2203,10 @@ void ArxGame::render() {
 	gldebug::endFrame();
 }
 
-void ArxGame::update2DFX()
-{
+void ArxGame::update2DFX() {
+	
+	ARX_PROFILE_FUNC();
+	
 	TexturedVertex ltvv;
 
 	Entity* pTableIO[256];
@@ -2227,7 +2229,7 @@ void ArxGame::update2DFX()
 		if(el->extras & EXTRAS_FLARE) {
 			Vec3f lv = el->pos;
 			EE_RTP(lv, &ltvv);
-			el->temp -= temp_increase;
+			el->m_flareFader -= temp_increase;
 
 			if(!(player.Interface & INTER_COMBATMODE) && (player.Interface & INTER_MAP))
 				continue;
@@ -2245,7 +2247,6 @@ void ArxGame::update2DFX()
 				float fZFar=ACTIVECAM->ProjectionMatrix[2][2]*(1.f/(ACTIVECAM->cdepth*fZFogEnd))+ACTIVECAM->ProjectionMatrix[3][2];
 
 				Vec3f hit;
-				EERIEPOLY *tp=NULL;
 				Vec2s ees2dlv;
 				Vec3f ee3dlv = lv;
 
@@ -2258,23 +2259,25 @@ void ArxGame::update2DFX()
 				}
 
 				if(ltvv.p.z > fZFar ||
-					EERIELaunchRay3(ACTIVECAM->orgTrans.pos, ee3dlv, &hit, tp, 1) ||
+					EERIELaunchRay3(ACTIVECAM->orgTrans.pos, ee3dlv, hit, 1) ||
 					GetFirstInterAtPos(ees2dlv, 3, &ee3dlv, pTableIO, &nNbInTableIO )
 					)
 				{
-					el->temp-=temp_increase*2.f;
+					el->m_flareFader -= temp_increase * 2.f;
 				} else {
-					el->temp+=temp_increase*2.f;
+					el->m_flareFader += temp_increase * 2.f;
 				}
 			}
 
-			el->temp = glm::clamp(el->temp, 0.f, .8f);
+			el->m_flareFader = glm::clamp(el->m_flareFader, 0.f, .8f);
 		}
 	}
 }
 
-void ArxGame::goFor2DFX()
-{
+void ArxGame::goFor2DFX() {
+	
+	ARX_PROFILE_FUNC();
+	
 	GRenderer->SetRenderState(Renderer::Fog, true);
 	GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
@@ -2290,10 +2293,10 @@ void ArxGame::goFor2DFX()
 			continue;
 
 		if(el->extras & EXTRAS_FLARE) {
-			if (el->temp > 0.f) {
+			if(el->m_flareFader > 0.f) {
 				Vec3f ltvv = EE_RT(el->pos);
 				
-				float v=el->temp;
+				float v = el->m_flareFader;
 
 				if(FADEDIR) {
 					v *= 1.f - LAST_FADEVALUE;

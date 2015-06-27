@@ -103,8 +103,7 @@ void ColorMod::updateFromEntity(Entity *io, bool inBook) {
 
 void RecalcLight(EERIE_LIGHT * el) {
 	el->rgb255 = el->rgb * 255.f;
-	el->falldiff = el->fallend - el->fallstart;
-	el->falldiffmul = 1.f / el->falldiff;
+	el->falldiffmul = 1.f / (el->fallend - el->fallstart);
 }
 
 void EERIE_LIGHT_GlobalInit() {
@@ -528,14 +527,16 @@ TILE_LIGHTS tilelights[MAX_BKGX][MAX_BKGZ];
 
 void InitTileLights()
 {
-	for (long j=0;j<MAX_BKGZ;j++)
-	for (long i=0;i<MAX_BKGZ;i++)
-	{
+	for(long j = 0; j < MAX_BKGZ; j++)
+	for(long i = 0; i < MAX_BKGX; i++) {
 		tilelights[i][j].el.clear();
 	}
 }
 
 void ResetTileLights() {
+	
+	ARX_PROFILE_FUNC();
+	
 	for(long j=0; j<ACTIVEBKG->Zsize; j++) {
 		for(long i=0; i<ACTIVEBKG->Xsize; i++) {
 			tilelights[i][j].el.clear();
@@ -568,11 +569,9 @@ void ClearTileLights() {
 float GetColorz(const Vec3f &pos) {
 
 	UpdateLlights(pos, true);
-
-	float ffr = 0;
-	float ffg = 0;
-	float ffb = 0;
-
+	
+	Color3f ff = Color3f(0.f, 0.f, 0.f);
+	
 	for(long k = 0; k < MAX_LLIGHTS; k++) {
 		EERIE_LIGHT * el = llights[k];
 
@@ -594,9 +593,9 @@ float GetColorz(const Vec3f &pos) {
 				}
 
 				dc *= 0.4f * 255.f;
-				ffr = std::max(ffr, el->rgb.r * dc);
-				ffg = std::max(ffg, el->rgb.g * dc);
-				ffb = std::max(ffb, el->rgb.b * dc);
+				ff.r = std::max(ff.r, el->rgb.r * dc);
+				ff.g = std::max(ff.g, el->rgb.g * dc);
+				ff.b = std::max(ff.b, el->rgb.b * dc);
 			}
 		}
 	}
@@ -607,10 +606,8 @@ float GetColorz(const Vec3f &pos) {
 	ep = CheckInPoly(pos, &needy);
 
 	if(ep != NULL) {
-		float _ffr = 0;
-		float _ffg = 0;
-		float _ffb = 0;
-
+		Color3f _ff = Color3f(0.f, 0.f, 0.f);
+		
 		long to = (ep->type & POLY_QUAD) ? 4 : 3;
 		float div = (1.0f / to);
 
@@ -619,24 +616,24 @@ float GetColorz(const Vec3f &pos) {
 
 		for(long i = 0; i < to; i++) {
 			Color col = Color::fromRGBA(ep->tv[i].color);
-			_ffr += float(col.r);
-			_ffg += float(col.g);
-			_ffb += float(col.b);
+			_ff.r += float(col.r);
+			_ff.g += float(col.g);
+			_ff.b += float(col.b);
 		}
 
-		_ffr *= div;
-		_ffg *= div;
-		_ffb *= div;
+		_ff.r *= div;
+		_ff.g *= div;
+		_ff.b *= div;
 		float ratio, ratio2;
 		ratio = glm::abs(needy - pos.y) * ( 1.0f / 300 );
 		ratio = (1.f - ratio);
 		ratio2 = 1.f - ratio;
-		ffr = ffr * ratio2 + _ffr * ratio;
-		ffg = ffg * ratio2 + _ffg * ratio;
-		ffb = ffb * ratio2 + _ffb * ratio;
+		ff.r = ff.r * ratio2 + _ff.r * ratio;
+		ff.g = ff.g * ratio2 + _ff.g * ratio;
+		ff.b = ff.b * ratio2 + _ff.b * ratio;
 	}
 
-	return (std::min(ffr, 255.f) + std::min(ffg, 255.f) + std::min(ffb, 255.f)) * (1.f/3);
+	return (std::min(ff.r, 255.f) + std::min(ff.g, 255.f) + std::min(ff.b, 255.f)) * (1.f/3);
 }
 
 ColorRGBA ApplyLight(const glm::quat * quat, const Vec3f & position, const Vec3f & normal, const ColorMod & colorMod, float materialDiffuse) {

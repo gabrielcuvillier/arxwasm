@@ -200,7 +200,7 @@ void FlyingEyeSpell::Update(float timeDelta)
 				}
 				
 				pd->ov = eobj->vertexlist3[id].v + randomVec(-1.f, 1.f);
-				pd->move = Vec3f(0.1f - 0.2f * rnd(), -2.2f * rnd(), 0.1f - 0.2f * rnd());
+				pd->move = Vec3f(0.1f, 0.f, 0.1f) + Vec3f(-0.2f, -2.2f, -0.2f) * Vec3f(rnd(), rnd(), rnd());
 				pd->siz = 5.f;
 				pd->tolive = Random::get(1500, 3500);
 				pd->scale = Vec3f(0.2f);
@@ -209,7 +209,7 @@ void FlyingEyeSpell::Update(float timeDelta)
 				pd->sourceionum = PlayerEntityHandle;
 				pd->source = &eobj->vertexlist3[id].v;
 				pd->fparam = 0.0000001f;
-				pd->rgb = Color3f(.7f - rnd() * .1f, .3f - rnd() * .1f, 1.f - rnd() * .1f);
+				pd->rgb = Color3f(.7f, .3f, 1.f) + Color3f(-.1f, -.1f, -.1f) * Color3f(rnd(), rnd(), rnd());
 			}
 		}
 	}
@@ -363,62 +363,58 @@ void FireFieldSpell::Update(float timeDelta) {
 	pPSStream1.Update(timeDelta);
 	
 	
-		if(!lightHandleIsValid(m_light))
-			m_light = GetFreeDynLight();
-
-		if(lightHandleIsValid(m_light)) {
-			EERIE_LIGHT * el = lightHandleGet(m_light);
-			
-			el->pos.x = m_pos.x;
-			el->pos.y = m_pos.y-120.f;
-			el->pos.z = m_pos.z;
-			el->intensity = 4.6f;
-			el->fallstart = 150.f+rnd()*30.f;
-			el->fallend   = 290.f+rnd()*30.f;
-			el->rgb.r = 1.f-rnd()*( 1.0f / 10 );
-			el->rgb.g = 0.8f;
-			el->rgb.b = 0.6f;
-			el->duration = 600;
-			el->extras=0;
-		}
+	if(!lightHandleIsValid(m_light))
+		m_light = GetFreeDynLight();
+	
+	if(lightHandleIsValid(m_light)) {
+		EERIE_LIGHT * el = lightHandleGet(m_light);
 		
-		if(VisibleSphere(Sphere(m_pos - Vec3f(0.f, 120.f, 0.f), 350.f))) {
+		el->pos = m_pos + Vec3f(0.f, -120.f, 0.f);
+		el->intensity = 4.6f;
+		el->fallstart = 150.f+rnd()*30.f;
+		el->fallend   = 290.f+rnd()*30.f;
+		el->rgb = Color3f(1.f, 0.8f, 0.6f) - Color3f(rnd()*(1.0f/10), 0.f, 0.f);
+		el->duration = 600;
+		el->extras=0;
+	}
+	
+	if(VisibleSphere(Sphere(m_pos - Vec3f(0.f, 120.f, 0.f), 350.f))) {
+		
+		pPSStream.Render();
+		pPSStream1.Render();
+		
+		float fDiff = timeDelta / 8.f;
+		int nTime = checked_range_cast<int>(fDiff);
+		
+		for(long nn=0;nn<=nTime+1;nn++) {
 			
-			pPSStream.Render();
-			pPSStream1.Render();
-			
-			float fDiff = timeDelta / 8.f;
-			int nTime = checked_range_cast<int>(fDiff);
-			
-			for(long nn=0;nn<=nTime+1;nn++) {
-				
-				PARTICLE_DEF * pd = createParticle();
-				if(!pd) {
-					break;
-				}
-				
-				float t = rnd() * (PI * 2.f) - PI;
-				float ts = std::sin(t);
-				float tc = std::cos(t);
-				pd->ov = m_pos + Vec3f(120.f * ts, 15.f * ts, 120.f * tc) * randomVec();
-				pd->move = Vec3f(2.f - 4.f * rnd(), 1.f - 8.f * rnd(), 2.f - 4.f * rnd());
-				pd->siz = 7.f;
-				pd->tolive = Random::get(500, 1500);
-				pd->tc = fire2;
-				pd->special = ROTATING | MODULATE_ROTATION | FIRE_TO_SMOKE;
-				pd->fparam = 0.1f - rnd() * 0.2f;
-				pd->scale = Vec3f(-8.f);
-				
-				PARTICLE_DEF * pd2 = createParticle();
-				if(!pd2) {
-					break;
-				}
-				
-				*pd2 = *pd;
-				pd2->delay = Random::get(60, 210);
+			PARTICLE_DEF * pd = createParticle();
+			if(!pd) {
+				break;
 			}
 			
+			float t = rnd() * (PI * 2.f) - PI;
+			float ts = std::sin(t);
+			float tc = std::cos(t);
+			pd->ov = m_pos + Vec3f(120.f * ts, 15.f * ts, 120.f * tc) * randomVec();
+			pd->move = Vec3f(2.f, 1.f, 2.f) + Vec3f(-4.f, -8.f, -4.f) * Vec3f(rnd(), rnd(), rnd());
+			pd->siz = 7.f;
+			pd->tolive = Random::get(500, 1500);
+			pd->tc = fire2;
+			pd->special = ROTATING | MODULATE_ROTATION | FIRE_TO_SMOKE;
+			pd->fparam = 0.1f - rnd() * 0.2f;
+			pd->scale = Vec3f(-8.f);
+			
+			PARTICLE_DEF * pd2 = createParticle();
+			if(!pd2) {
+				break;
+			}
+			
+			*pd2 = *pd;
+			pd2->delay = Random::get(60, 210);
 		}
+		
+	}
 }
 
 Vec3f FireFieldSpell::getPosition() {
@@ -426,6 +422,13 @@ Vec3f FireFieldSpell::getPosition() {
 	return m_pos;
 }
 
+
+
+IceFieldSpell::IceFieldSpell()
+	: SpellBase()
+	, tex_p1(NULL)
+	, tex_p2(NULL)
+{}
 
 void IceFieldSpell::Launch()
 {
@@ -472,7 +475,6 @@ void IceFieldSpell::Launch()
 	damage.pos = target;
 	m_damage = DamageCreate(damage);
 	
-	iMax = 50;
 	tex_p1 = TextureContainer::Load("graph/obj3d/textures/(fx)_tsu_blueting");
 	tex_p2 = TextureContainer::Load("graph/obj3d/textures/(fx)_tsu_bluepouf");
 	
@@ -485,9 +487,7 @@ void IceFieldSpell::Launch()
 			tType[i] = 1;
 		
 		tSize[i] = Vec3f_ZERO;
-		tSizeMax[i].x = rnd();
-		tSizeMax[i].y = rnd() + 0.2f;
-		tSizeMax[i].z = rnd();
+		tSizeMax[i] = Vec3f(rnd(), rnd(), rnd()) + Vec3f(0.f, 0.2f, 0.f);
 		
 		Vec3f minPos;
 		if(tType[i] == 0) {
@@ -530,15 +530,11 @@ void IceFieldSpell::Update(float timeDelta) {
 	if(lightHandleIsValid(m_light)) {
 		EERIE_LIGHT * el = lightHandleGet(m_light);
 		
-		el->pos.x = m_pos.x;
-		el->pos.y = m_pos.y-120.f;
-		el->pos.z = m_pos.z;
+		el->pos = m_pos + Vec3f(0.f, -120.f, 0.f);
 		el->intensity = 4.6f;
 		el->fallstart = 150.f+rnd()*30.f;
 		el->fallend   = 290.f+rnd()*30.f;
-		el->rgb.r = 0.76f;
-		el->rgb.g = 0.76f;
-		el->rgb.b = 1.0f-rnd()*( 1.0f / 10 );
+		el->rgb = Color3f(0.76f, 0.76f, 1.0f) + Color3f(0.f, 0.f, -rnd()*(1.0f/10));
 		el->duration = 600;
 		el->extras=0;
 	}
@@ -670,46 +666,53 @@ static Vec3f GetChestPos(EntityHandle num) {
 
 void LightningStrikeSpell::Update(float timeDelta) {
 	
-		float fBeta = 0.f;
-		float falpha = 0.f;
-		
-		Entity * caster = entities[m_caster];
-		long idx = GetGroupOriginByName(caster->obj, "chest");
-		if(idx >= 0) {
-			m_caster_pos = caster->obj->vertexlist3[idx].v;
-		} else {
-			m_caster_pos = caster->pos;
+	float fBeta = 0.f;
+	float falpha = 0.f;
+	
+	Entity * caster = entities[m_caster];
+	long idx = GetGroupOriginByName(caster->obj, "chest");
+	if(idx >= 0) {
+		m_caster_pos = caster->obj->vertexlist3[idx].v;
+	} else {
+		m_caster_pos = caster->pos;
+	}
+	
+	if(m_caster == PlayerEntityHandle) {
+		falpha = -player.angle.getYaw();
+		fBeta = player.angle.getPitch();
+	} else {
+		fBeta = caster->angle.getPitch();
+		if(ValidIONum(caster->targetinfo) && caster->targetinfo != m_caster) {
+			const Vec3f & p1 = m_caster_pos;
+			Vec3f p2 = GetChestPos(caster->targetinfo);
+			falpha = MAKEANGLE(glm::degrees(getAngle(p1.y, p1.z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1.x, p1.z))))); //alpha entre orgn et dest;
+		} else if(ValidIONum(m_target)) {
+			const Vec3f & p1 = m_caster_pos;
+			Vec3f p2 = GetChestPos(m_target);
+			falpha = MAKEANGLE(glm::degrees(getAngle(p1.y, p1.z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1.x, p1.z))))); //alpha entre orgn et dest;
 		}
-		
-		if(m_caster == PlayerEntityHandle) {
-			falpha = -player.angle.getYaw();
-			fBeta = player.angle.getPitch();
-		} else {
-			fBeta = caster->angle.getPitch();
-			if(ValidIONum(caster->targetinfo) && caster->targetinfo != m_caster) {
-				const Vec3f & p1 = m_caster_pos;
-				Vec3f p2 = GetChestPos(caster->targetinfo);
-				falpha = MAKEANGLE(glm::degrees(getAngle(p1.y, p1.z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1.x, p1.z))))); //alpha entre orgn et dest;
-			} else if(ValidIONum(m_target)) {
-				const Vec3f & p1 = m_caster_pos;
-				Vec3f p2 = GetChestPos(m_target);
-				falpha = MAKEANGLE(glm::degrees(getAngle(p1.y, p1.z, p2.y, p2.z + glm::distance(Vec2f(p2.x, p2.z), Vec2f(p1.x, p1.z))))); //alpha entre orgn et dest;
-			}
-		}
-		
-		m_lightning.m_pos = m_caster_pos;
-		m_lightning.m_beta = fBeta;
-		m_lightning.m_alpha = falpha;
-		
-		m_lightning.m_caster = m_caster;
-		m_lightning.m_level = m_level;
-		
-		m_lightning.Update(timeDelta);
-		m_lightning.Render();
+	}
+	
+	m_lightning.m_pos = m_caster_pos;
+	m_lightning.m_beta = fBeta;
+	m_lightning.m_alpha = falpha;
+	
+	m_lightning.m_caster = m_caster;
+	m_lightning.m_level = m_level;
+	
+	m_lightning.Update(timeDelta);
+	m_lightning.Render();
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_caster]->pos);
 }
 
+
+
+ConfuseSpell::ConfuseSpell()
+	: SpellBase()
+	, tex_p1(NULL)
+	, tex_trail(NULL)
+{}
 
 void ConfuseSpell::Launch() {
 	
@@ -810,9 +813,7 @@ void ConfuseSpell::Update(float timeDelta) {
 		light->intensity = 1.3f;
 		light->fallstart = 180.f;
 		light->fallend   = 420.f;
-		light->rgb.r = 0.3f + rnd() * ( 1.0f / 5 );
-		light->rgb.g = 0.3f;
-		light->rgb.b = 0.5f + rnd() * ( 1.0f / 5 );
+		light->rgb = Color3f(0.3f, 0.3f, 0.5f) + Color3f(0.2f, 0.f, 0.2f) * Color3f(rnd(), rnd(), rnd());
 		light->pos = eCurPos;
 		light->duration = 200;
 		light->extras = 0;

@@ -26,6 +26,8 @@
 
 class RuneOfGuardingSpell : public SpellBase {
 public:
+	RuneOfGuardingSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
@@ -42,6 +44,8 @@ private:
 
 class LevitateSpell : public SpellBase {
 public:
+	LevitateSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
@@ -59,6 +63,8 @@ private:
 
 class CurePoisonSpell : public SpellBase {
 public:
+	CurePoisonSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
@@ -66,12 +72,14 @@ public:
 private:
 	Vec3f m_pos;
 	LightHandle m_light;
-	ParticleSystem pPS;
-	unsigned long ulCurrentTime;
+	ParticleSystem m_particles;
+	unsigned long m_currentTime;
 };
 
 class RepelUndeadSpell : public SpellBase {
 public:
+	RepelUndeadSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);

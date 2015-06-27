@@ -347,7 +347,7 @@ static void CheckExp(long i) {
 
 		ARX_BOOMS_Add(pos);
 		LaunchFireballBoom(pos, 10);
-		DoSphericDamage(pos, 4.f * 2, 50.f, DAMAGE_AREA, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL, PlayerEntityHandle);
+		DoSphericDamage(Sphere(pos, 50.f), 4.f * 2, DAMAGE_AREA, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL, PlayerEntityHandle);
 		ARX_SOUND_PlaySFX(SND_SPELL_FIRE_HIT, &pos);
 		ARX_NPC_SpawnAudibleSound(pos, entities.player());
 		LightHandle id = GetFreeDynLight();
@@ -358,7 +358,7 @@ static void CheckExp(long i) {
 			light->intensity = 3.9f;
 			light->fallstart = 400.f;
 			light->fallend   = 440.f;
-			light->rgb = Color3f(1.f - rnd() * .2f, .8f - rnd() * .2f, .6f - rnd() * .2f);
+			light->rgb = Color3f(1.f, .8f, .6f) - Color3f(rnd(), rnd(), rnd()) * Color3f(.2f, .2f, .2f);
 			light->pos = pos;
 			light->ex_flaresize = 40.f;
 			light->duration = 1500;
@@ -421,7 +421,7 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 				light->intensity = 1.f;
 				light->fallstart = 100.f;
 				light->fallend   = 240.f;
-				light->rgb = Color3f(1.f - rnd() * .2f, .8f - rnd() * .2f, .6f - rnd() * .2f);
+				light->rgb = Color3f(1.f, .8f, .6f) - Color3f(rnd(), rnd(), rnd()) * Color3f(.2f, .2f, .2f);
 				light->pos = thrownObj->position;
 				light->ex_flaresize = 40.f;
 				light->extras |= EXTRAS_FLARE;
@@ -475,7 +475,7 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 			thrownObj->position.y += thrownObj->vector.y * mod + (time_offset * gmod);
 			thrownObj->position.z += thrownObj->vector.z * mod;
 
-			CheckForIgnition(original_pos, 10.f, 0, 2);
+			CheckForIgnition(Sphere(original_pos, 10.f), 0, 2);
 
 			Vec3f wpos = thrownObj->position;
 			wpos.y += 20.f;

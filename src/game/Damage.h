@@ -50,6 +50,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <stddef.h>
 
 #include "game/GameTypes.h"
+#include "graphics/BaseGraphicsTypes.h"
 #include "math/Types.h"
 #include "math/Vector.h"
 #include "platform/Flags.h"
@@ -126,9 +127,9 @@ void DamageRequestEnd(DamageHandle handle);
  * flag & 1 no lights;
  * flag & 2 Only affects small sources
  */
-void CheckForIgnition(const Vec3f & pos, float radius, bool mode, long flag = 0);
+void CheckForIgnition(const Sphere & sphere, bool mode, long flag = 0);
 
-bool DoSphericDamage(const Vec3f & pos, float dmg, float radius, DamageArea flags, DamageType typ = 0, EntityHandle numsource = EntityHandle::Invalid);
+void DoSphericDamage(const Sphere & sphere, float dmg, DamageArea flags, DamageType typ = 0, EntityHandle numsource = EntityHandle::Invalid);
 
 void ARX_DAMAGE_Reset_Blood_Info();
 void ARX_DAMAGE_Show_Hit_Blood();
@@ -149,5 +150,7 @@ void ARX_DAMAGES_DurabilityLoss(Entity * io, float loss);
 void ARX_DAMAGES_DurabilityRestore(Entity * io, float ratio);
 void ARX_DAMAGES_DamagePlayerEquipment(float damages);
 float ARX_DAMAGES_ComputeRepairPrice(Entity * torepair, Entity * blacksmith);
+
+void ARX_DAMAGES_DrawDebug();
 
 #endif // ARX_GAME_DAMAGE_H

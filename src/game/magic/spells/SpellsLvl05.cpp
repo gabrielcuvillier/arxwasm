@@ -37,6 +37,12 @@
 #include "scene/Interactive.h"
 
 
+RuneOfGuardingSpell::RuneOfGuardingSpell()
+	: SpellBase()
+	, tex_p2(NULL)
+	, ulCurrentTime(0)
+{}
+
 void RuneOfGuardingSpell::Launch()
 {
 	spells.endByCaster(m_caster, SPELL_RUNE_OF_GUARDING);
@@ -137,7 +143,7 @@ void RuneOfGuardingSpell::Update(float timeDelta) {
 	if(CheckAnythingInSphere(sphere, m_caster, CAS_NO_SAME_GROUP | CAS_NO_BACKGROUND_COL | CAS_NO_ITEM_COL| CAS_NO_FIX_COL | CAS_NO_DEAD_COL)) {
 		ARX_BOOMS_Add(m_pos);
 		LaunchFireballBoom(m_pos, (float)m_level);
-		DoSphericDamage(m_pos, 4.f * m_level, 30.f * m_level, DAMAGE_AREA, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL, m_caster);
+		DoSphericDamage(Sphere(m_pos, 30.f * m_level), 4.f * m_level, DAMAGE_AREA, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL, m_caster);
 		ARX_SOUND_PlaySFX(SND_SPELL_RUNE_OF_GUARDING_END, &m_pos);
 		m_duration = 0;
 	}
@@ -148,6 +154,12 @@ Vec3f RuneOfGuardingSpell::getPosition() {
 	return m_pos;
 }
 
+
+LevitateSpell::LevitateSpell()
+	: SpellBase()
+	, ulCurrentTime(0)
+	, m_baseRadius(50.f)
+{}
 
 void LevitateSpell::Launch()
 {
@@ -174,8 +186,6 @@ void LevitateSpell::Launch()
 	
 	m_pos = target;
 	
-	
-	m_baseRadius = 50.f;
 	float rhaut = 100.f;
 	float hauteur = 80.f;
 	
@@ -260,6 +270,12 @@ void LevitateSpell::createDustParticle() {
 }
 
 
+
+CurePoisonSpell::CurePoisonSpell()
+	: SpellBase()
+	, m_currentTime(0)
+{}
+
 void CurePoisonSpell::Launch()
 {
 	if(m_caster == PlayerEntityHandle) {
@@ -306,7 +322,7 @@ void CurePoisonSpell::Launch()
 	cp.m_blendMode = RenderMaterial::Additive;
 	cp.m_texture.set("graph/particles/cure_poison", 0, 100); //5
 	cp.m_spawnFlags = PARTICLE_CIRCULAR | PARTICLE_BORDER;
-	pPS.SetParams(cp);
+	m_particles.SetParams(cp);
 	}
 	
 	m_light = GetFreeDynLight();
@@ -331,24 +347,22 @@ void CurePoisonSpell::End() {
 
 void CurePoisonSpell::Update(float timeDelta) {
 	
-	ulCurrentTime += timeDelta;
+	m_currentTime += timeDelta;
 	
 	m_pos = entities[m_target]->pos;
 	
 	if(m_target == PlayerEntityHandle)
 		m_pos.y += 200;
 	
-	unsigned long ulCalc = m_duration - ulCurrentTime ;
-	arx_assert(ulCalc <= LONG_MAX);
-	long ff = 	static_cast<long>(ulCalc);
-
+	long ff = m_duration - m_currentTime;
+	
 	if(ff < 1500) {
-		pPS.m_parameters.m_spawnFlags = PARTICLE_CIRCULAR;
-		pPS.m_parameters.m_gravity = Vec3f_ZERO;
+		m_particles.m_parameters.m_spawnFlags = PARTICLE_CIRCULAR;
+		m_particles.m_parameters.m_gravity = Vec3f_ZERO;
 
 		std::list<Particle *>::iterator i;
 
-		for(i = pPS.listParticle.begin(); i != pPS.listParticle.end(); ++i) {
+		for(i = m_particles.listParticle.begin(); i != m_particles.listParticle.end(); ++i) {
 			Particle * pP = *i;
 
 			if(pP->isAlive()) {
@@ -361,8 +375,8 @@ void CurePoisonSpell::Update(float timeDelta) {
 		}
 	}
 
-	pPS.SetPos(m_pos);
-	pPS.Update(timeDelta);
+	m_particles.SetPos(m_pos);
+	m_particles.Update(timeDelta);
 
 	if(!lightHandleIsValid(m_light))
 		m_light = GetFreeDynLight();
@@ -380,9 +394,15 @@ void CurePoisonSpell::Update(float timeDelta) {
 		light->extras = 0;
 	}
 	
-	pPS.Render();
+	m_particles.Render();
 }
 
+
+RepelUndeadSpell::RepelUndeadSpell()
+	: SpellBase()
+	, m_yaw(0.f)
+	, tex_p2(NULL)
+{}
 
 void RepelUndeadSpell::Launch()
 {

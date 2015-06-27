@@ -1384,8 +1384,6 @@ static EntityInstance getFreeEntityInstance(const res::path & classPath) {
 	std::string className = classPath.filename();
 	res::path classDir = classPath.parent();
 	
-	std::ostringstream oss;
-	
 	for(EntityInstance instance = 1; ; instance++) {
 		
 		std::string idString = EntityId(className, instance).string();
@@ -2463,22 +2461,23 @@ void UpdateInter() {
  * \brief Render entities
  */
 void RenderInter() {
-
+	
+	ARX_PROFILE_FUNC();
+	
 	for(size_t i = 1; i < entities.size(); i++) { // Player isn't rendered here...
 		const EntityHandle handle = EntityHandle(i);
 		Entity * io = entities[handle];
 
-		if(!io || io == DRAGINTER || !(io->gameFlags & GFLAG_ISINTREATZONE))
-			continue;
-
-		if(io->show != SHOW_FLAG_IN_SCENE) {
+		if(   !io
+		   || io == DRAGINTER
+		   || !(io->gameFlags & GFLAG_ISINTREATZONE)
+		   || io->show != SHOW_FLAG_IN_SCENE
+		   || (io->ioflags & IO_CAMERA)
+		   || (io->ioflags & IO_MARKER)
+		) {
 			continue;
 		}
-
-		if((io->ioflags & IO_CAMERA) || (io->ioflags & IO_MARKER)) {
-			continue;
-		}
-
+		
 		Anglef temp = io->angle;
 
 		if(io->ioflags & IO_NPC) {

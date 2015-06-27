@@ -220,7 +220,7 @@ void ARX_MISSILES_Update() {
 					ARX_MISSILES_Kill(i);
 					ARX_BOOMS_Add(pos);
 					Add3DBoom(pos);
-					DoSphericDamage(dest, 180.0F, 200.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
+					DoSphericDamage(Sphere(dest, 200.0F), 180.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
 					break;
 				}
 
@@ -228,7 +228,7 @@ void ARX_MISSILES_Update() {
 					ARX_MISSILES_Kill(i);
 					ARX_BOOMS_Add(dest);
 					Add3DBoom(dest);
-					DoSphericDamage(dest, 180.0F, 200.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
+					DoSphericDamage(Sphere(dest, 200.0F), 180.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
 					break;
 				}
 
@@ -236,17 +236,16 @@ void ARX_MISSILES_Update() {
 					ARX_MISSILES_Kill(i);
 					ARX_BOOMS_Add(dest);
 					Add3DBoom(dest);
-					DoSphericDamage(dest, 180.0F, 200.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
+					DoSphericDamage(Sphere(dest, 200.0F), 180.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
 					break;
 				}
 
 				Vec3f hit;
-				EERIEPOLY *tp = NULL;
-				if(EERIELaunchRay3(orgn, dest, &hit, tp, 1)) {
+				if(EERIELaunchRay3(orgn, dest, hit, 1)) {
 					ARX_MISSILES_Kill(i);
 					ARX_BOOMS_Add(hit);
 					Add3DBoom(hit);
-					DoSphericDamage(dest, 180.0F, 200.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
+					DoSphericDamage(Sphere(dest, 200.0F), 180.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
 					break;
 				}
 
@@ -254,7 +253,7 @@ void ARX_MISSILES_Update() {
 					ARX_MISSILES_Kill(i);
 					ARX_BOOMS_Add(dest);
 					Add3DBoom(dest);
-					DoSphericDamage(dest, 180.0F, 200.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
+					DoSphericDamage(Sphere(dest, 200.0F), 180.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
 					break;
 				}
 
@@ -264,7 +263,7 @@ void ARX_MISSILES_Update() {
 					ARX_MISSILES_Kill(i);
 					ARX_BOOMS_Add(dest);
 					Add3DBoom(dest);
-					DoSphericDamage(dest, 180.0F, 200.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
+					DoSphericDamage(Sphere(dest, 200.0F), 180.0F, DAMAGE_AREAHALF, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL);
 					break;
 				}
 				

@@ -96,15 +96,14 @@ void MiniMap::getData(int showLevel) {
 			for(int j = 0; j < m_activeBkg->Zsize; j++) {
 				
 				for(int i = 0; i < m_activeBkg->Xsize; i++) {
-					EERIE_BKG_INFO * eg = &m_activeBkg->fastdata[i][j];
-					for(int k = 0; k < eg->nbpoly; k++) {
-						EERIEPOLY * ep = &eg->polydata[k];
-						if(ep) {
-							minX = std::min(minX, ep->min.x);
-							maxX = std::max(maxX, ep->max.x);
-							minY = std::min(minY, ep->min.z);
-							maxY = std::max(maxY, ep->max.z);
-						}
+					const EERIE_BKG_INFO & eg = m_activeBkg->fastdata[i][j];
+					for(int k = 0; k < eg.nbpoly; k++) {
+						const EERIEPOLY & ep = eg.polydata[k];
+						
+						minX = std::min(minX, ep.min.x);
+						maxX = std::max(maxX, ep.max.x);
+						minY = std::min(minY, ep.min.z);
+						maxY = std::max(maxY, ep.max.z);
 					}
 				}
 				
@@ -446,7 +445,12 @@ void MiniMap::showBookEntireMap(int showLevel) {
 				
 				long lLengthDraw = ARX_UNICODE_ForceFormattingInRect(hFontInGameNote, m_mapMarkers[i].m_text, rRect);
 				
-				DrawBookTextInRect(hFontInGameNote, Vec2f(bRect.topLeft()), float(bRect.right), m_mapMarkers[i].m_text.substr(0, lLengthDraw), Color::none);
+				
+				ARX_UNICODE_DrawTextInRect(hFontInGameNote,
+				                           (BOOKDEC + Vec2f(bRect.topLeft())) * g_sizeRatio,
+				                           (BOOKDEC.x + float(bRect.right)) * g_sizeRatio.x,
+				                           m_mapMarkers[i].m_text.substr(0, lLengthDraw),
+				                           Color::none);
 			}
 		}
 		

@@ -47,10 +47,11 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <stddef.h>
 #include <vector>
 
+#include "game/Camera.h"
 #include "graphics/Color.h"
 #include "math/RandomFlicker.h"
 #include "math/Vector.h"
-#include "game/Camera.h"
+#include "platform/Alignment.h"
 
 struct C_KEY;
 struct CinematicGrid;
@@ -86,7 +87,7 @@ struct CinematicFadeOut {
 	float bottom;
 	float left;
 	float right;
-	CinematicFadeOut(float v = 0.f) : top(v), bottom(v), left(v), right(v) { }
+	explicit CinematicFadeOut(float v = 0.f) : top(v), bottom(v), left(v), right(v) { }
 };
 
 class Cinematic {
@@ -141,9 +142,14 @@ public:
 
 private:
 	EERIE_CAMERA	m_camera;
+public:
+	
+	ARX_USE_ALIGNED_NEW(Cinematic) // for m_camera
 };
 
 void DrawGrille(CinematicBitmap * bitmap, Color col, int fx, CinematicLight * light,
                 Vec3f * posgrillesuiv, float angzgrillesuiv, const CinematicFadeOut & fade);
+
+ARX_USE_ALIGNED_ALLOCATOR(Cinematic) // for m_camera
 
 #endif // ARX_CINEMATIC_CINEMATIC_H

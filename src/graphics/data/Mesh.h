@@ -106,7 +106,7 @@ extern EERIE_CAMERA * ACTIVECAM;
 
 //	Entity Struct End
 
-bool Visible(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * epp, Vec3f * hit);
+bool Visible(const Vec3f & orgn, const Vec3f & dest, Vec3f * hit);
 
 EERIE_BKG_INFO * getFastBackgroundData(float x, float z);
 
@@ -128,7 +128,7 @@ EERIEPOLY * GetMaxPoly(const Vec3f & pos);
  
 int PointIn2DPolyXZ(const EERIEPOLY * ep, float x, float z);
 
-int EERIELaunchRay3(const Vec3f & orgn, const Vec3f & dest,  Vec3f * hit, EERIEPOLY * tp, long flag);
+int EERIELaunchRay3(const Vec3f & orgn, const Vec3f & dest, Vec3f & hit, long flag);
 
 Vec3f EE_RT(const Vec3f & in);
 void EE_P(const Vec3f * in, TexturedVertex * out);
@@ -172,7 +172,7 @@ float PtIn2DPolyProj(EERIE_3DOBJ * obj,EERIE_FACE * ef, float x, float z);
 Vec3f GetVertexPos(Entity * io, long id);
 long CountBkgVertex();
 
-bool RayCollidingPoly(const Vec3f & orgn, const Vec3f & dest, EERIEPOLY * ep, Vec3f * hit);
+bool RayCollidingPoly(const Vec3f & orgn, const Vec3f & dest, const EERIEPOLY & ep, Vec3f * hit);
 
 void EERIEPOLY_Compute_PolyIn();
 

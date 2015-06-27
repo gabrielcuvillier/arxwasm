@@ -69,9 +69,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "cinematic/CinematicSound.h"
 
-static const int WIDTHS = 512;
-static const int HEIGHTS = 384;
-
 static Vec2i cinRenderSize;
 
 TexturedVertex AllTLVertex[40000];
@@ -415,8 +412,6 @@ void DrawGrille(CinematicBitmap * bitmap, Color col, int fx, CinematicLight * li
 /*---------------------------------------------------------------*/
 void Cinematic::Render(float FDIFF) {
 	
-	CinematicBitmap * tb;
-	
 	bool resized = (cinRenderSize != g_size.size());
 	cinRenderSize = g_size.size();
 	
@@ -443,7 +438,7 @@ void Cinematic::Render(float FDIFF) {
 		}
 		
 		//image key
-		tb = m_bitmaps[numbitmap];
+		CinematicBitmap * tb = m_bitmaps[numbitmap];
 
 		//fx
 		Color col = Color(255, 255, 255, 0);

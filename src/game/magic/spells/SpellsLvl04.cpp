@@ -27,7 +27,6 @@
 #include "game/EntityManager.h"
 #include "game/Player.h"
 #include "game/Spells.h"
-#include "game/magic/spells/SpellsLvl04.h"
 #include "game/magic/spells/SpellsLvl06.h"
 #include "game/magic/spells/SpellsLvl07.h"
 #include "gui/Speech.h"
@@ -369,6 +368,13 @@ void TelekinesisSpell::End()
 	ARX_SOUND_PlaySFX(SND_SPELL_TELEKINESIS_END, &entities[m_caster]->pos);
 }
 
+
+
+CurseSpell::CurseSpell()
+	: SpellBase()
+	, tex_p1(NULL)
+	, fRot(0.f)
+{}
 
 void CurseSpell::Launch()
 {

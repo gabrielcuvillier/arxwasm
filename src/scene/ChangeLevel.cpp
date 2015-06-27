@@ -84,6 +84,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "io/SaveBlock.h"
 #include "io/log/Logger.h"
 
+#include "platform/Platform.h"
+
 #include "scene/Interactive.h"
 #include "scene/GameSound.h"
 #include "scene/LoadLevel.h"
@@ -99,14 +101,14 @@ extern bool GLOBAL_MAGIC_MODE;
 float FORCE_TIME_RESTORE = 0;
 extern Vec3f WILL_RESTORE_PLAYER_POSITION;
 extern long WILL_RESTORE_PLAYER_POSITION_FLAG;
-extern long NO_GMOD_RESET;
+extern bool GMOD_RESET;
 
-extern long NO_PLAYER_POSITION_RESET;
+extern bool PLAYER_POSITION_RESET;
 extern long HERO_SHOW_1ST;
 extern bool EXTERNALVIEW;
-extern long LOAD_N_DONT_ERASE;
+extern bool LOAD_N_ERASE;
 extern long FORBID_SCRIPT_IO_CREATION;
-extern long NO_TIME_INIT;
+extern bool TIME_INIT;
 extern Vec3f LastValidPlayerPos;
 #define MAX_IO_SAVELOAD 1500
 
@@ -314,7 +316,7 @@ void ARX_CHANGELEVEL_Change(const std::string & level, const std::string & targe
 		if(t > 0 && entities[t]) {
 			Vec3f pos = GetItemWorldPosition(entities[t]);
 			moveto = player.pos = pos + player.baseOffset();
-			NO_PLAYER_POSITION_RESET = 1;
+			PLAYER_POSITION_RESET = false;
 		}
 		player.desiredangle.setPitch(angle);
 		player.angle.setPitch(angle);
@@ -347,7 +349,7 @@ void ARX_CHANGELEVEL_Change(const std::string & level, const std::string & targe
 		Vec3f pos = GetItemWorldPosition(entities[t]);
 		
 		moveto = player.pos = pos + player.baseOffset();
-		NO_PLAYER_POSITION_RESET = 1;
+		PLAYER_POSITION_RESET = false;
 		WILL_RESTORE_PLAYER_POSITION = moveto;
 		WILL_RESTORE_PLAYER_POSITION_FLAG = 1;
 	}
@@ -358,7 +360,7 @@ void ARX_CHANGELEVEL_Change(const std::string & level, const std::string & targe
 	DONT_WANT_PLAYER_INZONE = 1;
 	ARX_PLAYER_RectifyPosition();
 	JUST_RELOADED = 1;
-	NO_GMOD_RESET = 0;
+	GMOD_RESET = true;
 	LogDebug("-----------------------------------");
 }
 
@@ -608,7 +610,7 @@ template <size_t N>
 static void storeIdString(char (&tofill)[N], const Entity * io) {
 	
 	if(!io || !ValidIOAddress(io)) {
-		BOOST_STATIC_ASSERT(N >= 4);
+		ARX_STATIC_ASSERT(N >= 4, "id string too short");
 		strcpy(tofill, "none");
 	} else {
 		
@@ -852,7 +854,7 @@ static Entity * GetObjIOSource(const EERIE_3DOBJ * obj) {
 
 template <size_t N>
 void FillTargetInfo(char (&info)[N], EntityHandle numtarget) {
-	BOOST_STATIC_ASSERT(N >= 6);
+	ARX_STATIC_ASSERT(N >= 6, "id string too short");
 	if(numtarget == -2) {
 		strcpy(info, "self");
 	} else if(numtarget == -1) {
@@ -1569,7 +1571,7 @@ static long ARX_CHANGELEVEL_Pop_Level(ARX_CHANGELEVEL_INDEX * asi, long num,
 	GetLevelNameByNum(num, levelId);
 	std::string levelFile = std::string("graph/levels/level") + levelId + "/level" + levelId + ".dlf";
 	
-	LOAD_N_DONT_ERASE = 1;
+	LOAD_N_ERASE = false;
 	
 	if(!resources->getFile(levelFile)) {
 		LogError << "Unable To Find " << levelFile;
@@ -1584,7 +1586,7 @@ static long ARX_CHANGELEVEL_Pop_Level(ARX_CHANGELEVEL_INDEX * asi, long num,
 	DanaeLoadLevel(levelFile, firstTime);
 	CleanScriptLoadedIO();
 	
-	FirstFrame = true;
+	g_requestLevelInit = true;
 	
 	if(firstTime) {
 		
@@ -1606,7 +1608,7 @@ static long ARX_CHANGELEVEL_Pop_Level(ARX_CHANGELEVEL_INDEX * asi, long num,
 	
 	desired = asi->gmods_desired;
 	current = asi->gmods_current;
-	NO_GMOD_RESET = 1;
+	GMOD_RESET = false;
 	arxtime.force_time_restore(ARX_CHANGELEVEL_DesiredTime);
 	FORCE_TIME_RESTORE = ARX_CHANGELEVEL_DesiredTime;
 	
@@ -2359,7 +2361,7 @@ static Entity * ARX_CHANGELEVEL_Pop_IO(const std::string & idString, EntityInsta
 		
 	}
 	
-	arx_assert(pos <= size, "pos=%lu size=%lu", pos, size);
+	arx_assert(pos <= size, "pos=%lu size=%lu", (unsigned long)pos, (unsigned long)size);
 	
 	free(dat);
 	CONVERT_CREATED = 1;
@@ -2581,7 +2583,7 @@ static void ARX_CHANGELEVEL_Pop_Globals() {
 		LogError << "Error loading globals";
 	}
 	
-	arx_assert(pos <= size, "pos=%lu size=%lu", pos, size);
+	arx_assert(pos <= size, "pos=%lu size=%lu", (unsigned long)pos, (unsigned long)size);
 	
 	free(dat);
 }
@@ -2644,11 +2646,11 @@ static bool ARX_CHANGELEVEL_PopLevel(long instance, bool reloadflag) {
 	if(!g_currentSavedGame->hasFile(loadfile.str())) {
 		firstTime = true;
 		FORBID_SCRIPT_IO_CREATION = 0;
-		NO_PLAYER_POSITION_RESET = 0;
+		PLAYER_POSITION_RESET = true;
 	} else {
 		firstTime = false;
 		FORBID_SCRIPT_IO_CREATION = 1;
-		NO_PLAYER_POSITION_RESET = 1;
+		PLAYER_POSITION_RESET = false;
 	}
 	LogDebug("firstTime = " << firstTime);
 	
@@ -2742,14 +2744,14 @@ static bool ARX_CHANGELEVEL_PopLevel(long instance, bool reloadflag) {
 	LoadLevelScreen();
 	
 	arxtime.force_time_restore(ARX_CHANGELEVEL_DesiredTime);
-	NO_TIME_INIT = 1;
+	TIME_INIT = false;
 	FORCE_TIME_RESTORE = ARX_CHANGELEVEL_DesiredTime;
 	LogDebug("After  Player Misc Init");
 	
 	LogDebug("Before Memory Release");
 	delete[] idx_io, idx_io = NULL;
 	FORBID_SCRIPT_IO_CREATION = 0;
-	NO_TIME_INIT = 1;
+	TIME_INIT = false;
 	LogDebug("After  Memory Release");
 	
 	LogDebug("Before Final Inits");
@@ -2898,7 +2900,7 @@ long ARX_CHANGELEVEL_Load(const fs::path & savefile) {
 		ARX_CHANGELEVEL_DesiredTime	=	fPldTime;
 		ARX_CHANGELEVEL_PopLevel(pld.level, false);
 		arxtime.force_time_restore(fPldTime);
-		NO_TIME_INIT = 1;
+		TIME_INIT = false;
 		FORCE_TIME_RESTORE = fPldTime;
 		
 	} else {

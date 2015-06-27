@@ -263,8 +263,6 @@ static void ARX_NPC_CreateExRotateData(Entity * io) {
 		io->_npcdata->ex_rotate->group_rotate[n] = Anglef::ZERO;
 	}
 	
-	io->_npcdata->ex_rotate->flags = 0;
-	
 	io->_npcdata->look_around_inc = 0.f;
 }
 
@@ -2698,9 +2696,8 @@ Entity * ARX_NPC_GetFirstNPCInSight(Entity * ioo)
 
 			if(grnd_color > 0)  {
 				Vec3f ppos;
-				EERIEPOLY * epp = NULL;
-
-				if(IO_Visible(orgn, dest, epp, &ppos)) {
+				
+				if(IO_Visible(orgn, dest, &ppos)) {
 					if(found_dist > dist_io) {
 						found_io = io;
 						found_dist = dist_io;
@@ -2796,7 +2793,7 @@ void CheckNPCEx(Entity * io) {
 				   || ds < square(200.f)) {
 					Vec3f ppos;
 					// Check for Geometrical Visibility
-					if(IO_Visible(orgn, dest, NULL, &ppos)
+					if(IO_Visible(orgn, dest, &ppos)
 					   || closerThan(ppos, dest, 25.f)) {
 						Visible = 1;
 					}
@@ -3031,7 +3028,7 @@ void createFireParticles(Vec3f &pos, const int particlesToCreate, const int part
 		}
 
 		pd->ov = pos;
-		pd->move = Vec3f(2.f - 4.f * rnd(), 2.f - 22.f * rnd(), 2.f - 4.f * rnd());
+		pd->move = Vec3f(2.f, 2.f, 2.f) - Vec3f(4.f, 22.f, 4.f) * Vec3f(rnd(), rnd(), rnd());
 		pd->siz = 7.f;
 		pd->tolive = Random::get(500, 1500);
 		pd->special = FIRE_TO_SMOKE | ROTATING | MODULATE_ROTATION;
@@ -3086,7 +3083,7 @@ void ManageIgnition_2(Entity * io) {
 		}
 
 		if(rnd() > 0.9f)
-			CheckForIgnition(position, io->ignition, 1);
+			CheckForIgnition(Sphere(position, io->ignition), 1);
 	} else {
 		lightHandleDestroy(io->ignit_light);
 		

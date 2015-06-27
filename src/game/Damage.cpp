@@ -75,6 +75,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/BaseGraphicsTypes.h"
 #include "graphics/Color.h"
 #include "graphics/Draw.h"
+#include "graphics/DrawLine.h"
 #include "graphics/GraphicsTypes.h"
 #include "graphics/Math.h"
 #include "graphics/Renderer.h"
@@ -937,7 +938,7 @@ static void ARX_DAMAGES_AddVisual(DAMAGE_INFO & di, const Vec3f & pos, float dmg
 		pd->scale = Vec3f(-10.f);
 		pd->special = ROTATING | MODULATE_ROTATION | FIRE_TO_SMOKE;
 		pd->tolive = Random::get(500, 900);
-		pd->move = Vec3f(1.f - 2.f * rnd(), 2.f - 16.f * rnd(), 1.f - 2.f * rnd());
+		pd->move = Vec3f(1.f, 2.f, 1.f) - Vec3f(rnd(), rnd(), rnd()) * Vec3f(2.f, 16.f, 2.f);
 		if(di.params.type & DAMAGE_TYPE_MAGICAL) {
 			pd->rgb = Color3f(0.3f, 0.3f, 0.8f);
 		} else {
@@ -1242,7 +1243,7 @@ bool ARX_DAMAGES_TryToDoDamage(const Vec3f & pos, float dmg, float radius, Entit
 	return ret;
 }
 
-void CheckForIgnition(const Vec3f & pos, float radius, bool mode, long flag) {
+void CheckForIgnition(const Sphere & sphere, bool mode, long flag) {
 	
 	if(!(flag & 1))
 		for(size_t i = 0; i < MAX_LIGHTS; i++) {
@@ -1256,7 +1257,7 @@ void CheckForIgnition(const Vec3f & pos, float radius, bool mode, long flag) {
 				if((el->extras & EXTRAS_FIREPLACE) && (flag & 2))
 					continue;
 
-				if(!fartherThan(pos, el->pos, radius)) {
+				if(!fartherThan(sphere.origin, el->pos, sphere.radius)) {
 					if(mode) {
 						if (!(el->extras & EXTRAS_NO_IGNIT))
 							el->m_ignitionStatus = true;
@@ -1278,7 +1279,7 @@ void CheckForIgnition(const Vec3f & pos, float radius, bool mode, long flag) {
 		   && !(io->ioflags & IO_UNDERWATER)
 		   && io->obj->fastaccess.fire >= 0
 		) {
-			if(closerThan(pos, io->obj->vertexlist3[io->obj->fastaccess.fire].v, radius)) {
+			if(closerThan(sphere.origin, io->obj->vertexlist3[io->obj->fastaccess.fire].v, sphere.radius)) {
 
 				if(mode && io->ignition <= 0) {
 					io->ignition = 1;
@@ -1296,14 +1297,12 @@ void CheckForIgnition(const Vec3f & pos, float radius, bool mode, long flag) {
 	}
 }
 
-bool DoSphericDamage(const Vec3f & pos, float dmg, float radius, DamageArea flags, DamageType typ, EntityHandle numsource)
-{
-	bool damagesdone = false;
+void DoSphericDamage(const Sphere & sphere, float dmg, DamageArea flags, DamageType typ, EntityHandle numsource) {
 	
-	if(radius <= 0.f)
-		return damagesdone;
+	if(sphere.radius <= 0.f)
+		return;
 	
-	float rad = 1.f / radius;
+	float rad = 1.f / sphere.radius;
 	bool validsource = ValidIONum(numsource);
 	
 	for(size_t i = 0; i < entities.size(); i++) {
@@ -1330,8 +1329,8 @@ bool DoSphericDamage(const Vec3f & pos, float dmg, float radius, DamageArea flag
 					if(kk != k) {
 						Vec3f posi = (entities[handle]->obj->vertexlist3[k].v
 									  + entities[handle]->obj->vertexlist3[kk].v) * 0.5f;
-						float dist = fdist(pos, posi);
-						if(dist <= radius) {
+						float dist = fdist(sphere.origin, posi);
+						if(dist <= sphere.radius) {
 							count2++;
 							if(dist < mindist)
 								mindist = dist;
@@ -1341,9 +1340,9 @@ bool DoSphericDamage(const Vec3f & pos, float dmg, float radius, DamageArea flag
 			}
 			
 			{
-			float dist = fdist(pos, entities[handle]->obj->vertexlist3[k].v);
+			float dist = fdist(sphere.origin, entities[handle]->obj->vertexlist3[k].v);
 			
-			if(dist <= radius) {
+			if(dist <= sphere.radius) {
 				count++;
 				
 				if(dist < mindist)
@@ -1361,13 +1360,13 @@ bool DoSphericDamage(const Vec3f & pos, float dmg, float radius, DamageArea flag
 			ratio = 2.f;
 		
 		if(ioo->ioflags & IO_NPC) {
-			if(mindist <= radius + 30.f) {
+			if(mindist <= sphere.radius + 30.f) {
 				switch (flags) {
 					case DAMAGE_AREA:
-						dmg = dmg * (radius + 30 - mindist) * rad;
+						dmg = dmg * (sphere.radius + 30 - mindist) * rad;
 						break;
 					case DAMAGE_AREAHALF:
-						dmg = dmg * (radius + 30 - mindist * ( 1.0f / 2 )) * rad;
+						dmg = dmg * (sphere.radius + 30 - mindist * ( 1.0f / 2 )) * rad;
 						break;
 					case DAMAGE_FULL: break;
 				}
@@ -1394,14 +1393,11 @@ bool DoSphericDamage(const Vec3f & pos, float dmg, float radius, DamageArea flag
 						dmg = ARX_SPELLS_ApplyColdProtection(ioo, dmg * ratio);
 					}
 					
-					ARX_DAMAGES_DamageNPC(ioo, dmg * ratio, numsource, true, &pos);
+					ARX_DAMAGES_DamageNPC(ioo, dmg * ratio, numsource, true, &sphere.origin);
 				}
-				
-				if(dmg > 1)
-					damagesdone = true;
 			}
 		} else {
-			if(mindist <= radius + 30.f) {
+			if(mindist <= sphere.radius + 30.f) {
 				if(typ & DAMAGE_TYPE_FIRE) {
 					dmg = ARX_SPELLS_ApplyFireProtection(ioo, dmg * ratio);
 					ARX_DAMAGES_IgnitIO(entities[handle], dmg);
@@ -1413,17 +1409,12 @@ bool DoSphericDamage(const Vec3f & pos, float dmg, float radius, DamageArea flag
 				
 				if(entities[handle]->ioflags & IO_FIX)
 					ARX_DAMAGES_DamageFIX(entities[handle], dmg * ratio, numsource, true);
-				
-				if(dmg > 0.2f)
-					damagesdone = true;
 			}
 		}
 	}
 	
 	if (typ & DAMAGE_TYPE_FIRE)
-		CheckForIgnition(pos, radius, 1);
-	
-	return damagesdone;
+		CheckForIgnition(sphere, 1);
 }
 
 void ARX_DAMAGES_DurabilityRestore(Entity * io, float percent)
@@ -1534,3 +1525,14 @@ float ARX_DAMAGES_ComputeRepairPrice(Entity * torepair, Entity * blacksmith)
 	return price;
 }
 
+void ARX_DAMAGES_DrawDebug() {
+	
+	for(size_t i = 0; i < MAX_DAMAGES; i++) {
+		if(!damages[i].exist)
+			continue;
+		
+		DAMAGE_INFO & d = damages[i];
+		
+		drawLineSphere(Sphere(d.params.pos, d.params.radius), Color::red);
+	}
+}

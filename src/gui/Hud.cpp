@@ -22,6 +22,8 @@
 #include <iomanip>
 #include <sstream>
 
+#include <boost/foreach.hpp>
+
 #include "core/Application.h"
 #include "core/ArxGame.h"
 #include "core/Config.h"
@@ -286,11 +288,13 @@ void hitStrengthGaugeRequestFlash(float flashIntensity) {
 
 class SecondaryInventoryGui {
 private:
+	Vec2f m_size;
 	TextureContainer * ingame_inventory;
 	TextureContainer * m_canNotSteal;
 	
 public:
 	void init() {
+		m_size = Vec2f(115.f, 378.f);
 		m_canNotSteal = TextureContainer::LoadUI("graph/interface/icons/cant_steal_item");
 		arx_assert(m_canNotSteal);
 	}
@@ -348,7 +352,7 @@ public:
 				ingame_inventory = tc;
 		}
 		
-		Rectf rect = Rectf(Vec2f(INTERFACE_RATIO(InventoryX), 0.f), ingame_inventory->m_dwWidth, ingame_inventory->m_dwHeight);
+		Rectf rect = Rectf(Vec2f(INTERFACE_RATIO(InventoryX), 0.f), m_size.x, m_size.y);
 		EERIEDrawBitmap(rect, 0.001f, ingame_inventory, Color::white);
 		
 		for(long y = 0; y < inventory->m_size.y; y++) {
@@ -806,19 +810,7 @@ private:
 		
 		for(long i = 0; i < 12; i++) {
 			
-			PARTICLE_DEF * pd = createParticle();
-			if(!pd) {
-				break;
-			}
-			
-			pd->ov = pos + Vec3f(rnd() * 6.f - rnd() * 12.f, rnd() * 6.f - rnd() * 12.f, 0.f);
-			pd->move = Vec3f(6.f - rnd() * 12.f, -8.f + rnd() * 16.f, 0.f);
-			pd->scale = Vec3f(4.4f, 4.4f, 1.f);
-			pd->tolive = Random::get(1500, 2400);
-			pd->tc = healing;
-			pd->rgb = Color3f::magenta;
-			pd->siz = 56.f;
-			pd->is2D = true;
+			MagFX(pos);
 		}
 		
 		for(int i = 0; i < 5; i++) {
@@ -1094,10 +1086,8 @@ public:
 			SpecialCursor=CURSOR_INTERACTION_ON;
 
 			if(eeMouseDown1()) {
-				if(TSecondaryInventory) {
-					// play un son que si un item est pris
-					ARX_INVENTORY_TakeAllFromSecondaryInventory();
-				}
+				// play un son que si un item est pris
+				ARX_INVENTORY_TakeAllFromSecondaryInventory();
 
 				EERIEMouseButton &=~1;
 			}
@@ -1310,68 +1300,32 @@ private:
 	bool m_isActive;
 	Rectf m_rect;
 	TextureContainer * m_tex;
+	Vec2f m_size;
 	
 public:
+	void init() {
+		m_size = Vec2f(32.f, 64.f);
+	}
+	
+	bool isVisible() {
+		return !(player.Interface & INTER_COMBATMODE) && player.torch;
+	}
+	
+	void updateRect() {
+		
+		float px = INTERFACE_RATIO(std::max(InventoryX + 110.f, 10.f));
+		float py = g_size.height() - INTERFACE_RATIO(158.f + 32.f);
+		
+		m_rect = Rectf(Vec2f(px, py), m_size.x, m_size.y);
+	}
+	
 	void updateInput() {
 		if(player.torch) {
-			Vec2f pos(InventoryX + 110, g_size.height() - (158 + 32));
 			
-			if(pos.x < INTERFACE_RATIO(10))
-				pos.x = INTERFACE_RATIO(10);
-			
-			const Rect mouseTestRect(
-			pos.x,
-			pos.y,
-			pos.x + INTERFACE_RATIO(32),
-			pos.y + INTERFACE_RATIO(64)
-			);
-			
-			if(mouseTestRect.contains(Vec2i(DANAEMouse))) {
+			if(m_rect.contains(Vec2f(DANAEMouse))) {
 				eMouseState=MOUSE_IN_TORCH_ICON;
 				SpecialCursor=CURSOR_INTERACTION_ON;
-
-				if(eeMouseUp1()) {
-					Entity * temp = player.torch;
-
-					if(temp && !temp->locname.empty()) {
-						if(((player.torch->ioflags & IO_ITEM) && player.torch->_itemdata->equipitem)
-							&& (player.m_skillFull.objectKnowledge + player.m_attributeFull.mind
-								>= player.torch->_itemdata->equipitem->elements[IO_EQUIPITEM_ELEMENT_Identify_Value].value) )
-						{
-							SendIOScriptEvent(FlyingOverIO,SM_IDENTIFY);
-						}
-
-						WILLADDSPEECH = getLocalised(temp->locname);
-
-						if(temp->ioflags & IO_GOLD) {
-							std::stringstream ss;
-							ss << temp->_itemdata->price << " " << WILLADDSPEECH;
-							WILLADDSPEECH = ss.str();
-						}
-
-						if(temp->poisonous > 0 && temp->poisonous_count != 0) {
-							std::string Text = getLocalised("description_poisoned", "error");
-							std::stringstream ss;
-							ss << WILLADDSPEECH << " (" << Text << " " << (int)temp->poisonous << ")";
-							WILLADDSPEECH = ss.str();
-						}
-
-						if ((temp->ioflags & IO_ITEM) && temp->durability < 100.f) {
-							std::string Text = getLocalised("description_durability", "error");
-							std::stringstream ss;
-							ss << WILLADDSPEECH << " " << Text << " " << std::fixed << std::setw(3) << std::setprecision(0) << temp->durability << std::setw(0) << "/" << std::setw(3) << temp->max_durability;
-							WILLADDSPEECH = ss.str();
-						}
-
-						WILLADDSPEECHTIME = (unsigned long)(arxtime);
-					}
-				}
-
-				if((EERIEMouseButton & 1) && (LastMouseClick & 1)) {
-					if(abs(DANAEMouse.x-STARTDRAG.x) > 2 || abs(DANAEMouse.y-STARTDRAG.y) > 2)
-						DRAGGING = true;
-				}
-
+				
 				if(!DRAGINTER && !PLAYER_MOUSELOOK_ON && DRAGGING) {
 					Entity * io=player.torch;
 					player.torch->show=SHOW_FLAG_IN_SCENE;
@@ -1397,6 +1351,10 @@ public:
 	}
 	
 	void update() {
+		
+		if(!isVisible())
+			return;
+		
 		if((player.Interface & INTER_NOTE) && TSecondaryInventory != NULL
 		   && (openNote.type() == gui::Note::BigNote || openNote.type() == gui::Note::Book)) {
 			m_isActive = false;
@@ -1407,17 +1365,11 @@ public:
 		m_tex = player.torch->inv;
 		arx_assert(m_tex);
 		
-		
-		float px = INTERFACE_RATIO(std::max(InventoryX + 110.f, 10.f));
-		float py = g_size.height() - INTERFACE_RATIO(158.f + 32.f);
-		
-		m_rect = Rectf(Vec2f(px, py), m_tex->m_dwWidth, m_tex->m_dwHeight);
-		
 		if(rnd() <= 0.2f) {
 			return;
 		}
 		
-		createFireParticle(Vec2f(px, py));
+		createFireParticle(m_rect.topLeft());
 	}
 	
 	void createFireParticle(Vec2f p) {
@@ -1441,6 +1393,10 @@ public:
 	}
 	
 	void draw() {
+		
+		if(!isVisible())
+			return;
+		
 		EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
 	}
 };
@@ -1456,6 +1412,11 @@ private:
 	float m_intensity;
 	
 public:
+	ChangeLevelIconGui()
+		: m_tex(NULL)
+		, m_intensity(1.f)
+	{}
+	
 	void init() {
 		m_tex = TextureContainer::LoadUI("graph/interface/icons/change_lvl");
 		arx_assert(m_tex);
@@ -1643,6 +1604,9 @@ private:
 public:
 	HealthGauge()
 		: m_size(33.f, 80.f)
+		, m_emptyTex(NULL)
+		, m_filledTex(NULL)
+		, m_amount(0.f)
 	{}
 	
 	void init() {
@@ -1749,6 +1713,9 @@ public:
 	MecanismIcon()
 		: HudItem()
 		, m_iconSize(32.f, 32.f)
+		, m_tex(NULL)
+		, m_timeToDraw(0)
+		, m_nbToDraw(0)
 	{}
 	
 	void init() {
@@ -1809,6 +1776,8 @@ public:
 		: HudItem()
 		, m_horizontalArrowSize(8, 16)
 		, m_verticalArrowSize(16, 8)
+		, m_arrowLeftTex(NULL)
+		, fArrowMove(0.f)
 	{}
 	
 	void init() {
@@ -1862,10 +1831,9 @@ private:
 				SpecialCursor = CURSOR_INTERACTION_ON;
 				
 				if(eeMouseUp1()) {
-					if(Precast[m_precastIndex].typ >= 0)
-						WILLADDSPEECH = spellicons[Precast[m_precastIndex].typ].name;
-					
-					WILLADDSPEECHTIME = (unsigned long)(arxtime);
+					if(Precast[m_precastIndex].typ >= 0) {
+						ARX_SPEECH_Add(spellicons[Precast[m_precastIndex].typ].name);
+					}
 				}
 				
 				if(EERIEMouseButton & 4) {
@@ -1972,33 +1940,30 @@ public:
 };
 PrecastSpellsGui precastSpellsGui;
 
-//AFFICHAGE ICONE DE SPELLS DE DURATION
-class ActiveSpellsGui {
+
+class ActiveSpellsGui : public HudItem {
 private:
-	TextureContainer * m_texUnknown;
-	long currpos;
-	
+
 	struct ActiveSpellIconSlot {
 		Rectf m_rect;
 		TextureContainer * m_tc;
 		Color m_color;
 		SpellHandle spellIndex;
+		bool m_flicker;
+		bool m_abortable;
 		
-		void update(const Rectf & rect, TextureContainer * tc, Color color) {
-			m_rect = rect;
-			m_tc = tc;
-			m_color = color;
-		}
-		
-		void updateInput() {
-			if(m_rect.contains(Vec2f(DANAEMouse))) {
+		void updateInput(const Vec2f & mousePos) {
+			
+			if(!m_abortable)
+				return;
+			
+			if(m_rect.contains(mousePos)) {
 				SpecialCursor = CURSOR_INTERACTION_ON;
 				
 				if(eeMouseUp1()) {
-					if(spells[spellIndex]->m_type >= 0)
-						WILLADDSPEECH = spellicons[spells[spellIndex]->m_type].name;
-					
-					WILLADDSPEECHTIME = (unsigned long)(arxtime);
+					if(spells[spellIndex]->m_type >= 0) {
+						ARX_SPEECH_Add(spellicons[spells[spellIndex]->m_type].name);
+					}
 				}
 				
 				if(EERIEMouseButton & 4) {
@@ -2010,65 +1975,76 @@ private:
 		}
 		
 		void draw() {
+			
+			if(!m_flicker)
+				return;
+			
 			EERIEDrawBitmap(m_rect, 0.01f, m_tc, m_color);
 		}
 	};
-	ActiveSpellIconSlot activeSpellIconSlot;
-	
-	
-	void ManageSpellIcon(SpellBase & spell, float intensity, bool flag)
-	{
-		float POSX = g_size.width()-INTERFACE_RATIO(35);
-		Color color;
-		float posx = POSX+lSLID_VALUE;
-		float posy = (float)currpos;
-		
-		if(flag) {
-			color = Color3f(intensity, 0, 0).to<u8>();
-		} else {
-			color = Color3f::gray(intensity).to<u8>();
-		}
-		
-		bool bOk=true;
-		
-		if(spell.m_hasDuration) {
-			if(player.manaPool.current < 20 || spell.m_timcreation + spell.m_duration - float(arxtime) < 2000) {
-				if(ucFlick&1)
-					bOk=false;
-			}
-		} else {
-			if(player.manaPool.current<20) {
-				if(ucFlick&1)
-					bOk=false;
-			}
-		}
-		
-		if(bOk && spell.m_type >= 0 && (size_t)spell.m_type < SPELL_TYPES_COUNT) {
-			TextureContainer * tc = spellicons[spell.m_type].tc;
-			arx_assert(tc);
-			Rectf rect(Vec2f(posx, posy), tc->m_dwWidth * 0.5f, tc->m_dwHeight * 0.5f);
-			
-			activeSpellIconSlot.update(rect, tc, color);
-			activeSpellIconSlot.spellIndex = spell.m_thisHandle;
-			if(!flag && !(player.Interface & INTER_COMBATMODE)) {
-				activeSpellIconSlot.updateInput();
-			}
-			activeSpellIconSlot.draw();
-		}
-		
-		currpos += static_cast<long>(INTERFACE_RATIO(33.f));
-	}
 	
 public:
 	ActiveSpellsGui()
-		: m_texUnknown(NULL)
-		, currpos(0.f)
+		: HudItem()
+		, m_texUnknown(NULL)
 	{}
 	
 	void init() {
 		m_texUnknown = TextureContainer::Load("graph/interface/icons/spell_unknown");
 		arx_assert(m_texUnknown);
+		
+		m_slotSize = Vec2f(24.f, 24.f);
+		m_spacerSize = Vec2f(60.f, 50.f);
+		m_slotSpacerSize = Vec2f(0.f, 9.f);
 	}
+	
+	void update(Rectf parent) {
+		
+		float intensity = 1.f - PULSATE * 0.5f;
+		intensity = glm::clamp(intensity, 0.f, 1.f);
+		
+		m_slots.clear();
+		
+		spellsByPlayerUpdate(intensity);
+		spellsOnPlayerUpdate(intensity);
+		
+		Rectf spacer = createChild(parent, Anchor_TopRight, m_spacerSize * m_scale, Anchor_TopRight);
+		Rectf siblingRect = spacer;
+		
+		BOOST_FOREACH(ActiveSpellIconSlot & slot, m_slots) {
+			
+			Rectf slotRect = createChild(siblingRect, Anchor_BottomLeft, m_slotSize * m_scale, Anchor_TopLeft);
+			Rectf slotSpacer = createChild(slotRect, Anchor_BottomLeft, m_slotSpacerSize * m_scale, Anchor_TopLeft);
+			siblingRect = slotSpacer;
+			
+			slot.m_rect = slotRect;
+		}
+	}
+	
+	void updateInput(const Vec2f & mousePos) {
+		
+		BOOST_FOREACH(ActiveSpellIconSlot & slot, m_slots) {
+			slot.updateInput(mousePos);
+		}
+	}
+	
+	void draw() {
+		
+		GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
+		
+		BOOST_FOREACH(ActiveSpellIconSlot & slot, m_slots) {
+			slot.draw();
+		}
+	}
+	
+private:
+	TextureContainer * m_texUnknown;
+	Vec2f m_slotSize;
+	Vec2f m_spacerSize;
+	Vec2f m_slotSpacerSize;
+	
+	std::vector<ActiveSpellIconSlot> m_slots;
 	
 	void spellsByPlayerUpdate(float intensity) {
 		for(size_t i = 0; i < MAX_SPELLS; i++) {
@@ -2099,21 +2075,36 @@ public:
 		}
 	}
 	
-	void update() {
-		currpos = static_cast<long>(INTERFACE_RATIO(50.f));
+	void ManageSpellIcon(SpellBase & spell, float intensity, bool flag) {
 		
-		float intensity = 1.f - PULSATE * 0.5f;
-		intensity = glm::clamp(intensity, 0.f, 1.f);
 		
-		GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
-		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
+		Color color = (flag) ? Color3f(intensity, 0, 0).to<u8>() : Color3f::gray(intensity).to<u8>();
 		
-		spellsByPlayerUpdate(intensity);
-		spellsOnPlayerUpdate(intensity);
-	}
-	
-	void draw() {
-		update();
+		bool flicker = true;
+		
+		if(spell.m_hasDuration) {
+			if(player.manaPool.current < 20 || spell.m_timcreation + spell.m_duration - float(arxtime) < 2000) {
+				if(ucFlick&1)
+					flicker = false;
+			}
+		} else {
+			if(player.manaPool.current<20) {
+				if(ucFlick&1)
+					flicker = false;
+			}
+		}
+		
+		if(spell.m_type >= 0 && (size_t)spell.m_type < SPELL_TYPES_COUNT) {
+		
+			ActiveSpellIconSlot slot;
+			slot.m_tc = spellicons[spell.m_type].tc;
+			slot.m_color = color;
+			slot.spellIndex = spell.m_thisHandle;
+			slot.m_flicker = flicker;
+			slot.m_abortable = (!flag && !(player.Interface & INTER_COMBATMODE));
+			
+			m_slots.push_back(slot);
+		}
 	}
 };
 ActiveSpellsGui activeSpellsGui = ActiveSpellsGui();
@@ -2133,7 +2124,13 @@ public:
 	DamagedEquipmentGui()
 		: HudItem()
 		, m_size(64.f, 64.f)
-	{}
+	{
+		iconequip[0] = NULL;
+		iconequip[1] = NULL;
+		iconequip[2] = NULL;
+		iconequip[3] = NULL;
+		iconequip[4] = NULL;
+	}
 	
 	void init() {
 		iconequip[0] = TextureContainer::LoadUI("graph/interface/icons/equipment_sword");
@@ -2215,7 +2212,14 @@ private:
 	bool m_visible;
 	Color m_color;
 	Vec2f m_size;
+	
 public:
+	StealthGauge()
+		: HudItem()
+		, stealth_gauge_tc(NULL)
+		, m_visible(false)
+	{}
+	
 	void init() {
 		stealth_gauge_tc = TextureContainer::LoadUI("graph/interface/icons/stealth_gauge");
 		arx_assert(stealth_gauge_tc);
@@ -2260,6 +2264,7 @@ StealthGauge stealthGauge;
 
 void hudElementsInit() {
 	changeLevelIconGui.init();
+	currentTorchIconGui.init();
 	activeSpellsGui.init();
 	damagedEquipmentGui.init();
 	mecanismIcon.init();
@@ -2300,6 +2305,7 @@ void setHudScale(float scale) {
 	
 	changeLevelIconGui.setScale(scale);
 	memorizedRunesHud.setScale(scale);
+	activeSpellsGui.setScale(scale);
 	
 	mecanismIcon.setScale(scale);
 	screenArrows.setScale(scale);
@@ -2391,10 +2397,8 @@ void ArxGame::drawAllInterface() {
 		}
 	}
 	
-	if(!(player.Interface & INTER_COMBATMODE) && player.torch) {
-		currentTorchIconGui.update();
-		currentTorchIconGui.draw();
-	}
+	currentTorchIconGui.update();
+	currentTorchIconGui.draw();
 	
 	changeLevelIconGui.draw();
 	
@@ -2477,15 +2481,18 @@ void ArxGame::drawAllInterface() {
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
 	
 	precastSpellsGui.draw();
+	activeSpellsGui.update(hudSlider);
+	activeSpellsGui.updateInput(Vec2f(DANAEMouse));
 	activeSpellsGui.draw();
 }
 
 
-void manageEditorControlsHUD() {
+void hudUpdateInput() {
 	if(!BLOCK_PLAYER_CONTROLS) {
 		if(!(player.Interface & INTER_COMBATMODE)) {
 			if(!TRUE_PLAYER_MOUSELOOK_ON) {
 				
+				currentTorchIconGui.updateRect();
 				currentTorchIconGui.updateInput();
 				levelUpIconGui.updateInput();
 				purseIconGui.updateInput();

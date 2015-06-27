@@ -51,7 +51,7 @@ public:
 		
 	}
 	
-	float get() { return glm::mix(m_lastValue, m_nextValue, m_time); };
+	float get() { return glm::mix(m_lastValue, m_nextValue, m_time); }
 	
 private:
 	
@@ -63,4 +63,4 @@ private:
 
 } // namespace math
 
-#endif // ARX_MATH_QUANTIZER_H
+#endif // ARX_MATH_RANDOMFLICKER_H
