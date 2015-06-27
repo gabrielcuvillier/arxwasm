@@ -41,7 +41,7 @@ A static website is hosted here, with a main HTML page embedding the PNaCl modul
 
 #### Alternative method
 
-An alternative way to test this port is to run yourself a local HTTP server, serving the same website. 
+An alternative method to test this port is to run yourself a local HTTP server, serving the same website. 
 
 To do this, you have to download a preview release from github: _arx-pnacl-preview-NNN.zip_, uncompress it, and execute the _run.sh_ script. 
 
@@ -49,7 +49,7 @@ It will start a simple HTTP server, configured to give access to the website con
 
 http://localhost:5100
 
-Finally, you may also build the Native Client module yourself, and host it in a similar way. The source code of the hosted website is fully available in git repository. See section 'How To Build' for more information on this last method. 
+Finally, you may also build the Native Client module yourself, and host it in a similar way. The source code of the hosted website is fully available in git repository. See section 'How To Build' for more information. 
 
 #### Access to game data
 
@@ -59,7 +59,7 @@ Game data can be hosted on a remote server and accessed through HTTP, or provide
 
 Obviously, I do *not* provide any game data, as it is licensed under a commercial license. 
 
-So you have to provide the game data  yourself, using your own original copy of the game, and use custom functionality of the hosted website to allow the Native Client module having access to it. 
+So you have to provide the game data yourself, using your own original copy of the game, and use custom functionality of the website to allow the Native Client module having access to it. 
 
 Here is how to do:
 
@@ -90,7 +90,7 @@ If you are running the game from the web, using the URL provided at beginning of
 
 The process is straightforward: use the "Select Files" button in the main web page, and select all the *.pak files. They will be copied to a local HTML5 filesystem from which the Native Client module will be able to read. 
 
-Note this option will really duplicate game data to somewhere in Chrome cache, as when Native Client modules are ran from the Web, direct access to local filesystem is not possible.
+Note this option will really duplicate game data to somewhere in Chrome cache, as Native Client modules ran from the Web can't have direct access to local filesystem.
 
 Once all data is copied (be sure to wait for all selected files to complete), simply click on "Launch Arx" button... and here you go: Arx Fatalis is running in your browser!
 
@@ -105,8 +105,7 @@ Upon access to localhost in the browser, the game will be loaded directly.
 
 #### A note on initial loading time
 
-Caution: it will take quite some time to load the first time, because PNaCl module is almost 10MB size. This is quite a lot for Portable Native Client.
-
+The first time the program is loaded, it will take quite some time to complete (with some visible "hang" around 95%). This is because PNaCl modules are compiled to native architecture from LLVM bytecode, and Arx Libertatis is almost 10MB in size. This is quite a lot.
 
 ## How to Build
 
@@ -132,7 +131,7 @@ The NACL SDK provide the core NACL and PNACL toolchains (compiler, linker, stand
 
 This project provide a convenient access to Native Client ports of well-known libraries, by capturing specific NaCl build process and patches required to compile these projects in one place. It turned out to be really handy!
 
-As most of Arx Libertatis dependencies have already been ported to Native Client, they are available in Naclports: Zlib, Freetype, SDL2, Boost, and Regal (classic OpenGL emulation layer on top of OpenGL ES 2).
+As most of Arx Libertatis dependencies have already been ported to Native Client, they are available in Naclports: Zlib, Freetype, SDL2, Boost, and Regal (OpenGL wrapper on top of OpenGL ES 2).
 
 They are not always upstream, but it is sufficient for this ArxLibertatis port.
 
@@ -140,27 +139,28 @@ They are not always upstream, but it is sufficient for this ArxLibertatis port.
 
 3) -- GLM --
 
-Setting up GLM is no more needed. This library dependency is stored directly as a git submodule of the ArxLibertatis-pnacl project. 
-
-I found this to be convenient, as it is a header-only library (there is nothing separate to compile from the main program), and it is the only dependency not handled by NACL SDK or Naclport project.
+Setting up GLM library dependency is not needed. This dependency is stored directly as a git submodule of the ArxLibertatis-pnacl project. 
 
 ### Building ArxLibertatis-pnacl
-
 
 <...to complete...>
 
 ## Technical Details
 
-Even though a lot of dependencies were already ported, porting of the game itself required many changes. Most notably:
+Even though most of dependencies were already ported, porting of the game itself required a wide variety of changes. Most notably:
 
 * Build system
-    * Changes to the existing CMake build system, to support cross-compilation to NACL and PNACL toolchains using NACL SDK and Naclports.
+    * Updates to the existing CMake build system, to support cross-compilation to NACL and PNACL toolchains using NACL SDK and Naclports.
 * Game source code
-    * Specific initialization for backends, and misc updates for them to work correctly (for example, disabling usage of GLEW).
+    * Specific initialization for backends, and various updates for them to work correctly (for example, disabling usage of GLEW).
     * Filesystem backend changes to access game data from HTTP or HTML5
     * Fix several compilation issues, or other warnings
 * Support files
-    * Sample website and JS scripts to host the game, and provide access to game data
+    * Sample website and JS scripts to host the PNaCl module, and provide access to game data
+
+### Implementation notes
+
+<... to complete ...>
 
 ## FAQ
 
@@ -180,9 +180,9 @@ Arx Libertatis project have been chosen because it is an open source project tha
 
 Also, it is a game I enjoyed a while back..
 
-### Mouse look is unusable! 
+### 'Mouselook' is unusable! 
 
-Yes, this is a known limitation. See section 'Limitations / Input Handling'
+Yes, this is _the_ most important limitation of this port. See section 'Technical Details / Input Handling'
 
 ## Credits
 
