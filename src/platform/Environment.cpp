@@ -57,6 +57,9 @@
 #include <sys/sysctl.h>
 #endif
 
+#include <boost/tokenizer.hpp>
+#include <boost/foreach.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/range/size.hpp>
 
 #include "io/fs/PathConstants.h"
@@ -116,7 +119,8 @@ std::string expandEnvironmentVariables(const std::string & in) {
 }
 
 #if ARX_PLATFORM == ARX_PLATFORM_WIN32
-static bool getRegistryValue(HKEY hkey, const std::string & name, std::string & result) {
+static bool getRegistryValue(HKEY hkey, const std::string & name, std::string & result,
+                             REGSAM flags = 0) {
 	
 	boost::scoped_array<char> buffer(NULL);
 
@@ -126,7 +130,7 @@ static bool getRegistryValue(HKEY hkey, const std::string & name, std::string & 
 
 	long ret = 0;
 
-	ret = RegOpenKeyEx(hkey, "Software\\ArxLibertatis\\", 0, KEY_QUERY_VALUE, &handle);
+	ret = RegOpenKeyEx(hkey, "Software\\ArxLibertatis\\", 0, KEY_QUERY_VALUE | flags, &handle);
 
 	if (ret == ERROR_SUCCESS)
 	{
@@ -158,11 +162,23 @@ bool getSystemConfiguration(const std::string & name, std::string & result) {
 	
 #if ARX_PLATFORM == ARX_PLATFORM_WIN32
 	
+	#if defined(_WIN64)
+	REGSAM foreign_registry = KEY_WOW64_32KEY;
+	#else
+	REGSAM foreign_registry = KEY_WOW64_64KEY;
+	#endif
+	
 	if(getRegistryValue(HKEY_CURRENT_USER, name, result)) {
+		return true;
+	}
+	if(getRegistryValue(HKEY_CURRENT_USER, name, result, foreign_registry)) {
 		return true;
 	}
 	
 	if(getRegistryValue(HKEY_LOCAL_MACHINE, name, result)) {
+		return true;
+	}
+	if(getRegistryValue(HKEY_LOCAL_MACHINE, name, result, foreign_registry)) {
 		return true;
 	}
 	
@@ -372,23 +388,26 @@ fs::path getHelperExecutable(const std::string & name) {
 		if(exe.is_relative()) {
 			exe = fs::current_path() / exe;
 		}
-		fs::path helper = exe.parent() / name;
-		if(fs::is_regular_file(helper)) {
-			return helper;
-		}
-		helper = exe.parent().parent() / name;
+		exe = exe.parent();
+		fs::path helper = exe / name;
 		if(fs::is_regular_file(helper)) {
 			return helper;
 		}
 	}
 	
 	if(fs::libexec_dir) {
-		fs::path helper = fs::path(fs::libexec_dir) / name;
-		if(helper.is_relative()) {
-			helper = exe.parent() / helper;
-		}
-		if(fs::is_regular_file(helper)) {
-			return helper;
+		std::string decoded = platform::expandEnvironmentVariables(fs::libexec_dir);
+		typedef boost::tokenizer< boost::char_separator<char> >  tokenizer;
+		boost::char_separator<char> sep(platform::env_list_seperators);
+		tokenizer tokens(decoded, sep);
+		BOOST_FOREACH(fs::path libexec_dir, tokens) {
+			fs::path helper = libexec_dir / name;
+			if(helper.is_relative()) {
+				helper = exe / helper;
+			}
+			if(fs::is_regular_file(helper)) {
+				return helper;
+			}
 		}
 	}
 	

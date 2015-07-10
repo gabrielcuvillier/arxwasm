@@ -959,7 +959,6 @@ void ArxGame::managePlayerControls() {
 				if(t->script.data) {
 					if(t->_npcdata->lifePool.current>0.f) {
 						SendIOScriptEvent(t,SM_CHAT);
-						EERIEMouseButton&=~4;
 						DRAGGING = false;
 					} else {
 						if(t->inventory) {
@@ -1000,13 +999,10 @@ void ArxGame::managePlayerControls() {
 				} else if (t->script.data) {
 					SendIOScriptEvent(t,SM_ACTION);
 				}
-				EERIEMouseButton&=~4;
 				DRAGGING = false;
-				EERIEMouseButton = 0;
 			}
 
-			EERIEMouseButton&=~4;
-			EERIEMouseButton = 0;
+			EERIEMouseButton &= ~4;
 		}
 	}
 
@@ -1184,7 +1180,7 @@ void ArxGame::managePlayerControls() {
 		else if(MOVE_PRECEDENCE == PLAYER_MOVE_STRAFE_RIGHT)
 			MOVE_PRECEDENCE = 0;
 
-		moveto = player.pos + tm;
+		g_moveto = player.pos + tm;
 	}
 
 	// Checks CROUCH Key Status.
@@ -1465,7 +1461,7 @@ void ArxGame::managePlayerControls() {
 	   && !InInventoryPos(DANAEMouse)
 	   && config.input.autoReadyWeapon
 	) {
-		if(!(LastMouseClick & 1)) {
+		if(eeMouseDown1()) {
 			COMBAT_MODE_ON_START_TIME = (unsigned long)(arxtime);
 		} else {
 			if(float(arxtime) - COMBAT_MODE_ON_START_TIME > 10) {
@@ -1612,7 +1608,7 @@ public:
 		}
 	}
 	
-	void updateFirst() {
+	void update() {
 		
 		if(PLAYER_INTERFACE_HIDE_COUNT && !m_direction) {
 			bool bOk = true;
@@ -1645,9 +1641,7 @@ public:
 				lSLID_VALUE = m_current;
 			}
 		}
-	}
-	
-	void update() {
+		
 		if(m_direction == 1) {
 			m_current += (float)Original_framedelay*( 1.0f / 10 );
 			
@@ -2094,20 +2088,10 @@ void ArxGame::manageEditorControls() {
 		DANAEMouse = g_size.center();
 	}
 	
-	playerInterfaceFader.updateFirst();
-	
-	// on ferme
-	if((player.Interface & INTER_COMBATMODE) || player.doingmagic >= 2) {
-		gui::CloseSecondaryInventory();
-	}
-	
-	playerInterfaceFader.update();
-	cinematicBorder.update();
-	
 	if(eeMousePressed1()) {
 		static Vec2s dragThreshold = Vec2s_ZERO;
 		
-		if(!(LastMouseClick & 1)) {
+		if(eeMouseDown1()) {
 			
 			STARTDRAG = DANAEMouse;
 			DRAGGING = false;
@@ -2122,6 +2106,16 @@ void ArxGame::manageEditorControls() {
 	} else {
 		DRAGGING = false;
 	}
+	
+	// on ferme
+	if((player.Interface & INTER_COMBATMODE) || player.doingmagic >= 2) {
+		gui::CloseSecondaryInventory();
+	}
+	
+	playerInterfaceFader.update();
+	cinematicBorder.update();
+	
+
 	
 	hudUpdateInput();
 	
@@ -2236,8 +2230,6 @@ void ArxGame::manageEditorControls() {
 			//if (ARX_EQUIPMENT_PutOnPlayer(DRAGINTER))
 			if(InInventoryPos(DANAEMouse)) {// Attempts to put it in inventory
 				PutInInventory();
-			} else if(eMouseState == MOUSE_IN_INVENTORY_ICON) {
-				PutInInventory();
 			} else if(ARX_INTERFACE_MouseInBook()) {
 				if(Book_Mode == BOOKMODE_STATS) {
 					SendIOScriptEvent(DRAGINTER,SM_INVENTORYUSE);
@@ -2316,11 +2308,8 @@ void ArxGame::manageEditorControls() {
 					}
 				}
 			} else { // GLights
-				float fMaxdist = 300;
-	
-				if(player.m_telekinesis)
-					fMaxdist = 850;
-	
+				float fMaxdist = player.m_telekinesis ? 850 : 300;
+				
 				for(size_t i = 0; i < MAX_LIGHTS; i++) {
 					EERIE_LIGHT * light = GLight[i];
 					
@@ -2366,10 +2355,7 @@ void ArxGame::manageEditorControls() {
 		
 		//lights
 		if(COMBINE) {
-			float fMaxdist = 300;
-			
-			if(player.m_telekinesis)
-				fMaxdist = 850;
+			float fMaxdist = player.m_telekinesis ? 850 : 300;
 			
 			for(size_t i = 0; i < MAX_LIGHTS; i++) {
 				EERIE_LIGHT * light = GLight[i];

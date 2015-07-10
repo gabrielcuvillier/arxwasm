@@ -315,7 +315,7 @@ void ARX_CHANGELEVEL_Change(const std::string & level, const std::string & targe
 		EntityHandle t = entities.getById(target);
 		if(t > 0 && entities[t]) {
 			Vec3f pos = GetItemWorldPosition(entities[t]);
-			moveto = player.pos = pos + player.baseOffset();
+			g_moveto = player.pos = pos + player.baseOffset();
 			PLAYER_POSITION_RESET = false;
 		}
 		player.desiredangle.setPitch(angle);
@@ -348,9 +348,9 @@ void ARX_CHANGELEVEL_Change(const std::string & level, const std::string & targe
 	if(t > 0 && entities[t]) {
 		Vec3f pos = GetItemWorldPosition(entities[t]);
 		
-		moveto = player.pos = pos + player.baseOffset();
+		g_moveto = player.pos = pos + player.baseOffset();
 		PLAYER_POSITION_RESET = false;
-		WILL_RESTORE_PLAYER_POSITION = moveto;
+		WILL_RESTORE_PLAYER_POSITION = g_moveto;
 		WILL_RESTORE_PLAYER_POSITION_FLAG = 1;
 	}
 	
@@ -1617,12 +1617,10 @@ static long ARX_CHANGELEVEL_Pop_Level(ARX_CHANGELEVEL_INDEX * asi, long num,
 
 static long ARX_CHANGELEVEL_Pop_Player() {
 	
-	const std::string & loadfile = "player";
-	
 	size_t size;
-	char * dat = g_currentSavedGame->load(loadfile, size);
+	char * dat = g_currentSavedGame->load("player", size);
 	if(!dat) {
-		LogError << "Unable to Open " << loadfile << " for Read...";
+		LogError << "Unable to Open player for Read...";
 		return -1;
 	}
 	

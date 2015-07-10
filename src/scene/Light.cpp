@@ -199,11 +199,8 @@ static void ComputeLight2DPos(EERIE_LIGHT * _pL) {
 	
 	if(out.p.z > 0.f && out.p.z < 1000.f && out.rhw > 0) {
 		float siz = 50;
-		float fMaxdist = 300;
-
-		if(player.m_telekinesis)
-			fMaxdist = 850;
-
+		float fMaxdist = player.m_telekinesis ? 850 : 300;
+		
 		float t = siz * (1.0f - 1.0f / (out.rhw * fMaxdist)) + 10;
 
 		_pL->m_screenRect.max.x = out.p.x + t;
@@ -221,11 +218,9 @@ void TreatBackgroundDynlights() {
 		EERIE_LIGHT *light = GLight[i];
 
 		if(light && (light->extras & EXTRAS_SEMIDYNAMIC)) {
-
-			float fMaxdist = 300;
-			if(player.m_telekinesis)
-				fMaxdist = 850;
-
+			
+			float fMaxdist = player.m_telekinesis ? 850 : 300;
+			
 			if(!fartherThan(light->pos, ACTIVECAM->orgTrans.pos, fMaxdist)) {
 				ComputeLight2DPos(light);
 			} else {
@@ -280,10 +275,8 @@ void TreatBackgroundDynlights() {
 					dynamicLight->ex_flaresize = light->ex_flaresize;
 					dynamicLight->extras       = light->extras;
 					dynamicLight->duration     = std::numeric_limits<long>::max();
-
-					dynamicLight->rgb.r = light->rgb.r - light->rgb.r * light->ex_flicker.r * rnd() * ( 1.0f / 2 );
-					dynamicLight->rgb.g = light->rgb.g - light->rgb.g * light->ex_flicker.g * rnd() * ( 1.0f / 2 );
-					dynamicLight->rgb.b = light->rgb.b - light->rgb.b * light->ex_flicker.b * rnd() * ( 1.0f / 2 );
+					
+					dynamicLight->rgb = light->rgb - light->rgb * light->ex_flicker * randomColor3f() * 0.5f;
 					
 					dynamicLight->rgb = componentwise_max(dynamicLight->rgb, Color3f::black);
 					RecalcLight(dynamicLight);
