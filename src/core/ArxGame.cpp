@@ -745,7 +745,7 @@ static bool HandleGameFlowTransitions() {
 
 	if(GameFlow::getTransition() == GameFlow::InGame) {
 		GameFlow::setTransition(GameFlow::NoTransition);
-		FirstFrame = true;
+		g_requestLevelInit = true;
 		return true;
 	}
 
@@ -814,7 +814,7 @@ bool ArxGame::initGame()
 	
 	entities.init();
 	
-	memset(&player,0,sizeof(ARXCHARACTER));
+	player = ARXCHARACTER();
 	ARX_PLAYER_InitPlayer();
 	
 	CleanInventory();
@@ -949,8 +949,7 @@ bool ArxGame::initGame()
 	drawDebugInitialize();
 
 	FlyingEye_Init();
-	
-	cabal = LoadTheObj("editor/obj3d/cabal.teo", "cabal_teo maps");
+	LoadSpellModels();
 	
 	cameraobj = loadObject("graph/obj3d/interactive/system/camera/camera.teo");
 	markerobj = loadObject("graph/obj3d/interactive/system/marker/marker.teo");
@@ -1095,8 +1094,8 @@ static void ReleaseSystemObjects() {
 	}
 	
 	FlyingEye_Release();
-
-	delete cabal, cabal = NULL;
+	ReleaseSpellModels();
+	
 	delete cameraobj, cameraobj = NULL;
 	delete markerobj, markerobj = NULL;
 	delete arrowobj, arrowobj = NULL;
@@ -1321,8 +1320,8 @@ void ArxGame::doFrame() {
 		
 	}
 	
-	if(FirstFrame) {
-		FirstFrameHandling();
+	if(g_requestLevelInit) {
+		levelInit();
 	} else {
 		update();
 		render();
@@ -2030,7 +2029,6 @@ void ArxGame::renderLevel() {
 
 	// Speech Management
 	ARX_SPEECH_Check();
-	ARX_SPEECH_Update();
 
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
 
@@ -2076,6 +2074,11 @@ void ArxGame::renderLevel() {
 
 	if(FADEDIR)
 		ManageFade();
+	
+	GRenderer->SetScissor(Rect::ZERO);
+	
+	ARX_SPEECH_Update();
+	
 }
 
 void ArxGame::update() {	
@@ -2162,12 +2165,10 @@ void ArxGame::render() {
 	} else {
 		updateLevel();
 		
-#ifdef ARX_DEBUG
 		if(g_debugToggles[7])
-			setHudScale(3);
+			setHudScale(2);
 		else
 			setHudScale(1);
-#endif
 		
 		renderLevel();
 
@@ -2216,8 +2217,10 @@ void ArxGame::render() {
 	gldebug::endFrame();
 }
 
-void ArxGame::update2DFX()
-{
+void ArxGame::update2DFX() {
+	
+	ARX_PROFILE_FUNC();
+	
 	TexturedVertex ltvv;
 
 	Entity* pTableIO[256];
@@ -2240,7 +2243,7 @@ void ArxGame::update2DFX()
 		if(el->extras & EXTRAS_FLARE) {
 			Vec3f lv = el->pos;
 			EE_RTP(lv, &ltvv);
-			el->temp -= temp_increase;
+			el->m_flareFader -= temp_increase;
 
 			if(!(player.Interface & INTER_COMBATMODE) && (player.Interface & INTER_MAP))
 				continue;
@@ -2258,7 +2261,6 @@ void ArxGame::update2DFX()
 				float fZFar=ACTIVECAM->ProjectionMatrix[2][2]*(1.f/(ACTIVECAM->cdepth*fZFogEnd))+ACTIVECAM->ProjectionMatrix[3][2];
 
 				Vec3f hit;
-				EERIEPOLY *tp=NULL;
 				Vec2s ees2dlv;
 				Vec3f ee3dlv = lv;
 
@@ -2271,23 +2273,25 @@ void ArxGame::update2DFX()
 				}
 
 				if(ltvv.p.z > fZFar ||
-					EERIELaunchRay3(ACTIVECAM->orgTrans.pos, ee3dlv, &hit, tp, 1) ||
+					EERIELaunchRay3(ACTIVECAM->orgTrans.pos, ee3dlv, hit, 1) ||
 					GetFirstInterAtPos(ees2dlv, 3, &ee3dlv, pTableIO, &nNbInTableIO )
 					)
 				{
-					el->temp-=temp_increase*2.f;
+					el->m_flareFader -= temp_increase * 2.f;
 				} else {
-					el->temp+=temp_increase*2.f;
+					el->m_flareFader += temp_increase * 2.f;
 				}
 			}
 
-			el->temp = glm::clamp(el->temp, 0.f, .8f);
+			el->m_flareFader = glm::clamp(el->m_flareFader, 0.f, .8f);
 		}
 	}
 }
 
-void ArxGame::goFor2DFX()
-{
+void ArxGame::goFor2DFX() {
+	
+	ARX_PROFILE_FUNC();
+	
 	GRenderer->SetRenderState(Renderer::Fog, true);
 	GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
@@ -2303,10 +2307,10 @@ void ArxGame::goFor2DFX()
 			continue;
 
 		if(el->extras & EXTRAS_FLARE) {
-			if (el->temp > 0.f) {
+			if(el->m_flareFader > 0.f) {
 				Vec3f ltvv = EE_RT(el->pos);
 				
-				float v=el->temp;
+				float v = el->m_flareFader;
 
 				if(FADEDIR) {
 					v *= 1.f - LAST_FADEVALUE;

@@ -22,13 +22,27 @@
 
 #include "game/magic/Spell.h"
 
+#include "graphics/effects/Trail.h"
+#include "graphics/particle/ParticleSystem.h"
+
+
 class SpeedSpell : public SpellBase {
 public:
+	~SpeedSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
 	
 	Vec3f getPosition();
+	
+private:
+	struct SpeedTrail {
+		short vertexIndex;
+		Trail * trail;
+	};
+	
+	std::vector<SpeedTrail> m_trails;
 };
 
 class DispellIllusionSpell : public SpellBase {
@@ -40,6 +54,7 @@ public:
 class FireballSpell : public SpellBase {
 public:
 	FireballSpell();
+	~FireballSpell();
 	
 	void Launch();
 	void End();
@@ -49,18 +64,53 @@ public:
 	
 private:
 	LightHandle m_light;
+	
+	long ulCurrentTime;
+
+	Vec3f eCurPos;
+	Vec3f eMove;
+	bool bExplo;
+	
+	long m_createBallDuration;
 };
 
 class CreateFoodSpell : public SpellBase {
 public:
+	CreateFoodSpell();
+	
 	void Launch();
+	void End();
 	void Update(float timeDelta);
+	
+private:
+	Vec3f m_pos;
+	ParticleSystem m_particles;
+	long m_currentTime;
 };
+
 
 class IceProjectileSpell : public SpellBase {
 public:
 	void Launch();
+	void End();
 	void Update(float timeDelta);
+	
+private:
+	unsigned long ulCurrentTime;
+	int iNumber;
+	int iMax;
+	float fColor;
+	TextureContainer * tex_p1;
+	TextureContainer * tex_p2;
+	
+	struct Icicle {
+		int type;
+		Vec3f pos;
+		Vec3f size;
+		Vec3f sizeMax;
+	};
+	static const int MAX_ICE = 150;
+	Icicle m_icicles[MAX_ICE];
 };
 
 #endif // ARX_GAME_MAGIC_SPELLS_SPELLSLVL03_H

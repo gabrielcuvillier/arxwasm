@@ -136,13 +136,13 @@ bool FX_Blur(Cinematic *c, CinematicBitmap *tb, EERIE_CAMERA &camera)
 
 	while(nb) {
 		camera.orgTrans.pos = *pos;
-		camera.setTargetCamera(camera.orgTrans.pos.x, camera.orgTrans.pos.y, 0.f);
+		camera.angle.setYaw(0);
 		camera.angle.setPitch(0);
 		camera.angle.setRoll(*az);
 		PrepareCamera(&camera, g_size);
 		
 		Color col = Color(255, 255, 255, int(alpha));
-		DrawGrille(&tb->grid, col, 0, NULL, &c->posgrille, c->angzgrille);
+		DrawGrille(tb, col, 0, NULL, &c->posgrille, c->angzgrille, c->fadegrille);
 
 		alpha += dalpha;
 		pos++;

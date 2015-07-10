@@ -90,7 +90,6 @@ extern float InventoryX;
 extern float InventoryDir;
 
 void ARX_INVENTORY_ReOrder();
-void ARX_INVENTORY_IdentifyIO(Entity * _pIO);
 
 //------------------------------------------------------------------------------------
 //CInventory Inventory;
@@ -814,16 +813,14 @@ static bool CanBePutInInventory(Entity * io) {
 	}
 	
 	const Vec2s s = io->m_inventorySize;
+	const Vec2s p = sInventoryPos;
 	
 	// on essaie de le remettre à son ancienne place --------------------------
 	if(   sInventory == 1
-	   && sInventoryPos.x >= 0
-	   && sInventoryPos.x <= short(INVENTORY_X) - s.x
-	   && sInventoryPos.y >= 0
-	   && sInventoryPos.y <= short(INVENTORY_Y) - s.y
-	) {
-		long j = sInventoryPos.y;
-		long i = sInventoryPos.x;
+	   && p.x >= 0
+	   && p.x + s.x <= short(INVENTORY_X)
+	   && p.y >= 0
+	   && p.y + s.y <= short(INVENTORY_Y)) {
 		
 		arx_assert(player.bag >= 0);
 		arx_assert(player.bag <= 3);
@@ -831,7 +828,7 @@ static bool CanBePutInInventory(Entity * io) {
 		// first try to stack -------------------------------------------------
 		for(size_t bag = 0; bag < size_t(player.bag); bag++) {
 				
-				Entity * ioo = inventory[bag][i][j].io;
+				Entity * ioo = inventory[bag][p.x][p.y].io;
 				
 				if(ioo && ioo->_itemdata->playerstacksize > 1 && IsSameObject(io, ioo)) {
 					if(ioo->_itemdata->count < ioo->_itemdata->playerstacksize) {
@@ -858,26 +855,26 @@ static bool CanBePutInInventory(Entity * io) {
 		arx_assert(player.bag <= 3);
 		
 		for(size_t bag = 0; bag < size_t(player.bag); bag++) {
-				if(inventory[bag][i][j].io == NULL) {
+				if(inventory[bag][p.x][p.y].io == NULL) {
 					bool valid = true;
 					
 					if(s.x == 0 || s.y == 0)
 						valid = false;
 					
-					for(long k = j; k < j + s.y; k++)
-					for(long l = i; l < i + s.x; l++) {
+					for(long k = p.y; k < p.y + s.y; k++)
+					for(long l = p.x; l < p.x + s.x; l++) {
 						if(inventory[bag][l][k].io != NULL)
 							valid = false;
 					}
 					
 					if(valid) {
-						for(long k = j; k < j + s.y; k++)
-						for(long l = i; l < i + s.x; l++) {
+						for(long k = p.y; k < p.y + s.y; k++)
+						for(long l = p.x; l < p.x + s.x; l++) {
 							inventory[bag][l][k].io = io;
 							inventory[bag][l][k].show = 0;
 						}
 						
-						inventory[bag][i][j].show = 1;
+						inventory[bag][p.x][p.y].show = 1;
 						ARX_INVENTORY_Declare_InventoryIn(io);
 						sInventory = -1;
 						return true;
@@ -1359,21 +1356,20 @@ bool PutInInventory() {
 }
 
 /*!
- * \brief Returns true if xx,yy is a position in secondary inventory
+ * \brief Returns true if position is in secondary inventory
  */
 bool InSecondaryInventoryPos(const Vec2s & pos) {
 	if(SecondaryInventory != NULL) {
-		short tx, ty;
+		Vec2s t;
+		t.x = pos.x + checked_range_cast<short>(InventoryX) - SHORT_INTERFACE_RATIO(2);
+		t.y = pos.y - SHORT_INTERFACE_RATIO(13);
+		t.x = t.x / SHORT_INTERFACE_RATIO(32);
+		t.y = t.y / SHORT_INTERFACE_RATIO(32);
 
-		tx = pos.x + checked_range_cast<short>(InventoryX) - SHORT_INTERFACE_RATIO(2);
-		ty = pos.y - SHORT_INTERFACE_RATIO(13);
-		tx = tx / SHORT_INTERFACE_RATIO(32);
-		ty = ty / SHORT_INTERFACE_RATIO(32);
-
-		if(tx < 0 || tx >= SecondaryInventory->m_size.x)
+		if(t.x < 0 || t.x >= SecondaryInventory->m_size.x)
 			return false;
 
-		if(ty < 0 || ty >= SecondaryInventory->m_size.y)
+		if(t.y < 0 || t.y >= SecondaryInventory->m_size.y)
 			return false;
 
 		return true;
@@ -1946,14 +1942,8 @@ void ARX_INVENTORY_IdentifyAll() {
 	for(size_t y = 0; y < INVENTORY_Y; y++)
 	for(size_t x = 0; x < INVENTORY_X; x++) {
 		Entity * io = inventory[bag][x][y].io;
-		if(!io || !(io->ioflags & IO_ITEM) || !io->_itemdata->equipitem)
-			continue;
 		
-		const float identifyValue = io->_itemdata->equipitem->elements[IO_EQUIPITEM_ELEMENT_Identify_Value].value;
-		
-		if(player.m_skillFull.objectKnowledge + player.m_attributeFull.mind >= identifyValue) {
-			SendIOScriptEvent(io, SM_IDENTIFY);
-		}
+		ARX_INVENTORY_IdentifyIO(io);
 	}
 }
 

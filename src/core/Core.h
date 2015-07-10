@@ -66,7 +66,6 @@ extern TextureContainer * GoldCoinsTC[MAX_GOLD_COINS_VISUALS];
 
 extern TextureContainer * TC_smoke;
 
-extern EERIE_3DOBJ * cabal;
 extern EERIE_3DOBJ * cameraobj;
 extern EERIE_3DOBJ * markerobj;
 extern Vec3f lastteleport;
@@ -91,7 +90,7 @@ extern float PULSATE;
 extern float framedelay;
 extern float BASE_FOCAL;
 
-extern bool FirstFrame;
+extern bool g_requestLevelInit;
 
 extern long CURRENTLEVEL;
 extern long TELEPORT_TO_ANGLE;
@@ -120,8 +119,6 @@ extern long LOADEDD;
 
 extern bool g_debugToggles[10];
 
-extern std::string WILLADDSPEECH;
-extern unsigned long WILLADDSPEECHTIME;
 extern long		CHANGE_LEVEL_ICON;
 
 void SetEditMode(long ed, const bool stop_sound = true);
@@ -132,7 +129,7 @@ void DANAE_StartNewQuest();
 void DanaeRestoreFullScreen();
 bool AdjustUI();
 
-void FirstFrameHandling();
+void levelInit();
 
 void DrawImproveVisionInterface();
 

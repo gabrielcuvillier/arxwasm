@@ -47,9 +47,11 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <stddef.h>
 #include <vector>
 
-#include "graphics/Color.h"
-#include "math/Vector.h"
 #include "game/Camera.h"
+#include "graphics/Color.h"
+#include "math/RandomFlicker.h"
+#include "math/Vector.h"
+#include "platform/Alignment.h"
 
 struct C_KEY;
 struct CinematicGrid;
@@ -80,6 +82,14 @@ public:
 	{}
 };
 
+struct CinematicFadeOut {
+	float top;
+	float bottom;
+	float left;
+	float right;
+	explicit CinematicFadeOut(float v = 0.f) : top(v), bottom(v), left(v), right(v) { }
+};
+
 class Cinematic {
 	
 public:
@@ -91,7 +101,7 @@ public:
 	int numbitmapsuiv;
 	float a;
 	int fx;
-	int fxsuiv;
+	int m_fxsuiv;
 	bool changekey;
 	C_KEY * key;
 	bool projectload;
@@ -102,16 +112,22 @@ public:
 	Color colorflash;
 	float speed;
 	int idsound;
-	CinematicLight light;
-	CinematicLight lightd;
+	CinematicLight m_light;
+	math::RandomFlicker flicker;
+	CinematicLight m_lightd;
+	math::RandomFlicker flickerd;
 	Vec3f posgrille;
 	float angzgrille;
+	CinematicFadeOut fadegrille;
 	Vec3f posgrillesuiv;
 	float angzgrillesuiv;
+	CinematicFadeOut fadegrillesuiv;
 	float speedtrack;
 	float flTime;
-	float m_flIntensityRND;
 	std::vector<CinematicBitmap*>	m_bitmaps;
+	
+	CinematicFadeOut fadeprev;
+	CinematicFadeOut fadenext;
 	
 	Cinematic(int, int);
 	~Cinematic();
@@ -126,8 +142,14 @@ public:
 
 private:
 	EERIE_CAMERA	m_camera;
+public:
+	
+	ARX_USE_ALIGNED_NEW(Cinematic) // for m_camera
 };
 
-void DrawGrille(CinematicGrid * grille, Color col, int fx, CinematicLight * light, Vec3f * posgrillesuiv, float angzgrillesuiv);
+void DrawGrille(CinematicBitmap * bitmap, Color col, int fx, CinematicLight * light,
+                Vec3f * posgrillesuiv, float angzgrillesuiv, const CinematicFadeOut & fade);
+
+ARX_USE_ALIGNED_ALLOCATOR(Cinematic) // for m_camera
 
 #endif // ARX_CINEMATIC_CINEMATIC_H

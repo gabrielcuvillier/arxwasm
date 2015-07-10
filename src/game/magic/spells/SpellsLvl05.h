@@ -22,38 +22,88 @@
 
 #include "game/magic/Spell.h"
 
+#include "graphics/spells/Spells05.h"
+
 class RuneOfGuardingSpell : public SpellBase {
 public:
+	RuneOfGuardingSpell();
+	
 	void Launch();
+	void End();
 	void Update(float timeDelta);
 	
 	Vec3f getPosition();
+	
+private:
+	Vec3f m_pos;
+	LightHandle m_light;
+	
+	TextureContainer * tex_p2;
+	unsigned long ulCurrentTime;
 };
 
 class LevitateSpell : public SpellBase {
 public:
+	LevitateSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
+	
+private:
+	unsigned long ulCurrentTime;
+	Vec3f m_pos;
+	float m_baseRadius;
+	RotatingCone cone1;
+	RotatingCone cone2;
+	FloatingStones m_stones;
+	
+	void createDustParticle();
 };
 
 class CurePoisonSpell : public SpellBase {
 public:
+	CurePoisonSpell();
+	
 	void Launch();
+	void End();
 	void Update(float timeDelta);
+	
+private:
+	Vec3f m_pos;
+	LightHandle m_light;
+	ParticleSystem m_particles;
+	unsigned long m_currentTime;
 };
 
 class RepelUndeadSpell : public SpellBase {
 public:
+	RepelUndeadSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
+	
+private:
+	LightHandle m_light;
+	Vec3f m_pos;
+	float m_yaw;
+	TextureContainer * tex_p2;
 };
 
 class PoisonProjectileSpell : public SpellBase {
 public:
+	~PoisonProjectileSpell();
+	
 	void Launch();
+	void End();
 	void Update(float timeDelta);
+	
+private:
+	LightHandle lLightId;
+	std::vector<CPoisonProjectile *> m_projectiles;
+	
+	void AddPoisonFog(const Vec3f & pos, float power);
 };
 
 #endif // ARX_GAME_MAGIC_SPELLS_SPELLSLVL05_H

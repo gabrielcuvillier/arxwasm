@@ -30,6 +30,15 @@ public:
 	void Update(float timeDelta);
 	
 	Vec3f getPosition();
+	
+private:
+	Vec3f m_pos;
+	float m_yaw;
+	float m_scale;
+	
+	TextureContainer * tex_p1;
+	TextureContainer * tex_sol;
+	float fRot;
 };
 
 class DispellFieldSpell : public SpellBase {
@@ -64,11 +73,18 @@ public:
 
 class CurseSpell : public SpellBase {
 public:
+	CurseSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
 	
 	Vec3f getPosition();
+	
+private:
+	Vec3f m_pos;
+	TextureContainer * tex_p1;
+	float fRot;
 };
 
 #endif // ARX_GAME_MAGIC_SPELLS_SPELLSLVL04_H

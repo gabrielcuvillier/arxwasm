@@ -33,25 +33,10 @@ SpellBase::SpellBase()
 	, m_duration(0)
 	, m_fManaCostPerSecond(0.f)
 	, m_snd_loop(audio::INVALID_ID)
-	, m_pSpellFx(NULL)
 	, m_launchDuration(-1)
 {
 	
 	m_targets.clear();
-}
-
-void SpellBase::BaseEnd() {
-	
-	// All Levels - Kill Light
-	if(m_pSpellFx && lightHandleIsValid(m_pSpellFx->lLightId)) {
-		EERIE_LIGHT * light = lightHandleGet(m_pSpellFx->lLightId);
-		
-		light->duration = 500; 
-		light->time_creation = (unsigned long)(arxtime);
-	}
-	
-	delete m_pSpellFx;
-	m_pSpellFx = NULL;
 }
 
 Vec3f SpellBase::getPosition() {

@@ -22,6 +22,9 @@
 
 #include "game/magic/Spell.h"
 
+#include "graphics/particle/ParticleSystem.h"
+#include "graphics/effects/Lightning.h"
+
 class FlyingEyeSpell : public SpellBase {
 public:
 	FlyingEyeSpell();
@@ -48,8 +51,12 @@ public:
 	Vec3f getPosition();
 	
 private:
+	Vec3f m_pos;
 	LightHandle m_light;
 	DamageHandle m_damage;
+	
+	ParticleSystem pPSStream;
+	ParticleSystem pPSStream1;
 };
 
 class IceFieldSpell : public SpellBase {
@@ -65,6 +72,16 @@ public:
 private:
 	LightHandle m_light;
 	DamageHandle m_damage;
+	
+	Vec3f m_pos;
+	TextureContainer * tex_p1;
+	TextureContainer * tex_p2;
+	
+	static const int iMax = 50;
+	int tType[50];
+	Vec3f tPos[50];
+	Vec3f tSize[50];
+	Vec3f tSizeMax[50];
 };
 
 class LightningStrikeSpell : public SpellBase {
@@ -72,15 +89,27 @@ public:
 	void Launch();
 	void End();
 	void Update(float timeDelta);
+	
+private:
+	CLightning m_lightning;
 };
 
 class ConfuseSpell : public SpellBase {
 public:
+	ConfuseSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
 	
 	Vec3f getPosition();
+	
+private:
+	LightHandle m_light;
+	TextureContainer * tex_p1;
+	TextureContainer * tex_trail;
+	ANIM_USE au;
+	Vec3f eCurPos;
 };
 
 #endif // ARX_GAME_MAGIC_SPELLS_SPELLSLVL07_H

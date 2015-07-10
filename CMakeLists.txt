@@ -250,6 +250,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake") # For custom cmake modules
 include(BuildSystem)
 include(BuildType)
 include(CompileCheck)
+include(CXX11Check)
 include(CreateSourceGroups)
 include(PrintConfiguration)
 include(StyleCheck)
@@ -536,28 +537,38 @@ find_package(PythonInterp)
 # Check for optional functionality and system configuration
 
 if(USE_CXX11)
-	# TODO implement these checks for other compilers
-	if(MSVC AND NOT MSVC_VERSION LESS 1600) # MSVC 10
-		set(ARX_HAVE_CXX11_AUTO 1)
-	endif()
-	if(MSVC AND NOT MSVC_VERSION LESS 1800) # MSVC 12
-		set(ARX_HAVE_CXX11_VARIADIC_TEMPLATES 1)
-	endif()
+	enable_cxx11()
+	check_cxx11("alignas"                ARX_HAVE_CXX11_ALIGNAS            1900)
+	check_cxx11("alignof"                ARX_HAVE_CXX11_ALIGNOF            1900)
+	check_cxx11("auto"                   ARX_HAVE_CXX11_AUTO               1600)
+	check_cxx11("std::forward"           ARX_HAVE_CXX11_FORWARD            1800)
+	check_cxx11("std::integral_constant" ARX_HAVE_CXX11_INTEGRAL_CONSTANT  1500)
+	check_cxx11("std::max_align_t"       ARX_HAVE_CXX11_MAX_ALIGN_T        1700)
+	check_cxx11("noexcept"               ARX_HAVE_CXX11_NOEXCEPT           1900)
+	check_cxx11("static_assert"          ARX_HAVE_CXX11_STATIC_ASSERT      1600)
+	check_cxx11("variadic templates"     ARX_HAVE_CXX11_VARIADIC_TEMPLATES 1800)
+	set(ARX_HAVE_CXX11_LONG_LONG 1) # everyone has had this for ages
 endif()
 
-if(NOT MSVC)
+if(MSVC)
+	
+	# Compiler builtins & language extensions
+	set(ARX_HAVE_DECLSPEC_ALIGN 1)
+	set(ARX_HAVE_MSVC_ALIGNOF 1)
+	
+	# Standard library features
+	set(ARX_HAVE_ALIGNED_MALLOC 1)
+	set(ARX_HAVE_ALIGNED_FREE 1)
+	
+else(MSVC)
 	
 	if(USE_STATIC_LIBS AND NOT NACL) # NACL do not support these options. With newlib, everything is static by default
 		add_ldflag("-static-libstdc++")
 		add_ldflag("-static-libgcc")
 	endif()
 	
-	if(USE_CXX11)
-		add_cxxflag("-std=c++11")
-		
-		if(WIN32)
-			add_definitions(-U__STRICT_ANSI__) # __argc and __argv
-		endif()
+	if(USE_CXX11 AND WIN32)
+		add_definitions(-U__STRICT_ANSI__) # __argc and __argv
 	endif()
 	
 	# Don't expose internal symbols to the outside world by default
@@ -575,20 +586,28 @@ if(NOT MSVC)
 		endif()
 	endif()
 	
-	# Not a symbol, so we can't use check_symbol_exists
-	check_compile(ARX_HAVE_BUILTIN_TRAP
-		"${CMAKE_MODULE_PATH}/check_compiler_builtin_trap.cpp"
-		"__builtin_trap" "compiler feature"
-	)
-	check_compile(ARX_HAVE_BUILTIN_UNREACHABLE
-		"${CMAKE_MODULE_PATH}/check_compiler_builtin_unreachable.cpp"
-		"__builtin_unreachable" "compiler feature"
-	)
+	# Check compiler builtins & language extensions
+	# These are a symbols, so we can't use check_symbol_exists
+	if(NOT ARX_HAVE_CXX11_ALIGNAS)
+		check_builtin(ARX_HAVE_ATTRIBUTE_ALIGNED     "__attribute__((aligned(n)))")
+	endif()
+	check_builtin(ARX_HAVE_ATTRIBUTE_FORMAT_PRINTF "__attribute__((format(printf, i, j)))")
+	check_builtin(ARX_HAVE_BUILTIN_TRAP            "__builtin_trap")
+	check_builtin(ARX_HAVE_BUILTIN_UNREACHABLE     "__builtin_unreachable")
+	if(NOT ARX_HAVE_CXX11_ALIGNOF)
+		check_builtin(ARX_HAVE_GCC_ALIGNOF           "__alignof__")
+	endif()
 	
-	check_compile(ARX_HAVE_ATTRIBUTE_FORMAT_PRINTF
-		"${CMAKE_MODULE_PATH}/check_compiler_attribute_format_printf.cpp"
-		"__attribute__((format(printf, i, j)))" "compiler feature"
-	)
+	if(WIN32)
+		check_symbol_exists(_aligned_malloc "malloc.h" ARX_HAVE_ALIGNED_MALLOC)
+		check_symbol_exists(_aligned_free "malloc.h" ARX_HAVE_ALIGNED_FREE)
+	endif()
+	if(NOT ARX_HAVE_ALIGNED_MALLOC OR NOT ARX_HAVE_ALIGNED_FREE)
+		check_symbol_exists(aligned_alloc "stdlib.h" ARX_HAVE_ALIGNED_ALLOC)
+		if(NOT ARX_HAVE_ALIGNED_ALLOC)
+			check_symbol_exists(posix_memalign "stdlib.h" ARX_HAVE_POSIX_MEMALIGN)
+		endif()
+	endif()
 	
 	check_symbol_exists(nanosleep "time.h" ARX_HAVE_NANOSLEEP)
 	
@@ -692,7 +711,7 @@ if(NOT MSVC)
 		
 	endif(USE_NATIVE_FS)
 	
-endif(NOT MSVC)
+endif(MSVC)
 
 
 # Sources
@@ -807,9 +826,13 @@ set(GRAPHICS_SOURCES
 	src/graphics/data/TextureContainer.cpp
 	src/graphics/effects/DrawEffects.cpp
 	src/graphics/effects/Fade.cpp
+	src/graphics/effects/Fissure.cpp
+	src/graphics/effects/FloatingStones.cpp
 	src/graphics/effects/Fog.cpp
 	src/graphics/effects/SpellEffects.cpp
 	src/graphics/effects/Halo.cpp
+	src/graphics/effects/Lightning.cpp
+	src/graphics/effects/RotatingCone.cpp
 	src/graphics/effects/Trail.cpp
 	src/graphics/font/Font.cpp
 	src/graphics/font/FontCache.cpp
@@ -823,14 +846,8 @@ set(GRAPHICS_SOURCES
 	src/graphics/particle/ParticleSystem.cpp
 	src/graphics/particle/MagicFlare.cpp
 	src/graphics/spells/Spells01.cpp
-	src/graphics/spells/Spells02.cpp
-	src/graphics/spells/Spells03.cpp
-	src/graphics/spells/Spells04.cpp
 	src/graphics/spells/Spells05.cpp
 	src/graphics/spells/Spells06.cpp
-	src/graphics/spells/Spells07.cpp
-	src/graphics/spells/Spells09.cpp
-	src/graphics/spells/Spells10.cpp
 	src/graphics/texture/PackedTexture.cpp
 	src/graphics/texture/Texture.cpp
 	src/graphics/texture/TextureStage.cpp
@@ -923,6 +940,7 @@ set(PHYSICS_SOURCES
 
 # Basic platform abstraction sources
 set(PLATFORM_SOURCES
+	src/platform/Alignment.cpp
 	src/platform/Environment.cpp
 	src/platform/Lock.cpp
 	src/platform/OS.cpp

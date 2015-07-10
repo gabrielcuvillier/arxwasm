@@ -968,17 +968,17 @@ void ArxGame::managePlayerControls() {
 									SendIOScriptEvent(ioSteal, SM_STEAL,"off");
 									player.Interface &= ~INTER_STEAL;
 								}
-
-								ARX_INVENTORY_OpenClose(t);
-
-								if(player.Interface & (INTER_INVENTORY | INTER_INVENTORYALL)) {
-									ARX_SOUND_PlayInterface(SND_BACKPACK, 0.9F + 0.2F * rnd());
-								}
-
-								if(SecondaryInventory) {
-									bForceEscapeFreeLook=true;
-									lOldTruePlayerMouseLook=!TRUE_PLAYER_MOUSELOOK_ON;
-								}
+							
+							ARX_INVENTORY_OpenClose(t);
+							
+							if(player.Interface & (INTER_INVENTORY | INTER_INVENTORYALL)) {
+								ARX_SOUND_PlayInterface(SND_BACKPACK, 0.9F + 0.2F * rnd());
+							}
+							
+							if(SecondaryInventory) {
+								bForceEscapeFreeLook=true;
+								lOldTruePlayerMouseLook=!TRUE_PLAYER_MOUSELOOK_ON;
+							}
 						}
 					}
 				}
@@ -1567,22 +1567,22 @@ void ArxGame::managePlayerControls() {
 
 class PlayerInterfaceFader {
 private:
-	long SMOOTHSLID;
-	float SLID_VALUE;
+	long m_direction;
+	float m_current;
 	
 public:
 	PlayerInterfaceFader()
-		: SMOOTHSLID(0)
-		, SLID_VALUE(0.f)
+		: m_direction(0)
+		, m_current(0.f)
 	{}
 	
 	void reset() {
-		SMOOTHSLID=0;
+		m_direction = 0;
 		PLAYER_INTERFACE_HIDE_COUNT = true;
 	}
 	
 	void resetSlid() {
-		SLID_VALUE = 0.f;
+		m_current = 0.f;
 	}
 	
 	void requestFade(FadeDirection showhide, long smooth) {
@@ -1599,23 +1599,22 @@ public:
 		
 		if(smooth) {
 			if(showhide == FadeDirection_In)
-				SMOOTHSLID = -1;
+				m_direction = -1;
 			else
-				SMOOTHSLID = 1;
+				m_direction = 1;
 		} else {
 			if(showhide == FadeDirection_In)
-				SLID_VALUE = 0.f;
+				m_current = 0.f;
 			else
-				SLID_VALUE = 100.f;
+				m_current = 100.f;
 			
-			lSLID_VALUE = SLID_VALUE;
+			lSLID_VALUE = m_current;
 		}
 	}
 	
 	void updateFirst() {
-		/////////////////////////////////////////////////////
-		// begining to count time for sliding interface
-		if(PLAYER_INTERFACE_HIDE_COUNT && !SMOOTHSLID) {
+		
+		if(PLAYER_INTERFACE_HIDE_COUNT && !m_direction) {
 			bool bOk = true;
 	
 			if(TRUE_PLAYER_MOUSELOOK_ON) {
@@ -1625,12 +1624,12 @@ public:
 					float t=float(arxtime);
 	
 					if(t-SLID_START > 10000.f) {
-						SLID_VALUE += (float)Original_framedelay*( 1.0f / 10 );
+						m_current += (float)Original_framedelay*( 1.0f / 10 );
 	
-						if(SLID_VALUE > 100.f)
-							SLID_VALUE = 100.f;
+						if(m_current > 100.f)
+							m_current = 100.f;
 	
-						lSLID_VALUE = SLID_VALUE;
+						lSLID_VALUE = m_current;
 					} else {
 						bOk = true;
 					}
@@ -1638,33 +1637,33 @@ public:
 			}
 	
 			if(bOk) {
-				SLID_VALUE -= (float)Original_framedelay*( 1.0f / 10 );
+				m_current -= (float)Original_framedelay*( 1.0f / 10 );
 	
-				if(SLID_VALUE < 0.f)
-					SLID_VALUE = 0.f;
+				if(m_current < 0.f)
+					m_current = 0.f;
 	
-				lSLID_VALUE = SLID_VALUE;
+				lSLID_VALUE = m_current;
 			}
 		}
 	}
 	
 	void update() {
-		if(SMOOTHSLID == 1) {
-			SLID_VALUE += (float)Original_framedelay*( 1.0f / 10 );
+		if(m_direction == 1) {
+			m_current += (float)Original_framedelay*( 1.0f / 10 );
 			
-			if(SLID_VALUE > 100.f) {
-				SLID_VALUE = 100.f;
-				SMOOTHSLID = 0;
+			if(m_current > 100.f) {
+				m_current = 100.f;
+				m_direction = 0;
 			}
-			lSLID_VALUE = SLID_VALUE;
-		} else if(SMOOTHSLID == -1) {
-			SLID_VALUE -= (float)Original_framedelay*( 1.0f / 10 );
+			lSLID_VALUE = m_current;
+		} else if(m_direction == -1) {
+			m_current -= (float)Original_framedelay*( 1.0f / 10 );
 			
-			if (SLID_VALUE < 0.f) {
-				SLID_VALUE = 0.f;
-				SMOOTHSLID = 0;
+			if(m_current < 0.f) {
+				m_current = 0.f;
+				m_direction = 0;
 			}
-			lSLID_VALUE = SLID_VALUE;
+			lSLID_VALUE = m_current;
 		}
 	}
 };
@@ -1723,10 +1722,7 @@ void ArxGame::manageKeyMouse() {
 
 		if(pIO && g_cursorOverBook) {
 			for(long i = 0; i < MAX_EQUIPED; i++) {
-				if(player.equiped[i] != PlayerEntityHandle
-				   && ValidIONum(player.equiped[i])
-				   && entities[player.equiped[i]] == pIO
-				) {
+				if(ValidIONum(player.equiped[i]) && entities[player.equiped[i]] == pIO) {
 					FlyingOverIO = pIO;
 				}
 			}
@@ -2029,80 +2025,58 @@ void ArxGame::manageKeyMouse() {
 		}
 	}
 
-	if((!BLOCK_PLAYER_CONTROLS) && !(player.Interface & INTER_COMBATMODE)) {
-		if(!DRAGINTER) {
-			if(config.input.autoDescription || (eeMouseUp1() && !(EERIEMouseButton & 4) && !(LastMouseClick & 4)))
-			{
-				Entity * temp;
-				temp = FlyingOverIO;
-
-				if(temp && !temp->locname.empty()) {
-
-					if (((FlyingOverIO->ioflags & IO_ITEM) && FlyingOverIO->_itemdata->equipitem)
-						&& (player.m_skillFull.objectKnowledge + player.m_attributeFull.mind
-						>= FlyingOverIO->_itemdata->equipitem->elements[IO_EQUIPITEM_ELEMENT_Identify_Value].value) )
-					{
-						SendIOScriptEvent(FlyingOverIO,SM_IDENTIFY);
-					}
-
-					WILLADDSPEECH = getLocalised(temp->locname);
-
-					if(temp->ioflags & IO_GOLD) {
-						std::stringstream ss;
-						ss << temp->_itemdata->price << " " << WILLADDSPEECH;
-						WILLADDSPEECH = ss.str();
-					}
-
-					if(temp->poisonous > 0 && temp->poisonous_count != 0) {
-						std::string Text = getLocalised("description_poisoned", "error");
-						std::stringstream ss;
-						ss << " (" << Text << " " << (int)temp->poisonous << ")";
-						WILLADDSPEECH += ss.str();
-					}
-
-					if((temp->ioflags & IO_ITEM) && temp->durability < 100.f) {
-						std::string Text = getLocalised("description_durability", "error");
-						std::stringstream ss;
-						ss << " " << Text << " " << std::fixed << std::setw(3) << std::setprecision(0) << temp->durability << "/" << temp->max_durability;
-						WILLADDSPEECH += ss.str();
-					}
-
-					WILLADDSPEECHTIME = (unsigned long)(arxtime);//treat warning C4244 conversion from 'float' to 'unsigned long'
-
-					bool bAddText = true;
-					if(temp->obj && temp->obj->pbox && temp->obj->pbox->active == 1) {
-						bAddText=false;
-					}
-
-					if(bAddText) {
-						Rect::Num x = checked_range_cast<Rect::Num>(120 * g_sizeRatio.x);
-						Rect::Num y = checked_range_cast<Rect::Num>(14 * g_sizeRatio.y);
-						Rect::Num w = checked_range_cast<Rect::Num>((120 + 500) * g_sizeRatio.x);
-						Rect::Num h = checked_range_cast<Rect::Num>((14 + 200) * g_sizeRatio.y);
-						Rect rDraw(x, y, w, h);
-						pTextManage->Clear();
-						if(!config.input.autoDescription) {
-							pTextManage->AddText(hFontInBook, WILLADDSPEECH, rDraw, Color(232, 204, 143), 2000 + WILLADDSPEECH.length()*60);
-						} else {
-							pTextManage->AddText(hFontInBook, WILLADDSPEECH, rDraw, Color(232, 204, 143));
-						}
-					}
-
-					WILLADDSPEECH.clear();
-				}
+	if(   !BLOCK_PLAYER_CONTROLS
+	   && !(player.Interface & INTER_COMBATMODE)
+	   && !DRAGINTER
+	   && (config.input.autoDescription || (eeMouseUp1() && !(EERIEMouseButton & 4) && !(LastMouseClick & 4)))
+	   && FlyingOverIO
+	   && !FlyingOverIO->locname.empty()
+	) {
+		Entity * temp = FlyingOverIO;
+		
+		ARX_INVENTORY_IdentifyIO(temp);
+		
+		std::string description = getLocalised(temp->locname);
+		
+		if(temp->ioflags & IO_GOLD) {
+			std::stringstream ss;
+			ss << temp->_itemdata->price << " " << description;
+			description = ss.str();
+		}
+		
+		if(temp->poisonous > 0 && temp->poisonous_count != 0) {
+			std::string Text = getLocalised("description_poisoned", "error");
+			std::stringstream ss;
+			ss << " (" << Text << " " << (int)temp->poisonous << ")";
+			description += ss.str();
+		}
+		
+		if((temp->ioflags & IO_ITEM) && temp->durability < 100.f) {
+			std::string Text = getLocalised("description_durability", "error");
+			std::stringstream ss;
+			ss << " " << Text << " " << std::fixed << std::setw(3) << std::setprecision(0) << temp->durability << "/" << temp->max_durability;
+			description += ss.str();
+		}
+		
+		bool bAddText = true;
+		if(temp->obj && temp->obj->pbox && temp->obj->pbox->active == 1) {
+			bAddText=false;
+		}
+		
+		if(bAddText) {
+			Rect::Num x = checked_range_cast<Rect::Num>(120 * g_sizeRatio.x);
+			Rect::Num y = checked_range_cast<Rect::Num>(14 * g_sizeRatio.y);
+			Rect::Num w = checked_range_cast<Rect::Num>((120 + 500) * g_sizeRatio.x);
+			Rect::Num h = checked_range_cast<Rect::Num>((14 + 200) * g_sizeRatio.y);
+			Rect rDraw(x, y, w, h);
+			pTextManage->Clear();
+			if(!config.input.autoDescription) {
+				pTextManage->AddText(hFontInBook, description, rDraw, Color(232, 204, 143), 2000 + description.length()*60);
+			} else {
+				pTextManage->AddText(hFontInBook, description, rDraw, Color(232, 204, 143));
 			}
 		}
 	}
-
-	if ((EERIEMouseButton & 4) || (LastMouseClick & 4))
-		WILLADDSPEECH.clear();
-
-	if (!WILLADDSPEECH.empty())
-		if (WILLADDSPEECHTIME+300<arxtime.get_frame_time())
-		{
-			ARX_SPEECH_Add(WILLADDSPEECH);
-			WILLADDSPEECH.clear();
-		}
 }
 
 
@@ -2149,7 +2123,7 @@ void ArxGame::manageEditorControls() {
 		DRAGGING = false;
 	}
 	
-	manageEditorControlsHUD();
+	hudUpdateInput();
 	
 	// gros player book
 	if(player.Interface & INTER_MAP) {
@@ -2282,7 +2256,7 @@ void ArxGame::manageEditorControls() {
 				) {
 					//Put object in fromt of player
 					
-					bool res = Manage3DCursor(false);
+					bool res = Manage3DCursor(DRAGINTER, false);
 					// Throw Object
 					if(!res) {
 						Entity * io=DRAGINTER;
@@ -2412,10 +2386,10 @@ void ArxGame::manageEditorControls() {
 		}
 
 		// Double Clicked and not already combining.
-		if((EERIEMouseButton & 4) && (COMBINE==NULL)) {
+		if((EERIEMouseButton & 4) && !COMBINE) {
 			bool accept_combine = true;
 			
-			if((SecondaryInventory!=NULL) && (InSecondaryInventoryPos(DANAEMouse))) {
+			if(SecondaryInventory && InSecondaryInventoryPos(DANAEMouse)) {
 				Entity * io = SecondaryInventory->io;
 				
 				if(io->ioflags & IO_SHOP)

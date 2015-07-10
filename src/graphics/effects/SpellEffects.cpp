@@ -48,10 +48,10 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "game/Player.h"
 #include "graphics/Math.h"
 #include "graphics/RenderBatcher.h"
+#include "scene/Object.h"
 
 
-CSpellFx::CSpellFx() :
-	lLightId(-1)
+CSpellFx::CSpellFx()
 {
 	SetDuration(1000);
 }
@@ -87,19 +87,11 @@ void Draw3DLineTexNew(const RenderMaterial & mat, Vec3f startPos, Vec3f endPos, 
 	q1.v[2].uv = Vec2f_ONE;
 	q1.v[3].uv = Vec2f_Y_AXIS;
 	
-	q1.v[0].p.x = startPos.x;
-	q1.v[0].p.y = startPos.y + zzs;
-	q1.v[0].p.z = startPos.z;
-	q1.v[1].p.x = startPos.x;
-	q1.v[1].p.y = startPos.y - zzs;
-	q1.v[1].p.z = startPos.z;
-	q1.v[2].p.x = endPos.x;
-	q1.v[2].p.y = endPos.y - zze;
-	q1.v[2].p.z = endPos.z;
-	q1.v[3].p.x = endPos.x;
-	q1.v[3].p.y = endPos.y + zze;
-	q1.v[3].p.z = endPos.z;
-
+	q1.v[0].p = startPos + Vec3f(0.f, zzs, 0.f);
+	q1.v[1].p = startPos + Vec3f(0.f,-zzs, 0.f);
+	q1.v[2].p = endPos + Vec3f(0.f,-zze, 0.f);
+	q1.v[3].p = endPos + Vec3f(0.f, zze, 0.f);
+	
 	drawQuadRTP(mat, q1);
 	}
 	
@@ -117,25 +109,17 @@ void Draw3DLineTexNew(const RenderMaterial & mat, Vec3f startPos, Vec3f endPos, 
 	q2.v[2].uv = Vec2f_ONE;
 	q2.v[3].uv = Vec2f_Y_AXIS;
 	
-	q2.v[0].p.x = startPos.x + xxs;
-	q2.v[0].p.y = startPos.y;
-	q2.v[0].p.z = startPos.z + zzs;
-	q2.v[1].p.x = startPos.x - xxs;
-	q2.v[1].p.y = startPos.y;
-	q2.v[1].p.z = startPos.z - zzs;
-	q2.v[2].p.x = endPos.x - xxe;
-	q2.v[2].p.y = endPos.y;
-	q2.v[2].p.z = endPos.z - zze;
-	q2.v[3].p.x = endPos.x + xxe;
-	q2.v[3].p.y = endPos.y;
-	q2.v[3].p.z = endPos.z + zze;
+	q2.v[0].p = startPos + Vec3f(xxs, 0.f, zzs);
+	q2.v[1].p = startPos + Vec3f(-xxs, 0.f, -zzs);
+	q2.v[2].p = endPos + Vec3f(-xxe, 0.f, -zze);
+	q2.v[3].p = endPos + Vec3f(xxe, 0.f, zze);
 	
 	drawQuadRTP(mat, q2);
 	}
 }
 
-// TODO fMul is unused, find out if it ever was
-void Split(Vec3f * v, int a, int b, Vec3f f, Vec3f fMul)
+
+void Split(Vec3f * v, int a, int b, Vec3f f)
 {
 	if (a != b)
 	{
@@ -146,13 +130,13 @@ void Split(Vec3f * v, int a, int b, Vec3f f, Vec3f fMul)
 			v[i].x = (v[a].x + v[b].x) * 0.5f + f.x * frand2();
 			v[i].y = (v[a].y + v[b].y) * 0.5f + f.y * frand2();
 			v[i].z = (v[a].z + v[b].z) * 0.5f + f.z * frand2();
-			Split(v, a, i, f, fMul);
-			Split(v, i, b, f, fMul);
+			Split(v, a, i, f);
+			Split(v, i, b, f);
 		}
 	}
 }
 
-void Split(TexturedVertex * v, int a, int b, float yo, float fMul)
+void Split(Vec3f * v, int a, int b, float yo, float fMul)
 {
 	if (a != b)
 	{
@@ -160,46 +144,52 @@ void Split(TexturedVertex * v, int a, int b, float yo, float fMul)
 
 		if ((i != a) && (i != b))
 		{
-			v[i].p = (v[a].p + v[b].p) * 0.5f + randomVec(-yo, yo);
+			v[i] = (v[a] + v[b]) * 0.5f + randomVec(-yo, yo);
 			Split(v, a, i, yo * fMul);
 			Split(v, i, b, yo * fMul);
 		}
 	}
 }
 
-
+EERIE_3DOBJ * cabal = NULL;
 EERIE_3DOBJ * ssol = NULL;
-long ssol_count = 0;
 EERIE_3DOBJ * slight = NULL;
-long slight_count = 0;
 EERIE_3DOBJ * srune = NULL;
-long srune_count = 0;
 EERIE_3DOBJ * smotte = NULL;
-long smotte_count = 0;
 EERIE_3DOBJ * stite = NULL;
-long stite_count = 0;
 EERIE_3DOBJ * smissile = NULL;
-long smissile_count = 0;
 EERIE_3DOBJ * spapi = NULL;
-long spapi_count = 0;
 EERIE_3DOBJ * svoodoo = NULL;
-long svoodoo_count = 0;
-EERIE_3DOBJ * stone1 = NULL;
-long stone1_count = 0;
 EERIE_3DOBJ * stone0 = NULL;
-long stone0_count = 0;
+EERIE_3DOBJ * stone1 = NULL;
 
-void DANAE_ReleaseAllDatasDynamic() {
-	delete ssol, ssol = NULL, ssol_count = 0;
-	delete slight, slight = NULL, slight_count = 0;
-	delete srune, srune = NULL, srune_count = 0;
-	delete smotte, smotte = NULL, smotte_count = 0;
-	delete stite, stite = NULL, stite_count = 0;
-	delete smissile, smissile = NULL, smissile_count = 0;
-	delete spapi, spapi = NULL, spapi_count = 0;
-	delete svoodoo, svoodoo = NULL, svoodoo_count = 0;
-	delete stone0, stone0 = NULL, stone0_count = 0;
-	delete stone1, stone1 = NULL, stone1_count = 0;
+void LoadSpellModels() {
+	// TODO Load dynamically
+	cabal = LoadTheObj("editor/obj3d/cabal.teo", "cabal_teo maps");
+	ssol = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard.teo");
+	slight = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard02.teo");
+	srune = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard03.teo");
+	smotte = LoadTheObj("graph/obj3d/interactive/fix_inter/stalagmite/motte.teo");
+	stite = LoadTheObj("graph/obj3d/interactive/fix_inter/stalagmite/stalagmite.teo");
+	smissile = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_magic_missile/fx_magic_missile.teo");
+	spapi = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_papivolle/fx_papivolle.teo");
+	svoodoo = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_voodoodoll/fx_voodoodoll.teo");
+	stone0 = loadObject("graph/obj3d/interactive/fix_inter/fx_raise_dead/stone01.teo");
+	stone1 = loadObject("graph/obj3d/interactive/fix_inter/fx_raise_dead/stone02.teo");
+}
+
+void ReleaseSpellModels() {
+	delete cabal, cabal = NULL;
+	delete ssol, ssol = NULL;
+	delete slight, slight = NULL;
+	delete srune, srune = NULL;
+	delete smotte, smotte = NULL;
+	delete stite, stite = NULL;
+	delete smissile, smissile = NULL;
+	delete spapi, spapi = NULL;
+	delete svoodoo, svoodoo = NULL;
+	delete stone0, stone0 = NULL;
+	delete stone1, stone1 = NULL;
 }
 
 
@@ -207,3 +197,8 @@ void DANAE_ReleaseAllDatasDynamic() {
 Vec3f randomOffsetXZ(float range) {
 	return Vec3f(frand2() * range, 0.f, frand2() * range);
 }
+
+
+
+
+

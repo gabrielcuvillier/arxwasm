@@ -22,6 +22,8 @@
 
 #include "game/magic/Spell.h"
 
+#include "graphics/spells/Spells01.h"
+
 class MagicSightSpell : public SpellBase {
 public:
 	bool CanLaunch();
@@ -32,9 +34,16 @@ public:
 
 class MagicMissileSpell : public SpellBase {
 public:
+	MagicMissileSpell();
+	~MagicMissileSpell();
+	
 	void Launch();
 	void End();
 	void Update(float timeDelta);
+	
+private:
+	bool m_mrCheat;
+	std::vector<CMagicMissile *> pTab;
 };
 
 class IgnitSpell : public SpellBase {

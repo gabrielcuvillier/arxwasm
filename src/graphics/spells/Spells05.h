@@ -44,109 +44,11 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #ifndef ARX_GRAPHICS_SPELLS_SPELLS05_H
 #define ARX_GRAPHICS_SPELLS_SPELLS05_H
 
+#include "graphics/effects/FloatingStones.h"
+#include "graphics/effects/RotatingCone.h"
 #include "graphics/effects/SpellEffects.h"
 #include "graphics/particle/ParticleSystem.h"
 
-// Done By : did
-class CRuneOfGuarding : public CSpellFx {
-	
-public:
-	CRuneOfGuarding();
-	~CRuneOfGuarding();
-	
-	void SetPos(Vec3f);
-	
-	void Create(Vec3f);
-	void Update(float timeDelta);
-	void Render();
-	
-	Vec3f eSrc;
-	
-private:
-	
-	Vec3f eTarget;
-	TextureContainer * tex_p2;
-};
-
-// Done By : Sébastien Scieux
-class CLevitate : public CSpellFx {
-	
-public:
-	CLevitate();
-	~CLevitate();
-	
-	void ChangePos(Vec3f * pos)
-	{
-		this->m_pos = *pos;
-	};
-	
-	void Create(int def, float rout, float rhaut, float hauteur, Vec3f * m_pos, unsigned long);
-	void Update(float timeDelta);
-	void Render();
-	
-private:
-	short key;
-	short def;
-	Vec3f m_pos;
-	float m_baseRadius;
-	float rhaut;
-	float hauteur;
-	float m_coneScale;
-	float ang;
-	int currdurationang;
-	int currframetime;
-	TextureContainer * tsouffle;
-	
-	struct T_CONE {
-		int conenbvertex;
-		int conenbfaces;
-		Vec3f * conevertex;
-		TexturedVertex * coned3d;
-		unsigned short * coneind;
-	};
-	
-	T_CONE cone[2];
-	
-	struct T_STONE {
-		short actif;
-		short numstone;
-		Vec3f pos;
-		float yvel;
-		Anglef ang;
-		Anglef angvel;
-		Vec3f scale;
-		int time;
-		int currtime;
-	};
-	
-	int m_stoneDelay;
-	int nbstone;
-	T_STONE tstone[256];
-	
-	void AddStone(const Vec3f & pos);
-	void DrawStone();
-	
-	void CreateConeStrip(float rout, float rhaut, float hauteur, int def, int numcone);
-	void createDustParticle();
-};
-
-// Done By : Didier Pédreno
-class CCurePoison : public CSpellFx {
-	
-public:
-	CCurePoison();
-	~CCurePoison();
-	
-	void Create();
-	void SetPosition(const Vec3f & pos);
-	
-	void Update(float timeDelta);
-	void Render();
-	
-private:
-	Vec3f eSrc;
-	ParticleSystem * pPS;
-};
 
 // Done By : Didier Pédreno
 class CPoisonProjectile : public CSpellFx {
@@ -162,14 +64,10 @@ public:
 	Vec3f eCurPos;
 	float lightIntensityFactor;
 	
+	LightHandle lLightId;
 private:
 	float	fBetaRadCos;
 	float	fBetaRadSin;
-	void SetAngle(float afAngle) {
-		float fBetaRad = glm::radians(afAngle);
-		fBetaRadCos = glm::cos(fBetaRad);
-		fBetaRadSin = glm::sin(fBetaRad);
-	}
 	
 	bool  bOk;
 	float fTrail;
@@ -178,46 +76,6 @@ private:
 	Vec3f pathways[40];
 	ParticleSystem pPS;
 	ParticleSystem pPSStream;
-};
-
-class CMultiPoisonProjectile : public CSpellFx {
-	
-public:
-	explicit CMultiPoisonProjectile(long nb);
-	~CMultiPoisonProjectile();
-	
-	void Create(Vec3f srcPos, float afBeta);
-	void Kill();
-	void Update(float timeDelta);
-	void Render();
-	
-	EntityHandle m_caster;
-	float m_level;
-	unsigned long m_timcreation;
-	
-private:
-	std::vector<CPoisonProjectile *> m_projectiles;
-	void AddPoisonFog(const Vec3f & pos, float power);
-};
-
-// Done By : did
-class CRepelUndead : public CSpellFx {
-	
-public:
-	CRepelUndead();
-	~CRepelUndead();
-	
-	void Create(Vec3f);
-	void SetPos(const Vec3f & pos);
-	void SetRotation(float rotation);
-	
-	void Update(float timeDelta);
-	void Render();
-	
-private:
-	Vec3f eSrc;
-	float m_yaw;
-	TextureContainer * tex_p2;
 };
 
 #endif // ARX_GRAPHICS_SPELLS_SPELLS05_H

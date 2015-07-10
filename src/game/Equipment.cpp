@@ -84,6 +84,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "physics/Collisions.h"
 
 #include "platform/Platform.h"
+#include "platform/profiler/Profiler.h"
 
 #include "scene/Object.h"
 #include "scene/LinkedObject.h"
@@ -150,11 +151,11 @@ ItemType ARX_EQUIPMENT_GetObjectTypeFlag(const std::string & temp) {
 }
 
 //! \brief Releases Equiped Id from player
-static void ARX_EQUIPMENT_Release(long id) {
-	if(id) {
+static void ARX_EQUIPMENT_Release(EntityHandle id) {
+	if(ValidIONum(id)) {
 		for(long i = 0; i < MAX_EQUIPED; i++) {
 			if(player.equiped[i] == id) {
-				player.equiped[i] = EntityHandle(0); // TODO use InvalidEntityHandle
+				player.equiped[i] = EntityHandle::Invalid;
 			}
 		}
 	}
@@ -175,7 +176,7 @@ extern long EXITING;
 //! \brief Recreates player mesh from scratch
 static void applyTweak(EquipmentSlot equip, TweakType tw, const std::string & selection) {
 	
-	if(!player.equiped[equip] || !ValidIONum(player.equiped[equip])) {
+	if(!ValidIONum(player.equiped[equip])) {
 		return;
 	}
 	
@@ -255,7 +256,7 @@ void ARX_EQUIPMENT_RecreatePlayerMesh() {
 	Entity * target = entities.player();
 	
 	for(long i = 0; i < MAX_EQUIPED; i++) {
-		if(player.equiped[i] && ValidIONum(player.equiped[i])) {
+		if(ValidIONum(player.equiped[i])) {
 			Entity *toequip = entities[player.equiped[i]];
 
 			if(toequip) {
@@ -266,7 +267,7 @@ void ARX_EQUIPMENT_RecreatePlayerMesh() {
 						EERIE_LINKEDOBJ_LinkObjectToObject(target->obj, toequip->obj, "weapon_attach", "primary_attach", toequip);
 					}
 				} else if(toequip->type_flags & OBJECT_TYPE_SHIELD) {
-					if(player.equiped[EQUIP_SLOT_SHIELD] != PlayerEntityHandle) {
+					if(ValidIONum(player.equiped[EQUIP_SLOT_SHIELD])) {
 						EERIE_LINKEDOBJ_LinkObjectToObject(target->obj, toequip->obj, "shield_attach", "shield_attach", toequip);
 					}
 				}
@@ -292,7 +293,7 @@ void ARX_EQUIPMENT_RecreatePlayerMesh() {
 
 void ARX_EQUIPMENT_UnEquipAllPlayer() {
 	for(long i = 0; i < MAX_EQUIPED; i++) {
-		if(player.equiped[i] && ValidIONum(player.equiped[i])) {
+		if(ValidIONum(player.equiped[i])) {
 			ARX_EQUIPMENT_UnEquip(entities.player(), entities[player.equiped[i]]);
 		}
 	}
@@ -304,7 +305,7 @@ bool ARX_EQUIPMENT_IsPlayerEquip(Entity * _pIO) {
 	arx_assert(entities.player());
 	
 	for(long i = 0; i < MAX_EQUIPED; i++) {
-		if(player.equiped[i] && ValidIONum(player.equiped[i])) {
+		if(ValidIONum(player.equiped[i])) {
 			Entity * toequip = entities[player.equiped[i]];
 
 			if(toequip == _pIO) {
@@ -329,7 +330,7 @@ void ARX_EQUIPMENT_UnEquip(Entity * target, Entity * tounequip, long flags)
 		return;
 
 	for(long i = 0; i < MAX_EQUIPED; i++) {
-		if(player.equiped[i] && ValidIONum(player.equiped[i]) && entities[player.equiped[i]] == tounequip) {
+		if(ValidIONum(player.equiped[i]) && entities[player.equiped[i]] == tounequip) {
 			EERIE_LINKEDOBJ_UnLinkObjectFromObject(target->obj, tounequip->obj);
 			ARX_EQUIPMENT_Release(player.equiped[i]);
 			target->bbox2D.min.x = 9999;
@@ -360,7 +361,7 @@ void ARX_EQUIPMENT_AttachPlayerWeaponToHand() {
 	Entity * target = entities.player();
 	
 	for(long i = 0; i < MAX_EQUIPED; i++) {
-		if(player.equiped[i] && ValidIONum(player.equiped[i])) {
+		if(ValidIONum(player.equiped[i])) {
 			Entity *toequip = entities[player.equiped[i]];
 
 			if(toequip) {
@@ -379,7 +380,7 @@ void ARX_EQUIPMENT_AttachPlayerWeaponToBack() {
 	Entity * target = entities.player();
 	
 	for(long i = 0; i < MAX_EQUIPED; i++) {
-		if(player.equiped[i] && ValidIONum(player.equiped[i])) {
+		if(ValidIONum(player.equiped[i])) {
 			Entity *toequip = entities[player.equiped[i]];
 
 			if(toequip) {
@@ -407,7 +408,7 @@ void ARX_EQUIPMENT_AttachPlayerWeaponToBack() {
 WeaponType ARX_EQUIPMENT_GetPlayerWeaponType() {
 	arx_assert(entities.player());
 	
-	if(player.equiped[EQUIP_SLOT_WEAPON] && ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
+	if(ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
 		Entity * toequip = entities[player.equiped[EQUIP_SLOT_WEAPON]];
 
 		if(toequip) {
@@ -493,7 +494,7 @@ float ARX_EQUIPMENT_ComputeDamages(Entity * io_source, Entity * io_target, float
 
 	if(io_source == entities.player()) {
 		
-		if(player.equiped[EQUIP_SLOT_WEAPON] != PlayerEntityHandle && ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
+		if(ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
 			Entity * io = entities[player.equiped[EQUIP_SLOT_WEAPON]];
 			if(io && !io->weaponmaterial.empty()) {
 				wmat = &io->weaponmaterial;
@@ -577,8 +578,7 @@ float ARX_EQUIPMENT_ComputeDamages(Entity * io_source, Entity * io_target, float
 	}
 	
 	if(io_target == entities.player()) {
-		if(player.equiped[EQUIP_SLOT_ARMOR] > 0
-		   && ValidIONum(player.equiped[EQUIP_SLOT_ARMOR])) {
+		if(ValidIONum(player.equiped[EQUIP_SLOT_ARMOR])) {
 			Entity * io = entities[player.equiped[EQUIP_SLOT_ARMOR]];
 			if(io && !io->armormaterial.empty()) {
 				amat = &io->armormaterial;
@@ -656,6 +656,8 @@ static float ARX_EQUIPMENT_GetSpecialValue(Entity * io, long val) {
 //-----------------------------------------------------------------------------------------------
 //***********************************************************************************************
 bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ratioaim, long flags, EntityHandle targ) {
+	
+	ARX_PROFILE_FUNC();
 	
 	arx_assert(io_source);
 	arx_assert(io_weapon);
@@ -908,12 +910,12 @@ void ARX_EQUIPMENT_LaunchPlayerReadyWeapon() {
 			anim = io->anims[ANIM_1H_READY_PART_1];
 			break;
 		case WEAPON_2H:
-			if(player.equiped[EQUIP_SLOT_SHIELD] == 0)
+			if(!ValidIONum(player.equiped[EQUIP_SLOT_SHIELD]))
 				anim = io->anims[ANIM_2H_READY_PART_1];
 
 			break;
 		case WEAPON_BOW:
-			if(player.equiped[EQUIP_SLOT_SHIELD] == 0)
+			if(!ValidIONum(player.equiped[EQUIP_SLOT_SHIELD]))
 				anim = io->anims[ANIM_MISSILE_READY_PART_1];
 
 			break;
@@ -927,7 +929,7 @@ void ARX_EQUIPMENT_LaunchPlayerReadyWeapon() {
 
 void ARX_EQUIPMENT_UnEquipPlayerWeapon()
 {
-	if(player.equiped[EQUIP_SLOT_WEAPON] && ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
+	if(ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
 		Entity * pioOldDragInter;
 		pioOldDragInter = DRAGINTER;
 		DRAGINTER = entities[player.equiped[EQUIP_SLOT_WEAPON]];
@@ -939,7 +941,7 @@ void ARX_EQUIPMENT_UnEquipPlayerWeapon()
 		DRAGINTER = pioOldDragInter;
 	}
 
-	player.equiped[EQUIP_SLOT_WEAPON] = EntityHandle(0); // TODO use InvalidEntityHandle
+	player.equiped[EQUIP_SLOT_WEAPON] = EntityHandle::Invalid;
 }
 
 bool bRing = false;
@@ -971,7 +973,7 @@ void ARX_EQUIPMENT_Equip(Entity * target, Entity * toequip)
 		Set_DragInter(NULL);
 
 	if(toequip->type_flags & (OBJECT_TYPE_DAGGER | OBJECT_TYPE_1H | OBJECT_TYPE_2H |OBJECT_TYPE_BOW)) {
-		if(player.equiped[EQUIP_SLOT_WEAPON] && ValidIONum(player.equiped[EQUIP_SLOT_WEAPON]))
+		if(ValidIONum(player.equiped[EQUIP_SLOT_WEAPON]))
 			ARX_EQUIPMENT_UnEquip(target, entities[player.equiped[EQUIP_SLOT_WEAPON]]);
 
 		player.equiped[EQUIP_SLOT_WEAPON] = validid;
@@ -981,16 +983,16 @@ void ARX_EQUIPMENT_Equip(Entity * target, Entity * toequip)
 		else
 			EERIE_LINKEDOBJ_LinkObjectToObject(target->obj, toequip->obj, "weapon_attach", "primary_attach", toequip);
 
-		if((toequip->type_flags & (OBJECT_TYPE_2H | OBJECT_TYPE_BOW)) && player.equiped[EQUIP_SLOT_SHIELD])
+		if((toequip->type_flags & (OBJECT_TYPE_2H | OBJECT_TYPE_BOW)) && ValidIONum(player.equiped[EQUIP_SLOT_SHIELD]))
 			ARX_EQUIPMENT_UnEquip(target, entities[player.equiped[EQUIP_SLOT_SHIELD]]);
 	} else if(toequip->type_flags & OBJECT_TYPE_SHIELD) {
-		if(player.equiped[EQUIP_SLOT_SHIELD] && ValidIONum(player.equiped[EQUIP_SLOT_SHIELD]))
+		if(ValidIONum(player.equiped[EQUIP_SLOT_SHIELD]))
 			ARX_EQUIPMENT_UnEquip(target, entities[player.equiped[EQUIP_SLOT_SHIELD]]);
 
 		player.equiped[EQUIP_SLOT_SHIELD] = validid;
 		EERIE_LINKEDOBJ_LinkObjectToObject(target->obj, toequip->obj, "shield_attach", "shield_attach", toequip);
 
-		if(player.equiped[EQUIP_SLOT_WEAPON] && ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
+		if(ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
 			if(entities[player.equiped[EQUIP_SLOT_WEAPON]]->type_flags & (OBJECT_TYPE_2H | OBJECT_TYPE_BOW))
 				ARX_EQUIPMENT_UnEquip(target, entities[player.equiped[EQUIP_SLOT_WEAPON]]);
 		}
@@ -1001,10 +1003,10 @@ void ARX_EQUIPMENT_Equip(Entity * target, Entity * toequip)
 		{
 			long willequip = -1;
 
-			if(player.equiped[EQUIP_SLOT_RING_LEFT] == 0)
+			if(player.equiped[EQUIP_SLOT_RING_LEFT] == EntityHandle::Invalid)
 				willequip = EQUIP_SLOT_RING_LEFT;
 
-			if(player.equiped[EQUIP_SLOT_RING_RIGHT] == 0)
+			if(player.equiped[EQUIP_SLOT_RING_RIGHT] == EntityHandle::Invalid)
 				willequip = EQUIP_SLOT_RING_RIGHT;
 
 			if(willequip == -1) {
@@ -1024,17 +1026,17 @@ void ARX_EQUIPMENT_Equip(Entity * target, Entity * toequip)
 			player.equiped[willequip] = validid;
 		}
 	} else if(toequip->type_flags & OBJECT_TYPE_ARMOR) {
-		if(player.equiped[EQUIP_SLOT_ARMOR] && ValidIONum(player.equiped[EQUIP_SLOT_ARMOR]))
+		if(ValidIONum(player.equiped[EQUIP_SLOT_ARMOR]))
 			ARX_EQUIPMENT_UnEquip(target, entities[player.equiped[EQUIP_SLOT_ARMOR]]);
 
 		player.equiped[EQUIP_SLOT_ARMOR] = validid;
 	} else if(toequip->type_flags & OBJECT_TYPE_LEGGINGS) {
-		if(player.equiped[EQUIP_SLOT_LEGGINGS] && ValidIONum(player.equiped[EQUIP_SLOT_LEGGINGS]))
+		if(ValidIONum(player.equiped[EQUIP_SLOT_LEGGINGS]))
 			ARX_EQUIPMENT_UnEquip(target, entities[player.equiped[EQUIP_SLOT_LEGGINGS]]);
 
 		player.equiped[EQUIP_SLOT_LEGGINGS] = validid;
 	} else if(toequip->type_flags & OBJECT_TYPE_HELMET) {
-		if(player.equiped[EQUIP_SLOT_HELMET] && ValidIONum(player.equiped[EQUIP_SLOT_HELMET]))
+		if(ValidIONum(player.equiped[EQUIP_SLOT_HELMET]))
 			ARX_EQUIPMENT_UnEquip(target, entities[player.equiped[EQUIP_SLOT_HELMET]]);
 
 		player.equiped[EQUIP_SLOT_HELMET] = validid;
@@ -1111,7 +1113,7 @@ float getEquipmentBaseModifier(EquipmentModifierType modifier, bool getRelative)
 	float sum = 0;
 	
 	for(long i = 0; i < MAX_EQUIPED; i++) {
-		if(player.equiped[i] && ValidIONum(player.equiped[i])) {
+		if(ValidIONum(player.equiped[i])) {
 			Entity * toequip = entities[player.equiped[i]];
 			if(toequip && (toequip->ioflags & IO_ITEM) && toequip->_itemdata->equipitem) {
 				IO_EQUIPITEM_ELEMENT * elem = &toequip->_itemdata->equipitem->elements[modifier];
@@ -1192,21 +1194,11 @@ void ARX_EQUIPMENT_SetEquip(Entity * io, bool special,
 void ARX_EQUIPMENT_IdentifyAll() {
 	arx_assert(entities.player());
 	
-	for (long i = 0; i < MAX_EQUIPED; i++)
-	{
-		if ((player.equiped[i] != PlayerEntityHandle)
-		        &&	ValidIONum(player.equiped[i]))
-		{
+	for(long i = 0; i < MAX_EQUIPED; i++) {
+		if(ValidIONum(player.equiped[i])) {
 			Entity * toequip = entities[player.equiped[i]];
-
-			if ((toequip) && (toequip->ioflags & IO_ITEM) && (toequip->_itemdata->equipitem))
-			{
-				if (player.m_skillFull.objectKnowledge + player.m_attributeFull.mind
-				        >= toequip->_itemdata->equipitem->elements[IO_EQUIPITEM_ELEMENT_Identify_Value].value)
-				{
-					SendIOScriptEvent(toequip, SM_IDENTIFY);
-				}
-			}
+			
+			ARX_INVENTORY_IdentifyIO(toequip);
 		}
 	}
 }

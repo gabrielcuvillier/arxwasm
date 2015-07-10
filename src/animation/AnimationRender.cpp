@@ -188,6 +188,9 @@ static void PopOneTriangleListTransparency(TextureContainer *_pTex) {
 }
 
 void PopAllTriangleList(bool clear) {
+	
+	ARX_PROFILE_FUNC();
+	
 	GRenderer->SetAlphaFunc(Renderer::CmpGreater, .5f);
 	GRenderer->SetCulling(Renderer::CullNone);
 
@@ -200,7 +203,9 @@ void PopAllTriangleList(bool clear) {
 }
 
 void PopAllTriangleListTransparency() {
-
+	
+	ARX_PROFILE_FUNC();
+	
 	GRenderer->SetFogColor(Color::none);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 	GRenderer->SetRenderState(Renderer::DepthWrite, false);
@@ -340,23 +345,17 @@ void Cedric_ApplyLightingFirstPartRefactor(Entity *io) {
 						MakePlayerAppearsFX(io);
 						AddRandomSmoke(io, 50);
 						Color3f rgb = io->_npcdata->blood_color.to<float>();
-						Sphere sp;
-						sp.origin = io->pos;
-						sp.radius = 200.f;
+						Sphere sp = Sphere(io->pos, 200.f);
+						
 						long count = 6;
-
 						while(count--) {
-							Sphere splatSphere;
-							splatSphere.origin = sp.origin;
-							splatSphere.radius = rnd() * 30.f + 30.f;
+							Sphere splatSphere = Sphere(sp.origin, rnd() * 30.f + 30.f);
 							SpawnGroundSplat(splatSphere, rgb, 1);
 							sp.origin.y -= rnd() * 150.f;
 
 							ARX_PARTICLES_Spawn_Splat(sp.origin, 200.f, io->_npcdata->blood_color);
 
-							sp.origin.x = io->pos.x + rnd() * 200.f - 100.f;
-							sp.origin.y = io->pos.y + rnd() * 20.f - 10.f;
-							sp.origin.z = io->pos.z + rnd() * 200.f - 100.f;
+							sp.origin = io->pos + Vec3f(rnd(),rnd(),rnd()) * Vec3f(200.f, 20.f,200.f) - Vec3f(100.f, 10.f, 100.f);
 							sp.radius = rnd() * 100.f + 100.f;
 						}
 
@@ -483,7 +482,9 @@ void drawTriangle(const RenderMaterial & mat, const TexturedVertex * vertices) {
 }
 
 static bool Cedric_IO_Visible(const Vec3f & pos) {
-
+	
+	ARX_PROFILE_FUNC();
+	
 	if(ACTIVEBKG) {
 		//TODO maybe readd this
 		//if(fartherThan(io->pos, ACTIVECAM->orgTrans.pos, ACTIVECAM->cdepth * 0.6f))
@@ -596,8 +597,9 @@ static bool CullFace(const EERIE_3DOBJ * eobj, const EERIE_FACE & face) {
 	return false;
 }
 
+// TODO copy-paste halo
 static void AddFixedObjectHalo(const EERIE_FACE & face, const TransformInfo & t,
-                               const Entity * io, TexturedVertex * tvList,
+                               const IO_HALO & halo, TexturedVertex * tvList,
                                const EERIE_3DOBJ * eobj) {
 	
 	float mdist=ACTIVECAM->cdepth;
@@ -621,9 +623,9 @@ static void AddFixedObjectHalo(const EERIE_FACE & face, const TransformInfo & t,
 		tot += power;
 		_ffr[o] = power;
 
-		u8 lfr = io->halo.color.r * power;
-		u8 lfg = io->halo.color.g * power;
-		u8 lfb = io->halo.color.b * power;
+		u8 lfr = halo.color.r * power;
+		u8 lfg = halo.color.g * power;
+		u8 lfb = halo.color.b * power;
 		tvList[o].color = Color(lfr, lfg, lfb, 255).toRGBA();
 	}
 
@@ -666,7 +668,7 @@ static void AddFixedObjectHalo(const EERIE_FACE & face, const TransformInfo & t,
 			vert[2] = tvList[second];
 			vert[3] = tvList[second];
 
-			float siz = ddist * (io->halo.radius * 1.5f * (std::sin(arxtime.get_frame_time() * .01f) * .1f + .7f)) * .6f;
+			float siz = ddist * (halo.radius * 1.5f * (std::sin(arxtime.get_frame_time() * .01f) * .1f + .7f)) * .6f;
 
 			Vec3f vect1;
 			vect1.x = tvList[first].p.x - tvList[third].p.x;
@@ -702,7 +704,7 @@ static void AddFixedObjectHalo(const EERIE_FACE & face, const TransformInfo & t,
 			vert[2].p.x += (vect2.x + 0.2f - rnd() * 0.1f) * siz;
 			vert[2].p.y += (vect2.y + 0.2f - rnd() * 0.1f) * siz;
 
-			if(io->halo.flags & HALO_NEGATIVE)
+			if(halo.flags & HALO_NEGATIVE)
 				vert[2].color = Color(0, 0, 0, 0).toRGBA();
 			else
 				vert[2].color = Color(0, 0, 0, 255).toRGBA();
@@ -809,13 +811,16 @@ void DrawEERIEInter_Render(EERIE_3DOBJ *eobj, const TransformInfo &t, Entity *io
 
 		// HALO HANDLING START
 		if(io && (io->halo.flags & HALO_ACTIVE)) {
-			AddFixedObjectHalo(face, t, io, tvList, eobj);
+			IO_HALO & halo = io->halo;
+			AddFixedObjectHalo(face, t, halo, tvList, eobj);
 		}
 	}
 }
 
 void DrawEERIEInter(EERIE_3DOBJ *eobj, const TransformInfo &t, Entity *io, bool forceDraw, float invisibility) {
-
+	
+	ARX_PROFILE_FUNC();
+	
 	if(!eobj)
 		return;
 
@@ -859,7 +864,7 @@ struct HaloRenderInfo {
 static void pushSlotHalo(std::vector<HaloRenderInfo> & halos, EquipmentSlot slot,
                          short selection) {
 
-	if(player.equiped[slot] != PlayerEntityHandle && ValidIONum(player.equiped[slot])) {
+	if(ValidIONum(player.equiped[slot])) {
 		Entity * tio = entities[player.equiped[slot]];
 
 		if(tio->halo.flags & HALO_ACTIVE) {
@@ -927,6 +932,7 @@ static void PrepareAnimatedObjectHalo(HaloInfo & haloInfo, const Vec3f & pos,
 	}
 }
 
+// TODO copy-paste halo
 static void AddAnimatedObjectHalo(HaloInfo & haloInfo, const unsigned short * paf,
                                   float invisibility, EERIE_3DOBJ * eobj, Entity * io,
                                   TexturedVertex * tvList) {
@@ -1220,6 +1226,11 @@ static Vec3f CalcTranslation(ANIM_USE * animuse) {
 	
 	// FRAME TRANSLATE : Gives the Virtual pos of Main Object
 	if(eanim->frames[animuse->fr].f_translate && !(animuse->flags & EA_STATICANIM)) {
+		
+		// TODO Prevent invalid memory access, should be fixed properly
+		if(animuse->fr+1 >= eanim->nb_key_frames)
+			return Vec3f_ZERO;
+		
 		EERIE_FRAME * sFrame = &eanim->frames[animuse->fr];
 		EERIE_FRAME * eFrame = &eanim->frames[animuse->fr+1];
 		// Linear interpolation of object translation (MOVE)
@@ -1263,6 +1274,9 @@ static void StoreEntityMovement(Entity * io, Vec3f & ftr, float scale) {
 
 		io->lastmove = ftr2;
 	}
+	
+	arx_assert(isallfinite(io->move));
+	arx_assert(isallfinite(io->lastmove));
 }
 
 /*!
@@ -1299,8 +1313,8 @@ static void Cedric_AnimateObject(Skeleton * obj, ANIM_USE * animlayer)
 			if(grps[j])
 				continue;
 
-			EERIE_GROUP * sGroup = &eanim->groups[j+(animuse->fr*eanim->nb_groups)];
-			EERIE_GROUP * eGroup = &eanim->groups[j+(animuse->fr*eanim->nb_groups)+eanim->nb_groups];
+			const EERIE_GROUP & sGroup = eanim->groups[j+(animuse->fr*eanim->nb_groups)];
+			const EERIE_GROUP & eGroup = eanim->groups[j+(animuse->fr*eanim->nb_groups)+eanim->nb_groups];
 
 			if(!eanim->voidgroups[j])
 				grps[j] = 1;
@@ -1310,9 +1324,9 @@ static void Cedric_AnimateObject(Skeleton * obj, ANIM_USE * animlayer)
 
 				BoneTransform temp;
 
-				temp.quat = Quat_Slerp(sGroup->quat, eGroup->quat, animuse->pour);
-				temp.trans = sGroup->translate + (eGroup->translate - sGroup->translate) * animuse->pour;
-				temp.scale = sGroup->zoom + (eGroup->zoom - sGroup->zoom) * animuse->pour;
+				temp.quat = Quat_Slerp(sGroup.quat, eGroup.quat, animuse->pour);
+				temp.trans = sGroup.translate + (eGroup.translate - sGroup.translate) * animuse->pour;
+				temp.scale = sGroup.zoom + (eGroup.zoom - sGroup.zoom) * animuse->pour;
 
 				bone.init.quat = bone.init.quat * temp.quat;
 				bone.init.trans = temp.trans + bone.transinit_global;

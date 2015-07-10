@@ -56,7 +56,7 @@ struct FLARES {
 	bool bDrawBitmap;
 };
 
-static const size_t MAX_FLARES = 300;
+static const size_t MAX_FLARES = 500;
 FLARES magicFlares[MAX_FLARES];
 
 struct FLARETC
@@ -116,39 +116,47 @@ void ARX_MAGICAL_FLARES_FirstInit() {
 	}
 }
 
-void ARX_MAGICAL_FLARES_KillAll()
-{
-	for(size_t i = 0; i < MAX_FLARES; i++) {
-		FLARES & flare = magicFlares[i];
-
-		if (flare.exist)
-		{
-			if (flare.io)
-			{
-				flare.io->flarecount--;
-			}
-
-			flare.exist=0;
-			flare.tolive=0;
-			flarenum--;
-
-			lightHandleDestroy(flare.dynlight);
-		}
+static void removeFlare(FLARES & flare) {
+	
+	if(flare.io && ValidIOAddress(flare.io)) {
+		flare.io->flarecount--;
 	}
 
+	lightHandleDestroy(flare.dynlight);
+	
+	flare.tolive = 0;
+	flare.exist = 0;
+	flarenum--;
+	
+}
+
+void ARX_MAGICAL_FLARES_KillAll() {
+	
+	for(size_t i = 0; i < MAX_FLARES; i++) {
+		FLARES & flare = magicFlares[i];
+		if(flare.exist) {
+			removeFlare(flare);
+		}
+	}
+	
 	flarenum=0;
 }
 
 void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io, bool bookDraw) {
-
+	
+	int oldest = 0;
 	size_t i;
 	for(i = 0; i < MAX_FLARES; i++) {
 		if(!magicFlares[i].exist) {
 			break;
 		}
+		if(magicFlares[i].tolive < magicFlares[oldest].tolive) {
+			oldest = i;
+		}
 	}
 	if(i >= MAX_FLARES) {
-		return;
+		removeFlare(magicFlares[oldest]);
+		i = oldest;
 	}
 
 	FLARES * fl = &magicFlares[i];
@@ -189,8 +197,8 @@ void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io, bool bookDraw
 			fl->v.p += angleToVectorXZ(io->angle.getPitch() + vx) * 100.f;
 			fl->v.p.y += std::sin(glm::radians(MAKEANGLE(io->angle.getYaw() + vy))) * 100.f - 150.f;
 		} else {
-			fl->v.p.x = float(pos.x - (g_size.width() / 2)) * 150.f / float(g_size.width());
-			fl->v.p.y = float(pos.y - (g_size.height() / 2)) * 150.f / float(g_size.width());
+			fl->v.p.x = 1.0f  * float(pos.x - (g_size.width()  / 2)) * 156.f / (640.f * g_sizeRatio.y);
+			fl->v.p.y = 0.75f * float(pos.y - (g_size.height() / 2)) * 156.f / (480.f * g_sizeRatio.y);
 			fl->v.p.z = 75.f;
 			ka = *oldcam;
 			SetActiveCamera(&ka);
@@ -210,15 +218,15 @@ void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io, bool bookDraw
 
 	switch(PIPOrgb) {
 		case 0: {
-			fl->rgb = Color3f(rnd() * (2.f/3) + .4f, rnd() * (2.f/3), rnd() * (2.f/3) + .4f);
+			fl->rgb = Color3f(.4f, 0.f, .4f) + Color3f(2.f/3, 2.f/3, 2.f/3) * Color3f(rnd(), rnd(), rnd());
 			break;
 		}
 		case 1: {
-			fl->rgb = Color3f(rnd() * .625f + .5f, rnd() * .625f + .5f, rnd() * .55f);
+			fl->rgb = Color3f(.5f, .5f, 0.f) + Color3f(.625f, .625f, .55f) * Color3f(rnd(), rnd(), rnd());
 			break;
 		}
 		case 2: {
-			fl->rgb = Color3f(rnd() * (2.f/3) + .4f, rnd() * .55f, rnd() * .55f);
+			fl->rgb = Color3f(.4f, 0.f, 0.f) + Color3f(2.f/3, .55f, .55f) * Color3f(rnd(), rnd(), rnd());
 			break;
 		}
 	}
@@ -303,69 +311,45 @@ void FlareLine(const Vec2s & pos0, const Vec2s & pos1, Entity * io)
 	Vec2f ad = glm::abs(d);
 	
 	if(ad.x > ad.y) {
+		
 		if(tmpPos0.x > tmpPos1.x) {
-			long z = tmpPos1.x;
-			tmpPos1.x = tmpPos0.x;
-			tmpPos0.x = z;
-			z = tmpPos1.y;
-			tmpPos0.y = z;
+			std::swap(tmpPos0, tmpPos1);
 		}
-
-		if(tmpPos0.x < tmpPos1.x) {
-			float m = d.y / d.x;
-			long i = tmpPos0.x;
-
-			while(i < tmpPos1.x) {
-				long z = rnd() * FLARELINERND;
-				z += FLARELINESTEP;
-				i += z;
-				tmpPos0.y += m * z;
-				AddLFlare(Vec2s(i, tmpPos0.y), io);
+		
+		float m = d.y / d.x;
+		long i = tmpPos0.x;
+		
+		while(i < tmpPos1.x) {
+			long z = rnd() * FLARELINERND;
+			z += FLARELINESTEP;
+			if(!io) {
+				z *= g_sizeRatio.y;
 			}
-		} else {
-			float m = d.y / d.x;
-			long i = tmpPos1.x;
-
-			while(i < tmpPos0.x) {
-				long z = rnd() * FLARELINERND;
-				z += FLARELINESTEP;
-				i += z;
-				tmpPos0.y += m * z;
-				AddLFlare(Vec2s(i, tmpPos0.y), io);
-			}
+			i += z;
+			tmpPos0.y += m * z;
+			AddLFlare(Vec2s(i, tmpPos0.y), io);
 		}
+		
 	} else {
+		
 		if(tmpPos0.y > tmpPos1.y) {
-			long z = tmpPos1.x;
-			tmpPos0.x = z;
-			z = tmpPos1.y;
-			tmpPos1.y = tmpPos0.y;
-			tmpPos0.y = z;
+			std::swap(tmpPos0, tmpPos1);
 		}
-
-		if(tmpPos0.y < tmpPos1.y) {
-			float m = d.x / d.y;
-			long i = tmpPos0.y;
-
-			while(i < tmpPos1.y) {
-				long z = rnd() * FLARELINERND;
-				z += FLARELINESTEP;
-				i += z;
-				tmpPos0.x += m * z;
-				AddLFlare(Vec2s(tmpPos0.x, i), io);
+		
+		float m = d.x / d.y;
+		long i = tmpPos0.y;
+		
+		while(i < tmpPos1.y) {
+			long z = rnd() * FLARELINERND;
+			z += FLARELINESTEP;
+			if(!io) {
+				z *= g_sizeRatio.y;
 			}
-		} else {
-			float m = d.x / d.y;
-			long i = tmpPos1.y;
-
-			while(i < tmpPos0.y) {
-				long z = rnd() * FLARELINERND;
-				z += FLARELINESTEP;
-				i += z;
-				tmpPos0.x += m * z;
-				AddLFlare(Vec2s(tmpPos0.x, i), io);
-			}
+			i += z;
+			tmpPos0.x += m * z;
+			AddLFlare(Vec2s(tmpPos0.x, i), io);
 		}
+		
 	}
 }
 
@@ -432,16 +416,7 @@ void ARX_MAGICAL_FLARES_Update() {
 			}
 
 			if(flare.tolive <= 0.f || flare.pos.y < -64.f || s < 3.f) {
-
-				if(flare.io && ValidIOAddress(flare.io)) {
-					flare.io->flarecount--;
-				}
-
-				lightHandleDestroy(flare.dynlight);
-				
-				flare.exist = 0;
-				flarenum--;
-
+				removeFlare(flare);
 				continue;
 			}
 
@@ -464,7 +439,7 @@ void ARX_MAGICAL_FLARES_Update() {
 			mat.setDepthTest(flare.io != NULL);
 			
 			if(flare.bDrawBitmap) {
-				s *= 2.f;
+				s *= 2.f * minSizeRatio();
 				EERIEAddBitmap(mat, flare.v.p, s, s, surf, Color::fromRGBA(flare.tv.color));
 			} else {
 				EERIEAddSprite(mat, flare.v.p, s * 0.025f + 1.f,

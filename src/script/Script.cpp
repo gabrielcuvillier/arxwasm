@@ -229,6 +229,8 @@ void ARX_SCRIPT_ResetAll(bool init) {
 
 void ARX_SCRIPT_AllowInterScriptExec() {
 	
+	ARX_PROFILE_FUNC();
+	
 	// FIXME static local variable
 	static long ppos = 0;
 	
@@ -910,7 +912,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 						return TYPE_LONG;
 					}
 					for(long i = 0; i < MAX_EQUIPED; i++) {
-						if(player.equiped[i] == t) {
+						if(ValidIONum(player.equiped[i]) && player.equiped[i] == t) {
 							*lcontent = 2;
 							return TYPE_LONG;
 						}
@@ -1500,6 +1502,8 @@ void ARX_SCRIPT_EventStackClearForIo(Entity * io) {
 }
 
 void ARX_SCRIPT_EventStackExecute(size_t limit) {
+	
+	ARX_PROFILE_FUNC();
 	
 	size_t count = 0;
 	

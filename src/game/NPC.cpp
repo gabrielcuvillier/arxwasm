@@ -263,8 +263,6 @@ static void ARX_NPC_CreateExRotateData(Entity * io) {
 		io->_npcdata->ex_rotate->group_rotate[n] = Anglef::ZERO;
 	}
 	
-	io->_npcdata->ex_rotate->flags = 0;
-	
 	io->_npcdata->look_around_inc = 0.f;
 }
 
@@ -1129,6 +1127,9 @@ void FaceTarget2(Entity * io)
 		temp = io->lastmove;
 		io->lastmove = VRotateY(temp, rot);
 	}
+	
+	arx_assert(isallfinite(io->move));
+	arx_assert(isallfinite(io->lastmove));
 	
 	// Needed angle to turn toward target
 	io->angle.setPitch(MAKEANGLE(io->angle.getPitch() - rot)); // -tt
@@ -2695,9 +2696,8 @@ Entity * ARX_NPC_GetFirstNPCInSight(Entity * ioo)
 
 			if(grnd_color > 0)  {
 				Vec3f ppos;
-				EERIEPOLY * epp = NULL;
-
-				if(IO_Visible(orgn, dest, epp, &ppos)) {
+				
+				if(IO_Visible(orgn, dest, &ppos)) {
 					if(found_dist > dist_io) {
 						found_io = io;
 						found_dist = dist_io;
@@ -2793,7 +2793,7 @@ void CheckNPCEx(Entity * io) {
 				   || ds < square(200.f)) {
 					Vec3f ppos;
 					// Check for Geometrical Visibility
-					if(IO_Visible(orgn, dest, NULL, &ppos)
+					if(IO_Visible(orgn, dest, &ppos)
 					   || closerThan(ppos, dest, 25.f)) {
 						Visible = 1;
 					}
@@ -2836,7 +2836,7 @@ void ARX_NPC_NeedStepSound(Entity * io, const Vec3f & pos, const float volume, c
 		step_material = &io->stepmaterial;
 	}
 	
-	if(io == entities.player() && player.equiped[EQUIP_SLOT_LEGGINGS] > 0) {
+	if(io == entities.player()) {
 		if(ValidIONum(player.equiped[EQUIP_SLOT_LEGGINGS])) {
 			Entity * ioo = entities[player.equiped[EQUIP_SLOT_LEGGINGS]];
 			if(!ioo->stepmaterial.empty()) {
@@ -3028,7 +3028,7 @@ void createFireParticles(Vec3f &pos, const int particlesToCreate, const int part
 		}
 
 		pd->ov = pos;
-		pd->move = Vec3f(2.f - 4.f * rnd(), 2.f - 22.f * rnd(), 2.f - 4.f * rnd());
+		pd->move = Vec3f(2.f, 2.f, 2.f) - Vec3f(4.f, 22.f, 4.f) * Vec3f(rnd(), rnd(), rnd());
 		pd->siz = 7.f;
 		pd->tolive = Random::get(500, 1500);
 		pd->special = FIRE_TO_SMOKE | ROTATING | MODULATE_ROTATION;
@@ -3068,8 +3068,7 @@ void ManageIgnition_2(Entity * io) {
 			light->intensity = std::max(io->ignition * ( 1.0f / 10 ), 1.f);
 			light->fallstart = std::max(io->ignition * 10.f, 100.f);
 			light->fallend   = std::max(io->ignition * 25.f, 240.f);
-			float v = std::max((io->ignition * ( 1.0f / 10 )), 0.5f);
-			v = std::min(v, 1.f);
+			float v = glm::clamp(io->ignition * 0.1f, 0.5f, 1.f);
 			light->rgb = (Color3f(1.f, 0.8f, 0.6f) - Color3f(rnd(), rnd(), rnd()) * Color3f(0.2f, 0.2f, 0.2f)) * v;
 			light->pos = position + Vec3f(0.f, -30.f, 0.f);
 			light->ex_flaresize = 40.f; //16.f;
@@ -3084,7 +3083,7 @@ void ManageIgnition_2(Entity * io) {
 		}
 
 		if(rnd() > 0.9f)
-			CheckForIgnition(position, io->ignition, 1);
+			CheckForIgnition(Sphere(position, io->ignition), 1);
 	} else {
 		lightHandleDestroy(io->ignit_light);
 		
