@@ -1128,9 +1128,6 @@ void FaceTarget2(Entity * io)
 		io->lastmove = VRotateY(temp, rot);
 	}
 	
-	arx_assert(isallfinite(io->move));
-	arx_assert(isallfinite(io->lastmove));
-	
 	// Needed angle to turn toward target
 	io->angle.setPitch(MAKEANGLE(io->angle.getPitch() - rot)); // -tt
 }
@@ -3028,7 +3025,7 @@ void createFireParticles(Vec3f &pos, const int particlesToCreate, const int part
 		}
 
 		pd->ov = pos;
-		pd->move = Vec3f(2.f, 2.f, 2.f) - Vec3f(4.f, 22.f, 4.f) * Vec3f(rnd(), rnd(), rnd());
+		pd->move = Vec3f(2.f, 2.f, 2.f) - Vec3f(4.f, 22.f, 4.f) * randomVec3f();
 		pd->siz = 7.f;
 		pd->tolive = Random::get(500, 1500);
 		pd->special = FIRE_TO_SMOKE | ROTATING | MODULATE_ROTATION;
@@ -3069,7 +3066,7 @@ void ManageIgnition_2(Entity * io) {
 			light->fallstart = std::max(io->ignition * 10.f, 100.f);
 			light->fallend   = std::max(io->ignition * 25.f, 240.f);
 			float v = glm::clamp(io->ignition * 0.1f, 0.5f, 1.f);
-			light->rgb = (Color3f(1.f, 0.8f, 0.6f) - Color3f(rnd(), rnd(), rnd()) * Color3f(0.2f, 0.2f, 0.2f)) * v;
+			light->rgb = (Color3f(1.f, 0.8f, 0.6f) - randomColor3f() * Color3f(0.2f, 0.2f, 0.2f)) * v;
 			light->pos = position + Vec3f(0.f, -30.f, 0.f);
 			light->ex_flaresize = 40.f; //16.f;
 			light->extras |= EXTRAS_FLARE;

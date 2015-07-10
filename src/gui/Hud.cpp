@@ -923,10 +923,19 @@ public:
 		{
 		static float flDelay=0;
 		
+		// Check for backpack Icon
+		if(m_rect.contains(Vec2f(DANAEMouse))) {
+			if(eeMouseUp1() && CanBePutInInventory(DRAGINTER)) {
+				ARX_SOUND_PlayInterface(SND_INVSTD);
+				Set_DragInter(NULL);
+			}
+		}
+		
 		if(m_rect.contains(Vec2f(DANAEMouse)) || flDelay) {
 			eMouseState = MOUSE_IN_INVENTORY_ICON;
 			SpecialCursor = CURSOR_INTERACTION_ON;
-
+			
+			
 			if(EERIEMouseButton & 4) {
 				ARX_SOUND_PlayInterface(SND_BACKPACK, 0.9F + 0.2F * rnd());
 
@@ -1013,10 +1022,9 @@ public:
 		m_size = Vec2f(32, 32);
 	}
 	
-	void update() {
-		Vec2f pos(static_cast<float>(-lSLID_VALUE), g_size.height() - (78 + 32));
+	void updateRect(const Rectf & parent) {
 		
-		m_rect = Rectf(pos, m_size.x, m_size.y);
+		m_rect = createChild(parent, Anchor_TopLeft, m_size * m_scale, Anchor_BottomLeft);
 	}
 	
 	void updateInput() {
@@ -1295,7 +1303,7 @@ void purseIconGuiRequestHalo() {
 }
 
 
-class CurrentTorchIconGui {
+class CurrentTorchIconGui : public HudItem {
 private:
 	bool m_isActive;
 	Rectf m_rect;
@@ -1311,12 +1319,15 @@ public:
 		return !(player.Interface & INTER_COMBATMODE) && player.torch;
 	}
 	
-	void updateRect() {
+	void updateRect(const Rectf & parent) {
 		
-		float px = INTERFACE_RATIO(std::max(InventoryX + 110.f, 10.f));
-		float py = g_size.height() - INTERFACE_RATIO(158.f + 32.f);
+		float secondaryInventoryX = InventoryX + 110.f;
 		
-		m_rect = Rectf(Vec2f(px, py), m_size.x, m_size.y);
+		m_rect = createChild(parent, Anchor_TopLeft, m_size * m_scale, Anchor_BottomLeft);
+		
+		if(m_rect.left < secondaryInventoryX) {
+			m_rect.move(secondaryInventoryX, 0.f);
+		}
 	}
 	
 	void updateInput() {
@@ -1369,26 +1380,26 @@ public:
 			return;
 		}
 		
-		createFireParticle(m_rect.topLeft());
+		createFireParticle();
 	}
 	
-	void createFireParticle(Vec2f p) {
+	void createFireParticle() {
 		
 		PARTICLE_DEF * pd = createParticle();
 		if(!pd) {
 			return;
 		}
 		
+		Vec2f pos = m_rect.topLeft() + Vec2f(12.f - rnd() * 3.f, rnd() * 6.f) * m_scale;
+		
 		pd->special = FIRE_TO_SMOKE;
-		pd->ov = Vec3f(p.x + INTERFACE_RATIO(12.f - rnd() * 3.f),
-		               p.y + INTERFACE_RATIO(rnd() * 6.f), 0.0000001f);
-		pd->move = Vec3f(INTERFACE_RATIO(1.5f - rnd() * 3.f),
-		                 -INTERFACE_RATIO(5.f + rnd() * 1.f), 0.f);
+		pd->ov = Vec3f(pos, 0.0000001f);
+		pd->move = Vec3f((1.5f - rnd() * 3.f), -(5.f + rnd() * 1.f), 0.f) * m_scale;
 		pd->scale = Vec3f(1.8f, 1.8f, 1.f);
 		pd->tolive = Random::get(500, 900);
 		pd->tc = fire2;
 		pd->rgb = Color3f(1.f, .6f, .5f);
-		pd->siz = INTERFACE_RATIO(14.f);
+		pd->siz = 14.f * m_scale;
 		pd->is2D = true;
 	}
 	
@@ -1633,13 +1644,9 @@ public:
 		}
 	}
 	
-	void draw() {
-		
-		EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, m_color, (1.f - m_amount));
-		EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, Color::white);
-		
+	void updateInput(const Vec2f & mousePos) {
 		if(!(player.Interface & INTER_COMBATMODE)) {
-			if(m_rect.contains(Vec2f(DANAEMouse))) {
+			if(m_rect.contains(mousePos)) {
 				if(eeMouseDown1()) {
 					std::stringstream ss;
 					ss << checked_range_cast<int>(player.lifePool.current);
@@ -1647,6 +1654,12 @@ public:
 				}
 			}
 		}
+	}
+	
+	void draw() {
+		
+		EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, m_color, (1.f - m_amount));
+		EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, Color::white);
 	}
 };
 HealthGauge healthGauge;
@@ -1682,13 +1695,9 @@ public:
 		m_amount = player.manaPool.current / player.Full_maxmana;
 	}
 	
-	void draw() {
-		
-		EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, Color::white, (1.f - m_amount));
-		EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, Color::white);
-		
+	void updateInput(const Vec2f & mousePos) {
 		if(!(player.Interface & INTER_COMBATMODE)) {
-			if(m_rect.contains(Vec2f(DANAEMouse))) {
+			if(m_rect.contains(mousePos)) {
 				if(eeMouseDown1()) {
 					std::stringstream ss;
 					ss << checked_range_cast<int>(player.manaPool.current);
@@ -1696,6 +1705,12 @@ public:
 				}
 			}
 		}
+	}
+	
+	void draw() {
+		
+		EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, Color::white, (1.f - m_amount));
+		EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, Color::white);
 	}
 };
 ManaGauge manaGauge;
@@ -2296,6 +2311,8 @@ void hudElementsInit() {
 void setHudScale(float scale) {
 	hitStrengthGauge.setScale(scale);
 	healthGauge.setScale(scale);
+	stealIconGui.setScale(scale);
+	currentTorchIconGui.setScale(scale);
 	
 	manaGauge.setScale(scale);
 	backpackIconGui.setScale(scale);
@@ -2316,6 +2333,8 @@ void setHudScale(float scale) {
 }
 
 void ArxGame::drawAllInterface() {
+	
+	const Vec2f mousePos = Vec2f(DANAEMouse);
 	
 	Rectf hudSlider = Rectf(g_size);
 	hudSlider.left  -= lSLID_VALUE;
@@ -2375,12 +2394,17 @@ void ArxGame::drawAllInterface() {
 		SpecialCursor=CURSOR_INTERACTION_ON;
 	}
 	
+	healthGauge.updateRect(hudSlider);
+	healthGauge.updateInput(mousePos);
+	healthGauge.update();
+	
+	stealIconGui.updateRect(healthGauge.rect());
+	
 	damagedEquipmentGui.draw();
 	
 	if(!(player.Interface & INTER_COMBATMODE) && (player.Interface & INTER_MINIBACK)) {
 		
 		if(player.Interface & INTER_STEAL) {
-			stealIconGui.update();
 			stealIconGui.draw();			
 		}
 		// Pick All/Close Secondary Inventory
@@ -2397,6 +2421,7 @@ void ArxGame::drawAllInterface() {
 		}
 	}
 	
+	currentTorchIconGui.updateRect(stealIconGui.rect());
 	currentTorchIconGui.update();
 	currentTorchIconGui.draw();
 	
@@ -2412,7 +2437,7 @@ void ArxGame::drawAllInterface() {
 		
 		if((player.Interface & INTER_MAP) && !(player.Interface & INTER_COMBATMODE)) {
 			if(Book_Mode == BOOKMODE_SPELLS) {
-				gui::ARX_INTERFACE_ManageOpenedBook_Finish();
+				gui::ARX_INTERFACE_ManageOpenedBook_Finish(mousePos);
 				ARX_INTERFACE_ManageOpenedBook_SpellsDraw();
 			}
 		}
@@ -2422,12 +2447,12 @@ void ArxGame::drawAllInterface() {
 		memorizedRunesHud.draw();
 	}
 	
-	healthGauge.updateRect(hudSlider);
-	healthGauge.update();
+
 	
 	
 	if(player.Interface & INTER_LIFE_MANA) {
 		manaGauge.update(hudSlider);
+		manaGauge.updateInput(mousePos);
 		manaGauge.draw();
 		
 		healthGauge.draw();
@@ -2482,7 +2507,7 @@ void ArxGame::drawAllInterface() {
 	
 	precastSpellsGui.draw();
 	activeSpellsGui.update(hudSlider);
-	activeSpellsGui.updateInput(Vec2f(DANAEMouse));
+	activeSpellsGui.updateInput(mousePos);
 	activeSpellsGui.draw();
 }
 
@@ -2492,7 +2517,6 @@ void hudUpdateInput() {
 		if(!(player.Interface & INTER_COMBATMODE)) {
 			if(!TRUE_PLAYER_MOUSELOOK_ON) {
 				
-				currentTorchIconGui.updateRect();
 				currentTorchIconGui.updateInput();
 				levelUpIconGui.updateInput();
 				purseIconGui.updateInput();

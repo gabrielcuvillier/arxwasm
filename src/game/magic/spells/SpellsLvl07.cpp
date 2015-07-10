@@ -200,7 +200,7 @@ void FlyingEyeSpell::Update(float timeDelta)
 				}
 				
 				pd->ov = eobj->vertexlist3[id].v + randomVec(-1.f, 1.f);
-				pd->move = Vec3f(0.1f, 0.f, 0.1f) + Vec3f(-0.2f, -2.2f, -0.2f) * Vec3f(rnd(), rnd(), rnd());
+				pd->move = Vec3f(0.1f, 0.f, 0.1f) + Vec3f(-0.2f, -2.2f, -0.2f) * randomVec3f();
 				pd->siz = 5.f;
 				pd->tolive = Random::get(1500, 3500);
 				pd->scale = Vec3f(0.2f);
@@ -209,7 +209,7 @@ void FlyingEyeSpell::Update(float timeDelta)
 				pd->sourceionum = PlayerEntityHandle;
 				pd->source = &eobj->vertexlist3[id].v;
 				pd->fparam = 0.0000001f;
-				pd->rgb = Color3f(.7f, .3f, 1.f) + Color3f(-.1f, -.1f, -.1f) * Color3f(rnd(), rnd(), rnd());
+				pd->rgb = Color3f(.7f, .3f, 1.f) + Color3f(-.1f, -.1f, -.1f) * randomColor3f();
 			}
 		}
 	}
@@ -397,7 +397,7 @@ void FireFieldSpell::Update(float timeDelta) {
 			float ts = std::sin(t);
 			float tc = std::cos(t);
 			pd->ov = m_pos + Vec3f(120.f * ts, 15.f * ts, 120.f * tc) * randomVec();
-			pd->move = Vec3f(2.f, 1.f, 2.f) + Vec3f(-4.f, -8.f, -4.f) * Vec3f(rnd(), rnd(), rnd());
+			pd->move = Vec3f(2.f, 1.f, 2.f) + Vec3f(-4.f, -8.f, -4.f) * randomVec3f();
 			pd->siz = 7.f;
 			pd->tolive = Random::get(500, 1500);
 			pd->tc = fire2;
@@ -487,7 +487,7 @@ void IceFieldSpell::Launch()
 			tType[i] = 1;
 		
 		tSize[i] = Vec3f_ZERO;
-		tSizeMax[i] = Vec3f(rnd(), rnd(), rnd()) + Vec3f(0.f, 0.2f, 0.f);
+		tSizeMax[i] = randomVec3f() + Vec3f(0.f, 0.2f, 0.f);
 		
 		Vec3f minPos;
 		if(tType[i] == 0) {
@@ -797,9 +797,9 @@ void ConfuseSpell::Update(float timeDelta) {
 		
 		Color3f baseColor = Color3f(0.4f, 0.2f, 0.4f);
 		Color3f randomFactor = Color3f(0.4f, 0.6f, 0.4f);
-		Color3f c = baseColor + Color3f(rnd(), rnd(), rnd()) * randomFactor;
+		Color3f c = baseColor + randomColor3f() * randomFactor;
 		while(glm::abs(c.r - c.g) > 0.3f && glm::abs(c.g - c.b) > 0.3f) {
-			c = baseColor + Color3f(rnd(), rnd(), rnd()) * randomFactor;
+			c = baseColor + randomColor3f() * randomFactor;
 		}
 		pd->rgb = c * Color3f(0.8f, 0.8f, 0.8f);
 	}
@@ -813,7 +813,7 @@ void ConfuseSpell::Update(float timeDelta) {
 		light->intensity = 1.3f;
 		light->fallstart = 180.f;
 		light->fallend   = 420.f;
-		light->rgb = Color3f(0.3f, 0.3f, 0.5f) + Color3f(0.2f, 0.f, 0.2f) * Color3f(rnd(), rnd(), rnd());
+		light->rgb = Color3f(0.3f, 0.3f, 0.5f) + Color3f(0.2f, 0.f, 0.2f) * randomColor3f();
 		light->pos = eCurPos;
 		light->duration = 200;
 		light->extras = 0;

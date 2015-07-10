@@ -51,7 +51,6 @@ struct FLARES {
 	Color3f rgb;
 	float size;
 	LightHandle dynlight;
-	long move;
 	Entity * io;
 	bool bDrawBitmap;
 };
@@ -99,6 +98,10 @@ void MagicFlareReleaseEntity(Entity * io) {
 }
 
 long MagicFlareCountNonFlagged() {
+	
+	if(!flarenum)
+		return 0;
+	
 	long count = 0;
 	for(size_t i = 0; i < MAX_FLARES; i++) {
 		if(magicFlares[i].exist && magicFlares[i].flags == 0) {
@@ -140,6 +143,15 @@ void ARX_MAGICAL_FLARES_KillAll() {
 	}
 	
 	flarenum=0;
+}
+
+short PIPOrgb = 0;
+
+void MagicFlareChangeColor() {
+	PIPOrgb++;
+
+	if(PIPOrgb > 2)
+		PIPOrgb = 0;
 }
 
 void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io, bool bookDraw) {
@@ -218,15 +230,15 @@ void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io, bool bookDraw
 
 	switch(PIPOrgb) {
 		case 0: {
-			fl->rgb = Color3f(.4f, 0.f, .4f) + Color3f(2.f/3, 2.f/3, 2.f/3) * Color3f(rnd(), rnd(), rnd());
+			fl->rgb = Color3f(.4f, 0.f, .4f) + Color3f(2.f/3, 2.f/3, 2.f/3) * randomColor3f();
 			break;
 		}
 		case 1: {
-			fl->rgb = Color3f(.5f, .5f, 0.f) + Color3f(.625f, .625f, .55f) * Color3f(rnd(), rnd(), rnd());
+			fl->rgb = Color3f(.5f, .5f, 0.f) + Color3f(.625f, .625f, .55f) * randomColor3f();
 			break;
 		}
 		case 2: {
-			fl->rgb = Color3f(.4f, 0.f, 0.f) + Color3f(2.f/3, .55f, .55f) * Color3f(rnd(), rnd(), rnd());
+			fl->rgb = Color3f(.4f, 0.f, 0.f) + Color3f(2.f/3, .55f, .55f) * randomColor3f();
 			break;
 		}
 	}
@@ -253,7 +265,6 @@ void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io, bool bookDraw
 	}
 
 	fl->dynlight = LightHandle::Invalid;
-	fl->move = OPIPOrgb;
 
 	for(long kk = 0; kk < 3; kk++) {
 

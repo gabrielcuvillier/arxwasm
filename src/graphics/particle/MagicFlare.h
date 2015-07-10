@@ -23,8 +23,6 @@
 #include "game/Entity.h"
 #include "game/Camera.h"
 
-extern long flarenum;
-
 void MagicFlareLoadTextures();
 void MagicFlareSetCamera(EERIE_CAMERA * camera);
 
@@ -33,6 +31,7 @@ long MagicFlareCountNonFlagged();
 
 void ARX_MAGICAL_FLARES_FirstInit();
 void ARX_MAGICAL_FLARES_KillAll();
+void MagicFlareChangeColor();
 void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io = NULL, bool bookDraw = false);
 void FlareLine(const Vec2s &pos0, const Vec2s &pos1, Entity * io = NULL);
 void ARX_MAGICAL_FLARES_Update();

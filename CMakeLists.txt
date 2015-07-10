@@ -100,7 +100,9 @@ if(CMAKE_VERSION VERSION_LESS 2.8.5)
 	    STRING "program executables (libexec) (relative to prefix).")
 	set(CMAKE_INSTALL_MANDIR "${CMAKE_INSTALL_DATAROOTDIR}/man" CACHE
 	    STRING "man documentation (DATAROOTDIR/man) (relative to prefix).")
-	foreach(dir BINDIR LIBDIR LIBEXECDIR DATAROOTDIR MANDIR)
+	set(CMAKE_INSTALL_INCLUDEDIR "include" CACHE
+	    STRING "C header files (include) (relative to prefix).")
+	foreach(dir BINDIR LIBDIR LIBEXECDIR DATAROOTDIR MANDIR INCLUDEDIR)
 		if(NOT IS_ABSOLUTE ${CMAKE_INSTALL_${dir}})
 			set(CMAKE_INSTALL_FULL_${dir} "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_${dir}}")
 		else()
@@ -112,6 +114,7 @@ if(CMAKE_VERSION VERSION_LESS 2.8.5)
 		CMAKE_INSTALL_BINDIR
 		CMAKE_INSTALL_LIBEXECDIR
 		CMAKE_INSTALL_MANDIR
+		CMAKE_INSTALL_INCLUDEDIR
 	)
 else()
 	include(GNUInstallDirs)
@@ -127,7 +130,7 @@ set(SCRIPTDIR "${CMAKE_INSTALL_BINDIR}" CACHE
 set(INSTALL_DATADIR "${CMAKE_INSTALL_DATAROOTDIR}/games/arx" CACHE
     STRING "Install location for Arx Libertatis data files (relative to prefix).")
 set(RUNTIME_LIBEXECDIR "${CMAKE_INSTALL_FULL_LIBEXECDIR}" CACHE
-    STRING "Runtime search location for arxcrashreporter, relative to arx binary.")
+    STRING "Runtime search locations for helpers, relative to the game executable.")
 mark_as_advanced(
 	ICONDIR
 	APPDIR
@@ -176,6 +179,7 @@ else()
 		CACHE STRING "Executable locations that should not be used as a data dir"
 	)
 endif()
+set(RUNTIME_DATADIR "." CACHE STRING "Data dir paths relative to the executable")
 mark_as_advanced(
 	DATA_DIR
 	DATA_DIR_PREFIXES
@@ -184,6 +188,7 @@ mark_as_advanced(
 	CONFIG_DIR
 	CONFIG_DIR_PREFIXES
 	IGNORE_EXE_DIR
+	RUNTIME_DATADIR
 )
 
 
@@ -234,7 +239,15 @@ endif()
 if(WIN32)
 	# Ensure we aren't using functionalities not found under Window XP SP1
 	add_definitions(-D_WIN32_WINNT=0x0502)
-	if(NOT MSVC)
+	if(MSVC)
+		if(CMAKE_LIBRARY_ARCHITECTURE STREQUAL "x64")
+			set(subsystem_xp "5.02")
+		else()
+			set(subsystem_xp "5.01")
+		endif()
+		set(CMAKE_CREATE_WIN32_EXE "/subsystem:windows,${subsystem_xp}")
+		set(CMAKE_CREATE_CONSOLE_EXE "/subsystem:console,${subsystem_xp}")
+	else()
 		# We need to define WINVER for MinGW when requiring anything newer than Win95/WinNT
 		add_definitions(-DWINVER=0x0500) # Require at least Windows 2000
 		add_definitions(-D_WIN32_IE=0x0500) # Required for "SHGFP_TYPE_CURRENT"
@@ -1450,6 +1463,7 @@ if(BUILD_IO_LIBRARY)
 	set(ArxIO_LIBRARIES ${BASE_LIBRARIES} ${ZLIB_LIBRARIES})
 	
 	add_library_shared(ArxIO "${ArxIO_SOURCES}" "${ArxIO_LIBRARIES}")
+	set_binary_public_headers(ArxIO src/lib/ArxIO.h)
 	
 endif()
 

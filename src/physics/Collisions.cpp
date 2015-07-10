@@ -350,7 +350,7 @@ void PushIO_ON_Top(Entity * ioo, float ydec) {
 							if(io == entities.player()) {
 								if(ydec <= 0) {
 									player.pos.y += ydec;
-									moveto.y += ydec;
+									g_moveto.y += ydec;
 									Cylinder cyl = player.baseCylinder();
 									cyl.origin.y += ydec;
 									float vv = CheckAnythingInCylinder(cyl, entities.player(), 0);
@@ -362,7 +362,7 @@ void PushIO_ON_Top(Entity * ioo, float ydec) {
 									cyl.origin.y += ydec;
 									if(CheckAnythingInCylinder(cyl, entities.player(), 0) >= 0) {
 										player.pos.y += ydec;
-										moveto.y += ydec;
+										g_moveto.y += ydec;
 									}
 								}
 							} else {
@@ -476,27 +476,21 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 	
 	NPC_IN_CYLINDER = 0;
 	
-	long rad = (cyl.radius + 100) * ACTIVEBKG->Xmul;
-
-	long px = cyl.origin.x*ACTIVEBKG->Xmul;
-	long pz = cyl.origin.z*ACTIVEBKG->Zmul;
-
-	if(px > ACTIVEBKG->Xsize-2-rad)
-		return 0.f;
-
-	if(px < 1+rad)
-		return 0.f;
+	float anything = 999999.f;
 	
-	if(pz > ACTIVEBKG->Zsize-2-rad)
-		return 0.f;
-
-	if(pz < 1+rad)
-		return 0.f;
-
-	float anything = 999999.f; 
+	// TODO copy-paste background tiles
+	int tilex = cyl.origin.x * ACTIVEBKG->Xmul;
+	int tilez = cyl.origin.z * ACTIVEBKG->Zmul;
 	
-	for(short z = pz - rad; z <= pz + rad; z++)
-	for(short x = px - rad; x <= px + rad; x++) {
+	int radius = (cyl.radius + 100) * ACTIVEBKG->Xmul;
+	
+	short minx = std::max(tilex - radius, 0);
+	short maxx = std::min(tilex + radius, ACTIVEBKG->Xsize - 1);
+	short minz = std::max(tilez - radius, 0);
+	short maxz = std::min(tilez + radius, ACTIVEBKG->Zsize - 1);
+	
+	for(short z = minz; z <= maxz; z++)
+	for(short x = minx; x <= maxx; x++) {
 		float nearest = 99999999.f;
 
 		for(long num = 0; num < 4; num++) {
@@ -1677,9 +1671,6 @@ bool IO_Visible(const Vec3f & orgn, const Vec3f & dest, Vec3f * hit)
 	}
 	
 	if(!found_ep)
-		return true;
-
-	if(found_ep == NULL)
 		return true;
 	
 	*hit = found_hit;
