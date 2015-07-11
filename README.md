@@ -9,13 +9,13 @@ This is an experimental port of Arx Libertatis project to Portable Native Client
 
 ## Contents
 
-* [Project Status](#Project Status)
-* [How To Run](#How To Run)
-* [How To Build](#How To Build)
-* [Technical Details](#Technical Details)
-* [FAQ](#FAQ)
-* [Credits](#Credits)
-* [Contact](#Contact)
+* [Project Status](#project-status)
+* [How To Run](#how-to-run)
+* [How To Build](#how-to-build)
+* [Technical Details](#technical-details)
+* [FAQ](#faq)
+* [Credits](#credits)
+* [Contact](#contact)
 
 ## Project Status
 
