@@ -76,10 +76,10 @@ struct EERIE_BKG_INFO
 	{}
 };
 
-static const short MAX_BKGX = 160;
-static const short MAX_BKGZ = 160;
-static const short BKG_SIZX = 100;
-static const short BKG_SIZZ = 100;
+#define MAX_BKGX 160
+#define MAX_BKGZ 160
+#define BKG_SIZX 100
+#define BKG_SIZZ 100
 
 struct ANCHOR_DATA;
 
@@ -97,13 +97,6 @@ struct EERIE_BACKGROUND
 	long		  nbanchors;
 	ANCHOR_DATA * anchors;
 	char		name[256];
-  
-#ifdef __native_client__
-  // On Native Client, prevent default assignment operator to be called, as it lead to random crashes 
-  // See ArxGame::InitGame() for some details. 
-  private:
-    EERIE_BACKGROUND & operator=(EERIE_BACKGROUND const &);
-#endif
 };
 
 extern long EERIEDrawnPolys;
