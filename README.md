@@ -5,7 +5,7 @@
              |   __(PNaCl port)____|__
               \_/____________________/
 
-This is an experimental port of Arx Libertatis project to Portable Native Client architecture and Pepper API (PNaCl / PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
+This is an experimental port of Arx Libertatis project to Portable Native Client architecture (PNaCl) and Pepper API (PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
 
 ## Contents
 
@@ -23,25 +23,28 @@ This is an experimental port of Arx Libertatis project to Portable Native Client
 
 The game runs smoothly in Chrome browser, embedded as a PNaCl module in a HTML page. It can be loaded directly from the Web, by accessing an URL in the browser. There is no need to install a Chrome App, or use the Chrome Web Store.
 
-Almost everything works flawlessly (game logic, menus, rendering, audio, save/load, etc..), with one notable exception in the input handling backend: the 'mouselook' functionality does not work correctly. This makes navigation in the game quite difficult. As a workaround, keyboard navigation may be used, but this is not practical for real gameplay.
+Almost everything works flawlessly: game logic, rendering, menus, audio, save/load, etc. However, there is one notable exception in the input handling backend: the 'mouselook' functionality does not work correctly. This makes navigation in the game quite difficult. Keyboard navigation may still be used as a workaround, but this is not practical for real gameplay.
 
-Hence, this port should be considered as an almost-working experiment. See section 'Technical Details / Limitations' for more information on the input handling backend.
+Hence, this port should be considered as an "almost-working" experiment. See section 'Technical Details / Limitations' for more information on the input handling backend.
 
-The port have been tested with latest version of Chrome for Windows and Linux (starting from version 41), both on x86 and x86_64 architectures. I did not tested with Chromebooks, or any ARM / MIPS based device. I'd be interested to know if this is working !
+The port have been tested with latest version of Chrome for Windows and Linux, both on x86 and x86_64 architectures. I did not test with Chromebooks, or other ARM / MIPS based device. I'd be interested to know if this is working !
+
 
 ## How to run
 
-### Prerequisite
+### Software Prerequisites
 
-First, you must install the latest stable version of Google Chrome Browser, which can be found here for your system (Windows, Linux, OS X):
+The latest stable version of Google Chrome Browser is required, which can be found here:
 
 http://www.google.com/chrome/
 
-Note that for some unknown reason, the open-source browser "Chromium" provided by Debian/Ubuntu distributions is not compiled with Native Client support by default. For now, you have to use the browser provided by Google.
+Native Client is supported on Windows, Linux, and OS X, on x86 and x86_64 architectures. Note that it is not yet supported on Android (ARM), but it seems to be planned at some point in time. 
 
-### Running the Game (from the Web!)
+For some unknown reason, the open-source browser "Chromium" provided by Debian/Ubuntu distributions does not come with Native Client support by default. For now, you have to use the build provided by Google.
 
-Next, the easiest way to see the game running in your browser is simply to go to the following URL using latest version Chrome: 
+### Running the Game in the browser
+
+The easiest way to see the game running in your browser is simply to go to the following URL using latest version Chrome: 
 
 http://arxpnacl.cad-labs.fr
 
@@ -49,7 +52,7 @@ A static website is hosted here, with a main HTML page embedding the PNaCl modul
 
 #### Alternative methods
 
-An alternative method to test this port is to run yourself a local HTTP server, serving the same sample website. 
+An alternative method to test this port is to run yourself a local HTTP server, delivering the same sample website. 
 
 To do this, download a preview release from github: _arx-pnacl-preview-NNN.zip_, uncompress it, and execute the _run.sh_ script. 
 
@@ -78,18 +81,18 @@ If you like immersive RPGs and have ~30 hours available, don't hesitate: it is a
 
 Note there is a Demo version too. For the purpose of testing this port, it is a reasonable choice.
 
-More infos here: http://wiki.arx-libertatis.org/Getting_the_game_data
+More information here: http://wiki.arx-libertatis.org/Getting_the_game_data
 
 * Extract game content
 
 Once you have the game, you will need to extract its content: the __*.pak__ files. 
 
 Depending on where you got the game (original CD, digital download, etc.), the method may be different.
-More infos here: http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux
+More information here: http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux
 
-* Make the Native Client module access this content
+* Make the Native Client module access to this content
 
-There is two means to do this: either locally through HTML5 filesystem feature of Chrome, or remotely through HTTP.
+There is two ways to do this: either locally through HTML5 filesystem feature of Chrome, or remotely through HTTP.
 
 If you are running the game from the web, using the URL provided at beginning of this section, you have to use the first option.
 
@@ -117,29 +120,35 @@ The first time the program is loaded, it will take quite some time to complete (
 
 ## How to Build
 
-Building consist in cross-compilation of Arx Libertatis and its dependencies to the Native Client platform, by using the NaCl SDK (providing Toolchain and Pepper API), the Naclports project (providing Native Client ports of most of the required dependencies), and obviously this fork of the Arx Libertatis project.
+Building consist in cross-compilation of Arx Libertatis and its dependencies to the Native Client platform, by using the NaCl SDK (providing toolchain and Pepper API), the Naclports project (providing ports of most of the required dependencies), and obviously this fork of the Arx Libertatis project.
 
-As usual with cross-compilation, the most difficult part is to correctly install the prerequisites (SDK, dependencies, etc.). So, here we go:
+As usual with cross-compilation, the most difficult part is to correctly install and setup the prerequisites (SDK, project dependencies, etc.)! 
+
+So, here we go:
 
 ### Software Prerequisites
 
 #### 1) Operating System
 
-I tested building with the following Linux distributions that are known to work: Ubuntu 12.04 LTS, Ubuntu 14.04 LTS, and Debian 8.
+Building have been tested with the following Linux distributions: Ubuntu 12.04 LTS, Ubuntu 14.04 LTS, and Debian 8.
 
 Note that Debian 7 is not working due to an outdated GNU libc (the NaCl SDK needs at least 2.15)
 
-I did not tested building on Windows or Mac OS X. Feel free to share experience on this!
+I did not test building on Windows and Mac OS X. Feel free to share experience on this.
 
-#### 2) Install the NaCl SDK
+#### 2) The NaCl SDK
 
 The NaCl SDK provide the core toolchains for NaCl and PNaCl (compiler, linker, standard header and libraries), as well as Pepper API headers and libraries.
 
-Here are the basic steps to install the SDK. More detailed information may be found here: http://developer.chrome.com/native-client/sdk/download
+Here are the basic steps to install the SDK. More information may be found here: http://developer.chrome.com/native-client/sdk/download
 
-* Check you have the following packages installed: python2.7, make, binutils, and libc6:i386
+* The following packages needs to be installed: python 2.7, make, binutils, libc6:i386, libstdc++6:i386
+
+        $ sudo apt-get install python2.7 make binutils libc6:i386 libstdc++6:i386
      
-      The last one is required if your distribution is 64 bits. Note that Debian x86_64 needs some specific steps to install x86 packages. Check on the web for "debian multiarch" for more info on this.
+      The last one is only required if your distribution is based on a 64-bit architecture. 
+      
+      Note that Debian 64-bit will require some additional steps to be able to install 32-bit packages. Check on the web for "debian multiarch" for more information on this.
 
 * Download the NaCl SDK: http://developer.chrome.com/native-client/sdk/download
 * Unzip nacl_sdk.zip 
@@ -150,30 +159,30 @@ Here are the basic steps to install the SDK. More detailed information may be fo
 
          $ cd nacl_sdk
          $ ./nacl_sdk list
-         $ ./nacl_sdk install pepper_44
+         $ ./nacl_sdk install pepper_<version>
 
-    Of course, you may use any other stable version of the SDK (and not only 44), starting from pepper_39. The best is to use the latest one flagged as being "stable".
+    Replace <version\> with the latest version flagged as being "stable" from the "list" command. For example, you may use 42.
 
-* Finally, setup the NACL_SDK_ROOT environment variable:
+* Finally, setup the NACL_SDK_ROOT environment vhariable:
 
         $ export NACL_SDK_ROOT=<path_to_nacl_sdk_folder>/pepper_<version>
 
-    This is very important, as the Naclport project rely on this. And I highly recommend you to add this line to your .bashrc, and update it when you use a new version of the SDK. This will prevent you to do this everytime you start a new shell!
+    This is very important, as the Naclport project rely on this. I highly recommend you to add this line to your .bashrc, and update it when you use a new version of the SDK. This will prevent you to do this everytime you start a new shell!
 
-#### 3) Install Naclport project
+#### 3) The Naclport project
 
 The Naclport project provide an easy access to Native Client ports of well-known libraries. 
-As most of Arx Libertatis dependencies have already been ported to Native Client, they are available in this project out of the box: Zlib, Freetype, SDL2, Boost, OpenAL, and Regal (an OpenGL 1.x wrapper on top of OpenGL ES 2).
+As most of Arx Libertatis dependencies have already been ported to Native Client, they are available in this project out of the box.
 
-Note that they are not always upstream, but it is sufficient for this ArxLibertatis port.
+Here are the basic steps to install Naclports. More information may be found here:  http://code.google.com/p/naclports/wiki/HowTo_Checkout 
 
-Here are the basic steps to install Naclports. More detailed information may be found here:https://code.google.com/p/naclports/wiki/HowTo_Checkout .
+* The following packages needs to be installed: git, python2.7, make, sed, bash, curl, zip
 
-* Check you have the following packages installed: python2.7, python-dev, make, sed, bash, curl, zip
+        $ sudo apt-get install git gcc python2.7 make sed bash curl zip
 
-* For some reasons, Naclport relies on "Depot Tools" to be installed. More detailed information may be found here: https://www.chromium.org/developers/how-tos/install-depot-tools .
+* For some reason, Naclport relies on "Depot Tools" to be installed. More information may be found here: http://www.chromium.org/developers/how-tos/install-depot-tools 
 
-    As a summary, run the following commands:
+    Run the following commands (be sure to go outside of the nacl_sdk folder, set in the previous chapter):
 
             $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
             $ export PATH=`pwd`/depot_tools:"$PATH"
@@ -184,21 +193,113 @@ Here are the basic steps to install Naclports. More detailed information may be 
             $ cd naclports
             $ gclient config --name=src https://chromium.googlesource.com/external/naclports.git
             $ gclient sync
-            $ git checkout -b pepper_44 origin/pepper_44
-            $ gclient sync
+            $ cd src
+            $ git checkout -b pepper_<version> origin/pepper_<version>
 
-    Of course, use whatever version of the SDK you really installed (which is not necessarilly 44).
+    Of course, replace <version\> with whatever version of the SDK you installed in the previous chapter.
     
-### Building and Linking ArxLibertatis-pnacl
+### Building the project dependencies
 
-1) Building the project dependencies
+The library dependencies are of Arx Libertatis are: zlib, Freetype, SDL2, Boost, OpenAL, Regal (an OpenGL 1.x wrapper on top of OpenGL ES 2), and GLM.
 
-Note:
-Setting up GLM library dependency is not needed. For convenience, this dependency is stored directly as a git submodule of the ArxLibertatis-pnacl project. 
+Most of them are already ported to Portable Native Client (with the exception of GLM), and part of the Naclports project. They are not always upstream, but it is sufficient for this Arx Libertatis port.
 
-2) Building ArxLibertatis-pnacl
+Here are the steps to build these libraries for Portable Native Client:
 
-3) Testing the build
+* Check you have the following packages installed. They are needed build-time tools for the various build systems of the projects: autoconf, automake, libtool, texinfo, gettext, pkg-config, xsltproc, cmake
+    
+        $ sudo apt-get install autoconf automake libtool texinfo gettext pkg-config xsltproc cmake
+    
+* Run the following commands:
+
+        $ cd naclports
+        $ cd src
+        $ export NACL_ARCH=pnacl
+        $ make zlib freetype sdl2 openal-soft regal boost 
+
+This may be quite long to build, but it will eventually complete.
+Once a library is built, the NACL SDK is directly updated with the build result.
+
+#### Note: building for Native Client (x86 or x86_64 architectures)
+
+Note it is also possible to build for Native Client directly (x86 or x86_64 architectures), and not only Portable Native Client (pnacl). For x86_64, you just have to use:
+
+        $ export NACL_ARCH=x86_64
+    
+Using a Native Client executable instead of Portable Native Client may be useful for debugging, and it allow for quicker compilation. However, be advised that such Native Client executables can't be run in Chrome without a special flag activated (this is because they are not architecture independant, hence not ready for the open web).
+    
+#### A note on GLM library
+
+This library is not part of Naclports, but as it is header-only this is not really a problem. For convenience, this library have been stored directly as a git submodule of the ArxLibertatis-pnacl project. The rationale behind this is that it do not require anything to be build externally.
+
+### Building ArxLibertatis-pnacl
+
+Here is the final part, build ArxLibertatis for Portable Native Client:
+
+* First, fetch the project source code of the current fork:
+
+        $ git clone https://github.com/gabrielcuvillier/ArxLibertatis-pnacl.git
+        $ cd ArxLibertatis-pnacl
+        $ git submodule init
+        $ git submodule update
+
+    The last two lines are required to initialize the GLM library stored as submodule.
+    
+* Then, generate the makefiles using CMAKE along with the special toolchain file for PNaCl. Be sure to have build all the required dependencies, and setup the NACL_SDK_ROOT environment variable correctly.
+
+        $ mkdir build_pnacl
+        $ cd build_pnacl
+        $ cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-pnacl.cmake ..
+        
+    Note the name of the toolchain file: 'toolchain-pnacl.cmake'.
+        
+* Finally, build the program using:
+
+        $ make
+        
+Once the build is complete, there will be two files generated:
+
+* arx.pexe    
+        
+    This is the final portable native client executable. 
+    It have been stripped and 'finalized' (see SDK docs about this concept).
+           
+* arx.bc      
+        
+    This one have been not finalized. It may be used for debugging pnacl code directly.
+
+As portable native client executable might be quite big for the Web, there is an additional step you may want to consider:
+        
+        $ make pnacl-compress
+        
+This will compress the final arx.pexe executable, reducing its size by ~30%.
+
+#### [Optional] building for Native Client (x86 or x86_64)
+
+Like the project dependencies, it is possible to build ArxLibertatis for Native Client directly. A special toolchain file is present for the x86_64 architecture. The makefile generation can be done with the following commands:
+
+        $ mkdir build_x86_64-nacl
+        $ cd build_x86_64-nacl
+        $ cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-xx86_64-nacl.cmake ..
+        
+Note the name of the toolchain file, it is 'toolchain-x86_64-nacl.cmake' now.
+
+Build the program using:
+
+        $ make
+        
+Once the build is complete, there will be two files generated:
+
+* arx_x86_64.nexe    
+        
+    This is the final native client executable, for x86_64 bits architecture.
+    It have been stripped.
+           
+* arx_x86_64_unstripped.nexe
+        
+    This one have been not stripped. It may be used for debugging native client code.
+
+### Testing the build
 
 <... to complete ...>
 
@@ -225,7 +326,7 @@ Even though most of dependencies were already ported thanks to the NACLPort proj
 
 Native Client (NaCl) is a sandboxing technology for running compiled C and C++ code at native speed in a secure sandbox. Portable Native Client (PNaCl) allow the compiled code to be architecture independent.
 
-For now, this technology is used almost exclusively by the Google Chrome browser to run native applications embedded in web pages. But its usage could go beyond the browser. 
+For now, this technology is used almost exclusively by the Google Chrome browser to run native applications embedded in web pages. But its usage could go beyond the browser.
 
 For more information, see: https://developer.chrome.com/native-client
 
@@ -233,21 +334,23 @@ For more information, see: https://developer.chrome.com/native-client
 
 This port have been done mostly to learn Native Client stack (toolchain, API, runtime, etc.), and to evaluate if this technology is mature enough to support development of real moderately-sized C++ applications (and not only demonstration programs or benchmarks).
 
-Arx Libertatis project have been chosen because it is an open source project that fit this size requirement, with added bonus to have most of its dependencies already ported to Native Client. 
+Also, this was an opportunity to think about how this technology could be used beyond the browser. A couple of other projects already have found interesting ways to leverage it, for example "Unvanquished" (as a sandboxed native VM for a game plugins) or "ZeroVM" (for server-side single process virtualization).
 
-Also, it is a game I enjoyed in the 2000's..
+Arx Libertatis project have been chosen because it is an open source project that fit the C++ project size requirement, with added bonus to have most of its dependencies already ported to Native Client. 
 
-### 'Mouselook' is unusable! 
+Also, it is a game I enjoyed in the 2000's...
+
+### 'Mouselook' is unusable!
 
 Yes, this is _the_ most important limitation of this port. See section 'Technical Details / Input Handling'
 
 ## Credits
 
+The Native Client team, for creating this interesting technology.
+
 Arkane Studio, for creating this enjoyable-yet-flawed game, and released the game code under an open source license.
 
 Arx Libertatis team, for its impressive amount of work to enhance it.
-
-The Native Client team, for creating this interesting technology.
 
 ## Contact
 dev_at_gabrielcuvillier_dot_fr
