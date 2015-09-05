@@ -178,7 +178,7 @@ Here are the basic steps to install the SDK. More information may be found here:
          $ ./naclsdk list
          $ ./naclsdk install pepper_<version>
 
-    Replace <version\> with the latest version flagged as being "stable" from the "list" command. For example, you may use version 42, which is a nice number.
+    Replace "version" with the latest version flagged as being "stable" from the "list" command. For example, you may use version 42, which is a nice number.
 
 * Finally, setup the NACL_SDK_ROOT environment vhariable:
 
@@ -217,7 +217,7 @@ Here are the basic steps to install Naclports. More information may be found her
             $ cd src
             $ git checkout -b pepper_<version> origin/pepper_<version>
 
-    Of course, replace <version\> with whatever version of the SDK you installed in the previous chapter.
+    Of course, replace "version" with whatever version of the SDK you installed in the previous chapter.
     
 ### Building the project dependencies
 
