@@ -153,7 +153,6 @@ Here are the basic steps to install the SDK. More information may be found here:
 
 * The following packages needs to be installed: python2.7, make, binutils, libc6:i386, libstdc++6:i386
 
-        $ sudo apt-get update
         $ sudo apt-get install python2.7 make binutils libc6:i386 libstdc++6:i386
      
     The last two packages are only required if your distribution is based on a 64-bit architecture. 
