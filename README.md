@@ -5,9 +5,9 @@
              |   __(PNaCl port)____|__
               \_/____________________/
 
-This is an experimental port of the Arx Libertatis project to Portable Native Client and Pepper API (PNaCl / PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
+This is an experimental port of the Arx Libertatis project to Portable Native Client and Pepper (PNaCl / PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
 
-Note that this port should be considered as a technical demonstration of Portable Native Client, and is not intended for real gameplay. It is still subject to a few  limitations that are documented in this Readme file.
+Note that this port should be considered as a technical demonstration of Portable Native Client possibilities, and not intended for real gameplay. It is still subject to some limitations that are documented in this Readme file.
 
 ## Contents
 
@@ -30,9 +30,7 @@ Almost all of the game subsystems are working flawlessly: game logic, rendering,
 
 However, there is still one important limitation in the input handling backend: the 'mouselook' functionality does not work correctly, making navigation in the game world difficult (in-game menus and 'Magic mode' works though). Keyboard navigation may still be used as a workaround, but this is not practical for real gameplay. 
 
-This limitation is due to some missing feature in the SDL port to Native Client: the mouse lock mechanism provided by Pepper API is not handled by SDL. See section 'Technical Details' for more background information on this.
-
-Appart of this, all the rest may be enjoyed!
+This limitation is due to some missing feature in the SDL port to Native Client: the mouse-locking mechanism provided by Pepper API is not handled by SDL. See section 'Technical Details' for more background information on this.
 
 The port have been tested with latest version of Chrome for Windows and Linux (starting from version 41), both on x86 and x86_64 architectures. I did not test with Chromebooks, or other ARM / MIPS based device. I'd be interested to know if this is working !
 
