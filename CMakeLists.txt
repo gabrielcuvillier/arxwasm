@@ -275,9 +275,9 @@ if((NOT LAST_CMAKE_CXX_FLAGS STREQUAL CMAKE_CXX_FLAGS)
 	force_recheck_library(Freetype)
 	force_recheck_library(Threads)
 	force_recheck_library(OpenAL)
-	force_recheck_library(OpenGL)
   # GLEW is not supported on NACL
   if (NOT NACL)
+    force_recheck_library(OpenGL)
     force_recheck_library(GLEW)
   endif()
 	force_recheck_library(Boost)
@@ -405,9 +405,8 @@ list(APPEND ARX_LIBRARIES ${FREETYPE_LIBRARIES})
 
 # OpenGL
 if(USE_OPENGL)
-  find_package(OpenGL ${OPTIONAL_DEPENDENCY})
-  
   if(NOT NACL)
+    find_package(OpenGL ${OPTIONAL_DEPENDENCY})
 	  find_package(GLEW ${OPTIONAL_DEPENDENCY})
 	  add_definitions(-DGLEW_NO_GLU)
 	  if(NOT MSVC AND OPENGL_FOUND AND GLEW_FOUND)
@@ -415,8 +414,12 @@ if(USE_OPENGL)
 	  	check_link_library(GLEW GLEW_LIBRARIES)
 	  endif()
   else()
-    # GLEW not supported on NACL
+    # Don't use find_package, as we have to use some custom GL implementation (Regal)
+    # This is done by the toolchain file.
+
+    # Ensure it is correctly setup 
     check_link_library(OpenGL OPENGL_gl_LIBRARY)
+    set(OPENGL_FOUND 1)
   endif()
 endif()
 
