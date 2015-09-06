@@ -7,8 +7,6 @@
 
 This is an experimental port of the Arx Libertatis project to Portable Native Client and Pepper (PNaCl / PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
 
-Note that this port should be considered as a technical demonstration of Portable Native Client possibilities, and not intended for real gameplay. It is still subject to some limitations that are documented in this Readme file.
-
 ## Contents
 
 * [Project Status](#project-status)
@@ -265,10 +263,6 @@ Here is the final part, build ArxLibertatis Portable Native Client module:
 * If you come from the previous chapter, be sure to move outside _naclports/src_ folder:
     
         $ cd ../..
-
-* The following packages needs to be installed (they should be already): git make cmake.
-
-        $ sudo apt-get install git make cmake
 
 * Fetch the source code of this fork of Arx Libertatis:
 
