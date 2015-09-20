@@ -28,7 +28,7 @@ The game runs smoothly in Chrome browser, embedded as a PNaCl module in a HTML p
 
 Almost all of the game subsystems are working flawlessly (rendering, audio, game logic, menus, save/load, etc.), and it is possible to play through the game. See section [How To Run](#how-to-run) if you want to give it a try.
 
-Please, note that even though Arx Libertatis source code and binary are freely usable, the original game data data is required to play the game. As this data is licensed under a commercial license, you will have to provide it using your own original copy of the game, or get it from the available game demonstration. 
+Please, note that even though Arx Libertatis source code and binary are freely usable, the original game data data is required to play. As this data is licensed under a commercial license, you will have to provide it using your own original copy of the game, or get it from the available game demonstration. 
 
 See section [Access to game data](#access-to-game-data) for more information on this topic.
 
@@ -98,17 +98,17 @@ Here is how to do:
 If you don't already own an original copy of the game, it can be bought for a reasonable price from well known digital stores (GOG, Steam, etc.).
 If you like immersive RPGs and have ~30 hours available, don't hesitate: it is an enjoyable game (and really flawed too... but this is another story).
 
-You may also use the game demo, available from the publisher. For the purpose of testing this port, it is a reasonable choice.
+You may also use the game demo, available from the publisher. For the purpose of testing this port, it is a reasonable choice. All information can be found here, including where to find the demo:
 
-All information can be found here, including where to find the demo: http://wiki.arx-libertatis.org/Getting_the_game_data
+http://wiki.arx-libertatis.org/Getting_the_game_data
 
 * Extract game content
 
 Once you have the game, you will need to extract its content: the __*.pak__ files. 
 
-If you are on Windows, the easiest way to get this data is to install the game locally, and locate the .pak files in the installation folder. But for other systems (Linux), the method is different.
+If you are on Windows, the easiest way to get this data is to install the game locally, and locate the .pak files in the installation folder. But for other systems (Linux), the method is different. More information here: 
 
-More information here: http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux
+http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux
 
 * Make the Native Client module access to the game data
 
@@ -158,7 +158,9 @@ I did not test building on Windows and Mac OS X. Feel free to share experience o
 
 The NaCl SDK provide the core toolchains for NaCl and PNaCl (compiler, linker, standard header and libraries), and the Pepper API headers and libraries.
 
-Here are the basic steps to install the SDK. More information may be found here: http://developer.chrome.com/native-client/sdk/download
+Here are the basic steps to install the SDK. More information may be found here: 
+
+http://developer.chrome.com/native-client/sdk/download
 
 * The following packages needs to be installed: python2.7, make, binutils, libc6:i386, libstdc++6:i386
 
@@ -172,7 +174,9 @@ Here are the basic steps to install the SDK. More information may be found here:
 
         $ wget http://storage.googleapis.com/nativeclient-mirror/nacl/nacl_sdk/nacl_sdk.zip
         
-    If the direct link doesn't work, the SDK may be found on this page: http://developer.chrome.com/native-client/sdk/download
+    If the direct link doesn't work, the SDK may be found on this page: 
+    
+    http://developer.chrome.com/native-client/sdk/download
 
 * Unzip the archive:
 
@@ -199,7 +203,9 @@ Here are the basic steps to install the SDK. More information may be found here:
 The Naclports project provide an easy access to Native Client ports of well-known open-source applications and libraries. 
 As most of Arx Libertatis dependencies have already been ported to Native Client, they are available out of the box in Naclports.
 
-Here are the basic steps to install Naclports. More information may be found here:  http://code.google.com/p/naclports/wiki/HowTo_Checkout 
+Here are the basic steps to install Naclports. More information may be found here:  
+
+http://code.google.com/p/naclports/wiki/HowTo_Checkout 
 
 * If you come from the previous chapter, be sure to move outside the nacl_sdk folder:
             
@@ -209,21 +215,23 @@ Here are the basic steps to install Naclports. More information may be found her
 
         $ sudo apt-get install git gcc python2.7 python-dev make sed bash curl zip
 
-* For some reason, Naclport relies on "Depot Tools" to be installed. More information may be found here: http://www.chromium.org/developers/how-tos/install-depot-tools 
+* For some reason, Naclport relies on "Depot Tools" to be installed. More information may be found here: 
 
-    As a summary, run the following commands:
+  http://www.chromium.org/developers/how-tos/install-depot-tools 
+
+  As a summary, run the following commands:
      
-            $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-            $ export PATH=`pwd`/depot_tools:"$PATH"
+        $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        $ export PATH=`pwd`/depot_tools:"$PATH"
 
 * Now you can install Naclports, using the following commands:
     
-            $ mkdir naclports
-            $ cd naclports
-            $ gclient config --name=src https://chromium.googlesource.com/external/naclports.git
-            $ gclient sync
-            $ cd src
-            $ git checkout -b pepper_<version> origin/pepper_<version>
+        $ mkdir naclports
+        $ cd naclports
+        $ gclient config --name=src https://chromium.googlesource.com/external/naclports.git
+        $ gclient sync
+        $ cd src
+        $ git checkout -b pepper_<version> origin/pepper_<version>
 
     Of course, replace "version" with whatever version of the SDK you installed in the previous chapter.
     
