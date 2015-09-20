@@ -20,7 +20,8 @@ This is an experimental port of Arx Libertatis to Portable Native Client archite
 ## Port Status
 
 **Working!** 
-...although not yet completely playable.
+
+...although not yet completely playable due to one remaining technical limitation.
 
 ### What is working
 
@@ -95,44 +96,44 @@ Here is how to do:
 
 * Get your original copy of the game, or get the game demo
 
-If you don't already own an original copy of the game, it can be bought for a reasonable price from well known digital stores (GOG, Steam, etc.).
-If you like immersive RPGs and have ~30 hours available, don't hesitate: it is an enjoyable game (and really flawed too... but this is another story).
+  If you don't already own an original copy of the game, it can be bought for a reasonable price from well known digital stores (GOG, Steam, etc.).
+  If you like immersive RPGs and have ~30 hours available, don't hesitate: it is an enjoyable game (and really flawed too... but this is another story).
 
-You may also use the game demo, available from the publisher. For the purpose of testing this port, it is a reasonable choice. All information can be found here, including where to find the demo:
+  You may also use the game demo available from the publisher. For the purpose of testing this port, it is a reasonable choice. 
 
-http://wiki.arx-libertatis.org/Getting_the_game_data
+  More information can be found on the following page (including where to find the game demo):
+
+  http://wiki.arx-libertatis.org/Getting_the_game_data
 
 * Extract game content
 
-Once you have the game, you will need to extract its content: the __*.pak__ files. 
+  Once you have the game, you will need to extract its content: the __*.pak__ files. 
 
-If you are on Windows, the easiest way to get this data is to install the game locally, and locate the .pak files in the installation folder. But for other systems (Linux), the method is different. More information here: 
+  If you are on Windows, the easiest way to get this data is to install the game locally, and locate the .pak files in the installation folder. But for other systems such as Linux, the method might be different. More information may be found here: 
 
-http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux
+  http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux
 
 * Make the Native Client module access to the game data
 
-There is two ways to do this: either locally through HTML5 filesystem feature of Chrome, or remotely through HTTP.
+  There is two ways to do this: either locally through HTML5 filesystem feature of Chrome, or remotely through HTTP.
 
-If you are running the game from the web, using the URL provided at beginning of this section, you have to use the first option.
+  If you are running the game from the web, using the URL provided at beginning of this section, you have to use the first option.
 
-* 
-    * Option 1: Using the HTML5 filesystem
+  * Option 1: Using the HTML5 filesystem
 
-The process is straightforward: use the "Select Files" button in the main web page, and select all the *.pak files. They will be copied to a HTML5 filesystem from which the Native Client module will be able to read. 
+  The process is straightforward: use the "Select Files" button in the main web page, and select all the *.pak files. They will be copied to a HTML5 filesystem from which the Native Client module will be able to read. 
 
-Note this option will really duplicate game data to somewhere in Chrome cache, as Native Client modules ran from the Web can't have direct access to local filesystem (note: the Chrome Filesystem feature is only available to Chrome Apps and Extensions).
+  Note this option will really duplicate game data to somewhere in Chrome cache, as Native Client modules ran from the Web can't have direct access to local filesystem (note: the Chrome Filesystem feature is only available to Chrome Apps and Extensions).
 
-Once all data is copied (be sure to wait for all selected files to complete), simply click on "Launch Arx" button... and here you go: Arx Fatalis is running in your browser!
+  Once all data is copied (be sure to wait for all selected files to complete), simply click on "Launch Arx" button... and here you go: Arx Fatalis is running in your browser!
 
-* 
-     * Option 2: Access through HTTP
+  * Option 2: Access through HTTP
 
-This method require to to host the website yourself.
+  This method require to to host the website yourself.
 
-In this case, copy all the *.pak files under a new 'arx' subfolder of the 'www-root' folder.
+  In this case, copy all the *.pak files under a new 'arx' subfolder of the 'www-root' folder.
 
-Upon access to localhost in the browser, the game will be loaded directly.
+  Upon access to localhost in the browser, the game will be loaded directly.
 
 ### A note on initial loading time
 
@@ -162,41 +163,41 @@ Here are the basic steps to install the SDK. More information may be found here:
 
 http://developer.chrome.com/native-client/sdk/download
 
-* The following packages needs to be installed: python2.7, make, binutils, libc6:i386, libstdc++6:i386
+* The following packages needs to be installed:
 
         $ sudo apt-get install python2.7 make binutils libc6:i386 libstdc++6:i386
      
-    The last two packages are only required if your distribution is based on a 64-bit architecture. 
+  The last two packages are only required if your distribution is based on a 64-bit architecture. 
       
-    Note that Debian 64-bit will require some additional steps to be able to install 32-bit packages. Detailed information here: https://wiki.debian.org/Multiarch/HOWTO
+  Note that Debian 64-bit will require some additional steps to be able to install 32-bit packages. Detailed information here: https://wiki.debian.org/Multiarch/HOWTO
 
 * Download the NaCl SDK:
 
         $ wget http://storage.googleapis.com/nativeclient-mirror/nacl/nacl_sdk/nacl_sdk.zip
         
-    If the direct link doesn't work, the SDK may be found on this page: 
+  If the direct link doesn't work, the SDK may be found on this page: 
     
-    http://developer.chrome.com/native-client/sdk/download
+  http://developer.chrome.com/native-client/sdk/download
 
 * Unzip the archive:
 
         $ unzip nacl_sdk.zip 
 
-    __Important note__: do NOT have unicode characters in the SDK path. For unknown reasons some SDK scripts will fail otherwise.
+  __Important note__: do NOT have unicode characters in the SDK path. For unknown reasons some SDK scripts will fail otherwise.
 
 * Run the following commands to install a version of the SDK:
 
-         $ cd nacl_sdk
-         $ ./naclsdk list
-         $ ./naclsdk install pepper_<version>
+        $ cd nacl_sdk
+        $ ./naclsdk list
+        $ ./naclsdk install pepper_<version>
 
-    Replace "version" with the latest version flagged as being "stable" from the "list" command. For example, you may use version 42, which is a nice number.
+  Replace "version" with the latest version flagged as being "stable" from the "list" command. For example, you may use version 42, which is a nice number.
 
 * Finally, setup the NACL_SDK_ROOT environment vhariable:
 
         $ export NACL_SDK_ROOT=<path_to_nacl_sdk_folder>/pepper_<version>
 
-    This is very important, as the rest of build instructions will rely on this environment variable. I highly recommend you to add this line to your .bashrc, and update it when you use a new version of the SDK. This will prevent you to do this everytime you start a new shell!
+  This is very important, as the rest of build instructions will rely on this environment variable. I highly recommend you to add this line to your .bashrc, and update it when you use a new version of the SDK. This will prevent you to do this everytime you start a new shell!
 
 #### 3) Installing Naclports
 
@@ -211,7 +212,7 @@ http://code.google.com/p/naclports/wiki/HowTo_Checkout
             
         $ cd .. 
 
-* The following packages needs to be installed: git, python2.7, python-dev, make, sed, bash, curl, zip
+* The following packages needs to be installed:
 
         $ sudo apt-get install git gcc python2.7 python-dev make sed bash curl zip
 
@@ -220,7 +221,7 @@ http://code.google.com/p/naclports/wiki/HowTo_Checkout
   http://www.chromium.org/developers/how-tos/install-depot-tools 
 
   As a summary, run the following commands:
-     
+    
         $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
         $ export PATH=`pwd`/depot_tools:"$PATH"
 
@@ -233,7 +234,7 @@ http://code.google.com/p/naclports/wiki/HowTo_Checkout
         $ cd src
         $ git checkout -b pepper_<version> origin/pepper_<version>
 
-    Of course, replace "version" with whatever version of the SDK you installed in the previous chapter.
+  Of course, replace "version" with whatever version of the SDK you installed in the previous chapter.
     
 ### Building the project dependencies
 
@@ -247,26 +248,26 @@ Here are the steps to build these libraries:
 
         $ cd naclports/src
 
-* The following packages needs to be installed: autoconf, automake, libtool, texinfo, gettext, pkg-config, xsltproc, cmake.
-    
-    These are build-time tools required by the various build systems of the projects.
-    
+* The following packages needs to be installed:
+
         $ sudo apt-get install autoconf automake libtool texinfo gettext pkg-config xsltproc cmake
+        
+  These are build-time tools required by the various build systems of the projects.
     
 * To build for __Portable Native Client__, run the following commands:
 
         $ export NACL_ARCH=pnacl
         $ make zlib freetype sdl2 openal-soft regal boost 
 
-    This may be quite long to build, but it will eventually complete.
-Once a library is built, the NACL SDK is directly updated with the build result.
+  This may be quite long to build, but it will eventually complete.
+  Once a library is built, the NACL SDK is directly updated with the build result.
 
 * [Optional] To build for __Native Client__ (that is, x86 or x86_64 architectures), use:
 
         $ export NACL_ARCH=x86_64
         $ make zlib freetype sdl2 openal-soft regal boost 
     
-    Using a Native Client executable instead of Portable Native Client may be useful for debugging, and it allows faster compilation. However, be advised that such Native Client executables can't be run in Chrome without a special flag activated in the browser (this is because they are not architecture independant, hence not ready for the open web).
+  Using a Native Client executable instead of Portable Native Client may be useful for debugging, and it allows faster compilation. However, be advised that such Native Client executables can't be run in Chrome without a special flag activated in the browser (this is because they are not architecture independant, hence not ready for the open web).
     
 #### A note on GLM library
 
@@ -290,7 +291,7 @@ Here is the final part, build ArxLibertatis Portable Native Client module:
         $ git submodule init
         $ git submodule update
 
-    The last two lines are required to initialize the GLM library stored as submodule.
+  The last two lines are required to initialize the GLM library stored as submodule.
     
 * Generate the makefiles using CMake, configured with the special toolchain file for PNaCl. Be sure to have build all the required dependencies, and setup the NACL_SDK_ROOT environment variable correctly.
 
@@ -298,7 +299,7 @@ Here is the final part, build ArxLibertatis Portable Native Client module:
         $ cd build_pnacl
         $ cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-pnacl.cmake ..
         
-    Check twice the name of the toolchain file: it is _toolchain-pnacl.cmake_
+  Check twice the name of the toolchain file: it is _toolchain-pnacl.cmake_
         
 * Finally, build the final executable using:
 
@@ -308,14 +309,14 @@ Once the build is complete, there will be two files generated:
 
 * _arx.pexe_    
         
-    This is the final Portable Native Client module (.pexe suffix). 
-    It have been stripped and 'finalized' (see SDK docs about this concept).
+  This is the final Portable Native Client module (.pexe suffix). 
+  It have been stripped and 'finalized' (see SDK docs about this concept).
     
-    Such portable executables are intended to be loaded and executed in Chrome, directly from the Web, without any special flags activated.
+  Such portable executables are intended to be loaded and executed in Chrome, directly from the Web, without any special flags activated.
            
 * _arx.bc_      
         
-    This one have been not finalized. It may be used for debugging pnacl code directly.
+  This one have been not finalized. It may be used for debugging pnacl code directly.
 
 As portable native client executable might be quite big for the Web, there is an additional step you may want to consider:
         
@@ -328,12 +329,12 @@ This will compress the final arx.pexe executable, reducing its size by roughly 3
 Like the project dependencies, it is possible to build ArxLibertatis for Native Client directly. A special toolchain file is provided for the x86_64 architecture. 
 
 * The makefile generation can be done with the following commands:
-
+    
         $ mkdir build_x86_64-nacl
         $ cd build_x86_64-nacl
         $ cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-x86_64-nacl.cmake ..
         
-    Check twice the name of the toolchain file, now it is _toolchain-x86_64-nacl.cmake_
+  Check twice the name of the toolchain file, now it is _toolchain-x86_64-nacl.cmake_
 
 * Then build the final executable:
 
@@ -343,14 +344,14 @@ Once the build is complete, there will be two files generated:
 
 * _arx_x86_64.nexe_    
         
-    This is the final Native Client module (.nexe suffix), for x86_64 architecture.
-    It have been stripped.
+  This is the final Native Client module (.nexe suffix), for x86_64 architecture.
+  It have been stripped.
     
-    **Important**: Contrary to Portable modules, these "unportable" ones can't be executed in the Browser by default. The special flag _#enable-nacl_ needs to be activated in Chrome to allow their execution.
+  **Important**: Contrary to Portable modules, these "unportable" ones can't be executed in the Browser by default. The special flag _#enable-nacl_ needs to be activated in Chrome to allow their execution.
            
 * _arx_x86_64_unstripped.nexe_
         
-    This one have been not stripped. It may be used for debugging native client code.
+  This one have been not stripped. It may be used for debugging native client code.
     
 
 ### Testing the build
@@ -361,13 +362,13 @@ For convenience, a static website that does exactly this have been created. It i
 
 * a _www-root_ subfolder, with the website content.
 
-    This consists of the main HTML page embedding the Portable Native Client module (index.html), a native client manifest file (arx.nmf), as well as a support javascript file to provide browser-side access to game data (arx.js).
+  This consists of the main HTML page embedding the Portable Native Client module (index.html), a native client manifest file (arx.nmf), as well as a support javascript file to provide browser-side access to game data (arx.js).
     
 * a _run.sh_ script allowing to start a local HTTP server configured to give access to this www-root folder.
 
 Note that this website is exactly the same as the one hosted at http://arxpnacl.cad-labs.fr
 
-So, in order to test the build, just drop the generated Portable Native Client module (_arx.pexe_) in the _www-root_ folder, execute the _run.sh_ script from a terminal, and finally open Chrome to load the following URL:
+So, in order to test the build, just copy the generated Portable Native Client module (_arx.pexe_) in the _www-root_ folder, execute the _run.sh_ script from a terminal, and finally open Chrome to load the following URL:
 
 http://localhost:5100
 
@@ -385,7 +386,7 @@ If you have build for Native Client on x86_64, the way to test the build is almo
 
 * The URL to use in Chrome is:
     
-    http://localhost:5100/x86_64
+  http://localhost:5100/x86_64
     
 * ... and don't forget to activate the flag _#enable-nacl_ in Chrome.
 
