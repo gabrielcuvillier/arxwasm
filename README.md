@@ -5,7 +5,7 @@
              |   __(PNaCl port)____|__
               \_/____________________/
 
-This is an experimental port of the Arx Libertatis project to Portable Native Client architecture (PNaCl) and Pepper API (PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
+This is an experimental port of Arx Libertatis to Portable Native Client architecture (PNaCl) and Pepper API (PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
 
 ## Contents
 
@@ -20,21 +20,19 @@ This is an experimental port of the Arx Libertatis project to Portable Native Cl
 ## Port Status
 
 **Working!** 
-
-...although not yet completely playable due to one technical limitation.
+...although not yet completely playable.
 
 ### What is working
 
-Almost all of the game subsystems are working flawlessly (rendering, audio, game logic, menus, save/load, etc.), and it is possible to play the game. 
+The game runs smoothly in Chrome browser, embedded as a PNaCl module in a HTML page. It can be loaded directly from the Web, simply by loading an URL in the browser. There is no need to install a Chrome App, or use the Chrome Web Store. 
 
-The game runs smoothly in Chrome browser, embedded as a PNaCl module in a HTML page. It can be loaded directly from the Web, simply by loading an URL in the browser. There is no need to install a Chrome App, or use the Chrome Web Store. See section [How To Run](#how-to-run) if you want to give it a try.
-
-The port have been tested with latest version of Chrome for Windows and Linux (starting from version 41), both on x86 and x86_64 architectures. I did not test with Chromebooks, or other ARM / MIPS based device. I'd be interested to know if this is working !
-
+Almost all of the game subsystems are working flawlessly (rendering, audio, game logic, menus, save/load, etc.), and it is possible to play through the game. See section [How To Run](#how-to-run) if you want to give it a try.
 
 Please, note that even though Arx Libertatis source code and binary are freely usable, the original game data data is required to play the game. As this data is licensed under a commercial license, you will have to provide it using your own original copy of the game, or get it from the available game demonstration. 
 
 See section [Access to game data](#access-to-game-data) for more information on this topic.
+
+The port have been tested with latest version of Chrome for Windows and Linux (starting from version 41), both on x86 and x86_64 architectures. I did not test with Chromebooks, or other ARM / MIPS based device. I'd be interested to know if this is working !
 
 ### Technical limitation
 
@@ -44,7 +42,7 @@ Note that keyboard navigation may still be used as a workaround (even though it 
 
 This limitation is due to a missing feature in the Native Client backend implementation of the SDL library: the mouse-locking mechanism provided by Pepper API is not correctly handled by SDL. Such feature is generally required by FPS games, as it allow to fully capture the mouse and simulate player view orientation.
 
-So, with a few more work on SDL and Arx Libertatis it would be possible to overcome this issue. If someone is interested to take a look at this, I can provide more information.
+So, with a few more work on SDL and Arx Libertatis it would be possible to overcome this issue. If someone is interested to take a look at this, I can provide additional information.
 
 
 ## How to run
@@ -365,7 +363,7 @@ So, in order to test the build, just drop the generated Portable Native Client m
 
 http://localhost:5100
 
-Once there, please refer to the [Accessing Game Data](#accessing-game-data) section for more information on how to setup game data (either by using the HTML5 filesystem, or accessing through HTTP directly).
+Once there, please refer to the [Access to game data](#access-to-game-data) section for more information on how to setup game data (either by using the HTML5 filesystem, or accessing through HTTP directly).
 
 Here it is, your compiled Arx Liberatis PNaCl module is now running in the browser!
 
@@ -418,7 +416,7 @@ This port have been done mostly to learn the Native Client stack (toolchain, API
 
 Arx Libertatis have been chosen because it is an open source project that fit the C++ project size requirement, with added bonus to have most of its dependencies already ported to Native Client. Also, it is a game I enjoyed in the past.
 
-This porting effort also have been an opportunity to think about how this technology could be used beyond the browser. A couple of other projects already have found interesting ways to use it, for example the "Unvanquished" project (as a secure sandbox for native game plugins) or "ZeroVM" (for server-side single process virtualization).
+This port also have been an opportunity to think about how Native Client could be used beyond the browser. A couple of other projects already have found interesting ways to use it, for example the "Unvanquished" project (as a secure sandbox for native game plugins) or "ZeroVM" (for server-side single process virtualization).
 
 For my part, I do think that Native Client could be used as a standard target platform for many desktop applications, and in particular CAD softwares. But this is another story that have yet to be written...
 
