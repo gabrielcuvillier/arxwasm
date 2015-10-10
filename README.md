@@ -14,9 +14,6 @@ This is an experimental port of Arx Libertatis to Portable Native Client archite
 * [How To Build](#how-to-build)
 * [Technical Details](#technical-details)
 * [FAQ](#faq)
-    * [What is Native Client?](#what-is-native-client?)
-    * [Why this port?](#why-this-port?)
-    * [What's next?](#what-s-next?)
 * [Credits](#credits)
 * [Contact](#contact)
 
