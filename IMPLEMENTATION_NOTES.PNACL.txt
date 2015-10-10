@@ -1,0 +1,148 @@
+====================================
+Implementation notes for PNACL Port
+====================================
+
+* Build System
+
+There is two new CMAKE toolchain files, under 'cmake' subfolder: _toolchain-pnacl.cmake_ and _toolchain-x86_64-nacl.cmake_. 
+
+Both rely on NACL_SDK_ROOT environment variable, and setup everything necessary to build using the NACL SDK: compilers, root paths, include directories, library dependencies, and a few additional commands.
+
+All the CMAKE_FIND_ROOT_PATH_MODE_XXX variables are set to "ONLY" (PROGRAM, LIBRARY, INCLUDE, and PACKAGE).
+
+The pnacl toolchain file contains definition of two special commands: 'pnacl-finalize' (executed automatically at end of the build) and 'pnacl-compress' (can be executed manually). The x86_64-nacl file contain the special command 'nacl-strip' (executed automatically at end of the build).
+
+Note that there is a small hack in CMAKE_FIND_ROOT_PATH definition of PNACL toolchain file, to be able to find some commands such as "ar", "objdump", and "strip": the directory "toolchain_dir/x86_64-nacl" have to be included too. This should not be necessary, as these commands are also in the "toolchain_dir/bin". However, in this folder they have some platform suffix that prevent CMAKE to find them.
+
+Overview of the changes to the main CMakeList.txt file:
+  - Force static linking
+  - No C++11
+  - No Tools (only arx is build)
+  - No Unity build
+  - Special configuration for data directories (see 'Filesystem' section)
+  - Force usage of SDL2
+  - Manual handling for OpenGL library dependency
+  - GLEW disabled
+  - add of PPAPI library dependency
+
+in file cmake/BuildType.cmake (for PNACL only)
+  - Some warning disable for LLVM
+  - Force optimize for Size instead of for Speed
+  - Enable PNACL exceptions
+
+in file cmake/BuildSystem.cmake
+  - Registration of additional commands: pnacl-finalize, pnacl-compress, nacl-strip
+
+Note it is still possible to do normal build, as all changes have been integrated with "if(PNACL)" or "if(NACL)" clauses, along with some comments. Just search for the "NACL" string in the CMakeList.txt file.
+
+* Git
+
+Added a .gitignore file
+
+Setup GLM library as a git submodule, under 'glm' directory
+
+* Rendering
+
+OpenGL rendering backend is done using the Regal library, which provide a 'classic' OpenGL wrapper on top of OpenGL ES 2 provided by Pepper API.
+
+However, I had to completely disable GLEW in this port because the Regal wrapper did not work properly. This means that no OpenGL extensions are used at all. What you are seeing on screen is really legacy V1.X OpenGL (fixed pipeline). As the game was released back in 2002, this is not really a problem in practice :)
+
+There is also a limitation with some mipmap filtering modes that do not play well with non-power-of-two textures. As a workaround, mipmaping have been simply disabled. There is no real visual difference in fact.
+
+Files involved: toolchain files (to use libRegal instead of libGL), GLDebug.cpp, GLTexture2D.h/.cpp, GLTextureStage.h, GLVertexBuffer.h, OpenGLRenderer.cpp
+  
+* Filesystem
+
+POSIX filesystem interface on top of HTML5 Filesystem or HTTP is done using the 'nacl_io' library, provided by NACL SDK. 
+
+In SystemPaths.cpp, the SystemPaths::init() method is initializing the filesystem/folder setup for Native Client:
+
+User and config files are stored in a 'persistent' HTML5 Filesystem, under the '/arx' folder. This folder is accessed from game using the '/home/user/arx' mount.
+Game data is stored in the 'temporary' HTML5 Filesystem, under the '/arx' folder. This folder is accessed from game using the '/tmp/arx' mount.
+
+When using HTTP to access game data, it is accessed using the '/mnt/http/arx' mount, pointing to './arx' URI of current domain.
+
+There is a few limitations though, most notably in folder handling: actually, only .pak files are used, and *not* 'patch' folders. 
+
+In the HTML5 filesystem backend, this is because only files can be selected in the Browser file selection dialog, and not folders. So only those files are copied in the HTML5 folder. I did not take time to implement some workaround (and I don't know if it is really feasible).
+
+In the HTTP backend, this is because the nacl_io library used to emulate filesystem access on top of HTTP can't reliably detect if an URL should be considered as a folder or not (this is understandable). As a result, only .pak files are used here too.
+  
+Also, there is a small hack to let the port use POSIX filesystem backend. The only thing missing from nacl_io is the MAXNAMELEN symbol. So I enforced POSIX filesystem backend in CMakeList.txt, and make a minor change in FilesystemPOSIX.cpp.
+
+* Audio
+
+Minor change in OpenALBackend to do initialization of OpenAL backend for Native Client.
+
+* GLM
+
+The GLM library is stored directly as a git submodule, under the 'glm' subfolder.
+
+This is convenient as it is a header-only library (there is nothing separate to compile from the main program), and having it as a git submodule allow the build system to require only NACL SDK and Naclports to be installed.
+
+* Windowing
+
+SDL2 have been used. SDL1 works too, but it seems there is some problems with Regal library, leading to many visual glitches (for example, no in-game menus).
+
+Special init of Regal with SDL2 is done in SDL2Window.cpp
+
+Like OSX, 'SDL_Main' is needed for Native Client (change is in Startup.cpp).
+
+SDL2 backend limitations: No fullscreen, no resolution change, and no antialiasing (note: this one is disabled at a higher level than SDL backend, in ArxGame.cpp).
+
+* Input
+
+SDL2 have been used. But on this topic, a non-trivial improvement is needed in the Arx input handling code as well as SDL2 itself in order to fully integrate with Pepper API.
+
+In short, 'mouselook' do not work because of a limitation of Pepper API regarding mouse handling: it is not possible to enforce mouse position from the application code (for example setting it to 0,0, as it is usually done in FPS), and Arx expect it to be able to do so. 
+
+Not that such behavior is something common on other platforms. This is just that Arx Libertatis do not handle this mode of operation, and implementing it require support from SDL2 backend on Native Client which miss one important feature: handling the "mouse-lock" mechanism provided by Pepper API, and implement correctly 'SetRelativeMode' when the mouse is locked.
+
+If someone is interested to handle this work, I can provide a few pointers here. I think that 75% of the work is on SDL2 side, and the remaining 25% on Arx input backend side.
+
+As a workaround, it is possible to use keyboard to navigate in the world, but this is definitively not the way this game is inteded to be played :)
+  
+* Binary size
+  
+Binary size is big (almost 10MB), making the first loading time quite long. 
+
+Everything have been compiled with optimization flags set for 'Size', and the pnacl-compress command can be used at end of the build.
+
+An area of improvement will be when PNaCl will support 'zero-cost' exceptions handling. Actually, exception handling increase binary size by roughly 15%. This C++ feature seems to be required by Arx Libertatis, or one of its dependencies, because disabling it make the program crash.
+
+* Misc
+
+For unclear reason the pthread library seems to miss some stuff. In Process.cpp, I had to disable setting of thread priorities. I think this have minor inpact on operations, as threads are only used for Audio and AI.
+
+Also in Process.cpp, Arx frequently use the function argument name 'stdout'. This make some conflict that have been fixed.
+
+In Text.cpp, the Debug Font File have been changed to something present in .pak files. This is a workaround to Filesystem limitation regarding folder access (see 'Filesystem' section).
+
+In BuildType.cmake, PNACL Exceptions have been enabled. Without this, the game will randomly crash, even though exceptions are not really used internally by Arx. I did not looked too deeply though.
+
+* Debugging a really weird crash
+
+I had a very time consuming bug-hunting session to figure out why things were randomly crashing NACL with newlib or PNACL newlib. 
+
+Quite honestly, I almost given up on this problem several times (and by the way, PNaCl debugging is somewhat a pain to do).
+Eventually, I finally found something which seems to be the cause of the problem, and fixed it. But, given what I had to fix, there can be no other explanation than a compiler bug... 
+
+The fix is: in ArxGame.cpp, I had to change the DefaultBkg variable from static allocated to heap allocated.
+
+This variable is statically allocated in the file, and initialized using assignement operator. It is using the EERIE_BACKGROUND structure which contain a multidimensional array with static size, and this structure do not have assignment operator defined. 
+
+It seems that the problem is caused by the 3 following things: multidimensional array + initialization in static memory + usage of default assignement operator at initialization. Because changing either one of the 3 is solving the random crash problem (I finally choosed to change the number 2, as it is the simpler one).
+
+This is really hard to understand what is happening, and I suspect either a possible compiler bug, or a side effect of something else.
+
+This should be tested again on future versions of NACL SDK.
+
+* Sample website hosting PNaCl module
+
+I created the sample website to host the PNaCl module and provide some browser-side functionality to access the game data provided by the user. 
+
+It is located under 'data/nacl' folder, and its usage is documented in the main README file.
+
+On the implementation side, everything is done in HTML and Javascript. No particular notes here, except it is just a quick and dirty solution. I definitevely don't like JS callback-style programming...
+
+

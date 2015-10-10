@@ -164,7 +164,7 @@ Even though most of dependencies were already ported thanks to the Naclports pro
 
 ### Implementation notes
 
-If you are interested to know more about the implementation details of this port (including some minor limitations), please see the file [IMPLEMENTATION_NOTES.PNACL.md](http://github.com/gabrielcuvillier/ArxLibertatis-pnacl/blob/master/IMPLEMENTATION_NOTES.PNACL.md)
+If you are interested to know more about the implementation details of this port (including some minor limitations), please see the file [IMPLEMENTATION_NOTES.PNACL.txt](http://github.com/gabrielcuvillier/ArxLibertatis-pnacl/blob/master/IMPLEMENTATION_NOTES.PNACL.txt)
 
 ## FAQ
 
