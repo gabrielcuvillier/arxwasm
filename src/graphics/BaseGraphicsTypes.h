@@ -51,6 +51,18 @@ struct Cylinder {
 	Vec3f origin;
 	float radius;
 	float height;
+	
+	Cylinder()
+		: origin(Vec3f_ZERO)
+		, radius(0.f)
+		, height(0.f)
+	{}
+	
+	Cylinder(const Vec3f & origin, float radius, float height)
+		: origin(origin)
+		, radius(radius)
+		, height(height)
+	{}
 };
 
 struct Sphere {
@@ -93,8 +105,8 @@ struct EERIE_2D_BBOX {
 		return (min.x <= max.x && min.y <= max.y);
 	}
 	
-	Rect toRect() {
-		return Rect(min.x, min.y, max.x, max.y);
+	Rectf toRect() {
+		return Rectf(min.x, min.y, max.x, max.y);
 	}
 	
 };

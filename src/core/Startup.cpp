@@ -51,21 +51,33 @@
 	#undef main /* in case SDL.h was already included */
 #endif
 
+#include <glm/glm.hpp>
+
+#include <zlib.h>
+
+#include "core/Benchmark.h"
 #include "core/Config.h"
 #include "core/Core.h"
 #include "core/Version.h"
+
+#include "gui/Credits.h"
+
 #include "io/fs/Filesystem.h"
 #include "io/fs/SystemPaths.h"
 #include "io/log/CriticalLogger.h"
 #include "io/log/FileLogger.h"
 #include "io/log/Logger.h"
+
 #include "math/Random.h"
+
 #include "platform/Compiler.h"
 #include "platform/CrashHandler.h"
 #include "platform/Environment.h"
 #include "platform/profiler/Profiler.h"
 #include "platform/ProgramOptions.h"
 #include "platform/Time.h"
+#include "platform/WindowsMain.h"
+
 #include "util/String.h"
 #include "util/cmdline/Parser.h"
 
@@ -115,34 +127,45 @@ static ExitStatus parseCommandLine(int argc, char ** argv) {
 	return RunProgram;
 }
 
-#if ARX_PLATFORM != ARX_PLATFORM_WIN32
-extern int main(int argc, char ** argv) {
-#else
-// For windows we can't use main() in a GUI application
-INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
-                   INT nCmdShow) {
-	ARX_UNUSED(hInstance);
-	ARX_UNUSED(hPrevInstance);
-	ARX_UNUSED(lpCmdLine);
-	ARX_UNUSED(nCmdShow);
-	int argc = __argc;
-	char ** argv = __argv;
-#endif
+int utf8_main(int argc, char ** argv) {
 	
 	// Initialize Random now so that the crash handler can use it
 	Random::seed();
 	
 	// Initialize the crash handler
 	{
-		CrashHandler::initialize();
-		CrashHandler::setVariable("Compiler", ARX_COMPILER_VERNAME);
-		CrashHandler::setVariable("Boost version", BOOST_LIB_VERSION);
+		CrashHandler::initialize(argc, argv);
 		std::string command_line;
 		for(int i = 1; i < argc; i++) {
 			command_line += util::escapeString(argv[i], "\\\" '$!");
 			command_line += ' ';
 		}
 		CrashHandler::setVariable("Command line", command_line);
+	}
+	
+	{
+		std::ostringstream oss;
+		oss << ARX_COMPILER_VERNAME;
+		CrashHandler::setVariable("Compiler", oss.str());
+		credits::setLibraryCredits("compiler", oss.str());
+		CrashHandler::setVariable("CMake", cmake_version);
+		credits::setLibraryCredits("build", "CMake " + cmake_version);
+		oss.str(std::string());
+		oss << (BOOST_VERSION / 100000) << '.' << (BOOST_VERSION / 100 % 1000)
+		    << '.' << (BOOST_VERSION % 100);
+		CrashHandler::setVariable("Boost version", oss.str());
+		credits::setLibraryCredits("boost", "Boost " + oss.str());
+		oss.str(std::string());
+		oss << GLM_VERSION_MAJOR << '.' << GLM_VERSION_MINOR << '.' << GLM_VERSION_PATCH
+		    << '.' << GLM_VERSION_REVISION;
+		CrashHandler::setVariable("GLM version", oss.str());
+		credits::setLibraryCredits("math", "GLM " + oss.str());
+		oss.str(std::string());
+		oss << zlibVersion();
+		CrashHandler::setVariable("zlib version (headers)", ZLIB_VERSION);
+		CrashHandler::setVariable("zlib version (runtime)", oss.str());
+		credits::setLibraryCredits("deflate", "zlib " + oss.str());
+		credits::setLibraryCredits("image", "stb_image");
 	}
 	
 	// Also intialize the logging system early as we might need it
@@ -153,6 +176,9 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	// Parse the command line and process options
 	ExitStatus status = parseCommandLine(argc, argv);
 	
+	platform::initializeTime();
+	benchmark::begin(benchmark::Startup);
+	
 	// Setup user, config and data directories
 	if(status == RunProgram) {
 		status = fs::paths.init();
@@ -162,7 +188,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		
 		// Configure the crash report location
 		CrashHandler::setReportLocation(fs::paths.user / "crashes");
-		CrashHandler::deleteOldReports(/* nb to keep = */5);
+		CrashHandler::deleteOldReports(/* nb to keep = */1);
 		
 		// Now that data directories are initialized, create a log file
 		{
@@ -171,8 +197,6 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			CrashHandler::addAttachedFile(logFile);
 		}
 		
-		platform::initializeTime();
-		
 		profiler::initialize();
 		
 		// 14: Start the game already!
@@ -180,6 +204,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		runGame();
 		
 	}
+	
+	benchmark::shutdown();
 	
 	// Shutdown the logging system
 	// If there has been a critical error, a dialog will be shown now

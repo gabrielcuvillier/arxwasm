@@ -110,13 +110,15 @@ macro(strip_warning_flags VAR)
 	string(REGEX REPLACE "(^| )\\-(W[^ ]*|pedantic)" "" ${VAR} "${${VAR}}")
 endmacro()
 
+set(BUILTIN_CHECK_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
 function(check_builtin RESULT EXPR)
 	string(REGEX REPLACE "[^a-zA-Z0-9_][^a-zA-Z0-9_]*" "-" check "${EXPR}")
 	string(REGEX REPLACE "_*\\-_*" "-" check "${check}")
 	string(REGEX REPLACE "^[_\\-]+" "" check "${check}")
 	string(REGEX REPLACE "[_\\-]+$" "" check "${check}")
-	if(EXISTS "${CMAKE_MODULE_PATH}/check-${check}.cpp")
-		set(compile_test_file "${CMAKE_MODULE_PATH}/check-${check}.cpp")
+	if(EXISTS "${BUILTIN_CHECK_DIR}/check-${check}.cpp")
+		set(compile_test_file "${BUILTIN_CHECK_DIR}/check-${check}.cpp")
 		set(type "${EXPR}")
 	else()
 		set(compile_test_file "${CMAKE_CURRENT_BINARY_DIR}/check-builtin-${check}.cpp")
@@ -196,6 +198,8 @@ endfunction(try_link_library)
 
 ##############################################################################
 # Check that a a library actually works for the current configuration
+# This is neede because CMake prefers /usr/lib over /usr/lib32 for -m32 builds
+# See https://public.kitware.com/Bug/view.php?id=11260
 function(check_link_library LIBRARY_NAME LIBRARY_VARIABLE)
 	
 	if(MSVC)

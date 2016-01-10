@@ -31,7 +31,6 @@
 #include "graphics/particle/ParticleEffects.h"
 
 #include "graphics/spells/Spells05.h"
-#include "graphics/spells/Spells06.h"
 #include "physics/Collisions.h"
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
@@ -54,7 +53,7 @@ void RiseDeadSpell::GetTargetAndBeta(Vec3f & target, float & beta)
 }
 
 RiseDeadSpell::RiseDeadSpell()
-	: m_entity(EntityHandle::Invalid)
+	: m_entity()
 {
 	
 }
@@ -91,7 +90,9 @@ void RiseDeadSpell::Launch()
 	m_duration = (m_launchDuration > -1) ? m_launchDuration : 2000000;
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 1.2f;
-	m_entity = EntityHandle::Invalid;
+	
+	m_creationFailed = false;
+	m_entity = EntityHandle();
 	
 	m_fissure.Create(target, beta);
 	m_fissure.SetDuration(2000, 500, 1800);
@@ -119,12 +120,11 @@ void RiseDeadSpell::Launch()
 
 void RiseDeadSpell::End()
 {
-	if(ValidIONum(m_entity) && m_entity != PlayerEntityHandle) {
-		
-		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &entities[m_entity]->pos);
-		
+	if(ValidIONum(m_entity)) {
 		Entity *entity = entities[m_entity];
-
+		
+		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &entity->pos);
+		
 		if(entity->scriptload && (entity->ioflags & IO_NOSAVE)) {
 			AddRandomSmoke(entity,100);
 			Vec3f posi = entity->pos;
@@ -136,7 +136,7 @@ void RiseDeadSpell::End()
 			if(lightHandleIsValid(nn)) {
 				EERIE_LIGHT * light = lightHandleGet(nn);
 				
-				light->intensity = 0.7f + 2.f*rnd();
+				light->intensity = Random::getf(0.7f, 2.7f);
 				light->fallend = 600.f;
 				light->fallstart = 400.f;
 				light->rgb = Color3f(1.0f, 0.8f, 0.f);
@@ -153,8 +153,8 @@ void RiseDeadSpell::End()
 
 void RiseDeadSpell::Update(float timeDelta) {
 	
-	if(m_entity == -2) {
-		m_light = LightHandle::Invalid;
+	if(m_creationFailed) {
+		m_light = LightHandle();
 		return;
 	}
 	
@@ -176,13 +176,10 @@ void RiseDeadSpell::Update(float timeDelta) {
 	
 	unsigned long tim = m_fissure.ulCurrentTime;
 	
-	if(tim > 3000 && m_entity == EntityHandle::Invalid) {
+	if(tim > 3000 && m_entity == EntityHandle() && !m_creationFailed) {
 		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &m_targetPos);
 		
-		Cylinder phys;
-		phys.height = -200;
-		phys.radius = 50;
-		phys.origin = m_targetPos;
+		Cylinder phys = Cylinder(m_targetPos, 50, -200);
 		
 		float anything = CheckAnythingInCylinder(phys, NULL, CFLAG_JUST_TEST);
 		
@@ -219,14 +216,14 @@ void RiseDeadSpell::Update(float timeDelta) {
 				MakeCoolFx(pos);
 			}
 			
-			m_light = LightHandle::Invalid;
+			m_light = LightHandle();
 		} else {
 			ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE);
-			m_entity = EntityHandle(-2); // FIXME inband signaling
+			m_creationFailed = true;
 			m_duration=0;
 		}
 	} else if(!arxtime.is_paused() && tim < 4000) {
-	  if(rnd() > 0.95f) {
+	  if(Random::getf() > 0.95f) {
 			MakeCoolFx(m_fissure.m_eSrc);
 		}
 	}
@@ -244,7 +241,7 @@ void ParalyseSpell::Launch()
 	} else if(entities[m_target]->ioflags & IO_NPC) {
 		resist_magic = entities[m_target]->_npcdata->resist_magic;
 	}
-	if(rnd() * 100.f < resist_magic) {
+	if(Random::getf(0.f, 100.f) < resist_magic) {
 		float mul = std::max(0.5f, 1.f - (resist_magic * 0.005f));
 		m_duration = long(m_duration * mul);
 	}
@@ -268,7 +265,7 @@ Vec3f ParalyseSpell::getPosition() {
 }
 
 CreateFieldSpell::CreateFieldSpell()
-	: m_entity(EntityHandle::Invalid)
+	: m_entity()
 {
 }
 

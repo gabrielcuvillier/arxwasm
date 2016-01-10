@@ -192,7 +192,7 @@ static void ARX_SPEECH_Render() {
 		);
 		
 		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-		GRenderer->SetBlendFunc(Renderer::BlendSrcAlpha, Renderer::BlendInvSrcAlpha);
+		GRenderer->SetBlendFunc(BlendSrcAlpha, BlendInvSrcAlpha);
 		
 		EERIEDrawBitmap(rect, .00001f, arx_logo_tc, Color::white);
 		
@@ -442,17 +442,17 @@ void ARX_SPEECH_Update() {
 				ARX_SOUND_RefreshSpeechPosition(aspeech[i].sample);
 			else
 				ARX_SOUND_RefreshSpeechPosition(aspeech[i].sample, io);
-
-			if((io != entities.player() || (io == entities.player() && EXTERNALVIEW)) && ValidIOAddress(io))
-			{
+			
+			if((io != entities.player() || EXTERNALVIEW) && ValidIOAddress(io)) {
+				
 				if(!io->anims[aspeech[i].mood])
 					aspeech[i].mood = ANIM_TALK_NEUTRAL;
-
-				if(io->anims[aspeech[i].mood]) {
-					if ((io->animlayer[2].cur_anim != io->anims[aspeech[i].mood])
-							||	(io->animlayer[2].flags & EA_ANIMEND))
-					{
-						changeAnimation(io, 2, io->anims[aspeech[i].mood]);
+				
+				ANIM_HANDLE * anim = io->anims[aspeech[i].mood];
+				if(anim) {
+					AnimLayer & layer2 = io->animlayer[2];
+					if(layer2.cur_anim != anim || (layer2.flags & EA_ANIMEND)) {
+						changeAnimation(io, 2, anim);
 					}
 				}
 			}
@@ -513,7 +513,7 @@ void ARX_SPEECH_Update() {
 							Color::white,
 							&clippingRect);
 
-		GRenderer->SetBlendFunc(Renderer::BlendZero, Renderer::BlendInvSrcColor);
+		GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
 		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 		GRenderer->SetRenderState(Renderer::DepthTest, false);
 
@@ -524,7 +524,7 @@ void ARX_SPEECH_Update() {
 		                          Vec2f(static_cast<float>(g_size.width()), fZoneClippY + fZoneClippHeight),
 		                          0.f, Color::black, Color::white);
 
-		GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendZero);
+		GRenderer->SetBlendFunc(BlendOne, BlendZero);
 		GRenderer->SetRenderState(Renderer::DepthTest, true);
 		GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 

@@ -61,38 +61,30 @@ long ARX_LEVELS_GetRealNum(long num)
 		case 11:
 		case 12:
 			return 0;
-			break;
 		case 1:
 		case 13:
 		case 14:
 			return 1;
-			break;
 		case 2:
 		case 15:
 			return 2;
-			break;
 		case 3:
 		case 16:
 		case 17:
 			return 3;
-			break;
 		case 4:
 		case 18:
 		case 19:
 			return 4;
-			break;
 		case 5:
 		case 21:
 			return 5;
-			break;
 		case 6:
 		case 22:
 			return 6;
-			break;
 		case 7:
 		case 23:
 			return 7;
-			break;
 	}
 
 	if (num < 0) return -1;
@@ -105,67 +97,36 @@ long GetLevelNumByName(const std::string& name)
 	if ( !name.empty() )
 	{
 		if (boost::contains(name, "level10")) return 10;
-
 		if (boost::contains(name, "level11")) return 11;
-
 		if (boost::contains(name, "level12")) return 12;
-
 		if (boost::contains(name, "level13")) return 13;
-
 		if (boost::contains(name, "level14")) return 14;
-
 		if (boost::contains(name, "level15")) return 15;
-
 		if (boost::contains(name, "level16")) return 16;
-
 		if (boost::contains(name, "level17")) return 17;
-
 		if (boost::contains(name, "level18")) return 18;
-
 		if (boost::contains(name, "level19")) return 19;
-
 		if (boost::contains(name, "level20")) return 20;
-
 		if (boost::contains(name, "level21")) return 21;
-
 		if (boost::contains(name, "level22")) return 22;
-
 		if (boost::contains(name, "level23")) return 23;
-
 		if (boost::contains(name, "level24")) return 24;
-
 		if (boost::contains(name, "level25")) return 25;
-
 		if (boost::contains(name, "level26")) return 26;
-
 		if (boost::contains(name, "level27")) return 27;
-
 		if (boost::contains(name, "leveldemo2")) return 29;
-
 		if (boost::contains(name, "leveldemo3")) return 30;
-
 		if (boost::contains(name, "leveldemo4")) return 31;
-
 		if (boost::contains(name, "leveldemo")) return 28;
-
 		if (boost::contains(name, "level0")) return 0;
-
 		if (boost::contains(name, "level1")) return 1;
-
 		if (boost::contains(name, "level2")) return 2;
-
 		if (boost::contains(name, "level3")) return 3;
-
 		if (boost::contains(name, "level4")) return 4;
-
 		if (boost::contains(name, "level5")) return 5;
-
 		if (boost::contains(name, "level6")) return 6;
-
 		if (boost::contains(name, "level7")) return 7;
-
 		if (boost::contains(name, "level8")) return 8;
-
 		if (boost::contains(name, "level9")) return 9;
 	}
 
@@ -179,67 +140,36 @@ void GetLevelNameByNum(long num, char * name)
 		strcpy(name, "none");
 
 		if (num == 0) strcpy(name, "0");
-
 		if (num == 1) strcpy(name, "1");
-
 		if (num == 2) strcpy(name, "2");
-
 		if (num == 3) strcpy(name, "3");
-
 		if (num == 4) strcpy(name, "4");
-
 		if (num == 5) strcpy(name, "5");
-
 		if (num == 6) strcpy(name, "6");
-
 		if (num == 7) strcpy(name, "7");
-
 		if (num == 8) strcpy(name, "8");
-
 		if (num == 9) strcpy(name, "9");
-
 		if (num == 10) strcpy(name, "10");
-
 		if (num == 11) strcpy(name, "11");
-
 		if (num == 12) strcpy(name, "12");
-
 		if (num == 13) strcpy(name, "13");
-
 		if (num == 14) strcpy(name, "14");
-
 		if (num == 15) strcpy(name, "15");
-
 		if (num == 16) strcpy(name, "16");
-
 		if (num == 17) strcpy(name, "17");
-
 		if (num == 18) strcpy(name, "18");
-
 		if (num == 19) strcpy(name, "19");
-
 		if (num == 20) strcpy(name, "20");
-
 		if (num == 21) strcpy(name, "21");
-
 		if (num == 22) strcpy(name, "22");
-
 		if (num == 23) strcpy(name, "23");
-
 		if (num == 24) strcpy(name, "24");
-
 		if (num == 25) strcpy(name, "25");
-
 		if (num == 26) strcpy(name, "26");
-
 		if (num == 27) strcpy(name, "27");
-
 		if (num == 28) strcpy(name, "demo");
-
 		if (num == 29) strcpy(name, "demo2");
-
 		if (num == 30) strcpy(name, "demo3");
-
 		if (num == 31) strcpy(name, "demo4");
 	}
 }

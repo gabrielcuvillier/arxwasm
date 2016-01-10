@@ -65,40 +65,43 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 static const float GLOBAL_LIGHT_FACTOR=0.85f;
 
+static const Color3f defaultAmbient = Color3f(0.09f, 0.09f, 0.09f);
+static const int NPC_ITEMS_AMBIENT_VALUE_255 = 35;
+
 EERIE_LIGHT * GLight[MAX_LIGHTS];
 EERIE_LIGHT DynLight[MAX_DYNLIGHTS];
 
 EERIE_LIGHT * PDL[MAX_DYNLIGHTS];
-long TOTPDL = 0;
+size_t TOTPDL = 0;
 
 static EERIE_LIGHT * IO_PDL[MAX_DYNLIGHTS];
-long TOTIOPDL = 0;
+size_t TOTIOPDL = 0;
 
 void ColorMod::updateFromEntity(Entity *io, bool inBook) {
 	factor = Color3f::white;
 	term = Color3f::black;
 	if(io) {
-	   factor *= io->special_color;
-	   term += io->highlightColor;
+		factor *= io->special_color;
+		term += io->highlightColor;
 	}
 
 	if(player.m_improve) {
-	   Color3f infra = (io) ? io->infracolor : Color3f(0.6f, 0.f, 1.f);
-
-	   factor *= infra;
-
-	   // Special case for drawing runes in book
-	   if(inBook) {
-		   term.r += infra.r * 512.f;
-		   term.g += infra.g;
-		   term.b += infra.b * 400.f;
-	   }
+		Color3f infra = (io) ? io->infracolor : Color3f(0.6f, 0.f, 1.f);
+		
+		factor *= infra;
+		
+		// Special case for drawing runes in book
+		if(inBook) {
+			term.r += infra.r * 512.f;
+			term.g += infra.g;
+			term.b += infra.b * 400.f;
+		}
 	}
-
+	
 	// Ambient light
-	ambientColor = ACTIVEBKG->ambient * 255.f;
+	ambientColor = defaultAmbient * 255.f;
 	if(io && (io->ioflags & (IO_NPC | IO_ITEM)))
-	   ambientColor = Color3f::gray(NPC_ITEMS_AMBIENT_VALUE_255);
+		ambientColor = Color3f::gray(NPC_ITEMS_AMBIENT_VALUE_255);
 }
 
 void RecalcLight(EERIE_LIGHT * el) {
@@ -150,7 +153,7 @@ long EERIE_LIGHT_Create() {
 			
 			memset(GLight[i], 0, sizeof(EERIE_LIGHT));
 			GLight[i]->sample = audio::INVALID_ID;
-			GLight[i]->m_ignitionLightHandle = LightHandle::Invalid;
+			GLight[i]->m_ignitionLightHandle = LightHandle();
 			return i;
 		}
 	}
@@ -179,7 +182,7 @@ void EERIE_LIGHT_GlobalAdd(const EERIE_LIGHT * el)
 	{
 		GLight[num] = (EERIE_LIGHT *)malloc(sizeof(EERIE_LIGHT));
 		memcpy(GLight[num], el, sizeof(EERIE_LIGHT));
-		GLight[num]->m_ignitionLightHandle = LightHandle::Invalid;
+		GLight[num]->m_ignitionLightHandle = LightHandle();
 		GLight[num]->sample = audio::INVALID_ID;
 	}
 }
@@ -232,7 +235,7 @@ void TreatBackgroundDynlights() {
 				// just extinguished
 				if(lightHandleIsValid(light->m_ignitionLightHandle)) {
 					lightHandleGet(light->m_ignitionLightHandle)->exist = 0;
-					light->m_ignitionLightHandle = LightHandle::Invalid;
+					light->m_ignitionLightHandle = LightHandle();
 					
 					for(size_t l = 0; l < entities.size(); l++) {
 						const EntityHandle handle = EntityHandle(l);
@@ -343,7 +346,7 @@ void PrecalcDynamicLighting(long x0, long z0, long x1, long z1) {
 				PDL[TOTPDL] = el;
 				TOTPDL++;
 
-				if((size_t)TOTPDL >= MAX_DYNLIGHTS)
+				if(TOTPDL >= MAX_DYNLIGHTS)
 					TOTPDL--;
 			}
 			else if(el->treat)
@@ -368,31 +371,31 @@ void PrecalcIOLighting(const Vec3f & pos, float radius) {
 		   && (el->pos.z >= pos.z - radius)
 		   && (el->pos.z <= pos.z + radius)
 		) {
-				RecalcLight(el);
-				IO_PDL[TOTIOPDL] = el;
-
-				TOTIOPDL++;
-
-				if((size_t)TOTIOPDL >= MAX_DYNLIGHTS)
-					TOTIOPDL--;
+			RecalcLight(el);
+			IO_PDL[TOTIOPDL] = el;
+			
+			TOTIOPDL++;
+			
+			if(TOTIOPDL >= MAX_DYNLIGHTS)
+				TOTIOPDL--;
 		}
 	}
 }
 
 EERIE_LIGHT * lightHandleGet(LightHandle lightHandle) {
-	return &DynLight[lightHandle];
+	return &DynLight[lightHandle.handleData()];
 }
 
 bool lightHandleIsValid(LightHandle num)
 {
-	return (long)num >= 0 && ((size_t)num < MAX_DYNLIGHTS) && DynLight[num].exist;
+	return (long)num.handleData() >= 0 && ((size_t)num.handleData() < MAX_DYNLIGHTS) && DynLight[num.handleData()].exist;
 }
 
 void lightHandleDestroy(LightHandle & handle) {
 	if(lightHandleIsValid(handle)) {
 		lightHandleGet(handle)->exist = 0;
 	}
-	handle = LightHandle::Invalid;
+	handle = LightHandle();
 }
 
 void endLightDelayed(LightHandle & handle, long delay) {
@@ -418,11 +421,11 @@ LightHandle GetFreeDynLight() {
 			DynLight[i].duration = 0;
 			DynLight[i].extras = 0;
 			DynLight[i].m_storedFlameTime.reset();
-			return (LightHandle)i;
+			return LightHandle(i);
 		}
 	}
 
-	return (LightHandle)-1;
+	return LightHandle();
 }
 
 void ClearDynLights() {
@@ -434,8 +437,8 @@ void ClearDynLights() {
 	}
 
 	for(size_t i = 0; i < MAX_LIGHTS; i++) {
-		if(GLight[i] && GLight[i]->m_ignitionLightHandle > 0) {
-			GLight[i]->m_ignitionLightHandle = LightHandle(0); // TODO is this correct ?
+		if(GLight[i]) {
+			GLight[i]->m_ignitionLightHandle = LightHandle();
 		}
 	}
 
@@ -443,19 +446,12 @@ void ClearDynLights() {
 	TOTIOPDL = 0;
 }
 
-long MAX_LLIGHTS = 18;
-EERIE_LIGHT * llights[32];
-float values[32];
 
-static void llightsInit() {
-	for(long i = 0; i < MAX_LLIGHTS; i++) {
-		llights[i] = NULL;
-		values[i] = 999999999.f;
-	}
-}
+
+static int MAX_LLIGHTS = llightsSize;
 
 // Inserts Light in the List of Nearest Lights
-static void Insertllight(EERIE_LIGHT * el, const Vec3f & pos, bool forPlayerColor) {
+static void Insertllight(EERIE_LIGHT * llights[], float values[], EERIE_LIGHT * el, const Vec3f & pos, bool forPlayerColor) {
 	
 	if(!el)
 		return;
@@ -479,13 +475,13 @@ static void Insertllight(EERIE_LIGHT * el, const Vec3f & pos, bool forPlayerColo
 	if(val < 0)
 		val=0;
 
-	for(long i=0; i < MAX_LLIGHTS; i++) {
+	for(int i = 0; i < MAX_LLIGHTS; i++) {
 		if(!llights[i]) {
 			llights[i]=el;
 			values[i]=val;
 			return;
 		} else if (val <= values[i]) { // Inserts light at the right place
-			for(long j = MAX_LLIGHTS - 2; j >= i; j--) {
+			for(int j = MAX_LLIGHTS - 2; j >= i; j--) {
 				if(llights[j]) {
 					llights[j+1]=llights[j];
 					values[j+1]=values[j];
@@ -499,15 +495,46 @@ static void Insertllight(EERIE_LIGHT * el, const Vec3f & pos, bool forPlayerColo
 	}
 }
 
-void UpdateLlights(const Vec3f pos, bool forPlayerColor) {
-	llightsInit();
+void setMaxLLights(int count) {
+	MAX_LLIGHTS = glm::clamp(count, 6, llightsSize);
+}
 
-	for(int i = 0; i < TOTIOPDL; i++) {
-		Insertllight(IO_PDL[i], pos, forPlayerColor);
+void UpdateLlights(ShaderLight lights[], int & lightsCount, const Vec3f pos, bool forPlayerColor) {
+	
+	EERIE_LIGHT * llights[llightsSize];
+	float values[llightsSize];
+	
+	for(int i = 0; i < MAX_LLIGHTS; i++) {
+		llights[i] = NULL;
+		values[i] = 999999999.f;
 	}
 
-	for(int i = 0; i < TOTPDL; i++) {
-		Insertllight(PDL[i], pos, forPlayerColor);
+	for(size_t i = 0; i < TOTIOPDL; i++) {
+		Insertllight(llights, values, IO_PDL[i], pos, forPlayerColor);
+	}
+
+	for(size_t i = 0; i < TOTPDL; i++) {
+		Insertllight(llights, values, PDL[i], pos, forPlayerColor);
+	}
+	
+	lightsCount = 0;
+	for(int i = 0; i < MAX_LLIGHTS; i++) {
+		if(llights[i]) {
+			EERIE_LIGHT * el = llights[i];
+			ShaderLight & sl = lights[i];
+			
+			sl.pos = el->pos;
+			sl.fallstart = el->fallstart;
+			sl.fallend = el->fallend;
+			sl.falldiffmul = el->falldiffmul;
+			sl.intensity = el->intensity;
+			sl.rgb = el->rgb;
+			sl.rgb255 = el->rgb255;
+			
+			lightsCount = i + 1;
+		} else {
+			break;
+		}
 	}
 }
 
@@ -516,13 +543,13 @@ struct TILE_LIGHTS
 	std::vector<EERIE_LIGHT *> el;
 };
 
-TILE_LIGHTS tilelights[MAX_BKGX][MAX_BKGZ];
+static TILE_LIGHTS tilelights[MAX_BKGX][MAX_BKGZ];
 
 void InitTileLights()
 {
-	for(long j = 0; j < MAX_BKGZ; j++)
-	for(long i = 0; i < MAX_BKGX; i++) {
-		tilelights[i][j].el.clear();
+	for(long z = 0; z < MAX_BKGZ; z++)
+	for(long x = 0; x < MAX_BKGX; x++) {
+		tilelights[x][z].el.clear();
 	}
 }
 
@@ -530,9 +557,9 @@ void ResetTileLights() {
 	
 	ARX_PROFILE_FUNC();
 	
-	for(long j=0; j<ACTIVEBKG->Zsize; j++) {
-		for(long i=0; i<ACTIVEBKG->Xsize; i++) {
-			tilelights[i][j].el.clear();
+	for(long z=0; z<ACTIVEBKG->Zsize; z++) {
+		for(long x=0; x<ACTIVEBKG->Xsize; x++) {
+			tilelights[x][z].el.clear();
 		}
 	}
 }
@@ -543,53 +570,55 @@ void ComputeTileLights(short x,short z)
 	float xx=((float)x+0.5f)*ACTIVEBKG->Xdiv;
 	float zz=((float)z+0.5f)*ACTIVEBKG->Zdiv;
 
-	for(long i=0; i < TOTPDL; i++) {
-		if(closerThan(Vec2f(xx, zz), Vec2f(PDL[i]->pos.x, PDL[i]->pos.z), PDL[i]->fallend + 60.f)) {
+	for(size_t i = 0; i < TOTPDL; i++) {
+		EERIE_LIGHT * light = PDL[i];
+		
+		if(closerThan(Vec2f(xx, zz), Vec2f(light->pos.x, light->pos.z), light->fallend + 60.f)) {
 
-			tilelights[x][z].el.push_back(PDL[i]);
+			tilelights[x][z].el.push_back(light);
 		}
 	}
 }
 
 void ClearTileLights() {
-	for(long j = 0; j < MAX_BKGZ; j++) {
-		for(long i = 0; i < MAX_BKGZ; i++) {
-			tilelights[i][j].el.clear();
+	for(long z = 0; z < MAX_BKGZ; z++) {
+		for(long x = 0; x < MAX_BKGX; x++) {
+			tilelights[x][z].el.clear();
 		}
 	}
 }
 
 float GetColorz(const Vec3f &pos) {
 
-	UpdateLlights(pos, true);
+	ShaderLight lights[llightsSize];
+	int lightsCount;
+	UpdateLlights(lights, lightsCount, pos, true);
 	
 	Color3f ff = Color3f(0.f, 0.f, 0.f);
 	
-	for(long k = 0; k < MAX_LLIGHTS; k++) {
-		EERIE_LIGHT * el = llights[k];
-
-		if(el) {
-			float dd = fdist(el->pos, pos);
-
-			if(dd < el->fallend) {
-				float dc;
-
-				if(dd <= el->fallstart) {
-					dc = el->intensity * GLOBAL_LIGHT_FACTOR;
-				} else {
-					float p = ((el->fallend - dd) * el->falldiffmul);
-
-					if(p <= 0.f)
-						dc = 0.f;
-					else
-						dc = p * el->intensity * GLOBAL_LIGHT_FACTOR;
-				}
-
-				dc *= 0.4f * 255.f;
-				ff.r = std::max(ff.r, el->rgb.r * dc);
-				ff.g = std::max(ff.g, el->rgb.g * dc);
-				ff.b = std::max(ff.b, el->rgb.b * dc);
+	for(long k = 0; k < lightsCount; k++) {
+		const ShaderLight & light = lights[k];
+		
+		float dd = fdist(light.pos, pos);
+		
+		if(dd < light.fallend) {
+			float dc;
+			
+			if(dd <= light.fallstart) {
+				dc = light.intensity * GLOBAL_LIGHT_FACTOR;
+			} else {
+				float p = ((light.fallend - dd) * light.falldiffmul);
+				
+				if(p <= 0.f)
+					dc = 0.f;
+				else
+					dc = p * light.intensity * GLOBAL_LIGHT_FACTOR;
 			}
+			
+			dc *= 0.4f * 255.f;
+			ff.r = std::max(ff.r, light.rgb.r * dc);
+			ff.g = std::max(ff.g, light.rgb.g * dc);
+			ff.b = std::max(ff.b, light.rgb.b * dc);
 		}
 	}
 
@@ -629,42 +658,47 @@ float GetColorz(const Vec3f &pos) {
 	return (std::min(ff.r, 255.f) + std::min(ff.g, 255.f) + std::min(ff.b, 255.f)) * (1.f/3);
 }
 
-ColorRGBA ApplyLight(const glm::quat * quat, const Vec3f & position, const Vec3f & normal, const ColorMod & colorMod, float materialDiffuse) {
-
+ColorRGBA ApplyLight(const ShaderLight lights[],
+                     const int lightsCount,
+                     const glm::quat & quat,
+                     const Vec3f & position,
+                     const Vec3f & normal,
+                     const ColorMod & colorMod,
+                     float materialDiffuse
+) {
 	Color3f tempColor = colorMod.ambientColor;
-
+	
+	glm::quat inv = glm::inverse(quat);
+	
 	// Dynamic lights
-	for(int l = 0; l != MAX_LLIGHTS; l++) {
-		EERIE_LIGHT * light = llights[l];
-
-		if(!light)
-			break;
-
-		Vec3f vLight = glm::normalize(light->pos - position);
-
-		Vec3f Cur_vLights = glm::inverse(*quat) * vLight;
+	for(int l = 0; l != lightsCount; l++) {
+		const ShaderLight & light = lights[l];
+		
+		Vec3f vLight = glm::normalize(light.pos - position);
+		
+		Vec3f Cur_vLights = inv * vLight;
 		
 		float cosangle = glm::dot(normal, Cur_vLights);
-
+		
 		// If light visible
 		if(cosangle > 0.f) {
-			float distance = fdist(position, light->pos);
-
+			float distance = fdist(position, light.pos);
+			
 			// Evaluate its intensity depending on the distance Light<->Object
-			if(distance <= light->fallstart) {
-				cosangle *= light->intensity * GLOBAL_LIGHT_FACTOR;
+			if(distance <= light.fallstart) {
+				cosangle *= light.intensity * GLOBAL_LIGHT_FACTOR;
 			} else {
-				float p = ((light->fallend - distance) * light->falldiffmul);
-
+				float p = ((light.fallend - distance) * light.falldiffmul);
+				
 				if(p <= 0.f)
 					cosangle = 0.f;
 				else
-					cosangle *= p * (light->intensity * GLOBAL_LIGHT_FACTOR);
+					cosangle *= p * (light.intensity * GLOBAL_LIGHT_FACTOR);
 			}
-
+			
 			cosangle *= materialDiffuse;
 
-			tempColor += light->rgb255 * cosangle;
+			tempColor += light.rgb255 * cosangle;
 		}
 	}
 

@@ -28,6 +28,9 @@
 #include "graphics/image/Image.h"
 #include "io/fs/FilePath.h"
 #include "io/resource/ResourcePath.h"
+#include "util/HandleType.h"
+
+ARX_HANDLE_TYPEDEF(long, SavegameHandle, -1);
 
 struct SaveGame {
 	
@@ -83,10 +86,7 @@ public:
 	iterator quickload();
 	
 	//! Delete the given savegame. This removes the actual on-disk files.
-	void remove(iterator idx);
-	
-	//! Delete the given savegame. This removes the actual on-disk files.
-	void remove(size_t idx) { remove(begin() + idx); }
+	void remove(SavegameHandle handle);
 	
 	iterator begin() const { return savelist.begin(); }
 	iterator end() const { return savelist.end(); }

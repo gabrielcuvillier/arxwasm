@@ -22,35 +22,36 @@
 
 #include <string>
 
+#include "gui/MenuWidgets.h"
+#include "gui/widget/Widget.h"
+#include "gui/widget/WidgetContainer.h"
 #include "math/Types.h"
 
-// FIXME remove this
-const std::string AUTO_RESOLUTION_STRING = "Automatic";
-
-enum MENUSTATE
-{
-	MAIN,
-	RESUME_GAME,
-	NEW_QUEST,
-	EDIT_QUEST,
-	EDIT_QUEST_LOAD,
-	EDIT_QUEST_SAVE,
-	EDIT_QUEST_SAVE_CONFIRM,
-	OPTIONS,
-	OPTIONS_VIDEO,
-	OPTIONS_AUDIO,
-	OPTIONS_INPUT,
-	OPTIONS_INPUT_CUSTOMIZE_KEYS_1,
-	OPTIONS_INPUT_CUSTOMIZE_KEYS_2,
-	CREDITS,
-	QUIT,
-	NOP,
-	OPTIONS_VIDEO_RENDERER_OPENGL,
-	OPTIONS_VIDEO_RENDERER_AUTOMATIC,
-	OPTIONS_AUDIO_BACKEND_OPENAL,
-	OPTIONS_AUDIO_BACKEND_AUTOMATIC,
-};
-
 void MainMenuLeftCreate(MENUSTATE eMenuState);
+
+class MainMenu {
+public:
+	bool					bReInitAll;
+	MENUSTATE				eOldMenuState;
+	MENUSTATE				eOldMenuWindowState;
+	
+	Widget		*	m_selected;
+	
+	explicit MainMenu();
+	virtual ~MainMenu();
+	
+	void init();
+	void onClickedResumeGame();
+	void onClickedNewQuest();
+	
+	MENUSTATE Update();
+	void Render();
+	
+private:
+	TextureContainer * m_background;
+	WidgetContainer * m_widgets;
+	
+	TextWidget * m_resumeGame;
+};
 
 #endif // ARX_GUI_MAINMENU_H

@@ -51,16 +51,12 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 class TextureContainer;
 
-#define MAX_FLYOVER 32
+static const size_t MAX_FLYOVER = 32;
 
 struct MENU_DYNAMIC_DATA {
 	
 	TextureContainer * BookBackground;
-	TextureContainer * pTexCredits;
-	float creditspos;
-	float creditstart;
 	std::string flyover[MAX_FLYOVER];
-	std::string credits;
 	// New Quest Buttons Strings
 	std::string str_button_quickgen;
 	std::string str_button_skin;
@@ -68,9 +64,6 @@ struct MENU_DYNAMIC_DATA {
 	
 	MENU_DYNAMIC_DATA()
 		: BookBackground(NULL)
-		, pTexCredits(NULL)
-		, creditspos(0)
-		, creditstart(0)
 	{}
 	
 };

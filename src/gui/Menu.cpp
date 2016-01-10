@@ -60,7 +60,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "core/Core.h"
 #include "core/GameTime.h"
 #include "core/Localisation.h"
-#include "core/Version.h"
 
 #include "game/Player.h"
 
@@ -80,7 +79,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "input/Input.h"
 
-#include "io/resource/PakReader.h"
 #include "io/resource/ResourcePath.h"
 #include "io/Screenshot.h"
 #include "io/fs/Filesystem.h"
@@ -90,13 +88,9 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "scene/GameSound.h"
 #include "scene/Light.h"
 
-#include "util/Unicode.h"
-
 extern TextManager * pTextManage;
-extern ARX_INTERFACE_BOOK_MODE Book_Mode;
-extern long START_NEW_QUEST;
-extern long LASTBOOKBUTTON;
-extern long BOOKBUTTON;
+extern ARX_INTERFACE_BOOK_MODE g_guiBookCurrentTopTab;
+extern bool START_NEW_QUEST;
 extern long OLD_FLYING_OVER;
 extern long FLYING_OVER;
 extern bool bFadeInOut;
@@ -118,7 +112,7 @@ extern TextureContainer * pTextureLoad;
 
 bool bQuickGenFirstClick = true;
 ARX_MENU_DATA ARXmenu;
-long REFUSE_GAME_RETURN = 0;
+bool REFUSE_GAME_RETURN = false;
 
 static long SP_HEAD = 0;
 
@@ -134,7 +128,6 @@ void ARX_Menu_Resources_Create() {
 	
 	delete ARXmenu.mda;
 	ARXmenu.mda = new MENU_DYNAMIC_DATA();
-	ARXmenu.mda->pTexCredits = TextureContainer::LoadUI("graph/interface/menus/menu_credits");
 	ARXmenu.mda->BookBackground = TextureContainer::LoadUI("graph/interface/book/character_sheet/char_creation_bg", TextureContainer::NoColorKey);
 
 	ARXmenu.mda->flyover[BOOK_STRENGTH] = getLocalised("system_charsheet_strength");
@@ -169,45 +162,6 @@ void ARX_Menu_Resources_Create() {
 	ARXmenu.mda->str_button_skin = getLocalised("system_charsheet_button_skin");
 	ARXmenu.mda->str_button_done = getLocalised("system_charsheet_button_done");
 
-	
-	// Load credits.
-	
-	std::string creditsFile = "localisation/ucredits_" +  config.language + ".txt";
-	
-	size_t creditsSize;
-	char * credits = resources->readAlloc(creditsFile, creditsSize);
-	
-	std::string englishCreditsFile;
-	if(!credits) {
-		// Fallback if there is no localised credits file
-		englishCreditsFile = "localisation/ucredits_english.txt";
-		credits = resources->readAlloc(englishCreditsFile, creditsSize);
-	}
-	
-	if(!credits) {
-		if(!englishCreditsFile.empty() && englishCreditsFile != creditsFile) {
-			LogWarning << "Unable to read credits files " << creditsFile
-			           << " and " << englishCreditsFile;
-		} else {
-			LogWarning << "Unable to read credits file " << creditsFile;
-		}
-	} else {
-		
-		LogDebug("Loaded credits file: " << creditsFile << " of size " << creditsSize);
-		
-		ARXmenu.mda->credits = arx_credits;
-		
-		ARXmenu.mda->credits += "\n\n\n" + arx_copyright;
-		
-		ARXmenu.mda->credits += "\n\n\n~ORIGINAL ARX FATALIS CREDITS:\n\n\n";
-		
-		char * creditsEnd = credits + creditsSize;
-		ARXmenu.mda->credits += util::convert<util::UTF16LE, util::UTF8>(credits, creditsEnd);
-		
-		LogDebug("Converted to UTF8 string of length " << ARXmenu.mda->credits.size());
-		
-		free(credits);
-	}
 }
 
 void ARX_Menu_Resources_Release(bool _bNoSound) {
@@ -248,24 +202,24 @@ void ARX_MENU_Clicked_NEWQUEST() {
 	
 	arxtime.resume();
 	
-	REFUSE_GAME_RETURN = 1;
+	REFUSE_GAME_RETURN = true;
 	
 	ARX_PLAYER_Start_New_Quest();
-	Book_Mode = BOOKMODE_STATS;
+	g_guiBookCurrentTopTab = BOOKMODE_STATS;
 	player.skin = 0;
 	ARX_PLAYER_Restore_Skin();
 	ARXmenu.currentmode = AMCM_NEWQUEST;
 }
 
 static void ARX_MENU_NEW_QUEST_Clicked_QUIT() {
-	START_NEW_QUEST = 1;
-	REFUSE_GAME_RETURN = 0;
+	START_NEW_QUEST = true;
+	REFUSE_GAME_RETURN = false;
 	ARX_MENU_Clicked_QUIT();
 }
 
 void ARX_MENU_Clicked_CREDITS() {
 	ARXmenu.currentmode = AMCM_CREDITS;
-	Credits::reset();
+	credits::reset();
 	ARX_MENU_LaunchAmb(AMB_CREDITS);
 }
 
@@ -375,15 +329,6 @@ bool ARX_Menu_Render() {
 	if(ARXmenu.currentmode == AMCM_OFF)
 		return false;
 
-	if(GInput->getMouseButton(Mouse::Button_0)) {
-		EERIEMouseButton = 1;
-		LastMouseClick = 1;
-	} else if(GInput->getMouseButton(Mouse::Button_1)) {
-		EERIEMouseButton = 2;
-		LastMouseClick = 2;
-	} else {
-		EERIEMouseButton = 0;
-	}
 
 	GRenderer->Clear(Renderer::ColorBuffer | Renderer::DepthBuffer);
 	
@@ -416,16 +361,11 @@ bool ARX_Menu_Render() {
 			if(player.Skill_Redistribute == 0 && player.Attribute_Redistribute == 0)
 				DONE = 1;
 			
-			LASTBOOKBUTTON = BOOKBUTTON;
-			BOOKBUTTON = EERIEMouseButton;
-			
 			if(!ARXmenu.mda->flyover[FLYING_OVER].empty() ) //=ARXmenu.mda->flyover[FLYING_OVER];
 			{
 				if(FLYING_OVER != OLD_FLYING_OVER) {
-
-					float fRandom = rnd() * 2;
-
-					int t = checked_range_cast<int>(fRandom);
+					
+					int t = Random::get(0, 2);
 
 					pTextManage->Clear();
 					OLD_FLYING_OVER = FLYING_OVER;

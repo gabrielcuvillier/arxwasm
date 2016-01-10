@@ -65,6 +65,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "graphics/Draw.h"
 #include "graphics/GraphicsModes.h"
+#include "graphics/GraphicsTypes.h"
 #include "graphics/Math.h"
 #include "graphics/data/TextureContainer.h"
 #include "graphics/effects/SpellEffects.h"
@@ -107,6 +108,57 @@ long getParticleCount() {
 	return ParticleCount;
 }
 
+void createFireParticles(Vec3f & pos, int perPos, int delay) {
+	for(long nn = 0 ; nn < perPos; nn++) {
+
+		if(Random::getf() >= 0.4f) {
+			continue;
+		}
+
+		PARTICLE_DEF * pd = createParticle();
+		if(!pd) {
+			break;
+		}
+
+		pd->ov = pos;
+		pd->move = Vec3f(2.f, 2.f, 2.f) - Vec3f(4.f, 22.f, 4.f) * randomVec3f();
+		pd->siz = 7.f;
+		pd->tolive = Random::get(500, 1500);
+		pd->special = FIRE_TO_SMOKE | ROTATING | MODULATE_ROTATION;
+		pd->tc = fire2;
+		pd->fparam = Random::getf(-0.1f, 0.1f);
+		pd->scale = Vec3f(-8.f);
+		pd->rgb = Color3f(0.71f, 0.43f, 0.29f);
+		pd->delay = nn * delay;
+	}
+}
+
+void createObjFireParticles(const EERIE_3DOBJ * obj, int particlePositions, int perPos, int delay) {
+	
+	for(int i = 0; i < particlePositions; i++) {
+		
+		long notok = 10;
+		std::vector<EERIE_FACE>::const_iterator it;
+		
+		while(notok-- > 0) {
+			it = Random::getIterator(obj->facelist);
+			arx_assert(it != obj->facelist.end());
+			
+			if(it->facetype & POLY_HIDE)
+				continue;
+			
+			notok = -1;
+		}
+		
+		if(notok < 0) {
+			Vec3f pos = obj->vertexlist3[it->vid[0]].v;
+			
+			createFireParticles(pos, perPos, delay);
+		}
+	}
+}
+
+
 void ARX_PARTICLES_Spawn_Lava_Burn(Vec3f pos, Entity * io) {
 	
 	if(io && io->obj && !io->obj->facelist.empty()) {
@@ -138,7 +190,7 @@ void ARX_PARTICLES_Spawn_Lava_Burn(Vec3f pos, Entity * io) {
 	pd->siz = 15.f;
 	pd->scale = randomVec(15.f, 20.f);
 	pd->special = FIRE_TO_SMOKE;
-	if(rnd() > 0.5f) {
+	if(Random::getf() > 0.5f) {
 		pd->special |= SUBSTRACT;
 	}
 }
@@ -160,7 +212,7 @@ static void ARX_PARTICLES_Spawn_Rogue_Blood(const Vec3f & pos, float dmgs, Color
 	pd->rgb = col.to<float>();
 	long num = Random::get(0, 5);
 	pd->tc = bloodsplat[num];
-	pd->fparam = rnd() * (1.f/10) - .05f;
+	pd->fparam = Random::getf(-0.05f, 0.05f);
 	
 }
 
@@ -180,10 +232,10 @@ static void ARX_PARTICLES_Spawn_Blood3(const Vec3f & pos, float dmgs, Color col,
 		pd->tolive = 1100;
 		pd->rgb = col.to<float>();
 		pd->tc = bloodsplat[0];
-		pd->fparam = rnd() * 0.1f - .05f;
+		pd->fparam = Random::getf(-0.05f, 0.05f);
 	}
 	
-	if(rnd() > .90f) {
+	if(Random::getf() > .90f) {
 		ARX_PARTICLES_Spawn_Rogue_Blood(pos, dmgs, col);
 	}
 	
@@ -337,7 +389,7 @@ void SpawnGroundSplat(const Sphere & sp, const Color3f & col, long flags) {
 
 			if(oki) {
 
-				if(polyboom.capacity() > 0) {
+				if(polyboom.size() < MAX_POLYBOOM) {
 					POLYBOOM pb;
 
 					if(flags & 2) {
@@ -487,7 +539,7 @@ void ARX_PARTICLES_Spawn_Blood(const Vec3f & pos, float dmgs, EntityHandle sourc
 		pd->delay = totdelay;
 		pd->rgb = Color3f(.9f, 0.f, 0.f);
 		pd->tc = bloodsplat[0];
-		pd->fparam = rnd() * 0.1f - 0.05f;
+		pd->fparam = Random::getf(-0.05f, 0.05f);
 	}
 }
 
@@ -495,18 +547,16 @@ long SPARK_COUNT = 0;
 
 // flag & 1 punch failed
 // flag & 2 punch success
-void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, float dmgs, long flags) {
-	
-	long spawn_nb = dmgs;
+void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, int count, long flags) {
 	
 	if(SPARK_COUNT < 1000) {
-		SPARK_COUNT += spawn_nb * 25;
+		SPARK_COUNT += count * 25;
 	} else {
 		SPARK_COUNT -= static_cast<long>(framedelay);
 		return;
 	}
 	
-	for(long k = 0; k < spawn_nb; k++) {
+	for(int k = 0; k < count; k++) {
 		
 		PARTICLE_DEF * pd = createParticle();
 		if(!pd) {
@@ -518,8 +568,8 @@ void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, float dmgs, long flags) {
 		pd->move = randomVec(-6.f, 6.f);
 		
 		pd->special = PARTICLE_SPARK;
-		float len = glm::clamp(spawn_nb * (1.f / 3), 3.f, 8.f);
-		pd->tolive = (unsigned long)(len * 90.f + float(spawn_nb));
+		float len = glm::clamp(count * (1.f / 3), 3.f, 8.f);
+		pd->tolive = (unsigned long)(len * 90.f + float(count));
 		
 		if(flags == 0) {
 			pd->rgb = Color3f(.3f, .3f, 0.f);
@@ -529,7 +579,7 @@ void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, float dmgs, long flags) {
 			pd->rgb = Color3f(.45f, .1f, 0.f);
 		}
 		
-		pd->fparam = len + rnd() * len; // Spark tail length
+		pd->fparam = len + Random::getf() * len; // Spark tail length
 	}
 }
 
@@ -557,16 +607,16 @@ void AddRandomSmoke(Entity * io, long amount) {
 			return;
 		}
 		
-		long vertex = Random::get(0, io->obj->vertexlist.size());
+		long vertex = Random::get(0, io->obj->vertexlist.size() - 1);
 		pd->ov = io->obj->vertexlist3[vertex].v + randomVec(-5.f, 5.f);
-		pd->siz = rnd() * 8.f;
+		pd->siz = Random::getf(0.f, 8.f);
 		if(pd->siz < 4.f) {
 			pd->siz = 4.f;
 		}
 		pd->scale = Vec3f(10.f);
 		pd->special = ROTATING | MODULATE_ROTATION | FADE_IN_AND_OUT;
 		pd->tolive = Random::get(900, 1300);
-		pd->move = Vec3f(0.25f - 0.5f * rnd(), -1.f * rnd() + 0.3f, 0.25f - 0.5f * rnd());
+		pd->move = Vec3f(Random::getf(-0.25f, 0.25f), Random::getf(-0.7f, 0.3f), Random::getf(-0.25f, 0.25f));
 		pd->rgb = Color3f(0.3f, 0.3f, 0.34f);
 		pd->tc = smokeparticle;
 		pd->fparam = 0.001f;
@@ -587,16 +637,16 @@ void ARX_PARTICLES_Add_Smoke(const Vec3f & pos, long flags, long amount, Color3f
 		
 		pd->ov = pos + mod;
 		if(flags & 2) {
-			pd->siz = rnd() * 20.f + 15.f;
+			pd->siz = Random::getf(15.f, 35.f);
 			pd->scale = randomVec(40.f, 55.f);
 		} else {
-			pd->siz = std::max(4.f, rnd() * 8.f + 5.f);
+			pd->siz = Random::getf(5.f, 13.f);
 			pd->scale = randomVec(10.f, 15.f);
 		}
 		pd->special = ROTATING | MODULATE_ROTATION | FADE_IN_AND_OUT;
 		pd->tolive = Random::get(1100, 1500);
 		pd->delay = amount * 120 + Random::get(0, 100);
-		pd->move = Vec3f(0.25f - 0.5f * rnd(), -1.f * rnd() + 0.3f, 0.25f - 0.5f * rnd());
+		pd->move = Vec3f(Random::getf(-0.25f, 0.25f), Random::getf(-0.7f, 0.3f), Random::getf(-0.25f, 0.25f));
 		pd->rgb = (rgb) ? *rgb : Color3f(0.3f, 0.3f, 0.34f);
 		pd->tc = smokeparticle;
 		pd->fparam = 0.01f;
@@ -612,7 +662,7 @@ void ManageTorch() {
 	
 	if(player.torch) {
 		
-		float rr = rnd();
+		float rr = Random::getf();
 		el->pos = player.pos;
 		el->intensity = 1.6f;
 		el->fallstart = 280.f + rr * 20.f;
@@ -635,19 +685,19 @@ void ManageTorch() {
 		
 	} else {
 		
-			long count = MagicFlareCountNonFlagged();
-			
-			if(count) {
-				float rr = rnd();
-				el->pos = player.pos;
-				el->fallstart = 140.f + float(count) * 0.333333f + rr * 5.f;
-				el->fallend = 220.f + float(count) * 0.5f + rr * 5.f;
-				el->intensity = 1.6f;
-				el->exist = 1;
-				el->rgb = Color3f(0.01f * count, 0.009f * count, 0.008f * count);
-			} else {
-				el->exist = 0;
-			}
+		long count = MagicFlareCountNonFlagged();
+		
+		if(count) {
+			float rr = Random::getf();
+			el->pos = player.pos;
+			el->fallstart = 140.f + float(count) * 0.333333f + rr * 5.f;
+			el->fallend = 220.f + float(count) * 0.5f + rr * 5.f;
+			el->intensity = 1.6f;
+			el->exist = 1;
+			el->rgb = Color3f(0.01f * count, 0.009f * count, 0.008f * count);
+		} else {
+			el->exist = 0;
+		}
 	}
 	
 	if(   entities.player()->obj
@@ -673,7 +723,7 @@ void ARX_BOOMS_Add(const Vec3f & poss,long type) {
 		pd->move = Vec3f(3.f, 4.f, 3.f) - Vec3f(6.f, 12.f, 6.f) * randomVec3f();
 		pd->tolive = Random::get(600, 700);
 		pd->tc = tc1;
-		pd->siz = (100.f + 10.f * rnd()) * ((type == 1) ? 2.f : 1.f);
+		pd->siz = Random::getf(100.f, 110.f) * ((type == 1) ? 2.f : 1.f);
 		pd->zdec = true;
 		if(type == 1) {
 			pd->rgb = Color3f(.4f, .4f, 1.f);
@@ -685,7 +735,7 @@ void ARX_BOOMS_Add(const Vec3f & poss,long type) {
 			pd->move = Vec3f(3.f , 4.f, 3.f) - Vec3f(6.f, 12.f, 6.f) * randomVec3f();
 			pd->tolive = Random::get(600, 700);
 			pd->tc = tc1;
-			pd->siz = (40.f + 30.f * rnd()) * ((type == 1) ? 2.f : 1.f);
+			pd->siz = Random::getf(40.f, 70.f) * ((type == 1) ? 2.f : 1.f);
 			pd->zdec = true;
 			if(type == 1) {
 				pd->rgb = Color3f(.4f, .4f, 1.f);
@@ -734,7 +784,7 @@ void ARX_BOOMS_Add(const Vec3f & poss,long type) {
 				continue;
 			}
 			
-			if(polyboom.capacity() == 0) {
+			if(polyboom.size() >= MAX_POLYBOOM) {
 				continue;
 			}
 			
@@ -868,20 +918,20 @@ PARTICLE_DEF * createParticle(bool allocateWhilePaused) {
 	return NULL;
 }
 
-void MagFX(const Vec3f & pos) {
+void MagFX(const Vec3f & pos, float size) {
 	
 	PARTICLE_DEF * pd	=	createParticle();
 	if(!pd) {
 		return;
 	}
 	
-	pd->ov = pos + Vec3f(rnd() * 6.f - rnd() * 12.f, rnd() * 6.f-rnd() * 12.f, 0.f);
-	pd->move = Vec3f(6.f - rnd() * 12.f, -8.f + rnd() * 16.f, 0.f);
+	pd->ov = pos + Vec3f(Random::getf(0.f, 6.f) - Random::getf(0.f, 12.f), Random::getf(0.f, 6.f) - Random::getf(0.f, 12.f), 0.f);
+	pd->move = Vec3f(Random::getf(-6.f, 6.f), Random::getf(-8.f, 8.f), 0.f);
 	pd->scale = Vec3f(4.4f, 4.4f, 1.f);
 	pd->tolive = Random::get(1500, 2400);
 	pd->tc = healing;
 	pd->rgb = Color3f::magenta;
-	pd->siz = 56.f;
+	pd->siz = 56.f * size;
 	pd->is2D = true;
 }
 
@@ -921,13 +971,13 @@ void ARX_PARTICLES_SpawnWaterSplash(const Vec3f & _ePos) {
 		pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING
 		              | GRAVITY | SPLAT_WATER;
 		pd->ov = _ePos + Vec3f(30.f, -20.f, 30.f) * randomVec3f();
-		pd->move = Vec3f(6.5f * frand2(), -11.5f * rnd(), 6.5f * frand2());
+		pd->move = Vec3f(Random::getf(-6.5f, 6.5f), Random::getf(-11.5f, 0.f), Random::getf(-6.5f, 6.5f));
 		pd->tolive = Random::get(1000, 1300);
 		
 		int t = Random::get(0, 2);
 		pd->tc = water_drop[t];
 		pd->siz = 0.4f;
-		float s = rnd();
+		float s = Random::getf();
 		pd->zdec = true;
 		pd->rgb = Color3f::gray(s);
 	}
@@ -948,11 +998,11 @@ void SpawnFireballTail(const Vec3f & poss, const Vec3f & vecto, float level, lon
 		
 		pd->special = FIRE_TO_SMOKE | FADE_IN_AND_OUT | PARTICLE_ANIMATED | ROTATING
 		              | MODULATE_ROTATION;
-		pd->fparam = 0.02f - rnd() * 0.02f;
-		pd->move = Vec3f(0.f, -rnd() * 3.f, 0.f);
+		pd->fparam = Random::getf(0.f, 0.02f);
+		pd->move = Vec3f(0.f, Random::getf(-3.f, 0.f), 0.f);
 		pd->tc = explo[0];
 		pd->rgb = Color3f::gray(.7f);
-		pd->siz = (level + rnd()) * 2.f;
+		pd->siz = (level + Random::getf()) * 2.f;
 		
 		if(flags & 1) {
 			pd->tolive = Random::get(400, 500);
@@ -990,10 +1040,10 @@ void LaunchFireballBoom(const Vec3f & poss, float level, Vec3f * direction, Colo
 	
 	pd->special = FIRE_TO_SMOKE | FADE_IN_AND_OUT | PARTICLE_ANIMATED;
 	pd->ov = poss;
-	pd->move = (direction) ? *direction : Vec3f(0.f, -rnd() * 5.f, 0.f);
+	pd->move = (direction) ? *direction : Vec3f(0.f, Random::getf(-5.f, 0.f), 0.f);
 	pd->tolive = Random::get(1600, 2200);
 	pd->tc = explo[0];
-	pd->siz = level * 3.f + 2.f * rnd();
+	pd->siz = level * 3.f + Random::getf(0.f, 2.f);
 	pd->scale = Vec3f(level * 3.f);
 	pd->zdec = true;
 	pd->cval1 = 0;
@@ -1041,7 +1091,7 @@ void ARX_PARTICLES_Update(EERIE_CAMERA * cam)  {
 		if(part->delay > 0) {
 			part->timcreation += part->delay;
 			part->delay=0;
-			if((part->special & DELAY_FOLLOW_SOURCE) && part->sourceionum != EntityHandle::Invalid
+			if((part->special & DELAY_FOLLOW_SOURCE) && part->sourceionum != EntityHandle()
 					&& entities[part->sourceionum]) {
 				part->ov = *part->source;
 				Entity * target = entities[part->sourceionum];
@@ -1065,7 +1115,7 @@ void ARX_PARTICLES_Update(EERIE_CAMERA * cam)  {
 		}
 		
 		if(framediff <= 0) {
-			if((part->special & FIRE_TO_SMOKE) && rnd() > 0.7f) {
+			if((part->special & FIRE_TO_SMOKE) && Random::getf() > 0.7f) {
 				
 				part->ov += part->move;
 				part->tolive += (part->tolive / 4) + (part->tolive / 8);
@@ -1112,10 +1162,10 @@ void ARX_PARTICLES_Update(EERIE_CAMERA * cam)  {
 		
 		float val = (part->tolive - framediff) * 0.01f;
 		
-		if((part->special & FOLLOW_SOURCE) && part->sourceionum != EntityHandle::Invalid
+		if((part->special & FOLLOW_SOURCE) && part->sourceionum != EntityHandle()
 				&& entities[part->sourceionum]) {
 			inn = in = *part->source;
-		} else if((part->special & FOLLOW_SOURCE2) && part->sourceionum != EntityHandle::Invalid
+		} else if((part->special & FOLLOW_SOURCE2) && part->sourceionum != EntityHandle()
 							&& entities[part->sourceionum]) {
 			inn = in = *part->source + part->move * val;
 		} else {
@@ -1157,7 +1207,7 @@ void ARX_PARTICLES_Update(EERIE_CAMERA * cam)  {
 				tv[0].p = out.p;
 				tv[0].rhw = out.rhw;
 				Vec3f temp;
-				temp = in + Vec3f(rnd() * 0.5f, 0.8f, rnd() * 0.5f);
+				temp = in + Vec3f(Random::getf(0.f, 0.5f), 0.8f, Random::getf(0.f, 0.5f));
 				EE_RTP(temp, &tv[1]);
 				temp = in + vect * part->fparam;
 				
@@ -1178,7 +1228,7 @@ void ARX_PARTICLES_Update(EERIE_CAMERA * cam)  {
 				float siz = part->siz + part->scale.x * fd;
 				sp.radius = siz * 10.f;
 				if(CheckAnythingInSphere(sp, PlayerEntityHandle, CAS_NO_NPC_COL)) {
-					if(rnd() < 0.9f) {
+					if(Random::getf() < 0.9f) {
 						Color3f rgb = part->rgb;
 						SpawnGroundSplat(sp, rgb, 0);
 					}
@@ -1190,9 +1240,9 @@ void ARX_PARTICLES_Update(EERIE_CAMERA * cam)  {
 			
 			if(part->special & SPLAT_WATER) {
 				float siz = part->siz + part->scale.x * fd;
-				sp.radius = siz * (10.f + rnd() * 20.f);
+				sp.radius = siz * Random::getf(10.f, 30.f);
 				if(CheckAnythingInSphere(sp, PlayerEntityHandle, CAS_NO_NPC_COL)) {
-					if(rnd() < 0.9f) {
+					if(Random::getf() < 0.9f) {
 						Color3f rgb = part->rgb * 0.5f;
 						SpawnGroundSplat(sp, rgb, 2);
 					}
@@ -1219,7 +1269,7 @@ void ARX_PARTICLES_Update(EERIE_CAMERA * cam)  {
 		}
 		
 		if(part->special & PARTICLE_GOLDRAIN) {
-			float v = (rnd() - 0.5f) * 0.2f;
+			float v = Random::getf(-0.1f, 0.1f);
 			if(part->rgb.r + v <= 1.f && part->rgb.r + v > 0.f
 				&& part->rgb.g + v <= 1.f && part->rgb.g + v > 0.f
 				&& part->rgb.b + v <= 1.f && part->rgb.b + v > 0.f) {
@@ -1327,7 +1377,7 @@ void TreatBackgroundActions() {
 			damage.damages = gl->ex_radius * (1.0f / 7);
 			damage.area = DAMAGE_FULL;
 			damage.duration = 1;
-			damage.source = EntityHandle::Invalid;
+			damage.source = EntityHandle();
 			damage.flags = 0;
 			damage.type = DAMAGE_TYPE_MAGICAL | DAMAGE_TYPE_FIRE | DAMAGE_TYPE_NO_FIX;
 			damage.pos = gl->pos;
@@ -1344,8 +1394,7 @@ void TreatBackgroundActions() {
 		
 		if(gl->sample == audio::INVALID_ID) {
 			gl->sample = SND_FIREPLACE;
-			float pitch = 0.95f + 0.1f * rnd();
-			ARX_SOUND_PlaySFX(gl->sample, &gl->pos, pitch, ARX_SOUND_PLAY_LOOPED);
+			ARX_SOUND_PlaySFX(gl->sample, &gl->pos, Random::getf(0.95f, 1.05f), ARX_SOUND_PLAY_LOOPED);
 		} else {
 			ARX_SOUND_RefreshPosition(gl->sample, gl->pos);
 		}
@@ -1362,10 +1411,10 @@ void TreatBackgroundActions() {
 		
 		for(long n = 0; n < count; n++) {
 			
-			if(rnd() < gl->ex_frequency) {
+			if(Random::getf() < gl->ex_frequency) {
 				PARTICLE_DEF * pd = createParticle();
 				if(pd) {
-					float t = rnd() * PI;
+					float t = Random::getf() * PI;
 					Vec3f s = Vec3f(std::sin(t), std::sin(t), std::cos(t)) * randomVec();
 					pd->ov = gl->pos + s * gl->ex_radius;
 					pd->move = Vec3f(2.f, 2.f, 2.f) - Vec3f(4.f, 22.f, 4.f) * randomVec3f();
@@ -1377,30 +1426,30 @@ void TreatBackgroundActions() {
 					}
 					pd->tc = (gl->extras & EXTRAS_SPAWNFIRE) ? fire2 : smokeparticle;
 					pd->special |= ROTATING | MODULATE_ROTATION;
-					pd->fparam = 0.1f - rnd() * 0.2f * gl->ex_speed;
+					pd->fparam = 0.1f - Random::getf(0.f, 0.2f) * gl->ex_speed;
 					pd->scale = Vec3f(-8.f);
 					pd->rgb = (gl->extras & EXTRAS_COLORLEGACY) ? gl->rgb : Color3f::white;
 				}
 			}
 			
-			if(!(gl->extras & EXTRAS_SPAWNFIRE) || rnd() <= 0.95f) {
+			if(!(gl->extras & EXTRAS_SPAWNFIRE) || Random::getf() <= 0.95f) {
 				continue;
 			}
 			
-			if(rnd() < gl->ex_frequency) {
+			if(Random::getf() < gl->ex_frequency) {
 				PARTICLE_DEF * pd = createParticle();
 				if(pd) {
-					float t = rnd() * (PI * 2.f) - PI;
+					float t = Random::getf() * (PI * 2.f) - PI;
 					Vec3f s = Vec3f(std::sin(t), std::sin(t), std::cos(t)) * randomVec();
 					pd->ov = gl->pos + s * gl->ex_radius;
 					Vec3f vect = glm::normalize(pd->ov - gl->pos);
 					float d = (gl->extras & EXTRAS_FIREPLACE) ? 6.f : 4.f;
-					pd->move = Vec3f(vect.x * d, -10.f - 8.f * rnd(), vect.z * d) * gl->ex_speed;
+					pd->move = Vec3f(vect.x * d, Random::getf(-18.f, -10.f), vect.z * d) * gl->ex_speed;
 					pd->siz = 4.f * gl->ex_size * 0.3f;
 					pd->tolive = 1200 + Random::get(0, 500 * gl->ex_speed);
 					pd->tc = fire2;
 					pd->special |= ROTATING | MODULATE_ROTATION | GRAVITY;
-					pd->fparam = 0.1f - rnd() * 0.2f * gl->ex_speed;
+					pd->fparam = 0.1f - Random::getf(0.f, 0.2f) * gl->ex_speed;
 					pd->scale = Vec3f(-3.f);
 					pd->rgb = (gl->extras & EXTRAS_COLORLEGACY) ? gl->rgb : Color3f::white;
 				}

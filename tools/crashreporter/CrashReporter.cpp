@@ -26,13 +26,19 @@
 #include "crashreporter/ErrorReport.h"
 
 #include "io/log/Logger.h"
-#include "io/log/FileLogger.h"
+
+#include "platform/Platform.h"
 
 int main(int argc, char * argv[]) {
 	
 	Q_INIT_RESOURCE(CrashReporter);
 	
 	QApplication app(argc, argv);
+	
+	#if ARX_PLATFORM != ARX_PLATFORM_WIN32 && ARX_PLATFORM != ARX_PLATFORM_MACOSX
+	QIcon icon = QIcon::fromTheme("arx-libertatis", QIcon::fromTheme("dialog-error"));
+	app.setWindowIcon(icon);
+	#endif
 	
 	Logger::initialize();
 	
@@ -42,15 +48,15 @@ int main(int argc, char * argv[]) {
 	const QStringList args = app.arguments();
 	QStringList::const_iterator itArgs;
 	for (itArgs = args.constBegin(); itArgs != args.constEnd(); ++itArgs) {
-		if((*itArgs).startsWith("-crashinfo=")) {
+		if((*itArgs).startsWith("--crashinfo=")) {
 			QString crashInfo = (*itArgs);
-			crashInfo.remove("-crashinfo=");
+			crashInfo.remove("--crashinfo=");
 			sharedMemoryName = crashInfo;
 		}
 	}
 	
 	if(sharedMemoryName.isEmpty()) {
-		LogError << "Missing -crashinfo parameter!";
+		LogError << "Missing --crashinfo parameter!";
 		return EXIT_FAILURE;
 	}
 	

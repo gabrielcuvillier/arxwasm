@@ -103,7 +103,7 @@ public:
 				loop = ARX_SOUND_PLAY_LOOPED;
 			}
 			if(flg & flag('p')) {
-				pitch = 0.9F + 0.2F * rnd();
+				pitch = Random::getf(0.9f, 1.1f);
 			}
 			stop = test_flag(flg, 's');
 			no_pos = test_flag(flg, 'o');
@@ -230,9 +230,9 @@ class SpeakCommand : public Command {
 	static void computeACSPos(CinematicSpeech & acs, Entity * io, EntityHandle ionum) {
 		
 		if(io) {
-			long id = io->obj->fastaccess.view_attach;
-			if(id != -1) {
-				acs.pos1 = io->obj->vertexlist3[id].v;
+			ActionPoint id = io->obj->fastaccess.view_attach;
+			if(id != ActionPoint()) {
+				acs.pos1 = actionPointPosition(io->obj, id);
 			} else {
 				acs.pos1 = io->pos + Vec3f(0.f, io->physics.cyl.height, 0.f);
 			}
@@ -240,9 +240,9 @@ class SpeakCommand : public Command {
 		
 		if(ValidIONum(ionum)) {
 			Entity * ioo = entities[ionum];
-			long id = ioo->obj->fastaccess.view_attach;
-			if(id != -1) {
-				acs.pos2 = ioo->obj->vertexlist3[id].v;
+			ActionPoint id = ioo->obj->fastaccess.view_attach;
+			if(id != ActionPoint()) {
+				acs.pos2 = actionPointPosition(ioo->obj, id);
 			} else {
 				acs.pos2 = ioo->pos + Vec3f(0.f, ioo->physics.cyl.height, 0.f);
 			}
@@ -254,7 +254,7 @@ class SpeakCommand : public Command {
 		std::string target = context.getWord();
 		Entity * t = entities.getById(target, context.getEntity());
 		
-		acs.ionum = (t == NULL) ? EntityHandle::Invalid : t->index();
+		acs.ionum = (t == NULL) ? EntityHandle() : t->index();
 		acs.startpos = context.getFloat();
 		acs.endpos = context.getFloat();
 		
@@ -314,11 +314,11 @@ public:
 					acs.endangle.setPitch(context.getFloat());
 					acs.startpos = context.getFloat();
 					acs.endpos = context.getFloat();
-					acs.ionum = (io == NULL) ? EntityHandle::Invalid : io->index();
+					acs.ionum = (io == NULL) ? EntityHandle() : io->index();
 					if(player) {
 						computeACSPos(acs, entities.player(), acs.ionum);
 					} else {
-						computeACSPos(acs, io, EntityHandle::Invalid);
+						computeACSPos(acs, io, EntityHandle());
 					}
 					
 				} else if(command == "ccctalker_l" || command == "ccctalker_r") {

@@ -50,6 +50,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/foreach.hpp>
 
 #include "core/Config.h"
 #include "core/Core.h"
@@ -91,45 +92,44 @@ long GetGroupOriginByName(const EERIE_3DOBJ * eobj, const std::string & text) {
 	if(!eobj)
 		return -1;
 	
-	for(size_t i = 0; i < eobj->grouplist.size(); i++) {
-		if(eobj->grouplist[i].name == text) {
-			return eobj->grouplist[i].origin;
+	BOOST_FOREACH(const VertexGroup & group, eobj->grouplist) {
+		if(group.name == text) {
+			return group.origin;
 		}
 	}
 	
 	return -1;
 }
 
-long GetActionPointIdx(const EERIE_3DOBJ * eobj, const std::string & text) {
+ActionPoint GetActionPointIdx(const EERIE_3DOBJ * eobj, const std::string & text) {
 	
 	if(!eobj)
-		return -1;
+		return ActionPoint();
 	
-	for(std::vector<EERIE_ACTIONLIST>::const_iterator i = eobj->actionlist.begin();
-	    i != eobj->actionlist.end(); ++i) {
-		if(i->name == text) {
-			return i->idx;
+	BOOST_FOREACH(const EERIE_ACTIONLIST & action, eobj->actionlist) {
+		if(action.name == text) {
+			return action.idx;
 		}
 	}
 	
-	return -1;
+	return ActionPoint();
 }
 
-long GetActionPointGroup(const EERIE_3DOBJ * eobj, long idx) {
+ObjVertGroup GetActionPointGroup(const EERIE_3DOBJ * eobj, ActionPoint idx) {
 	
 	if(!eobj)
-		return -1;
+		return ObjVertGroup();
 	
 	for(long i = eobj->grouplist.size() - 1; i >= 0; i--) {
 		const std::vector<long> & indices = eobj->grouplist[i].indexes;
 		for(size_t j = 0; j < indices.size(); j++){
-			if(indices[j] == idx) {
-				return i;
+			if(indices[j] == idx.handleData()) {
+				return ObjVertGroup(i);
 			}
 		}
 	}
 	
-	return -1;
+	return ObjVertGroup();
 }
 
 void EERIE_Object_Precompute_Fast_Access(EERIE_3DOBJ * eerie) {
@@ -152,11 +152,11 @@ void EERIE_Object_Precompute_Fast_Access(EERIE_3DOBJ * eerie) {
 	
 	eerie->fastaccess.head_group = EERIE_OBJECT_GetGroup(eerie, "head");
 
-	if(eerie->fastaccess.head_group == -1)
+	if(eerie->fastaccess.head_group == ObjVertGroup())
 		eerie->fastaccess.head_group_origin = -1;
 	else
 	{
-		long lHeadOrigin  = eerie->grouplist[eerie->fastaccess.head_group].origin;
+		long lHeadOrigin  = eerie->grouplist[eerie->fastaccess.head_group.handleData()].origin;
 		eerie->fastaccess.head_group_origin = checked_range_cast<short>(lHeadOrigin);
 	}
 	
@@ -214,7 +214,7 @@ static void ReCreateUVs(EERIE_3DOBJ * eerie) {
 			continue;
 		
 		TextureContainer * tex = eerie->texturecontainer[eerie->facelist[i].texid];
-		Vec2f scale = (tex) ? Vec2f(1.f / tex->m_dwWidth, 1.f / tex->m_dwHeight) : (Vec2f_ONE / Vec2f(256));
+		Vec2f scale = (tex) ? Vec2f(1.f / tex->m_size.x, 1.f / tex->m_size.y) : (Vec2f_ONE / Vec2f(256));
 		
 		eerie->facelist[i].u[0] = (float)eerie->facelist[i].ou[0] * scale.x; 
 		eerie->facelist[i].u[1] = (float)eerie->facelist[i].ou[1] * scale.x; 
@@ -275,7 +275,7 @@ static void loadObjectData(EERIE_3DOBJ * eerie, const char * adr, size_t * poss,
 	// Lecture des FACES THEO
 	pos = to->faces_seek;
 
-	for(long i = 0; i < tn->nb_faces; i++) {
+	for(size_t i = 0; i < size_t(tn->nb_faces); i++) {
 		
 		THEO_FACES_3006 tf3006;
 		const THEO_FACES_3006 * ptf3006;
@@ -489,7 +489,7 @@ static void loadObjectData(EERIE_3DOBJ * eerie, const char * adr, size_t * poss,
 		
 		eerie->actionlist[i].act = ptap->action;
 		eerie->actionlist[i].sfx = ptap->num_sfx;
-		eerie->actionlist[i].idx = ptap->vert_index;
+		eerie->actionlist[i].idx = ActionPoint(ptap->vert_index);
 		eerie->actionlist[i].name = boost::to_lower_copy(util::loadString(ptap->name));
 	}
 	
@@ -710,19 +710,19 @@ static EERIE_3DSCENE * ScnToEerie(const char * adr, size_t size, const res::path
 		
 		EERIE_LIGHT light;
 		
-		light.rgb.r = (float)tsl3024->red * ( 1.0f / 255 );
-		light.rgb.g = (float)tsl3024->green * ( 1.0f / 255 );
-		light.rgb.b = (float)tsl3024->blue * ( 1.0f / 255 );
+		light.rgb.r = tsl3024->red * ( 1.0f / 255 );
+		light.rgb.g = tsl3024->green * ( 1.0f / 255 );
+		light.rgb.b = tsl3024->blue * ( 1.0f / 255 );
 		light.pos = tsl3024->pos.toVec3();
-		light.fallstart = (float)tsl3024->hotspot;
-		light.fallend = (float)tsl3024->falloff;
+		light.fallstart = tsl3024->hotspot;
+		light.fallend = tsl3024->falloff;
 		
 		float t = light.fallend - light.fallstart;
 		if(t < 150.f) {
 			light.fallend += 150.f - t;
 		}
 		
-		light.intensity = (float)tsl3024->intensity;
+		light.intensity = tsl3024->intensity;
 		light.exist = 1;
 		light.treat = 1;
 		light.m_isIgnitionLight = false;
@@ -983,32 +983,32 @@ EERIE_3DOBJ * Eerie_Copy(const EERIE_3DOBJ * obj) {
 	return nouvo;
 }
 
-long EERIE_OBJECT_GetSelection(const EERIE_3DOBJ * obj, const std::string & selname) {
+ObjSelection EERIE_OBJECT_GetSelection(const EERIE_3DOBJ * obj, const std::string & selname) {
 	
 	if(!obj)
-		return -1;
+		return ObjSelection();
 	
 	for(size_t i = 0; i < obj->selections.size(); i++) {
 		if(obj->selections[i].name == selname) {
-			return i;
+			return ObjSelection(i);
 		}
 	}
 	
-	return -1;
+	return ObjSelection();
 }
 
-long EERIE_OBJECT_GetGroup(const EERIE_3DOBJ * obj, const std::string & groupname) {
+ObjVertGroup EERIE_OBJECT_GetGroup(const EERIE_3DOBJ * obj, const std::string & groupname) {
 	
 	if(!obj)
-		return -1;
+		return ObjVertGroup();
 	
 	for(size_t i = 0; i < obj->grouplist.size(); i++) {
 		if(obj->grouplist[i].name == groupname) {
-			return i;
+			return ObjVertGroup(i);
 		}
 	}
 	
-	return -1;
+	return ObjVertGroup();
 }
 
 static long GetFather(EERIE_3DOBJ * eobj, long origin, long startgroup) {
@@ -1292,10 +1292,10 @@ static EERIE_3DOBJ * TheoToEerie(const char * adr, long size, const res::path & 
 
 	// Apply Normals Spherical correction for NPC head
 	long neck_orgn = GetGroupOriginByName(eerie, "neck");
-	long head_idx = EERIE_OBJECT_GetGroup(eerie, "head");
+	ObjVertGroup head_idx = EERIE_OBJECT_GetGroup(eerie, "head");
 
-	if(head_idx >= 0 && neck_orgn >= 0) {
-		VertexGroup & headGroup = eerie->grouplist[head_idx];
+	if(head_idx != ObjVertGroup() && neck_orgn >= 0) {
+		VertexGroup & headGroup = eerie->grouplist[head_idx.handleData()];
 		
 		Vec3f center = Vec3f_ZERO;
 		Vec3f origin = eerie->vertexlist[neck_orgn].v;

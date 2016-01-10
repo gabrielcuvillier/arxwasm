@@ -22,6 +22,7 @@
 #include <sstream>
 #include <iomanip>
 #include <iterator>
+#include <cmath>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -263,8 +264,8 @@ static void addGlyphVertices(std::vector<TexturedVertex> & vertices,
 	float vEnd = glyph.uv_start.y;
 
 	Vec2f p;
-	p.x = floor(pos.x + glyph.draw_offset.x) - .5f;
-	p.y = floor(pos.y - glyph.draw_offset.y) - .5f;
+	p.x = std::floor(pos.x + glyph.draw_offset.x) - .5f;
+	p.y = std::floor(pos.y - glyph.draw_offset.y) - .5f;
 
 	TexturedVertex quad[4];
 	quad[0].p = Vec3f(p.x, p.y, 0);
@@ -360,14 +361,8 @@ Vec2i Font::process(int x, int y, text_iterator start, text_iterator end, Color 
 	}
 	
 	if(DoDraw && !mapTextureVertices.empty()) {
-
-		GRenderer->SetRenderState(Renderer::Lighting, false);
-		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-		GRenderer->SetBlendFunc(Renderer::BlendSrcAlpha, Renderer::BlendInvSrcAlpha);
-
-		GRenderer->SetRenderState(Renderer::DepthTest, false);
-		GRenderer->SetRenderState(Renderer::DepthWrite, false);
-		GRenderer->SetCulling(Renderer::CullNone);
+		
+		UseRenderState state(render2D());
 		
 		// Fixed pipeline texture stage operation
 		GRenderer->GetTextureStage(0)->setColorOp(TextureStage::ArgDiffuse);
@@ -393,10 +388,6 @@ Vec2i Font::process(int x, int y, text_iterator start, text_iterator end, Color 
 		stage->setWrapMode(TextureStage::WrapRepeat);
 		stage->setMinFilter(TextureStage::FilterLinear);
 		stage->setMagFilter(TextureStage::FilterLinear);
-		
-		GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-		GRenderer->SetRenderState(Renderer::DepthWrite, true);
-		GRenderer->SetCulling(Renderer::CullCCW);
 		
 	}
 	

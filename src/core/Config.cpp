@@ -53,7 +53,8 @@ const std::string
 	windowFramework = "auto",
 	windowSize = BOOST_PP_STRINGIZE(ARX_DEFAULT_WIDTH) "x"
 	             BOOST_PP_STRINGIZE(ARX_DEFAULT_HEIGHT),
-	debugLevels = "";
+	debugLevels = "",
+	bufferUpload = "";
 
 const int
 	levelOfDetail = 2,
@@ -66,7 +67,8 @@ const int
 	ambianceVolume = 10,
 	mouseSensitivity = 6,
 	migration = Config::OriginalAssets,
-	quicksaveSlots = 3;
+	quicksaveSlots = 3,
+	bufferSize = 0;
 
 const bool
 	fullscreen = true,
@@ -81,7 +83,9 @@ const bool
 	autoReadyWeapon = false,
 	mouseLookToggle = true,
 	autoDescription = true,
-	forceToggle = false;
+	forceToggle = false,
+	hudScale = false,
+	borderTurning = true;
 
 ActionKey actions[NUM_ACTION_KEY] = {
 	ActionKey(Keyboard::Key_Spacebar), // JUMP
@@ -159,7 +163,10 @@ const std::string
 	colorkeyAlphaToCoverage = "colorkey_alpha_to_coverage",
 	colorkeyAntialiasing = "colorkey_antialiasing",
 	limitSpeechWidth = "limit_speech_width",
-	cinematicWidescreenMode = "cinematic_widescreen_mode";
+	cinematicWidescreenMode = "cinematic_widescreen_mode",
+	hudScale = "hud_scale",
+	bufferSize = "buffer_size",
+	bufferUpload = "buffer_upload";
 
 // Window options
 const std::string
@@ -182,7 +189,8 @@ const std::string
 	autoReadyWeapon = "auto_ready_weapon",
 	mouseLookToggle = "mouse_look_toggle",
 	mouseSensitivity = "mouse_sensitivity",
-	autoDescription = "auto_description";
+	autoDescription = "auto_description",
+	borderTurning = "border_turning";
 
 // Input key options
 const std::string actions[NUM_ACTION_KEY] = {
@@ -305,10 +313,11 @@ void Config::setDefaultActionKeys() {
 	}
 }
 
-bool Config::setActionKey(ControlAction actionId, int index, InputKeyId key) {
+void Config::setActionKey(ControlAction actionId, int index, InputKeyId key) {
 	
 	if(actionId < 0 || (size_t)actionId >= NUM_ACTION_KEY || index > 1 || index < 0) {
-		return false;
+		arx_assert(false);
+		return;
 	}
 	
 	ActionKey & action = actions[actionId];
@@ -334,7 +343,7 @@ bool Config::setActionKey(ControlAction actionId, int index, InputKeyId key) {
 			continue;
 		}
 		
-		for(int k = 0; i < 2; i++) {
+		for(int k = 0; k < 2; k++) {
 			if(actions[i].key[k] == key) {
 				actions[i].key[k] = oldKey;
 				oldKey = -1;
@@ -342,8 +351,6 @@ bool Config::setActionKey(ControlAction actionId, int index, InputKeyId key) {
 		}
 		
 	}
-	
-	return true;
 }
 
 void Config::setOutputFile(const fs::path & _file) {
@@ -385,6 +392,9 @@ bool Config::save() {
 	writer.writeKey(Key::colorkeyAntialiasing, video.colorkeyAntialiasing);
 	writer.writeKey(Key::limitSpeechWidth, video.limitSpeechWidth);
 	writer.writeKey(Key::cinematicWidescreenMode, int(video.cinematicWidescreenMode));
+	writer.writeKey(Key::hudScale, video.hudScale);
+	writer.writeKey(Key::bufferSize, video.bufferSize);
+	writer.writeKey(Key::bufferUpload, video.bufferUpload);
 	
 	// window
 	writer.beginSection(Section::Window);
@@ -410,6 +420,7 @@ bool Config::save() {
 	writer.writeKey(Key::mouseLookToggle, input.mouseLookToggle);
 	writer.writeKey(Key::mouseSensitivity, input.mouseSensitivity);
 	writer.writeKey(Key::autoDescription, input.autoDescription);
+	writer.writeKey(Key::borderTurning, input.borderTurning);
 	
 	// key
 	writer.beginSection(Section::Key);
@@ -479,6 +490,9 @@ bool Config::init(const fs::path & file) {
 	video.limitSpeechWidth = reader.getKey(Section::Video, Key::limitSpeechWidth, Default::limitSpeechWidth);
 	int cinematicMode = reader.getKey(Section::Video, Key::cinematicWidescreenMode, Default::cinematicWidescreenMode);
 	video.cinematicWidescreenMode = CinematicWidescreenMode(glm::clamp(cinematicMode, 0, 2));
+	video.hudScale = reader.getKey(Section::Video, Key::hudScale, Default::hudScale);
+	video.bufferSize = std::max(reader.getKey(Section::Video, Key::bufferSize, Default::bufferSize), 0);
+	video.bufferUpload = reader.getKey(Section::Video, Key::bufferUpload, Default::bufferUpload);
 	
 	// Get window settings
 	window.framework = reader.getKey(Section::Window, Key::windowFramework, Default::windowFramework);
@@ -500,6 +514,7 @@ bool Config::init(const fs::path & file) {
 	input.mouseLookToggle = reader.getKey(Section::Input, Key::mouseLookToggle, Default::mouseLookToggle);
 	input.mouseSensitivity = reader.getKey(Section::Input, Key::mouseSensitivity, Default::mouseSensitivity);
 	input.autoDescription = reader.getKey(Section::Input, Key::autoDescription, Default::autoDescription);
+	input.borderTurning = reader.getKey(Section::Input, Key::borderTurning, Default::borderTurning);
 	
 	// Get action key settings
 	for(size_t i = 0; i < NUM_ACTION_KEY; i++) {

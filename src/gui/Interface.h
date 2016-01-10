@@ -98,8 +98,6 @@ public:
 		std::fill_n(currentTab, ARRAY_SIZE(currentTab), (TextureContainer *)NULL);
 	}
 	
-	void Reset();
-	
 	void init();
 
 public:
@@ -198,9 +196,8 @@ enum ARX_INTERFACE_CURSOR_MODE
 };
 
 //-----------------------------------------------------------------------------
-extern INTERFACE_TC ITC;
+extern INTERFACE_TC g_bookResouces;
 extern Vec2s MemoMouse;
-extern bool bookclick;
 
 extern long SpecialCursor;
 
@@ -220,24 +217,12 @@ extern bool MAGICMODE;
 
 extern gui::Note openNote;
 
-//-----------------------------------------------------------------------------
-float INTERFACE_RATIO(const float);
-float INTERFACE_RATIO_LONG(const long);
-float INTERFACE_RATIO_DWORD(const u32);
-short SHORT_INTERFACE_RATIO(const float);
 
 void ARX_INTERFACE_Combat_Mode(long i);
 
 long GetMainSpeakingIO();
 bool ARX_INTERFACE_MouseInBook();
 
-enum FadeDirection {
-	FadeDirection_Out,
-	FadeDirection_In,
-};
-
-void playerInterfaceFaderRequestFade(FadeDirection showhide, long smooth);
-void playerInterfaceFaderResetSlid();
 void ARX_INTERFACE_Reset();
 
 void ARX_INTERFACE_ManageOpenedBook();
@@ -251,14 +236,15 @@ void ARX_INTERFACE_NoteClear();
 void ARX_INTERFACE_HALO_Flush();
 bool NeedHalo(Entity * io);
 
-void ARX_INTERFACE_HALO_Render(Color3f color, long _lHaloType, TextureContainer * haloTexture, Vec2f pos, Vec2f ratio = Vec2f(1));
-void ARX_INTERFACE_HALO_Draw(Entity * io, TextureContainer * tc, TextureContainer * tc2, Vec2f pos, Vec2f ratio = Vec2f(1));
+void ARX_INTERFACE_HALO_Render(Color3f color, long _lHaloType, TextureContainer * haloTexture, Vec2f pos, Vec2f ratio);
+void ARX_INTERFACE_HALO_Draw(Entity * io, TextureContainer * tc, TextureContainer * tc2, Vec2f pos, Vec2f ratio);
 void ReleaseHalo();
 void ResetPlayerInterface();
 void Set_DragInter(Entity * io);
-void ARX_INTERFACE_DrawNumber(const Vec2f & pos, const long num, const int _iNb, const Color color);
+void ARX_INTERFACE_DrawNumber(const Vec2f & pos, const long num, const int _iNb, const Color color, float scale);
 
-void KillInterfaceTextureContainers();
+// 0 switch 1 forceopen 2 forceclose
+void InventoryOpenClose(unsigned long t);
 
 extern bool g_cursorOverBook;
 

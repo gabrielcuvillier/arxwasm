@@ -51,6 +51,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "gui/Interface.h"
 #include "gui/Menu.h"
 #include "gui/MiniMap.h"
+#include "gui/hud/SecondaryInventory.h"
 #include "scene/GameSound.h"
 #include "script/ScriptEvent.h"
 #include "script/ScriptUtils.h"
@@ -69,13 +70,13 @@ public:
 		
 		HandleFlags("aem") {
 			if(flg & flag('a')) { // Magic
-				Book_Mode = BOOKMODE_MINIMAP;
+				g_guiBookCurrentTopTab = BOOKMODE_MINIMAP;
 			}
 			if(flg & flag('e')) { // Equip
-				Book_Mode = BOOKMODE_SPELLS;
+				g_guiBookCurrentTopTab = BOOKMODE_SPELLS;
 			}
 			if(flg & flag('m')) { // Map
-				Book_Mode = BOOKMODE_QUESTS;
+				g_guiBookCurrentTopTab = BOOKMODE_QUESTS;
 			}
 		}
 		
@@ -112,7 +113,7 @@ public:
 			return Success;
 		}
 		
-		gui::CloseSecondaryInventory();
+		g_secondaryInventoryHud.close();
 		
 		return Success;
 	}
@@ -230,9 +231,9 @@ public:
 		DebugScript(' ' << options << ' ' << command);
 		
 		if(command == "hide") {
-			playerInterfaceFaderRequestFade(FadeDirection_Out, smooth);
+			g_hudRoot.playerInterfaceFader.requestFade(FadeDirection_Out, smooth);
 		} else if(command == "show") {
-			playerInterfaceFaderRequestFade(FadeDirection_In, smooth);
+			g_hudRoot.playerInterfaceFader.requestFade(FadeDirection_In, smooth);
 		} else {
 			ScriptWarning << "unknown command: " << command;
 			return Failed;

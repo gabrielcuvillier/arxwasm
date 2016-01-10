@@ -213,7 +213,7 @@ void ARXDRAW_DrawInterShadows() {
 	if(g_shadowBatch.size() > 0)
 	{
 		GRenderer->SetRenderState(Renderer::DepthWrite, false);
-		GRenderer->SetBlendFunc(Renderer::BlendZero, Renderer::BlendInvSrcColor);
+		GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
 		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 		GRenderer->SetTexture(0, Boom);
 		
@@ -249,47 +249,59 @@ void ARXDRAW_DrawPolyBoom() {
 	GRenderer->SetFogColor(Color::none); // TODO: not handled by RenderMaterial
 	unsigned long tim = (unsigned long)(arxtime);
 	
-	RenderMaterial mat = RenderMaterial::getCurrent();
-	mat.setDepthBias(8);
-	mat.setLayer(RenderMaterial::Decal);
-
-	std::vector<POLYBOOM>::iterator pb = polyboom.begin();
-	while (pb != polyboom.end()) {
-
-		if(pb->type & 128) {
-			if(pb->timecreation - framedelay > 0) {
-				float fCalc = pb->timecreation - framedelay;
-				pb->timecreation = checked_range_cast<unsigned long>(fCalc);
+	for(size_t i = 0; i < polyboom.size(); i++) {
+		
+		POLYBOOM & pb = polyboom[i];
+		
+		if(pb.type & 128) {
+			if(pb.timecreation - framedelay > 0) {
+				float fCalc = pb.timecreation - framedelay;
+				pb.timecreation = checked_range_cast<unsigned long>(fCalc);
 			}
 
-			if(pb->timecreation - framedelay > 0) {
-				float fCalc =  pb->timecreation - framedelay;
-				pb->timecreation = checked_range_cast<unsigned long>(fCalc);
+			if(pb.timecreation - framedelay > 0) {
+				float fCalc =  pb.timecreation - framedelay;
+				pb.timecreation = checked_range_cast<unsigned long>(fCalc);
 			}
 		}
 
-		float t = (float)pb->timecreation + (float)pb->tolive - (float)tim;
+		float t = (float)pb.timecreation + (float)pb.tolive - (float)tim;
 
 		if(t <= 0) {
-			pb = polyboom.erase(pb);
-			continue;
+			std::swap(polyboom[i], polyboom.back());
+			polyboom.pop_back();
+			i--;
 		}
+	}
+	
+	RenderMaterial mat;
+	mat.setDepthTest(true);
+	mat.setDepthBias(8);
+	mat.setLayer(RenderMaterial::Decal);
+	mat.setWrapMode(TextureStage::WrapClamp);
 
-		long typp = pb->type;
+	std::vector<POLYBOOM>::iterator itr = polyboom.begin();
+	while (itr != polyboom.end()) {
+
+		POLYBOOM & pb = *itr;
+		
+		float t = (float)pb.timecreation + (float)pb.tolive - (float)tim;
+		
+		long typp = pb.type;
 		typp &= ~128;
 		
 		switch(typp) {
 			
-		case 0: {
+		case 0: { // Scorch mark
 			
-			float tt = t / (float)pb->tolive * 0.8f;
+			float tt = t / (float)pb.tolive * 0.8f;
 			
-			IncrementPolyWithNormalOutput(pb->ep,ltv);
+			IncrementPolyWithNormalOutput(pb.ep,ltv);
 			
-			for(long k = 0; k < pb->nbvert; k++) {
+			for(long k = 0; k < pb.nbvert; k++) {
 				ltv[k].p = EE_RT(ltv[k].p);
-				ltv[k].uv.x=pb->u[k];
-				ltv[k].uv.y=pb->v[k];
+				ltv[k].uv.x=pb.u[k];
+				ltv[k].uv.y=pb.v[k];
 				ltv[k].color = (player.m_improve ? (Color3f::red * (tt*.5f)) : Color3f::gray(tt)).toRGB();
 			}
 			
@@ -301,7 +313,7 @@ void ARXDRAW_DrawPolyBoom() {
 			mat.setTexture(Boom);
 			
 			drawTriangle(mat, &ltv[0]);
-			if(pb->nbvert & 4) {
+			if(pb.nbvert & 4) {
 				drawTriangle(mat, &ltv[1]);
 			}
 			
@@ -310,26 +322,25 @@ void ARXDRAW_DrawPolyBoom() {
 		
 		case 1: { // Blood
 			
-			float div = 1.f / (float)pb->tolive;
+			float div = 1.f / (float)pb.tolive;
 			float tt = t * div;
 			float tr = std::max(1.f, tt * 2 - 0.5f);
-			ColorRGBA col = (pb->rgb * tt).toRGB(glm::clamp(tt * 1.5f, 0.f, 1.f) * 255);
+			ColorRGBA col = (pb.rgb * tt).toRGB(glm::clamp(tt * 1.5f, 0.f, 1.f) * 255);
 			
-			IncrementPolyWithNormalOutput(pb->ep, ltv);
+			IncrementPolyWithNormalOutput(pb.ep, ltv);
 			
-			for(long k = 0; k < pb->nbvert; k++) {
+			for(long k = 0; k < pb.nbvert; k++) {
 				ltv[k].p = EE_RT(ltv[k].p);
-				ltv[k].uv.x=(pb->u[k]-0.5f)*(tr)+0.5f;
-				ltv[k].uv.y=(pb->v[k]-0.5f)*(tr)+0.5f;
+				ltv[k].uv.x=(pb.u[k]-0.5f)*(tr)+0.5f;
+				ltv[k].uv.y=(pb.v[k]-0.5f)*(tr)+0.5f;
 				ltv[k].color = col;
 			}
 			
-			mat.setWrapMode(TextureStage::WrapClamp);
 			mat.setBlendType(RenderMaterial::Subtractive2);
-			mat.setTexture(pb->tc);
+			mat.setTexture(pb.tc);
 			
 			drawTriangle(mat, &ltv[0]);
-			if(pb->nbvert & 4) {
+			if(pb.nbvert & 4) {
 				drawTriangle(mat, &ltv[1]);
 			}
 			
@@ -338,18 +349,18 @@ void ARXDRAW_DrawPolyBoom() {
 		
 		case 2: { // Water
 			
-			float div = 1.f / (float)pb->tolive;
+			float div = 1.f / (float)pb.tolive;
 			float tt = t * div;
 			float tr = std::max(1.f, tt * 2 - 0.5f);
 			float ttt = tt * 0.5f;
-			ColorRGBA col = (pb->rgb * ttt).toRGB();
+			ColorRGBA col = (pb.rgb * ttt).toRGB();
 			
-			IncrementPolyWithNormalOutput(pb->ep,ltv);
+			IncrementPolyWithNormalOutput(pb.ep,ltv);
 			
-			for(long k = 0; k < pb->nbvert; k++) {
+			for(long k = 0; k < pb.nbvert; k++) {
 				ltv[k].p = EE_RT(ltv[k].p);
-				ltv[k].uv.x=(pb->u[k]-0.5f)*(tr)+0.5f;
-				ltv[k].uv.y=(pb->v[k]-0.5f)*(tr)+0.5f;
+				ltv[k].uv.x=(pb.u[k]-0.5f)*(tr)+0.5f;
+				ltv[k].uv.y=(pb.v[k]-0.5f)*(tr)+0.5f;
 				ltv[k].color=col;
 			}
 
@@ -377,12 +388,11 @@ void ARXDRAW_DrawPolyBoom() {
 				&&	(ltv[3].uv.y>1.f) )
 				break;
 			
-			mat.setWrapMode(TextureStage::WrapClamp);
 			mat.setBlendType(RenderMaterial::Screen);
-			mat.setTexture(pb->tc);
+			mat.setTexture(pb.tc);
 			
 			drawTriangle(mat, &ltv[0]);
-			if(pb->nbvert & 4) {
+			if(pb.nbvert & 4) {
 				drawTriangle(mat, &ltv[1]);
 			}
 			
@@ -390,7 +400,7 @@ void ARXDRAW_DrawPolyBoom() {
 		}
 		}
 		
-		++pb;
+		++itr;
 	}
 	
 	GRenderer->SetFogColor(ulBKGColor);

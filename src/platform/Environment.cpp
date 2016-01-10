@@ -32,6 +32,8 @@
 #if ARX_PLATFORM == ARX_PLATFORM_WIN32
 #include <windows.h>
 #include <shlobj.h>
+#include <wchar.h>
+#include <shellapi.h>
 #endif
 
 #if ARX_HAVE_WORDEXP
@@ -65,6 +67,9 @@
 #include "io/fs/PathConstants.h"
 #include "io/fs/FilePath.h"
 #include "io/fs/Filesystem.h"
+
+#include "platform/WindowsUtils.h"
+
 #include "util/String.h"
 
 
@@ -72,7 +77,7 @@ namespace platform {
 
 std::string expandEnvironmentVariables(const std::string & in) {
 	
-#if ARX_HAVE_WORDEXP
+	#if ARX_HAVE_WORDEXP
 	
 	wordexp_t p;
 	
@@ -93,64 +98,64 @@ std::string expandEnvironmentVariables(const std::string & in) {
 	
 	return oss.str();
 	
-#elif ARX_PLATFORM == ARX_PLATFORM_WIN32
+	#elif ARX_PLATFORM == ARX_PLATFORM_WIN32
 	
-	size_t length = std::max<size_t>(in.length() * 2, 1024);
-	boost::scoped_array<char> buffer(new char[length]);
+	platform::WideString win(in);
 	
-	DWORD ret = ExpandEnvironmentStringsA(in.c_str(), buffer.get(), length);
+	platform::WideString out;
+	out.allocate(out.capacity());
 	
-	if(ret > length) {
-		length = ret;
-		buffer.reset(new char[length]);
-		ret = ExpandEnvironmentStringsA(in.c_str(), buffer.get(), length);
+	DWORD length = ExpandEnvironmentStringsW(win, out.data(), out.size());
+	if(length > out.size()) {
+		out.allocate(length);
+		length = ExpandEnvironmentStringsW(win, out.data(), out.size());
 	}
 	
-	if(ret == 0 || ret > length) {
+	if(length == 0 || length > out.size()) {
 		return in;
 	}
 	
-	return std::string(buffer.get());
+	out.resize(length - 1);
 	
-#else
-# warning "Environment variable expansion not supported on this system."
+	return out.toUTF8();
+	
+	#else
+	# warning "Environment variable expansion not supported on this system."
 	return in;
-#endif
+	#endif
 }
 
 #if ARX_PLATFORM == ARX_PLATFORM_WIN32
 static bool getRegistryValue(HKEY hkey, const std::string & name, std::string & result,
                              REGSAM flags = 0) {
 	
-	boost::scoped_array<char> buffer(NULL);
-
-	DWORD type = 0;
-	DWORD length = 0;
 	HKEY handle = 0;
-
-	long ret = 0;
-
-	ret = RegOpenKeyEx(hkey, "Software\\ArxLibertatis\\", 0, KEY_QUERY_VALUE | flags, &handle);
-
-	if (ret == ERROR_SUCCESS)
-	{
-		// find size of value
-		ret = RegQueryValueEx(handle, name.c_str(), NULL, NULL, NULL, &length);
-
-		if (ret == ERROR_SUCCESS && length > 0)
-		{
-			// allocate buffer and read in value
-			buffer.reset(new char[length + 1]);
-			ret = RegQueryValueEx(handle, name.c_str(), NULL, &type, LPBYTE(buffer.get()), &length);
-			// ensure null termination
-			buffer.get()[length] = 0;
-		}
-
-		RegCloseKey(handle);
+	long ret = RegOpenKeyEx(hkey, L"Software\\ArxLibertatis\\", 0,
+	                        KEY_QUERY_VALUE | flags, &handle);
+	if(ret != ERROR_SUCCESS) {
+		return false;
 	}
-
-	if(ret == ERROR_SUCCESS) {
-		result = buffer.get();
+	
+	platform::WideString wname(name);
+	
+	platform::WideString buffer;
+	buffer.allocate(buffer.capacity());
+	
+	// find size of value
+	DWORD type = 0;
+	DWORD length = buffer.size() * sizeof(WCHAR);
+	ret = RegQueryValueExW(handle, wname, NULL, &type, LPBYTE(buffer.data()), &length);
+	if(ret == ERROR_MORE_DATA && length > 0) {
+		buffer.resize(length / sizeof(WCHAR) + 1);
+		ret = RegQueryValueExW(handle, wname, NULL, &type, LPBYTE(buffer.data()), &length);
+	}
+	buffer.resize(length / sizeof(WCHAR));
+	
+	RegCloseKey(handle);
+	
+	if(ret == ERROR_SUCCESS && type == REG_SZ) {
+		buffer.compact();
+		result = buffer.toUTF8();
 		return true;
 	} else {
 		return false;
@@ -197,15 +202,6 @@ void initializeEnvironment(const char * argv0) {
 
 #elif ARX_PLATFORM == ARX_PLATFORM_WIN32
 
-static std::string ws2s(const std::basic_string<WCHAR> & s) {
-	size_t slength = (int)s.length() + 1;
-	size_t len = WideCharToMultiByte(CP_ACP, 0, s.c_str(), slength, 0, 0, 0, 0); 
-	std::string r(len, '\0');
-	WideCharToMultiByte(CP_ACP, 0, s.c_str(), slength, &r[0], len, 0, 0); 
-	return r;
-}
-
-
 // Obtain the right savegame paths for the platform
 // XP is "%USERPROFILE%\My Documents\My Games"
 // Vista and up : "%USERPROFILE%\Saved Games"
@@ -213,7 +209,7 @@ void initializeEnvironment(const char * argv0) {
 	
 	ARX_UNUSED(argv0);
 	
-	std::string strPath;
+	std::basic_string<WCHAR> path;
 	
 	// Vista and up
 	{
@@ -227,7 +223,7 @@ void initializeEnvironment(const char * argv0) {
 			0x4C5C32FF, 0xBB9D, 0x43b0, { 0xB5, 0xB4, 0x2D, 0x72, 0xE5, 0x4E, 0xAA, 0xA4 }
 		};
 		
-		CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+		CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 		
 		HMODULE dll = GetModuleHandleW(L"shell32.dll");
 		if(dll) {
@@ -236,35 +232,38 @@ void initializeEnvironment(const char * argv0) {
 			if(proc) {
 				PSHGetKnownFolderPath GetKnownFolderPath = (PSHGetKnownFolderPath)proc;
 				
-				LPWSTR wszPath = NULL;
+				LPWSTR savedgames = NULL;
 				HRESULT hr = GetKnownFolderPath(FOLDERID_SavedGames, kfFlagCreate | kfFlagNoAlias,
-				                                NULL, &wszPath);
+				                                NULL, &savedgames);
 				if(SUCCEEDED(hr)) {
-					strPath = ws2s(wszPath);
+					path = savedgames;
 				}
-				
-				CoTaskMemFree(wszPath);
+				CoTaskMemFree(savedgames);
 				
 			}
 			
 		}
 		
 		CoUninitialize();
+		
 	}
 	
 	// XP
-	if(strPath.empty()) {
-		CHAR szPath[MAX_PATH];
-		HRESULT hr = SHGetFolderPathA(NULL, CSIDL_PERSONAL | CSIDL_FLAG_CREATE, NULL,
-		                              SHGFP_TYPE_CURRENT, szPath);
+	{
+		WCHAR mydocuments[MAX_PATH];
+		HRESULT hr = SHGetFolderPathW(NULL, CSIDL_PERSONAL | CSIDL_FLAG_CREATE, NULL,
+		                              SHGFP_TYPE_CURRENT, mydocuments);
 		if(SUCCEEDED(hr)) {
-			strPath = szPath; 
-			strPath += "\\My Games";
+			if(!path.empty()) {
+				path += L';';
+			}
+			path += mydocuments;
+			path += L"\\My Games";
 		}
 	}
 	
-	if(!strPath.empty()) {
-		SetEnvironmentVariable("FOLDERID_SavedGames", strPath.c_str());
+	if(!path.empty()) {
+		SetEnvironmentVariableW(L"FOLDERID_SavedGames", path.c_str());
 	}
 	
 }
@@ -317,10 +316,16 @@ fs::path getExecutablePath() {
 	
 #elif ARX_PLATFORM == ARX_PLATFORM_WIN32
 	
-	std::vector<char> buffer(MAX_PATH);	
-	size_t cnt = GetModuleFileNameA(NULL, &*buffer.begin(), buffer.size());
-	if (cnt > 0) {
-		return fs::path(&*buffer.begin(), &*buffer.begin() + cnt);
+	platform::WideString buffer;
+	buffer.allocate(buffer.capacity());
+	
+	while(true) {
+		DWORD size = GetModuleFileNameW(NULL, buffer.data(), buffer.size());
+		if(size < buffer.size()) {
+			buffer.resize(size);
+			return buffer.toUTF8();
+		}
+		buffer.allocate(buffer.size() * 2);
 	}
 
 #else
@@ -393,6 +398,12 @@ fs::path getHelperExecutable(const std::string & name) {
 		if(fs::is_regular_file(helper)) {
 			return helper;
 		}
+		#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+		helper.append(".exe");
+		if(fs::is_regular_file(helper)) {
+			return helper;
+		}
+		#endif
 	}
 	
 	if(fs::libexec_dir) {
@@ -408,6 +419,12 @@ fs::path getHelperExecutable(const std::string & name) {
 			if(fs::is_regular_file(helper)) {
 				return helper;
 			}
+			#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+			helper.append(".exe");
+			if(fs::is_regular_file(helper)) {
+				return helper;
+			}
+			#endif
 		}
 	}
 	

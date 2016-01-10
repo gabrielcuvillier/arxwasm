@@ -86,9 +86,9 @@ extern bool bQuickGenFirstClick;
 
 extern Rect g_size;
 
-extern long LOADQUEST_SLOT;
+extern SavegameHandle LOADQUEST_SLOT;
 
-extern long REFUSE_GAME_RETURN;
+extern bool REFUSE_GAME_RETURN;
 
 extern bool bFade;
 extern bool	bFadeInOut;
@@ -132,15 +132,15 @@ void ARXMenu_Options_Video_SetDetailsQuality(int _iQuality) {
 	
 	switch(config.video.levelOfDetail) {
 		case 0: {
-			MAX_LLIGHTS = 6;
+			setMaxLLights(6);
 			break;
 		}
 		case 1: {
-			MAX_LLIGHTS = 10;
+			setMaxLLights(10);
 			break;
 		}
 		case 2: {
-			MAX_LLIGHTS = 15;
+			setMaxLLights(15);
 			break;
 		}
 	}
@@ -257,20 +257,20 @@ void ARXMenu_NewQuest() {
 	ARX_PLAYER_MakeFreshHero();
 }
 
-void ARXMenu_LoadQuest(size_t num) {
+void ARXMenu_LoadQuest(SavegameHandle num) {
 	
 	LOADQUEST_SLOT = num;
 
 	ARX_SOUND_PlayMenu(SND_MENU_CLICK);
-	REFUSE_GAME_RETURN = 0;
+	REFUSE_GAME_RETURN = false;
 	ARX_MENU_Clicked_QUIT();
 }
 
-void ARXMenu_SaveQuest(const std::string & name, size_t num) {
+void ARXMenu_SaveQuest(const std::string & name, SavegameHandle num) {
 	
 	ARX_SOUND_MixerPause(ARX_SOUND_MixerMenu);
 	
-	savegames.save(name, num, savegame_thumbnail);
+	savegames.save(name, num.handleData(), savegame_thumbnail);
 	
 	ARX_SOUND_MixerResume(ARX_SOUND_MixerMenu);
 }

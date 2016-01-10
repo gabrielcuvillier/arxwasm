@@ -44,7 +44,7 @@ extern Rect g_size;
 MassLightningStrikeSpell::MassLightningStrikeSpell()
 	: m_pos(Vec3f_ZERO)
 	, m_soundEffectPlayed(false)
-	, m_light(LightHandle::Invalid)
+	, m_light()
 {
 }
 
@@ -110,7 +110,7 @@ void MassLightningStrikeSpell::Launch()
 	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_LIGHTNING_LOOP, &m_pos, 1.f, ARX_SOUND_PLAY_LOOPED);
 	
 	// Draws White Flash on Screen
-	GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+	GRenderer->SetBlendFunc(BlendOne, BlendOne);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 	EERIEDrawBitmap(Rectf(g_size), 0.00009f, NULL, Color::white);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
@@ -149,27 +149,27 @@ void MassLightningStrikeSpell::Update(float timeDelta) {
 	position = m_pos + randomVec(-250.f, 250.f);
 	ARX_SOUND_RefreshPosition(m_snd_loop, position);
 	ARX_SOUND_RefreshVolume(m_snd_loop, 1.f);
-	ARX_SOUND_RefreshPitch(m_snd_loop, 0.8F + 0.4F * rnd());
+	ARX_SOUND_RefreshPitch(m_snd_loop, Random::getf(0.8f, 1.2f));
 	
-	if(rnd() > 0.62f) {
+	if(Random::getf() > 0.62f) {
 		position = m_pos + randomVec(-250.f, 250.f);
-		ARX_SOUND_PlaySFX(SND_SPELL_SPARK, &position, 0.8F + 0.4F * rnd());
+		ARX_SOUND_PlaySFX(SND_SPELL_SPARK, &position, Random::getf(0.8f, 1.2f));
 	}
 	
-	if(rnd() > 0.82f) {
+	if(Random::getf() > 0.82f) {
 		position = m_pos + randomVec(-250.f, 250.f);
-		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &position, 0.8F + 0.4F * rnd());
+		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &position, Random::getf(0.8f, 1.2f));
 	}
 	
 	if(0 > (long(m_duration) - 1800) && !m_soundEffectPlayed) {
 		m_soundEffectPlayed = true;
-		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, NULL, 0.8F + 0.4F * rnd());
+		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, NULL, Random::getf(0.8f, 1.2f));
 	}
 
 	if(lightHandleIsValid(m_light)) {
 		EERIE_LIGHT * light = lightHandleGet(m_light);
 		
-		light->intensity = 1.3f + rnd() * 1.f;
+		light->intensity = Random::getf(1.3f, 2.3f);
 	}	
 }
 
@@ -293,10 +293,10 @@ void ControlTargetSpell::Update(float timeDelta) {
 	
 	ulCurrentTime += timeDelta;
 	
-	GRenderer->SetCulling(Renderer::CullNone);
+	GRenderer->SetCulling(CullNone);
 	GRenderer->SetRenderState(Renderer::DepthWrite, false);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+	GRenderer->SetBlendFunc(BlendOne, BlendOne);
 	GRenderer->SetTexture(0, tex_mm);
 
 	// -------------------
@@ -426,7 +426,7 @@ void MassIncinerateSpell::Launch()
 		const EntityHandle handle = EntityHandle(ii);
 		Entity * tio = entities[handle];
 		
-		if(long(ii) == m_caster || !tio || !(tio->ioflags & IO_NPC)) {
+		if(handle == m_caster || !tio || !(tio->ioflags & IO_NPC)) {
 			continue;
 		}
 		

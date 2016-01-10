@@ -176,15 +176,15 @@ void HealSpell::Update(float timeDelta) {
 		{
 			float dist;
 
-			if(long(ii) == m_caster)
+			if(handle == m_caster)
 				dist=0;
 			else
 				dist=fdist(m_pos, e->pos);
 
 			if(dist<300.f) {
-				float gain=((rnd()*1.6f+0.8f)*m_level)*(300.f-dist)*( 1.0f / 300 )*timeDelta*( 1.0f / 1000 );
+				float gain = Random::getf(0.8f, 2.4f) * m_level * (300.f - dist) * (1.0f/300) * timeDelta * (1.0f/1000);
 
-				if(ii==0) {
+				if(handle == PlayerEntityHandle) {
 					if (!BLOCK_PLAYER_CONTROLS)
 						player.lifePool.current=std::min(player.lifePool.current+gain,player.Full_maxlife);									
 				}
@@ -298,7 +298,7 @@ Vec3f ArmorSpell::getPosition() {
 }
 
 LowerArmorSpell::LowerArmorSpell()
-	: m_longinfo_lower_armor(-1) //TODO is this correct ?
+	: m_haloCreated(false)
 {
 	
 }
@@ -330,9 +330,9 @@ void LowerArmorSpell::Launch()
 			io->halo.color = Color3f(1.f, 0.05f, 0.0f);
 			io->halo.radius = 45.f;
 			
-			m_longinfo_lower_armor = 1;
+			m_haloCreated = true;
 		} else {
-			m_longinfo_lower_armor = 0;
+			m_haloCreated = false;
 		}
 	}
 	
@@ -344,7 +344,7 @@ void LowerArmorSpell::End()
 	ARX_SOUND_PlaySFX(SND_SPELL_LOWER_ARMOR_END);
 	Entity *io = entities[m_target];
 	
-	if(m_longinfo_lower_armor) {
+	if(m_haloCreated) {
 		io->halo.flags &= ~HALO_ACTIVE;
 		ARX_HALO_SetToNative(io);
 	}
@@ -364,7 +364,7 @@ void LowerArmorSpell::Update(float timeDelta)
 			io->halo.color = Color3f(1.f, 0.05f, 0.0f);
 			io->halo.radius = 45.f;
 			
-			m_longinfo_lower_armor = 1;
+			m_haloCreated = true;
 		}
 	}
 	
@@ -376,8 +376,8 @@ Vec3f LowerArmorSpell::getPosition() {
 }
 
 HarmSpell::HarmSpell()
-	: m_light(LightHandle::Invalid)
-	, m_damage(DamageHandle::Invalid)
+	: m_light()
+	, m_damage()
 	, m_pitch(0.f)
 {
 	
@@ -464,13 +464,13 @@ void HarmSpell::Update(float timeDelta)
 		light->pos.x = cabalpos.x;
 		light->pos.y = refpos;
 		light->pos.z = cabalpos.z;
-		light->rgb.r = rnd() * 0.2f + 0.8f;
-		light->rgb.g = rnd() * 0.2f + 0.6f;
+		light->rgb.r = Random::getf(0.8f, 1.0f);
+		light->rgb.g = Random::getf(0.6f, 0.8f);
 		light->fallstart = Es * 1.5f;
 	}
 	
 	RenderMaterial mat;
-	mat.setCulling(Renderer::CullNone);
+	mat.setCulling(CullNone);
 	mat.setDepthTest(true);
 	mat.setBlendType(RenderMaterial::Additive);
 	

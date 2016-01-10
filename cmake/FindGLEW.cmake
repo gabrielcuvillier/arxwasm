@@ -77,10 +77,23 @@ if(WIN32 AND GLEW_USE_STATIC_LIBS)
 	list(APPEND GLEW_DEFINITIONS -DGLEW_STATIC)
 endif()
 
+if(NOT DEFINED GLEW_VERSION_STRING AND GLEW_LIBRARY MATCHES ".*\\.so")
+	get_filename_component(_glew_soname "${GLEW_LIBRARY}" REALPATH)
+	string(REGEX REPLACE "^.*\\.so\\." "" _glew_soversion "${_glew_soname}")
+	if(_glew_soversion MATCHES "^([0-9]+)(\\.([0-9]+))+$")
+		set(GLEW_VERSION_STRING "${_glew_soversion}")
+	endif()
+endif()
+
+if(UNIX AND NOT DEFINED GLEW_VERSION_STRING AND _PC_GLEW_FOUND)
+	set(GLEW_VERSION_STRING "${_PC_GLEW_VERSION}")
+endif()
+
 # handle the QUIETLY and REQUIRED arguments and set GLEW_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(GLEW DEFAULT_MSG GLEW_LIBRARY GLEW_INCLUDE_DIR)
+find_package_handle_standard_args(GLEW REQUIRED_VARS GLEW_LIBRARY GLEW_INCLUDE_DIR
+                                  VERSION_VAR GLEW_VERSION_STRING)
 
 if(GLEW_FOUND)
 	set(GLEW_LIBRARIES ${GLEW_LIBRARY})

@@ -26,7 +26,7 @@
 
 SpellBase::SpellBase()
 	: m_level(1.f)
-	, m_hand_group(-1)
+	, m_hand_group()
 	, m_type(SPELL_NONE)
 	, m_timcreation(0)
 	, m_hasDuration(false)
@@ -70,8 +70,8 @@ void SpellBase::updateCasterHand() {
 		m_hand_group = entities[m_caster]->obj->fastaccess.left_attach;
 	}
 	
-	if(m_hand_group != -1) {
-		m_hand_pos = entities[m_caster]->obj->vertexlist3[m_hand_group].v;
+	if(m_hand_group != ActionPoint()) {
+		m_hand_pos = actionPointPosition(entities[m_caster]->obj, m_hand_group);
 	}
 }
 
@@ -87,7 +87,7 @@ void SpellBase::updateCasterPosition() {
 Vec3f SpellBase::getTargetPos(EntityHandle source, EntityHandle target)
 {
 	Vec3f targetPos;
-	if(target == EntityHandle::Invalid) {
+	if(target == EntityHandle()) {
 		// no target... targeted by sight
 		if(source == PlayerEntityHandle) {
 			// no target... player spell targeted by sight

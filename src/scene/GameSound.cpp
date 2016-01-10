@@ -76,6 +76,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "scene/Interactive.h"
 
 #include "util/String.h"
+#include "platform/profiler/Profiler.h"
 
 
 using audio::AmbianceId;
@@ -137,8 +138,8 @@ static const res::path ARX_SOUND_COLLISION_MAP_NAMES[] = {
 static bool bIsActive(false);
 
 
-static AmbianceId ambiance_zone = AmbianceId::Invalid;
-static AmbianceId ambiance_menu = AmbianceId::Invalid;
+static AmbianceId ambiance_zone = AmbianceId();
+static AmbianceId ambiance_menu = AmbianceId();
 
 static long Inter_Materials[MAX_MATERIALS][MAX_MATERIALS][MAX_VARIANTS];
 
@@ -369,14 +370,14 @@ bool ARX_SOUND_Init() {
 	ARX_SOUND_MixerMenuAmbiance = audio::createMixer();
 	audio::setMixerParent(ARX_SOUND_MixerMenuAmbiance, ARX_SOUND_MixerMenu);
 	
-	if(ARX_SOUND_MixerGame == INVALID_ID
-	   || ARX_SOUND_MixerGameSample == INVALID_ID
-	   || ARX_SOUND_MixerGameSpeech == INVALID_ID
-	   || ARX_SOUND_MixerGameAmbiance == INVALID_ID
-	   || ARX_SOUND_MixerMenu == INVALID_ID
-	   || ARX_SOUND_MixerMenuSample == INVALID_ID
-	   || ARX_SOUND_MixerMenuSpeech == INVALID_ID
-	   || ARX_SOUND_MixerMenuAmbiance == INVALID_ID) {
+	if(ARX_SOUND_MixerGame == audio::MixerId()
+	   || ARX_SOUND_MixerGameSample == audio::MixerId()
+	   || ARX_SOUND_MixerGameSpeech == audio::MixerId()
+	   || ARX_SOUND_MixerGameAmbiance == audio::MixerId()
+	   || ARX_SOUND_MixerMenu == audio::MixerId()
+	   || ARX_SOUND_MixerMenuSample == audio::MixerId()
+	   || ARX_SOUND_MixerMenuSpeech == audio::MixerId()
+	   || ARX_SOUND_MixerMenuAmbiance == audio::MixerId()) {
 		audio::clean();
 		return false;
 	}
@@ -461,6 +462,9 @@ void ARX_SOUND_MixerSwitch(audio::MixerId from, audio::MixerId to) {
 
 // Sets the position of the listener
 void ARX_SOUND_SetListener(const Vec3f & position, const Vec3f & front, const Vec3f & up) {
+	
+	ARX_PROFILE_FUNC();
+	
 	if(bIsActive) {
 		audio::setListenerPosition(position);
 		audio::setListenerDirection(front, up);
@@ -471,7 +475,7 @@ void ARX_SOUND_EnvironmentSet(const res::path & name) {
 	
 	if(bIsActive) {
 		EnvId e_id = audio::getEnvironment(name);
-		if(e_id != INVALID_ID) {
+		if(e_id != audio::EnvId()) {
 			audio::setListenerEnvironment(e_id);
 		}
 	}
@@ -649,7 +653,7 @@ long ARX_SOUND_PlayCollision(long mat1, long mat2, float volume, float power, co
 	ARX_NPC_SpawnAudibleSound(position, source, power, presence);
 	
 	channel.position = position;
-	channel.pitch = 0.9F + 0.2F * rnd();
+	channel.pitch = Random::getf(0.9f, 1.1f);
 	channel.volume = volume;
 	audio::samplePlay(sample_id, channel);
 	
@@ -702,7 +706,7 @@ long ARX_SOUND_PlayCollision(const std::string & name1, const std::string & name
 		return -1;
 	
 	channel.position = position;
-	channel.pitch = 0.975f + 0.5f * rnd();
+	channel.pitch = Random::getf(0.975f, 1.475f);
 	channel.volume = volume;
 	audio::samplePlay(sample_id, channel);
 	
@@ -899,12 +903,12 @@ bool ARX_SOUND_PlayScriptAmbiance(const res::path & name, SoundLoopMode loop, fl
 
 	AmbianceId ambiance_id = audio::getAmbiance(temp);
 
-	if (ambiance_id == INVALID_ID)
+	if (ambiance_id == AmbianceId())
 	{
 		if (volume == 0.f) return true;
 
 		ambiance_id = audio::createAmbiance(temp);
-		if(ambiance_id == INVALID_ID) {
+		if(ambiance_id == AmbianceId()) {
 			return false;
 		}
 		
@@ -938,7 +942,7 @@ bool ARX_SOUND_PlayZoneAmbiance(const res::path & name, SoundLoopMode loop, floa
 
 	if(name == "none") {
 		audio::ambianceStop(ambiance_zone, AMBIANCE_FADE_TIME);
-		ambiance_zone = AmbianceId::Invalid;
+		ambiance_zone = AmbianceId();
 		return true;
 	}
 
@@ -946,10 +950,10 @@ bool ARX_SOUND_PlayZoneAmbiance(const res::path & name, SoundLoopMode loop, floa
 
 	AmbianceId ambiance_id = audio::getAmbiance(temp);
 
-	if (ambiance_id == INVALID_ID)
+	if (ambiance_id == AmbianceId())
 	{
 		ambiance_id = audio::createAmbiance(temp);
-		if(ambiance_id == INVALID_ID) {
+		if(ambiance_id == AmbianceId()) {
 			return false;
 		}
 		audio::setAmbianceUserData(ambiance_id, reinterpret_cast<void *>(PLAYING_AMBIANCE_ZONE));
@@ -978,18 +982,18 @@ void ARX_SOUND_KillAmbiances() {
 	
 	AmbianceId ambiance_id = audio::getNextAmbiance();
 	
-	while(ambiance_id != INVALID_ID) {
+	while(ambiance_id != AmbianceId()) {
 		audio::deleteAmbiance(ambiance_id);
 		ambiance_id = audio::getNextAmbiance(ambiance_id);
 	}
 	
-	ambiance_zone = AmbianceId::Invalid;
+	ambiance_zone = AmbianceId();
 }
 
 AmbianceId ARX_SOUND_PlayMenuAmbiance(const res::path & ambiance_name) {
 	
 	if(!bIsActive) {
-		return AmbianceId::Invalid;
+		return AmbianceId();
 	}
 	
 	audio::deleteAmbiance(ambiance_menu);
@@ -1014,7 +1018,7 @@ char * ARX_SOUND_AmbianceSavePlayList(size_t & size) {
 	PlayingAmbiance * play_list = NULL;
 	AmbianceId ambiance_id = audio::getNextAmbiance();
 
-	while (ambiance_id != INVALID_ID)
+	while (ambiance_id != AmbianceId())
 	{
 		void * storedType;
 		audio::getAmbianceUserData(ambiance_id, &storedType);
@@ -1682,6 +1686,8 @@ class SoundUpdateThread : public StoppableThread {
 	void run() {
 		
 		while(!isStopRequested()) {
+			
+			ARX_PROFILE("SoundUpdate");
 			
 			sleep(ARX_SOUND_UPDATE_INTERVAL);
 			

@@ -233,7 +233,7 @@ void Cinematic::InitDeviceObjects() {
 	
 	GRenderer->SetRenderState(Renderer::DepthTest, false);
 	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetCulling(Renderer::CullNone);
+	GRenderer->SetCulling(CullNone);
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
 	
 	GRenderer->GetTextureStage(0)->setMipMapLODBias(0);
@@ -246,7 +246,7 @@ void Cinematic::DeleteDeviceObjects() {
 	
 	GRenderer->SetRenderState(Renderer::DepthTest, true);
 	GRenderer->SetRenderState(Renderer::DepthWrite, true);
-	GRenderer->SetCulling(Renderer::CullCCW);
+	GRenderer->SetCulling(CullCCW);
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
 	
 	GRenderer->GetTextureStage(0)->setMipMapLODBias(0);
@@ -266,7 +266,7 @@ static float LightRND;
 
 static Color CalculLight(CinematicLight * light, Vec2f pos, Color col) {
 	
-	float	ra = (float)sqrt((light->pos.x - pos.x) * (light->pos.x - pos.x) + (light->pos.y - pos.y) * (light->pos.y - pos.y));
+	float	ra = std::sqrt((light->pos.x - pos.x) * (light->pos.x - pos.x) + (light->pos.y - pos.y) * (light->pos.y - pos.y));
 
 	if(ra > light->fallout) {
 		return (col * LightRND);
@@ -373,8 +373,8 @@ void DrawGrille(CinematicBitmap * bitmap, Color col, int fx, CinematicLight * li
 				Vec2f pos = Vec2f(mat->bitmapdep) + uvs->uv * Vec2f(mat->tex->getStoredSize());
 				
 				// Roughen up the lines
-				float fx = 0.75 + std::sin(pos.x) * 0.25;
-				float fy = 0.75 + std::sin(pos.y) * 0.25;
+				float fx = 0.75f + std::sin(pos.x) * 0.25f;
+				float fy = 0.75f + std::sin(pos.y) * 0.25f;
 				
 				float interp = 1.f;
 				if(pos.x < fo.left * fy) {
@@ -423,7 +423,7 @@ void Cinematic::Render(float FDIFF) {
 			PlaySoundKeyFramer(idsound);
 
 		//draw
-		GRenderer->SetBlendFunc(Renderer::BlendSrcAlpha, Renderer::BlendInvSrcAlpha);
+		GRenderer->SetBlendFunc(BlendSrcAlpha, BlendInvSrcAlpha);
 
 		GRenderer->GetTextureStage(0)->setColorOp(TextureStage::OpModulate, TextureStage::ArgTexture, TextureStage::ArgDiffuse);
 		GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpModulate, TextureStage::ArgTexture, TextureStage::ArgDiffuse);

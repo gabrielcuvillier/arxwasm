@@ -67,6 +67,10 @@ class TextureContainer;
 class Entity;
 struct EERIE_LIGHT;
 
+ARX_HANDLE_TYPEDEF(long, ActionPoint, -1)
+ARX_HANDLE_TYPEDEF(long, ObjSelection, -1)
+ARX_HANDLE_TYPEDEF(short, ObjVertGroup, -1)
+
 struct EERIE_TRI {
 	Vec3f v[3];
 };
@@ -251,7 +255,7 @@ struct PHYSICS_BOX_DATA
 
 struct EERIE_ACTIONLIST {
 	std::string name;
-	long idx; //index vertex;
+	ActionPoint idx; //index vertex;
 	long act; //action
 	long sfx; //sfx
 	
@@ -274,9 +278,9 @@ struct CUB3D
 };
 
 struct EERIE_LINKED {
-	long lgroup; //linked to group n° if lgroup=-1 NOLINK
-	long lidx;
-	long lidx2;
+	ObjVertGroup lgroup; //linked to group n° if lgroup=-1 NOLINK
+	ActionPoint lidx;
+	ActionPoint lidx2;
 	EERIE_3DOBJ * obj;
 	Entity * io;
 };
@@ -289,30 +293,30 @@ struct EERIE_SELECTIONS {
 struct EERIE_FASTACCESS
 {
 	EERIE_FASTACCESS()
-		: view_attach(0)
-		, primary_attach(0)
-		, left_attach(0)
-		, weapon_attach(0)
-		, secondary_attach(0)
+		: view_attach()
+		, primary_attach()
+		, left_attach()
+		, weapon_attach()
+		, secondary_attach()
 		, head_group_origin(0)
-		, head_group(0)
-		, fire(0)
-		, sel_head(0)
-		, sel_chest(0)
-		, sel_leggings(0)
+		, head_group()
+		, fire()
+		, sel_head()
+		, sel_chest()
+		, sel_leggings()
 	{}
 	
-	long view_attach;
-	long primary_attach;
-	long left_attach;
-	long weapon_attach;
-	long secondary_attach;
+	ActionPoint view_attach;
+	ActionPoint primary_attach;
+	ActionPoint left_attach;
+	ActionPoint weapon_attach;
+	ActionPoint secondary_attach;
 	long head_group_origin;
-	long head_group;
-	long fire;
-	long sel_head;
-	long sel_chest;
-	long sel_leggings;
+	ObjVertGroup head_group;
+	ActionPoint fire;
+	ObjSelection sel_head;
+	ObjSelection sel_chest;
+	ObjSelection sel_leggings;
 };
 
 /////////////////////////////////////////////////////////////////////////////////

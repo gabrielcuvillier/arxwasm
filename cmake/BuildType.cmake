@@ -3,7 +3,9 @@ include(CompileCheck)
 
 option(DEBUG_EXTRA "Expensive debug options" OFF)
 option(SET_WARNING_FLAGS "Adjust compiler warning flags" ON)
+option(SET_NOISY_WARNING_FLAGS "Enable noisy compiler warnings" OFF)
 option(SET_OPTIMIZATION_FLAGS "Adjust compiler optimization flags" ON)
+
 
 if(MSVC)
 	
@@ -101,6 +103,8 @@ if(MSVC)
 		"${CMAKE_EXE_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF /LTCG")
 	set(CMAKE_SHARED_LINKER_FLAGS_RELEASE
 		"${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF /LTCG")
+	set(CMAKE_STATIC_LINKER_FLAGS_RELEASE
+		"${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG")
 	
 else(MSVC)
 
@@ -123,10 +127,13 @@ else(MSVC)
 		add_cxxflag("-Woverflow")
 		add_cxxflag("-Wmissing-declarations")
 		add_cxxflag("-Wredundant-decls")
+		add_cxxflag("-Wdouble-promotion")
 		
-		# TODO consider adding these
-		# add_cxxflag("-Wconversion") # very noisy
-		# add_cxxflag("-Wsign-conversion") # very noisy
+		if(SET_NOISY_WARNING_FLAGS)
+			# TODO enable by default as soon as most are silenced
+			add_cxxflag("-Wconversion") # very noisy
+			# add_cxxflag("-Wsign-conversion") # very noisy
+		endif()
 		
 		# clang
 		add_cxxflag("-Wliteral-conversion")
@@ -185,11 +192,25 @@ else(MSVC)
 		add_cxxflag("-Wstrict-aliasing=1")
 		add_cxxflag("-fstack-protector-all")
 		
-		add_cxxflag("-fsanitize=address")
-		add_cxxflag("-fsanitize=thread")
-		add_cxxflag("-fsanitize=leak")
-		add_cxxflag("-fsanitize=undefined")
-		add_definitions(-D_FORTIFY_SOURCE=2)
+		check_compiler_flag(FLAG_FOUND "-fsanitize=address")
+		if(FLAG_FOUND)
+			add_cxxflag("-fsanitize=address")
+		endif()
+		
+		check_compiler_flag(FLAG_FOUND "-fsanitize=thread")
+		if(FLAG_FOUND)
+			add_cxxflag("-fsanitize=thread")
+		endif()
+
+		check_compiler_flag(FLAG_FOUND "-fsanitize=leak")
+		if(FLAG_FOUND)
+			add_cxxflag("-fsanitize=leak")
+		endif()
+		
+		check_compiler_flag(FLAG_FOUND "-fsanitize=undefined")
+		if(FLAG_FOUND)
+			add_cxxflag("-fsanitize=undefined")
+		endif()
 	endif(DEBUG_EXTRA)
 	
 	if(CMAKE_BUILD_TYPE STREQUAL "")
@@ -197,6 +218,8 @@ else(MSVC)
 	endif()
 	
 	if(SET_OPTIMIZATION_FLAGS)
+		
+		add_cxxflag("-fno-rtti")
 		
 		if(MACOSX)
 			# TODO For some reason this check succeeds on OS X, but then
@@ -229,7 +252,9 @@ else(MSVC)
 			   AND (NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "-g(|[0-9]|gdb)"))
 				add_cxxflag("-g2")
 			endif()
-      
+			
+			add_cxxflag("-ffast-math")
+			
       if(PNACL)
         check_compiler_flag(RESULT "-Os")
         string(REGEX REPLACE "-O[0-9]" "-Os" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")

@@ -66,13 +66,11 @@ class Entity;
 const size_t MAX_LIGHTS = 1200;
 const size_t MAX_DYNLIGHTS = 500;
 
-extern long MAX_LLIGHTS;
-
 extern EERIE_LIGHT * PDL[MAX_DYNLIGHTS];
 extern EERIE_LIGHT * GLight[MAX_LIGHTS];
 extern EERIE_LIGHT DynLight[MAX_DYNLIGHTS];
-extern long TOTPDL;
-extern long TOTIOPDL;
+extern size_t TOTPDL;
+extern size_t TOTIOPDL;
 
 ARX_HANDLE_TYPEDEF(long, LightHandle, -1)
 
@@ -143,7 +141,7 @@ void EERIE_LIGHT_MoveAll(const Vec3f & trans);
 long EERIE_LIGHT_Create();
 void PrecalcIOLighting(const Vec3f & pos, float radius);
 
-const LightHandle torchLightHandle = (LightHandle)0;
+const LightHandle torchLightHandle = LightHandle(0);
 
 EERIE_LIGHT * lightHandleGet(LightHandle lightHandle);
 
@@ -156,7 +154,21 @@ void endLightDelayed(LightHandle & handle, long delay);
 void ClearDynLights();
 void PrecalcDynamicLighting(long x0,long x1,long z0,long z1);
 
-void UpdateLlights(const Vec3f pos, bool forPlayerColor);
+
+struct ShaderLight {
+	Vec3f pos;
+	float fallstart;
+	float fallend;
+	float falldiffmul;
+	float intensity;
+	Color3f rgb;
+	Color3f rgb255;
+};
+
+static const int llightsSize = 16;
+
+void setMaxLLights(int count);
+void UpdateLlights(ShaderLight lights[], int & lightsCount, const Vec3f pos, bool forPlayerColor);
 
 void InitTileLights();
 void ResetTileLights();
@@ -164,7 +176,15 @@ void ComputeTileLights(short x,short z);
 void ClearTileLights();
 
 float GetColorz(const Vec3f &pos);
-ColorRGBA ApplyLight(const glm::quat * quat, const Vec3f & position, const Vec3f & normal, const ColorMod & colorMod, float materialDiffuse = 1.f);
+
+ColorRGBA ApplyLight(const ShaderLight lights[],
+                     const int lightsCount,
+                     const glm::quat & quat,
+                     const Vec3f & position,
+                     const Vec3f & normal,
+                     const ColorMod & colorMod,
+                     float materialDiffuse = 1.f);
+
 void ApplyTileLights(EERIEPOLY * ep, const Vec2s & pos);
 
 void EERIERemovePrecalcLights();

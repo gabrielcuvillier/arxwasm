@@ -26,6 +26,7 @@
 #include <QDebug>
 #include <QHash>
 
+#include <QClipboard>
 #include <QFileDialog>
 
 #include <QMouseEvent>
@@ -59,58 +60,108 @@ ArxProfiler::~ArxProfiler() {
 	delete ui;
 }
 
+template <typename T>
+void readStruct(T & out, QByteArray & data, int & pos) {
+	
+	out = *reinterpret_cast<const T *>(data.mid(pos, sizeof(T)).constData());
+	pos += int(sizeof(T));
+}
+
 void ArxProfiler::openFile() {
-	QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "", tr("Ax performance log (*.perf)"));
+	QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "", tr("Arx performance profiler log (*.arxprof)"));
 	
 	QFile file(fileName);
 
 	if(!file.open(QIODevice::ReadOnly))
 		return;
 	
-	threadsData.clear();
+	m_threads.clear();
+	m_strings.clear();
 	
-	SavedThreadInfoHeader theadsHeader;
-	file.read((char*)&theadsHeader, sizeof(SavedThreadInfoHeader));
+	QByteArray fileData = file.readAll();
+	int filePos = 0;
 	
-	for(quint32 i = 0; i < theadsHeader.size; i++) 	{
-		SavedThreadInfo saved;
-		file.read((char*)&saved, sizeof(SavedThreadInfo));
-		
-		ThreadInfo& threadInfo = threadsData[saved.threadId].info;
-		threadInfo.threadId = saved.threadId;
-		threadInfo.threadName = QString::fromLatin1(util::loadString(saved.threadName).c_str());
-		threadInfo.startTime = saved.startTime;
-		threadInfo.endTime = saved.endTime;
+	SavedProfilerHeader header;
+	readStruct(header, fileData, filePos);
+	
+	if(strcmp(profilerMagic, header.magic) == 0) {
+		qDebug() << "Header magic found";
+	} else {
+		qDebug() << "Invalid magic";
+		return;
 	}
 	
-	SavedProfilePointHeader pointsHeader;
-	file.read((char*)&pointsHeader, sizeof(SavedProfilePointHeader));
+	qDebug() << "Found file version:" << header.version;
 	
-	for(quint32 i = 0; i < pointsHeader.size; i++) {
-		SavedProfilePoint saved;
-		file.read((char*)&saved, sizeof(SavedProfilePoint));
-		
-		// TODO: String table ftw
-		ProfilePoint point;
-		point.tag = QString::fromLatin1(util::loadString(saved.tag).c_str());
-		point.threadId = saved.threadId;
-		point.startTime = saved.startTime;
-		point.endTime = saved.endTime;
-		
-		threadsData[point.threadId].profilePoints.push_back(point);
+	u32 minimumVersion = 1;
+	if(header.version < minimumVersion) {
+		qWarning() << "File version too old, aborting";
+		return;
 	}
 	
-	view->setData(&threadsData);
+	while(filePos < fileData.size()){
+		SavedProfilerChunkHeader chunk;
+		readStruct(chunk, fileData, filePos);
+		
+		int chunkSize = int(chunk.size);
+		qDebug() << "Reading chunk at offset" << filePos << "type" << chunk.type << "size" << chunkSize;
+		QByteArray chunkData = fileData.mid(filePos, chunkSize);
+		if(chunkData.size() != chunkSize) {
+			qWarning() << "Chunk too short, expected" << chunkSize << "got" << chunkData.size();
+			return;
+		}
+			
+		filePos += chunkData.size();
+		
+		if(chunk.type == ArxProfilerChunkType_Strings) {
+			int chunkPos = 0;
+			while(chunkPos < chunkData.size()) {
+				int foo = chunkData.indexOf('\0', chunkPos);
+				if(foo == -1)
+					break;
+				
+				QString string = QString::fromLatin1(chunkData.mid(chunkPos, foo));
+				m_strings.append(string);
+				chunkPos = foo + 1;
+			}
+		}
+		
+		if(chunk.type == ArxProfilerChunkType_Threads) {
+			int chunkPos = 0;
+			while(chunkPos < chunkData.size()) {
+				SavedProfilerThread saved;
+				readStruct(saved, chunkData, chunkPos);
+				
+				ProfileThread & thread = m_threads[saved.threadId].info;
+				thread.threadId = saved.threadId;
+				thread.threadName = m_strings.at(saved.stringIndex);
+				thread.startTime = saved.startTime;
+				thread.endTime = saved.endTime;
+			}
+		}
+		
+		if(chunk.type == ArxProfilerChunkType_Samples) {
+			int pos = 0;
+			while(pos < chunkData.size()) {
+				SavedProfilerSample saved;
+				readStruct(saved, chunkData, pos);
+				
+				ProfileSample sample;
+				sample.tag = m_strings.at(saved.stringIndex);
+				sample.threadId = saved.threadId;
+				sample.startTime = saved.startTime;
+				sample.endTime = saved.endTime;
+				
+				m_threads[sample.threadId].profilePoints.push_back(sample);
+			}
+		}
+	}
+	
+	view->setData(&m_threads);
 }
 
 
-class QGraphicsProfilePoint : public QGraphicsRectItem
-{
-	static const int Type = UserType + 1;
-	int type() const {
-		// Enable the use of qgraphicsitem_cast with this item.
-		return Type;
-	}
+class QGraphicsProfilePoint : public QGraphicsRectItem {
 	
 public:
 	QGraphicsProfilePoint(const QRectF &rect, QGraphicsItem *parent = 0)
@@ -119,6 +170,12 @@ public:
 	
 	~QGraphicsProfilePoint()
 	{}
+	
+	static const int Type = UserType + 1;
+	int type() const {
+		// Enable the use of qgraphicsitem_cast with this item.
+		return Type;
+	}
 	
 	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = 0) {
 		QGraphicsRectItem::paint(painter, option, widget);
@@ -138,6 +195,10 @@ public:
 		}
 	}
 	
+	QString text() {
+		return m_Text;
+	}
+	
 	void setText(const QString& text) {
 		m_Text = text;
 	}
@@ -149,8 +210,8 @@ private:
 };
 
 
-const quint32 ITEM_HEIGHT = 15;
-const quint32 THREAD_SPACING = 50;
+const qreal ITEM_HEIGHT = 15;
+const qreal THREAD_SPACING = 50;
 
 ProfilerView::ProfilerView(QWidget* parent)
 	: QGraphicsView(parent)
@@ -158,13 +219,17 @@ ProfilerView::ProfilerView(QWidget* parent)
 {
 	setBackgroundBrush(QBrush(QColor(160, 160, 160)));
 	setAlignment(Qt::AlignLeft | Qt::AlignTop);
-	setRenderHint(QPainter::HighQualityAntialiasing, true);
 	setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
 	setOptimizationFlags(QGraphicsView::DontSavePainterState);
 	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
 	m_scene = new QGraphicsScene(this);
+	// This is a workaround for bad performance using the default BspTreeIndex
+	// Maybe we are hitting this bug:
+	// http://stackoverflow.com/questions/6164543/qgraphicsscene-item-coordinates-affect-performance
+	m_scene->setItemIndexMethod(QGraphicsScene::NoIndex);
+	
 	setScene(m_scene);
 
 	QFont font;
@@ -195,7 +260,7 @@ void ProfilerView::setData(ThreadsData * data) {
 	m_scene->clear();
 	
 	// reverse iterate
-	int nextPos = 8;
+	qreal nextPos = 8;
 	
 	QPen profilePointPen(Qt::black);
 	profilePointPen.setCosmetic(true);
@@ -208,7 +273,7 @@ void ProfilerView::setData(ThreadsData * data) {
 		
 		std::vector<quint64> threadStack;
 		
-		for(std::vector<ProfilePoint>::const_reverse_iterator it = threadData.profilePoints.rbegin(); it != threadData.profilePoints.rend(); ++it) {
+		for(std::vector<ProfileSample>::const_reverse_iterator it = threadData.profilePoints.rbegin(); it != threadData.profilePoints.rend(); ++it) {
 			
 			while(!threadStack.empty()) {
 				if(it->endTime <= threadStack.back()) {
@@ -217,13 +282,13 @@ void ProfilerView::setData(ThreadsData * data) {
 					break;
 				}
 			}
-			qreal offset = ITEM_HEIGHT * threadStack.size();
+			qreal offset = ITEM_HEIGHT * qreal(threadStack.size());
 			
 			threadStack.push_back(it->startTime);
 			if(threadStack.size() > threadData.maxDepth)
 				threadData.maxDepth = threadStack.size();
 			
-			double duration = it->endTime - it->startTime;
+			qreal duration = qreal(it->endTime - it->startTime);
 			
 			const char* unitName = humanReadableTime(duration);
 			
@@ -231,7 +296,7 @@ void ProfilerView::setData(ThreadsData * data) {
 			duration = (int)(duration * 100);
 			duration /= 100;
 			
-			QRectF rect(it->startTime - firstTimestamp, offset, it->endTime - it->startTime, ITEM_HEIGHT);
+			QRectF rect(qreal(it->startTime - firstTimestamp), offset, qreal(it->endTime - it->startTime), ITEM_HEIGHT);
 			QGraphicsProfilePoint* profilePoint = new QGraphicsProfilePoint(rect, group);
 			
 			QString text = QString("%3 (%1 %2)").arg(duration).arg(unitName).arg(it->tag);
@@ -249,10 +314,10 @@ void ProfilerView::setData(ThreadsData * data) {
 		}
 		group->setPos(0, nextPos);
 		
-		nextPos += threadData.maxDepth * ITEM_HEIGHT + THREAD_SPACING;
+		nextPos += qreal(threadData.maxDepth) * ITEM_HEIGHT + THREAD_SPACING;
 	}
 	
-	setSceneRect(0, 0, lastTimestamp - firstTimestamp, nextPos);
+	setSceneRect(0, 0, qreal(lastTimestamp - firstTimestamp), nextPos);
 
 	scale(size().width() / (qreal)(lastTimestamp - firstTimestamp), 1.0);
 	
@@ -272,7 +337,7 @@ void ProfilerView::paintEvent(QPaintEvent * event) {
 	QPainter painter(viewport());
 	painter.setPen(Qt::white);
 	
-	int nextY = 5;
+	qreal nextY = 5;
 	
 	for(ThreadsData::iterator it = m_data->begin(); it != m_data->end(); ++it) {
 		ThreadData& threadData = it->second;
@@ -280,7 +345,7 @@ void ProfilerView::paintEvent(QPaintEvent * event) {
 		painter.drawLine(QPointF(0, nextY), QPointF(viewport()->width(), nextY));
 		painter.drawText(QPointF(0, nextY + 14), threadData.info.threadName);
 		
-		nextY += threadData.maxDepth * ITEM_HEIGHT + THREAD_SPACING;
+		nextY += qreal(threadData.maxDepth) * ITEM_HEIGHT + THREAD_SPACING;
 	}
 	
 	painter.end();
@@ -296,9 +361,9 @@ void ProfilerView::zoomEvent(QPoint mousePos, bool zoomIn) {
 	
 	double scaleFactor = 1.15;
 	if(zoomIn) {
-		scale(scaleFactor, 1.0f);
+		scale(scaleFactor, qreal(1));
 	} else {
-		scale(1.0 / scaleFactor, 1.0f);
+		scale(qreal(1) / scaleFactor, qreal(1));
 	}
 	
 	QPointF offset = oldScenePos - mapToScene(mousePos);
@@ -324,11 +389,35 @@ void ProfilerView::keyPressEvent(QKeyEvent* event) {
 	}
 }
 
-const char * ProfilerView::humanReadableTime(double & duration) {
+void ProfilerView::contextMenuEvent(QContextMenuEvent * event) {
+	
+	if(QGraphicsItem *item = itemAt(event->pos())) {
+		if(QGraphicsProfilePoint * sample = qgraphicsitem_cast<QGraphicsProfilePoint *>(item)) {
+			QMenu menu(this);
+			
+			QAction * copyAction = new QAction("Copy text", this);
+			copyAction->setData(sample->text());
+			connect(copyAction, SIGNAL(triggered()),this, SLOT(copyToClipboard()));
+			
+			menu.addAction(copyAction);
+			menu.exec(event->globalPos());
+		}
+	}
+}
+
+void ProfilerView::copyToClipboard() {
+	if(QAction * action = qobject_cast<QAction *>(QObject::sender())) {
+		QString text = action->data().toString();
+		qDebug() << "Copy text to clipboard" << text;
+		QApplication::clipboard()->setText(text);
+	}
+}
+
+const char * ProfilerView::humanReadableTime(qreal & duration) {
 	
 	static const qint32 NUM_UNITS = 5;
 	static const char*  UNIT_NAME[NUM_UNITS + 1] = {"us", "ms", "s", "m", "h", "d"};
-	static const qint64 UNIT_NEXT[NUM_UNITS] =     {1000, 1000,  60,  60,  24     };
+	static const qreal  UNIT_NEXT[NUM_UNITS] =     {1000, 1000,  60,  60,  24     };
 	
 	int i;
 	for(i = 0; i < NUM_UNITS; i++) {

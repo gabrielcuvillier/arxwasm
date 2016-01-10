@@ -23,10 +23,9 @@
 #include <map>
 #include <vector>
 
-#include "platform/profiler/Profiler.h"
+#include "graphics/Draw.h"
 
-RenderBatcher::RenderBatcher() : m_VertexBuffer(NULL) {
-}
+#include "platform/profiler/Profiler.h"
 
 RenderBatcher::~RenderBatcher() {
 	reset();
@@ -61,7 +60,7 @@ void RenderBatcher::render() {
 	for(Batches::const_iterator it = m_BatchedSprites.begin(); it != m_BatchedSprites.end(); ++it) {
 		if(!it->second.empty()) {
 			it->first.apply();
-			m_VertexBuffer->draw(Renderer::TriangleList, &it->second.front(), it->second.size());
+			EERIEDRAWPRIM(Renderer::TriangleList, &it->second.front(), it->second.size(), true);
 			GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpSelectArg1);
 		}
 	}
@@ -70,11 +69,14 @@ void RenderBatcher::render() {
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
 	GRenderer->SetDepthBias(0);
 	GRenderer->SetRenderState(Renderer::DepthTest, true);
-	GRenderer->SetCulling(Renderer::CullCCW);
+	GRenderer->SetCulling(CullCCW);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 }
 
 void RenderBatcher::clear() {
+	
+	ARX_PROFILE_FUNC();
+	
 	for(Batches::iterator itBatch = m_BatchedSprites.begin(); itBatch != m_BatchedSprites.end(); ++itBatch)
 		itBatch->second.clear();
 }
@@ -97,17 +99,6 @@ u32 RenderBatcher::getMemoryUsed() const {
 	return memoryUsed;
 }
 
-void RenderBatcher::initialize() {
-	arx_assert(m_VertexBuffer == NULL);
-	m_VertexBuffer = new CircularVertexBuffer<TexturedVertex>(GRenderer->createVertexBufferTL(32 * 1024, Renderer::Stream));
-}
-
-void RenderBatcher::shutdown() {
-	arx_assert(m_VertexBuffer != NULL);
-	delete m_VertexBuffer;
-	m_VertexBuffer = NULL;
-}
-
 RenderBatcher& RenderBatcher::getInstance() {
 	static RenderBatcher renderBatcher;
 	return renderBatcher;
@@ -120,7 +111,7 @@ RenderMaterial::RenderMaterial()
 	, m_layer(Effect)
 	, m_wrapMode(TextureStage::WrapRepeat)
 	, m_depthBias(0)
-	, m_cullingMode(Renderer::CullNone) {
+	, m_cullingMode(CullNone) {
 }
 
 bool RenderMaterial::operator<(const RenderMaterial & other) const {
@@ -186,60 +177,28 @@ void RenderMaterial::apply() const {
 		switch(m_blendType) {
 		
 		case Additive:
-			GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+			GRenderer->SetBlendFunc(BlendOne, BlendOne);
 			break;
 		
 		case AlphaAdditive:
-			GRenderer->SetBlendFunc(Renderer::BlendSrcAlpha, Renderer::BlendOne);
+			GRenderer->SetBlendFunc(BlendSrcAlpha, BlendOne);
 			break;
 		
 		case Screen:
-			GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendInvSrcColor);
+			GRenderer->SetBlendFunc(BlendOne, BlendInvSrcColor);
 			break;
 		
 		case Subtractive:
-			GRenderer->SetBlendFunc(Renderer::BlendZero, Renderer::BlendInvSrcColor);
+			GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
 			break;
 		
 		case Subtractive2:
 			GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpModulate);
-			GRenderer->SetBlendFunc(Renderer::BlendInvSrcAlpha, Renderer::BlendInvSrcAlpha);
+			GRenderer->SetBlendFunc(BlendInvSrcAlpha, BlendInvSrcAlpha);
 			break;
 		
 		default:
 			ARX_DEAD_CODE();
 		}
 	}
-}
-
-RenderMaterial RenderMaterial::getCurrent() {
-	
-	RenderMaterial mat;
-	
-	mat.setTexture(GRenderer->GetTexture(0));
-	if(GRenderer->GetRenderState(Renderer::AlphaBlending)) {
-		Renderer::PixelBlendingFactor srcFactor, dstFactor;
-		GRenderer->GetBlendFunc(srcFactor, dstFactor);
-		
-		if(srcFactor == Renderer::BlendOne && dstFactor == Renderer::BlendOne)
-			mat.setBlendType(RenderMaterial::Additive);
-		else if(srcFactor == Renderer::BlendSrcAlpha && dstFactor == Renderer::BlendOne)
-			mat.setBlendType(RenderMaterial::AlphaAdditive);
-		else if((srcFactor == Renderer::BlendOne && dstFactor == Renderer::BlendInvSrcColor) ||
-				(srcFactor == Renderer::BlendInvDstColor && dstFactor == Renderer::BlendOne))
-			mat.setBlendType(RenderMaterial::Screen);
-		else if(srcFactor == Renderer::BlendZero && dstFactor == Renderer::BlendInvSrcColor)
-			mat.setBlendType(RenderMaterial::Subtractive);
-		else
-			ARX_DEAD_CODE();
-	} else {
-		mat.setBlendType(RenderMaterial::Opaque);
-	}
-	
-	mat.setDepthBias(GRenderer->GetDepthBias());
-	mat.setWrapMode(GRenderer->GetTextureStage(0)->getWrapMode());
-	mat.setDepthTest(GRenderer->GetRenderState(Renderer::DepthTest));
-	mat.setCulling(GRenderer->GetCulling());
-	
-	return mat;
 }

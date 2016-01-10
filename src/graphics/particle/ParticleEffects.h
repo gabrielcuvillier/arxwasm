@@ -63,6 +63,7 @@ struct EERIE_CAMERA;
 struct Sphere;
 class TextureContainer;
 class Entity;
+struct EERIE_3DOBJ;
 
 enum ParticlesTypeFlag {
 	FIRE_TO_SMOKE       = 0x00000001,
@@ -130,7 +131,7 @@ struct PARTICLE_DEF {
 
 //-----------------------------------------------------------------------------
 
-static const int MAX_POLYBOOM = 4000;
+static const size_t MAX_POLYBOOM = 4000;
 static const float FLARE_MUL = 2.f;
 
 static const float BOOM_RADIUS = 420.f;
@@ -140,7 +141,7 @@ extern std::vector<POLYBOOM> polyboom;
 extern TextureContainer * fire2;
 extern long NewSpell;
 
-void MagFX(const Vec3f & pos);
+void MagFX(const Vec3f & pos, float size);
 void RestoreAllLightsInitialStatus();
 void TreatBackgroundActions();
 
@@ -163,14 +164,16 @@ void ARX_PARTICLES_Spawn_Blood(const Vec3f & pos, float dmgs, EntityHandle sourc
 void ARX_PARTICLES_Spawn_Blood2(const Vec3f & pos, float dmgs, Color col, Entity * io);
 void ARX_PARTICLES_Spawn_Lava_Burn(Vec3f pos, Entity * io = NULL);
 void ARX_PARTICLES_Add_Smoke(const Vec3f & pos, long flags, long amount, Color3f * rgb = NULL); // flag 1 = randomize pos
-void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, float dmgs, long flags);
+void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, int count, long flags);
 void ARX_PARTICLES_Spawn_Splat(const Vec3f & pos, float dmgs, Color col);
 void ARX_PARTICLES_SpawnWaterSplash(const Vec3f & pos);
 
 void ARX_BOOMS_ClearAllPolyBooms();
 void ARX_BOOMS_Add(const Vec3f & pos, long type = 0);
 
+void createFireParticles(Vec3f & pos, int perPos, int delay);
 
+void createObjFireParticles(const EERIE_3DOBJ * obj, int particlePositions, int perPos, int delay);
 
 void LaunchFireballBoom(const Vec3f & poss, float level, Vec3f * direction = NULL, Color3f * rgb = NULL);
 void SpawnFireballTail(const Vec3f &, const Vec3f &, float, long);

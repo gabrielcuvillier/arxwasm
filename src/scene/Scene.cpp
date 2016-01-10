@@ -47,6 +47,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "scene/Scene.h"
 
 #include <cstdio>
+#include <cmath>
 
 #include "ai/Paths.h"
 
@@ -711,7 +712,7 @@ static void CreatePlane(EERIE_FRUSTRUM & frustrum, long numplane, const Vec3f & 
 	plane.b = A.z * B.x - A.x * B.z;
 	plane.c = A.x * B.y - A.y * B.x;
 	
-	float epnlen = (float)sqrt(plane.a * plane.a + plane.b * plane.b + plane.c * plane.c);
+	float epnlen = std::sqrt(plane.a * plane.a + plane.b * plane.b + plane.c * plane.c);
 	epnlen = 1.f / epnlen;
 	
 	plane.a *= epnlen;
@@ -751,7 +752,7 @@ static void CreateScreenFrustrum(EERIE_FRUSTRUM * frustrum) {
 	c=matres[2][3]-matres[2][0];
 	d=matres[3][3]-matres[3][0];
  b=-b;
-	n = (float)(1.f /sqrt(a*a+b*b+c*c));
+	n = 1.f / std::sqrt(a * a + b * b + c * c);
 
 	Frustrum_Set(frustrum,0,a*n,b*n,c*n,d*n);
 	a=matres[0][3]+matres[0][0];
@@ -759,7 +760,7 @@ static void CreateScreenFrustrum(EERIE_FRUSTRUM * frustrum) {
 	c=matres[2][3]+matres[2][0];
 	d=matres[3][3]+matres[3][0];
  b=-b;
-	n = (float)(1.f/sqrt(a*a+b*b+c*c));
+	n = 1.f / std::sqrt(a * a + b * b + c * c);
 
 	Frustrum_Set(frustrum,1,a*n,b*n,c*n,d*n);
 	a=matres[0][3]-matres[0][1];
@@ -767,7 +768,7 @@ static void CreateScreenFrustrum(EERIE_FRUSTRUM * frustrum) {
 	c=matres[2][3]-matres[2][1];
 	d=matres[3][3]-matres[3][1];
  b=-b;
-	n = (float)(1.f/sqrt(a*a+b*b+c*c));
+	n = 1.f / std::sqrt(a * a + b * b + c * c);
 
 	Frustrum_Set(frustrum,2,a*n,b*n,c*n,d*n);
 	a=matres[0][3]+matres[0][1];
@@ -775,7 +776,7 @@ static void CreateScreenFrustrum(EERIE_FRUSTRUM * frustrum) {
 	c=matres[2][3]+matres[2][1];
 	d=matres[3][3]+matres[3][1];
  b=-b;
-	n = (float)(1.f/sqrt(a*a+b*b+c*c));
+	n = 1.f / std::sqrt(a * a + b * b + c * c);
 
 	Frustrum_Set(frustrum,3,a*n,b*n,c*n,d*n);
 
@@ -784,7 +785,7 @@ static void CreateScreenFrustrum(EERIE_FRUSTRUM * frustrum) {
 	c=matres[2][3]+matres[2][2];
 	d=matres[3][3]+matres[3][2];
  b=-b;
-	n = (float)(1.f/sqrt(a*a+b*b+c*c));
+	n = 1.f / std::sqrt(a * a + b * b + c * c);
 	efpPlaneNear.a=a*n;
 	efpPlaneNear.b=b*n;
 	efpPlaneNear.c=c*n;
@@ -879,7 +880,7 @@ static void RenderWater() {
 	
 	dynamicVertices.lock();
 	
-	GRenderer->SetBlendFunc(Renderer::BlendDstColor, Renderer::BlendOne);
+	GRenderer->SetBlendFunc(BlendDstColor, BlendOne);
 	GRenderer->SetTexture(0, enviro);
 	GRenderer->SetTexture(1, enviro);
 	GRenderer->SetTexture(2, enviro);
@@ -949,7 +950,7 @@ static void RenderWater() {
 
 static void RenderLavaBatch() {
 	
-	GRenderer->SetBlendFunc(Renderer::BlendDstColor, Renderer::BlendOne);
+	GRenderer->SetBlendFunc(BlendDstColor, BlendOne);
 	GRenderer->GetTextureStage(0)->setColorOp(TextureStage::OpModulate2X, TextureStage::ArgTexture, TextureStage::ArgDiffuse);
 	
 	if(!dynamicVertices.nbindices) {
@@ -964,7 +965,7 @@ static void RenderLavaBatch() {
 	
 	dynamicVertices.draw(Renderer::TriangleList);
 	
-	GRenderer->SetBlendFunc(Renderer::BlendZero, Renderer::BlendInvSrcColor);
+	GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
 	GRenderer->GetTextureStage(0)->setColorOp(TextureStage::OpModulate);
 	
 	dynamicVertices.draw(Renderer::TriangleList);
@@ -987,7 +988,7 @@ static void RenderLava() {
 	
 	dynamicVertices.lock();
 	
-	GRenderer->SetBlendFunc(Renderer::BlendDstColor, Renderer::BlendOne);
+	GRenderer->SetBlendFunc(BlendDstColor, BlendOne);
 	GRenderer->SetTexture(0, enviro);
 	GRenderer->SetTexture(1, enviro);
 	GRenderer->SetTexture(2, enviro);
@@ -1246,7 +1247,7 @@ static void ARX_PORTALS_Frustrum_RenderRoomTCullSoftRender(long room_num) {
 	EERIE_ROOM_DATA & room = portals->rooms[room_num];
 
 	//render opaque
-	GRenderer->SetCulling(Renderer::CullNone);
+	GRenderer->SetCulling(CullNone);
 	GRenderer->SetAlphaFunc(Renderer::CmpGreater, .5f);
 	
 	std::vector<TextureContainer *>::const_iterator itr;
@@ -1320,22 +1321,22 @@ static void ARX_PORTALS_Frustrum_RenderRoom_TransparencyTSoftCull(long room_num)
 			}
 			case SMY_ARXMAT::Blended: {
 				GRenderer->SetDepthBias(2);
-				GRenderer->SetBlendFunc(Renderer::BlendSrcColor, Renderer::BlendDstColor);
+				GRenderer->SetBlendFunc(BlendSrcColor, BlendDstColor);
 				break;
 			}
 			case SMY_ARXMAT::Multiplicative: {
 				GRenderer->SetDepthBias(2);
-				GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+				GRenderer->SetBlendFunc(BlendOne, BlendOne);
 				break;
 			}
 			case SMY_ARXMAT::Additive: {
 				GRenderer->SetDepthBias(2);
-				GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+				GRenderer->SetBlendFunc(BlendOne, BlendOne);
 				break;
 			}
 			case SMY_ARXMAT::Subtractive: {
 				GRenderer->SetDepthBias(8);
-				GRenderer->SetBlendFunc(Renderer::BlendZero, Renderer::BlendInvSrcColor);
+				GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
 				break;
 			}
 			}
@@ -1501,7 +1502,7 @@ void ARX_SCENE_Render() {
 	if(uw_mode)
 		GRenderer->GetTextureStage(0)->setMipMapLODBias(10.f);
 
-	GRenderer->SetBlendFunc(Renderer::BlendZero, Renderer::BlendInvSrcColor);
+	GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
 	for(size_t i = 0; i < RoomDrawList.size(); i++) {
 
 		ARX_PORTALS_Frustrum_RenderRoomTCullSoftRender(RoomDrawList[i]);
@@ -1555,7 +1556,7 @@ void ARX_SCENE_Render() {
 
 	GRenderer->SetFogColor(Color::none);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetCulling(Renderer::CullNone);
+	GRenderer->SetCulling(CullNone);
 	GRenderer->SetRenderState(Renderer::DepthWrite, false);
 	GRenderer->SetAlphaFunc(Renderer::CmpGreater, .5f);
 
@@ -1566,7 +1567,7 @@ void ARX_SCENE_Render() {
 
 	GRenderer->SetDepthBias(8);
 	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetCulling(Renderer::CullCW);
+	GRenderer->SetCulling(CullCW);
 	GRenderer->SetAlphaFunc(Renderer::CmpNotEqual, 0.f);
 
 	RenderWater();
@@ -1579,7 +1580,7 @@ void ARX_SCENE_Render() {
 
 	Halo_Render();
 
-	GRenderer->SetCulling(Renderer::CullCCW);
+	GRenderer->SetCulling(CullCCW);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, false);	
 	GRenderer->SetRenderState(Renderer::DepthWrite, true);
 }

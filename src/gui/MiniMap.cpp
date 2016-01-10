@@ -67,6 +67,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "io/log/Logger.h"
 
+#include "platform/profiler/Profiler.h"
+
 #include "scene/Interactive.h"
 #include "scene/SaveFormat.h"
 
@@ -81,22 +83,21 @@ void MiniMap::getData(int showLevel) {
 		GetLevelNameByNum(showLevel, name);
 		
 		sprintf(levelMap, "graph/levels/level%s/map", name);
-		m_levels[showLevel].m_texContainer = TextureContainer::Load(levelMap);
+		m_levels[showLevel].m_texContainer = TextureContainer::Load(levelMap, TextureContainer::NoColorKey);
 		
 		if(m_levels[showLevel].m_texContainer) { // 4 pix/meter
 			
-			m_levels[showLevel].m_height = static_cast<float>(m_levels[showLevel].m_texContainer->m_dwHeight); 
-			m_levels[showLevel].m_width = static_cast<float>(m_levels[showLevel].m_texContainer->m_dwWidth);
+			m_levels[showLevel].m_size = Vec2f(m_levels[showLevel].m_texContainer->m_size);
 			
 			float minX = std::numeric_limits<float>::max();
 			float maxX = std::numeric_limits<float>::min();
 			float minY = std::numeric_limits<float>::max();
 			float maxY = std::numeric_limits<float>::min();
 			
-			for(int j = 0; j < m_activeBkg->Zsize; j++) {
+			for(int z = 0; z < m_activeBkg->Zsize; z++) {
 				
-				for(int i = 0; i < m_activeBkg->Xsize; i++) {
-					const EERIE_BKG_INFO & eg = m_activeBkg->fastdata[i][j];
+				for(int x = 0; x < m_activeBkg->Xsize; x++) {
+					const EERIE_BKG_INFO & eg = m_activeBkg->fastdata[x][z];
 					for(int k = 0; k < eg.nbpoly; k++) {
 						const EERIEPOLY & ep = eg.polydata[k];
 						
@@ -108,12 +109,11 @@ void MiniMap::getData(int showLevel) {
 				}
 				
 				m_mapMaxY[showLevel] = maxY;
-				m_levels[showLevel].m_ratioX = minX;
-				m_levels[showLevel].m_ratioY = minY;
+				m_levels[showLevel].m_ratio.x = minX;
+				m_levels[showLevel].m_ratio.y = minY;
 				
-				for(int l = 0; l < MAX_MINIMAP_LEVELS; l++) {
-					m_levels[l].m_offsetX = 0;
-					m_levels[l].m_offsetY = 0;
+				for(size_t l = 0; l < MAX_MINIMAP_LEVELS; l++) {
+					m_levels[l].m_offset = Vec2f_ZERO;
 				}
 			}
 		}
@@ -124,7 +124,7 @@ void MiniMap::validatePos() {
 	
 	int showLevel = ARX_LEVELS_GetRealNum(m_currentLevel); 
 	
-	if((showLevel >= 0) && (showLevel < MAX_MINIMAP_LEVELS)) {
+	if((showLevel >= 0) && (showLevel < int(MAX_MINIMAP_LEVELS))) {
 		
 		if(m_levels[showLevel].m_texContainer == NULL) {
 			getData(showLevel);
@@ -184,7 +184,7 @@ void MiniMap::loadOffsets(PakReader *pakRes) {
 	for(int i = 0; i < 29; i++) { // Why 29?
 		
 		char t[512];
-		int nRead = sscanf(dat + pos, "%s %f %f", t, &m_miniOffsetX[i], &m_miniOffsetY[i]);
+		int nRead = sscanf(dat + pos, "%s %f %f", t, &m_miniOffset[i].x, &m_miniOffset[i].y);
 		
 		if(nRead != 3) {
 			LogError << "Error parsing line " << i << " of mini_offsets.ini: read " << nRead;
@@ -203,22 +203,18 @@ void MiniMap::loadOffsets(PakReader *pakRes) {
 	
 	delete[] dat;
 	
-	m_miniOffsetX[0] = 0;
-	m_miniOffsetY[0] = -0.5;
-	m_miniOffsetX[1] = 0;
-	m_miniOffsetY[1] = 0;
-	m_miniOffsetX[14] = 130;
-	m_miniOffsetY[14] = 0;
-	m_miniOffsetX[15] = 31;
-	m_miniOffsetY[15] = -3.5;
+	m_miniOffset[0] = Vec2f(0, -0.5);
+	m_miniOffset[1] = Vec2f(0, 0);
+	m_miniOffset[14] = Vec2f(130, 0);
+	m_miniOffset[15] = Vec2f(31, -3.5);
 }
 
 void MiniMap::reveal() {
 	
-	for(int d = 0; d < MAX_MINIMAP_LEVELS; d++) {
-		for(int j = 0; j < MINIMAP_MAX_Z; j++) {
-			for(int i = 0; i < MINIMAP_MAX_X; i++) {
-				m_levels[d].m_revealed[i][j] = 255;
+	for(size_t l = 0; l < MAX_MINIMAP_LEVELS; l++) {
+		for(size_t z = 0; z < MINIMAP_MAX_Z; z++) {
+			for(size_t x = 0; x < MINIMAP_MAX_X; x++) {
+				m_levels[l].m_revealed[x][z] = 255;
 			}
 		}
 	}
@@ -244,9 +240,8 @@ void MiniMap::firstInit(ARXCHARACTER *pl, PakReader *pakRes, EntityManager *enti
 
 	resetLevels();
 	
-	for(int i = 0; i < MAX_MINIMAP_LEVELS; i++) {
-		m_miniOffsetX[i] = 0;
-		m_miniOffsetY[i] = 0;
+	for(size_t i = 0; i < MAX_MINIMAP_LEVELS; i++) {
+		m_miniOffset[i] = Vec2f_ZERO;
 	}
 	
 	loadOffsets(pakRes);
@@ -254,14 +249,11 @@ void MiniMap::firstInit(ARXCHARACTER *pl, PakReader *pakRes, EntityManager *enti
 
 void MiniMap::resetLevels() {
 	
-	for(int i = 0; i < MAX_MINIMAP_LEVELS; i++) {
+	for(size_t i = 0; i < MAX_MINIMAP_LEVELS; i++) {
 		m_levels[i].m_texContainer = NULL;
-		m_levels[i].m_offsetX = 0.f;
-		m_levels[i].m_offsetY = 0.f;
-		m_levels[i].m_ratioX = 0.f;
-		m_levels[i].m_ratioY = 0.f;
-		m_levels[i].m_width = 0.f;
-		m_levels[i].m_height = 0.f;
+		m_levels[i].m_offset = Vec2f_ZERO;
+		m_levels[i].m_ratio = Vec2f_ZERO;
+		m_levels[i].m_size = Vec2f_ZERO;
 		// Sets the whole array to 0
 		memset(m_levels[i].m_revealed, 0, sizeof(m_levels[i].m_revealed));
 	}
@@ -275,13 +267,15 @@ void MiniMap::reset() {
 
 void MiniMap::purgeTexContainer() {
 	
-	for(int i = 0; i < MAX_MINIMAP_LEVELS; i++) {
+	for(size_t i = 0; i < MAX_MINIMAP_LEVELS; i++) {
 		delete m_levels[i].m_texContainer;
 		m_levels[i].m_texContainer = NULL;
 	}
 }
 
 void MiniMap::showPlayerMiniMap(int showLevel) {
+	
+	ARX_PROFILE_FUNC();
 	
 	const float miniMapZoom = 300.f; // zoom of the minimap
 	const Rect miniMapRect(390, 135, 590, 295); // minimap rect on a 640*480 screen
@@ -478,8 +472,8 @@ void MiniMap::revealPlayerPos(int showLevel) {
 	
 	// TODO this is inefficient - we don't really need to iterate over the whole minimap!
 	// only the area around the player will be modified
-	for(int j = 0; j < MINIMAP_MAX_Z; j++) {
-		for(int i = 0; i < MINIMAP_MAX_X; i++) {
+	for(size_t j = 0; j < MINIMAP_MAX_Z; j++) {
+		for(size_t i = 0; i < MINIMAP_MAX_X; i++) {
 			
 			float posx = startX + i * caseX;
 			float posy = startY + j * caseY;
@@ -515,15 +509,13 @@ Vec2f MiniMap::computePlayerPos(float zoom, int showLevel) {
 	
 	Vec2f pos(0.f, 0.f);
 	
-	float ofx = m_miniOffsetX[m_currentLevel];
-	float ofx2 = m_levels[showLevel].m_ratioX;
-	float ofy = m_miniOffsetY[m_currentLevel];
-	float ofy2 = m_levels[showLevel].m_ratioY;
+	const Vec2f of = m_miniOffset[m_currentLevel];
+	const Vec2f of2 = m_levels[showLevel].m_ratio;
 	
-	pos.x = ((m_player->pos.x + ofx - ofx2) * ( 1.0f / 100 ) * caseX
-	+ m_miniOffsetX[m_currentLevel] * ratio * m_modX) / m_modX;
-	pos.y = ((m_mapMaxY[showLevel] - ofy - ofy2) * ( 1.0f / 100 ) * caseY
-	- (m_player->pos.z + ofy - ofy2) * ( 1.0f / 100 ) * caseY + m_miniOffsetY[m_currentLevel] * ratio * m_modZ) / m_modZ;
+	pos.x = ((m_player->pos.x + of.x - of2.x) * ( 1.0f / 100 ) * caseX
+	+ of.x * ratio * m_modX) / m_modX;
+	pos.y = ((m_mapMaxY[showLevel] - of.y - of2.y) * ( 1.0f / 100 ) * caseY
+	- (m_player->pos.z + of.y - of2.y) * ( 1.0f / 100 ) * caseY + of.y * ratio * m_modZ) / m_modZ;
 	
 	return pos;
 }
@@ -558,25 +550,24 @@ void MiniMap::drawBackground(int showLevel, Rect boundaries, float startX, float
 	
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 	if(invColor) {
-		GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendInvSrcColor);
+		GRenderer->SetBlendFunc(BlendOne, BlendInvSrcColor);
 	} else {
-		GRenderer->SetBlendFunc(Renderer::BlendZero, Renderer::BlendInvSrcColor);
+		GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
 	}
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
 	GRenderer->GetTextureStage(0)->setMinFilter(TextureStage::FilterLinear);
 	GRenderer->GetTextureStage(0)->setMagFilter(TextureStage::FilterLinear);
 
-	for(int j = -2; j < MINIMAP_MAX_Z + 2; j++) {
-		for(int i = -2; i < MINIMAP_MAX_X + 2; i++) {
+	for(int z = -2; z < int(MINIMAP_MAX_Z) + 2; z++) {
+		for(int x = -2; x < int(MINIMAP_MAX_X) + 2; x++) {
 			
-			float vx, vy, vxx, vyy;
-			vxx = ((float)i * (float)m_activeBkg->Xdiv * m_modX);
-			vyy = ((float)j * (float)m_activeBkg->Zdiv * m_modZ);
-			vx = (vxx * div) * dw;
-			vy = (vyy * div) * dh;
+			float vxx = float(x) * float(m_activeBkg->Xdiv) * m_modX;
+			float vyy = float(z) * float(m_activeBkg->Zdiv) * m_modZ;
+			float vx = (vxx * div) * dw;
+			float vy = (vyy * div) * dh;
 			
-			float posx = (startX + i * caseX) * g_sizeRatio.x;
-			float posy = (startY + j * caseY) * g_sizeRatio.y;
+			float posx = (startX + x * caseX) * g_sizeRatio.x;
+			float posy = (startY + z * caseY) * g_sizeRatio.y;
 			
 			if((posx < boundaries.left * g_sizeRatio.x)
 			   || (posx > boundaries.right * g_sizeRatio.x)
@@ -614,10 +605,12 @@ void MiniMap::drawBackground(int showLevel, Rect boundaries, float startX, float
 				if(vert == 2 || vert == 3)
 					jOffset = 1;
 				
-				if((i + iOffset < 0) || (i + iOffset >= MINIMAP_MAX_X) || (j + jOffset < 0) || (j + jOffset >= MINIMAP_MAX_Z)) {
+				if((x + iOffset < 0) || (x + iOffset >= int(MINIMAP_MAX_X)) || (z + jOffset < 0) || (z + jOffset >= int(MINIMAP_MAX_Z))) {
 					v = 0;
 				} else {
-					v = ((float)m_levels[showLevel].m_revealed[std::min(i+iOffset, MINIMAP_MAX_X-iOffset)][std::min(j+jOffset, MINIMAP_MAX_Z-jOffset)]) * (1.0f / 255);
+					int minx = std::min(x + iOffset, int(MINIMAP_MAX_X) - iOffset);
+					int minz = std::min(z + jOffset, int(MINIMAP_MAX_Z) - jOffset);
+					v = float(m_levels[showLevel].m_revealed[minx][minz]) * (1.0f / 255);
 				}
 				
 				if(fadeBorder > 0.f) {
@@ -720,7 +713,7 @@ void MiniMap::drawPlayer(float playerSize, Vec2f playerPos, bool alphaBlending) 
 	GRenderer->ResetTexture(0);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, alphaBlending);
 	if(alphaBlending) {
-		GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendInvSrcColor);
+		GRenderer->SetBlendFunc(BlendOne, BlendInvSrcColor);
 	}
 	
 	EERIEDRAWPRIM(Renderer::TriangleFan, verts);
@@ -739,13 +732,11 @@ void MiniMap::drawDetectedEntities(int showLevel, Vec2f start, float zoom) {
 	}
 	
 	// Computes playerpos
-	float ofx = m_miniOffsetX[m_currentLevel];
-	float ofx2 = m_levels[showLevel].m_ratioX;
-	float ofy = m_miniOffsetY[m_currentLevel];
-	float ofy2 = m_levels[showLevel].m_ratioY;
+	const Vec2f of = m_miniOffset[m_currentLevel];
+	const Vec2f of2 = m_levels[showLevel].m_ratio;
 	
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+	GRenderer->SetBlendFunc(BlendOne, BlendOne);
 	
 	const EntityManager &ents = *m_entities; // for convenience
 	for(size_t lnpc = 1; lnpc < ents.size(); lnpc++) {
@@ -772,10 +763,10 @@ void MiniMap::drawDetectedEntities(int showLevel, Vec2f start, float zoom) {
 			continue; // the player doesn't have enough skill to detect this NPC
 		}
 		
-		float fpx = start.x + ((npc->pos.x - 100 + ofx - ofx2) * ( 1.0f / 100 ) * caseX
-		+ m_miniOffsetX[m_currentLevel] * ratio * m_modX) / m_modX; 
-		float fpy = start.y + ((m_mapMaxY[showLevel] - ofy - ofy2) * ( 1.0f / 100 ) * caseY
-		- (npc->pos.z + 200 + ofy - ofy2) * ( 1.0f / 100 ) * caseY + m_miniOffsetY[m_currentLevel] * ratio * m_modZ) / m_modZ;
+		float fpx = start.x + ((npc->pos.x - 100 + of.x - of2.x) * ( 1.0f / 100 ) * caseX
+		+ of.x * ratio * m_modX) / m_modX;
+		float fpy = start.y + ((m_mapMaxY[showLevel] - of.y - of2.y) * ( 1.0f / 100 ) * caseY
+		- (npc->pos.z + 200 + of.y - of2.y) * ( 1.0f / 100 ) * caseY + of.y * ratio * m_modZ) / m_modZ;
 		
 		float d = fdist(Vec2f(m_player->pos.x, m_player->pos.z), Vec2f(npc->pos.x, npc->pos.z));
 		if(d > 800 || glm::abs(ents.player()->pos.y - npc->pos.y) > 250.f) {

@@ -453,13 +453,13 @@ public:
 			}
 		}
 		
-		long old_target = -12;
+		EntityHandle old_target = EntityHandle(-12);
 		if(io->ioflags & IO_NPC) {
 			if(io->_npcdata->reachedtarget) {
 				old_target = io->targetinfo;
 			}
 			if(io->_npcdata->behavior & (BEHAVIOUR_FLEE|BEHAVIOUR_WANDER_AROUND)) {
-				old_target = -12;
+				old_target = EntityHandle(-12);
 			}
 		}
 		
@@ -476,7 +476,7 @@ public:
 			io->_camdata->cam.translatetarget = Vec3f_ZERO;
 		}
 		
-		EntityHandle i = EntityHandle::Invalid;
+		EntityHandle i = EntityHandle();
 		if(t != NULL) {
 			i = io->targetinfo = t->index();
 			GetTargetPos(io);

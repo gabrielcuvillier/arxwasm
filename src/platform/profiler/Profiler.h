@@ -20,9 +20,9 @@
 #ifndef ARX_PLATFORM_PROFILER_PROFILER_H
 #define ARX_PLATFORM_PROFILER_PROFILER_H
 
+#include <string>
+
 #include "platform/Platform.h"
-#include "platform/Thread.h"
-#include "platform/Time.h"
 
 namespace profiler {
 	
@@ -35,37 +35,24 @@ namespace profiler {
 	void registerThread(const std::string& threadName);
 	void unregisterThread();
 	
-	void addProfilePoint(const char* tag, thread_id_type threadId, u64 startTime, u64 endTime);
+#if BUILD_PROFILER_INSTRUMENT
+	class Scope {
+		const char* m_tag;
+		u64         m_startTime;
+		
+	public:
+		explicit Scope(const char* tag);
+		~Scope();
+	};
+#endif // BUILD_PROFILER_INSTRUMENT
 }
 
 #if BUILD_PROFILER_INSTRUMENT
-
-class ProfileScope {
-public:
-	explicit ProfileScope(const char* tag)
-		: m_tag(tag)
-		, m_startTime(platform::getTimeUs())
-	{
-		arx_assert(tag != 0 && tag[0] != '\0');
-	}
-	
-	~ProfileScope() {
-		profiler::addProfilePoint(m_tag, Thread::getCurrentThreadId(), m_startTime, platform::getTimeUs());
-	}
-	
-private:
-	const char* m_tag;
-	u64         m_startTime;
-};
-
-#define ARX_PROFILE(tag)           ProfileScope profileScope##__LINE__(#tag)
-#define ARX_PROFILE_FUNC()         ProfileScope profileScope##__LINE__(__FUNCTION__)
-
+	#define ARX_PROFILE(tag)           profiler::Scope profileScope##__LINE__(#tag)
+	#define ARX_PROFILE_FUNC()         profiler::Scope profileScope##__LINE__(__FUNCTION__)
 #else
-
-#define ARX_PROFILE(tag)           ARX_DISCARD(tag)
-#define ARX_PROFILE_FUNC()         ARX_DISCARD()
-
+	#define ARX_PROFILE(tag)           ARX_DISCARD(tag)
+	#define ARX_PROFILE_FUNC()         ARX_DISCARD()
 #endif // BUILD_PROFILER_INSTRUMENT
 
 #endif // ARX_PLATFORM_PROFILER_PROFILER_H

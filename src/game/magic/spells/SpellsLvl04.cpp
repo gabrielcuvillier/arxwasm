@@ -31,7 +31,6 @@
 #include "game/magic/spells/SpellsLvl07.h"
 #include "gui/Speech.h"
 #include "graphics/particle/ParticleEffects.h"
-#include "graphics/spells/Spells06.h"
 
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
@@ -93,7 +92,7 @@ void BlessSpell::Update(float timeDelta) {
 	Vec3f pos = m_pos + Vec3f(0, -5, 0);
 	
 	RenderMaterial mat;
-	mat.setCulling(Renderer::CullNone);
+	mat.setCulling(CullNone);
 	mat.setBlendType(RenderMaterial::Additive);
 	mat.setDepthTest(true);
 	mat.setLayer(RenderMaterial::Decal);
@@ -141,7 +140,7 @@ void BlessSpell::Update(float timeDelta) {
 		}
 		
 		pd->ov = m_pos - Vec3f(0.f, 20.f, 0.f);
-		pd->move = Vec3f(3.f * frand2(), rnd() * 0.5f, 3.f * frand2());
+		pd->move = Vec3f(Random::getf(-3.f, 3.f), Random::getf(0.f, 0.5f), Random::getf(-3.f, 3.f));
 		pd->siz = 0.005f;
 		pd->tolive = Random::get(1000, 2000);
 		pd->tc = tex_p1;
@@ -421,7 +420,7 @@ void CurseSpell::Update(float timeDelta) {
 	m_pos = target;
 	
 	RenderMaterial mat;
-	mat.setCulling(Renderer::CullCW);
+	mat.setCulling(CullCW);
 	mat.setDepthTest(true);
 	mat.setBlendType(RenderMaterial::Opaque);
 	
@@ -435,7 +434,7 @@ void CurseSpell::Update(float timeDelta) {
 		}
 		
 		pd->ov = m_pos;
-		pd->move = Vec3f(2.f * frand2(), rnd() * -10.f - 10.f, 2.f * frand2());
+		pd->move = Vec3f(Random::getf(-2.f, 2.f), Random::getf(-20.f, -10.f), Random::getf(-2.f, 2.f));
 		pd->siz = 0.015f;
 		pd->tolive = Random::get(1000, 1600);
 		pd->tc = tex_p1;

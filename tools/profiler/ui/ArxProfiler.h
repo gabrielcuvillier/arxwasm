@@ -25,14 +25,14 @@
 
 #include <map>
 
-struct ProfilePoint {
+struct ProfileSample {
 	QString tag;
 	quint64 threadId;
 	quint64 startTime;
 	quint64 endTime;
 };
 
-struct ThreadInfo {
+struct ProfileThread {
 	QString threadName;
 	quint64 threadId;
 	quint64 startTime;
@@ -48,9 +48,9 @@ struct ThreadData {
 		maxDepth = 0;
 	}
 
-	ThreadInfo                  info;
-	std::vector<ProfilePoint>   profilePoints;
-	quint32                     maxDepth;
+	ProfileThread                  info;
+	std::vector<ProfileSample>   profilePoints;
+	size_t                     maxDepth;
 };
 
 typedef std::map<quint64, ThreadData> ThreadsData;
@@ -68,6 +68,10 @@ protected:
 	
 	virtual void wheelEvent(QWheelEvent* event);
 	virtual void keyPressEvent(QKeyEvent* event);
+	void contextMenuEvent(QContextMenuEvent *event);
+	
+private slots:
+	void copyToClipboard();
 	
 private:
 	ThreadsData * m_data;
@@ -75,7 +79,7 @@ private:
 	
 	QPointF viewCenter() const;
 	void zoomEvent(QPoint mousePos, bool zoomIn);
-	const char * humanReadableTime(double & duration);
+	const char * humanReadableTime(qreal & duration);
 };
 
 namespace Ui {
@@ -96,7 +100,8 @@ private:
 	Ui::ArxProfilerClass * ui;
 	ProfilerView * view;
 	
-	ThreadsData threadsData;
+	QStringList m_strings;
+	ThreadsData m_threads;
 };
 
 #endif // ARX_TOOLS_PROFILER_UI_ARXPROFILER_H

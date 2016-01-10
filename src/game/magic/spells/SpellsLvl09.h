@@ -40,8 +40,8 @@ private:
 	CSummonCreature m_fissure;
 	Vec3f m_targetPos;
 	bool m_megaCheat;
-	long m_longinfo_summon_creature;
-	EntityHandle m_longinfo2_entity;
+	bool m_requestSummon;
+	EntityHandle m_summonedEntity;
 };
 
 class FakeSummonSpell : public SpellBase {

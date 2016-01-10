@@ -915,8 +915,6 @@ void Image::FlipY(unsigned char * pData, unsigned int pWidth, unsigned int pHeig
 		return;
 	}
 	
-	unsigned int offset;
-	
 	if(!IsCompressed()) {
 		
 		unsigned int imageSize = GetSize(mFormat, pWidth, pHeight);
@@ -927,7 +925,7 @@ void Image::FlipY(unsigned char * pData, unsigned int pWidth, unsigned int pHeig
 		
 		for(unsigned int n = 0; n < pDepth; n++) {
 			
-			offset = imageSize * n;
+			unsigned offset = imageSize * n;
 			
 			unsigned char * top = pData + offset;
 			unsigned char * bottom = top + (imageSize-lineSize);
@@ -957,9 +955,6 @@ void Image::FlipY(unsigned char * pData, unsigned int pWidth, unsigned int pHeig
 		unsigned char * swapTmp = (unsigned char *)malloc(lineSize);
 		arx_assert(swapTmp);
 		
-		DXTColBlock * top = NULL;
-		DXTColBlock * bottom = NULL;
-		
 		switch(mFormat) {
 			
 			case Format_DXT1:
@@ -980,8 +975,8 @@ void Image::FlipY(unsigned char * pData, unsigned int pWidth, unsigned int pHeig
 		
 		for(unsigned int j = 0; j < (yBlocks >> 1); j++) {
 			
-			top = (DXTColBlock*)(pData + j * lineSize);
-			bottom = (DXTColBlock*)(pData + (((yBlocks-j)-1) * lineSize));
+			DXTColBlock * top = (DXTColBlock*)(pData + j * lineSize);
+			DXTColBlock * bottom = (DXTColBlock*)(pData + (((yBlocks-j)-1) * lineSize));
 			
 			(*flipDXTn)((unsigned char *)top, xBlocks);
 			(*flipDXTn)((unsigned char *)bottom, xBlocks);

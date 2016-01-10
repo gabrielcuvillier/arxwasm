@@ -75,6 +75,8 @@ public:
 
 	const QString& GetErrorDescription() const;
 	const QString& GetIssueLink() const;
+	
+	const QList<QString> & getFailedFiles() const { return m_failedFiles; }
 
 	void SetLoginInfo(const QString& username, const QString& password);
 	void SetReproSteps(const QString& reproSteps);
@@ -83,33 +85,17 @@ private:
 	
 	bool Initialize();
 
-	bool WriteReport(const fs::path& fileName);
+	bool getCrashInfo();
 
-	bool GetCrashDump(const fs::path& fileName);
-	bool getCrashDescription();
-	bool GetMiscCrashInfo();
-
-	void AddSSLCertificate();
 	void AddFile(const fs::path& fileName);
 	
 	void ReleaseApplicationLock();
 	
 private:
 	
-	fs::path m_ReportFolder;
-	
 	FileList m_AttachedFiles;
 	
-	QDateTime m_CrashDateTime;
-	double m_RunningTimeSec;
-	
-	QString m_OSName;
-	QString m_OSArchitecture;
-	QString m_OSDistribution;
-		
-	fs::path m_ProcessPath;
-	quint64 m_ProcessMemoryUsage;
-	QString m_ProcessArchitecture;
+	int m_ProcessArchitecture;
 
 	QString m_SharedMemoryName;
 	boost::interprocess::shared_memory_object m_SharedMemory;
@@ -120,7 +106,6 @@ private:
 	QString m_ReportUniqueID;
 	QString m_ReportTitle;
 	QString m_ReportDescription;
-	QString m_ReportDescriptionText;
 	QString m_ReproSteps;
 	QString m_IssueLink;
 
@@ -128,6 +113,9 @@ private:
 	QString m_Password;
 
 	QString m_DetailedError;
+	
+	QList<QString> m_failedFiles;
+	
 };
 
 #endif // ARX_TOOLS_CRASHREPORTER_ERRORREPORT_H

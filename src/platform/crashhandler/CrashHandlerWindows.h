@@ -20,35 +20,52 @@
 #ifndef ARX_PLATFORM_CRASHHANDLER_CRASHHANDLERWINDOWS_H
 #define ARX_PLATFORM_CRASHHANDLER_CRASHHANDLERWINDOWS_H
 
+#include <windows.h>
+
 #include "platform/crashhandler/CrashHandlerImpl.h"
 
+#include "platform/WindowsUtils.h"
+
 class CrashHandlerWindows : public CrashHandlerImpl {
+	
 public:
+	
 	CrashHandlerWindows();
 	virtual ~CrashHandlerWindows();
-
+	
+	virtual bool initialize();
+	
 	bool registerThreadCrashHandlers();
 	void unregisterThreadCrashHandlers();
-
+	
 	void registerCrashCallback(CrashHandler::CrashCallback crashCallback);
 	void unregisterCrashCallback(CrashHandler::CrashCallback crashCallback);
-
-	void handleCrash(int crashType, void* crashExtraInfo = 0, int fpeCode = 0);
-
+	
+	void handleCrash(int crashType, void * crashExtraInfo = 0, int fpeCode = 0);
+	
 	static CrashHandlerWindows& getInstance();
-
-private:
-	bool registerCrashHandlers();
-	void unregisterCrashHandlers();
-
-	void writeCrashDump(PEXCEPTION_POINTERS pExceptionPointers);
-	void getCrashSummary(int crashType, int FPECode);
-	void waitForReporter();
 	
 private:
-	// Crash handlers to restore.
-	struct PlatformCrashHandlers*	m_pPreviousCrashHandlers;
-	static CrashHandlerWindows*		m_sInstance;
+	
+	bool registerCrashHandlers();
+	void unregisterCrashHandlers();
+	
+	void writeCrashDump(PEXCEPTION_POINTERS pointers);
+	
+	void processCrashInfo();
+	void processCrashSignal();
+	void processCrashTrace();
+	void processCrashDump();
+	
+private:
+	
+	platform::WideString m_exe;
+	platform::WideString m_args;
+	
+	// Crash handlers to restore
+	struct PlatformCrashHandlers * m_pPreviousCrashHandlers;
+	static CrashHandlerWindows * m_sInstance;
+	
 };
 
 #endif // ARX_PLATFORM_CRASHHANDLER_CRASHHANDLERWINDOWS_H

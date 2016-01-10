@@ -56,11 +56,11 @@ class Entity;
 
 struct INVENTORY_SLOT {
 	Entity * io;
-	long show;
+	bool show;
 	
 	INVENTORY_SLOT()
 		: io(NULL)
-		, show(0)
+		, show(false)
 	{}
 };
 
@@ -76,18 +76,18 @@ struct INVENTORY_DATA {
 	{}
 };
 
+const size_t INVENTORY_BAGS = 3;
 const size_t INVENTORY_X = 16;
 const size_t INVENTORY_Y = 3;
 
 // TODO this should be completely wrapped in PlayerInventory!
-extern INVENTORY_SLOT inventory[3][INVENTORY_X][INVENTORY_Y];
+extern INVENTORY_SLOT inventory[INVENTORY_BAGS][INVENTORY_X][INVENTORY_Y];
 
 extern INVENTORY_DATA * SecondaryInventory;
 extern INVENTORY_DATA * TSecondaryInventory;
 extern Entity * DRAGINTER;
 extern Entity * ioSteal;
 extern long InventoryY;
-extern short sActiveInventory;
 
 inline Vec2s inventorySizeFromTextureSize(Vec2i size) {
 	return Vec2s(glm::clamp((size + Vec2i(31, 31)) / Vec2i(32, 32), Vec2i(1, 1), Vec2i(3, 3)));
@@ -103,7 +103,7 @@ struct InventoryPos {
 	index_type y;
 	
 	InventoryPos()
-		: io(-1)
+		: io()
 		, bag(0)
 		, x(0)
 		, y(0)
@@ -114,7 +114,7 @@ struct InventoryPos {
 	
 	//! \return true if this is a valid position
 	operator bool() const {
-		return (io != EntityHandle::Invalid);
+		return (io != EntityHandle());
 	}
 	
 };
@@ -247,6 +247,8 @@ InventoryPos removeFromInventories(Entity * item);
  */
 bool putInInventory(Entity * item, const InventoryPos & pos);
 
+void ARX_INVENTORY_Declare_InventoryIn(Entity * io);
+
 void PutInFrontOfPlayer(Entity * io);
 
 Vec3f GetItemWorldPosition(Entity * io);
@@ -255,23 +257,21 @@ Vec3f GetItemWorldPositionSound(const Entity * io);
 Entity * GetInventoryObj_INVENTORYUSE(const Vec2s & pos);
 void CheckForInventoryReplaceMe(Entity * io, Entity * old);
 
-bool InSecondaryInventoryPos(const Vec2s & pos);
-bool InPlayerInventoryPos(const Vec2s & pos);
-
-bool CanBePutInInventory(Entity * io);
 bool CanBePutInSecondaryInventory(INVENTORY_DATA * id, Entity * io);
 
 void CleanInventory();
 void SendInventoryObjectCommand(const std::string & _lpszText, ScriptMessage _lCommand);
-bool PutInInventory();
+void PutInInventory();
 bool TakeFromInventory(const Vec2s & pos);
 Entity * GetFromInventory(const Vec2s & pos);
-bool IsFlyingOverInventory(const Vec2s & pos);
 bool IsInPlayerInventory(Entity * io);
 bool IsInSecondaryInventory(Entity * io);
 bool InInventoryPos(const Vec2s & pos);
 void RemoveFromAllInventories(const Entity * io);
 Entity * ARX_INVENTORY_GetTorchLowestDurability();
+long Player_Arrow_Count();
+Entity * Player_Arrow_Count_Decrease();
+
 void ARX_INVENTORY_IdentifyAll();
 void ARX_INVENTORY_OpenClose(Entity * io);
 void ARX_INVENTORY_TakeAllFromSecondaryInventory();

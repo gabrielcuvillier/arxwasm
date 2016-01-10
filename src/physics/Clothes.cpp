@@ -117,30 +117,30 @@ static short GetIDXVert(EERIE_3DOBJ * obj, short num) {
 //*************************************************************************************
 void EERIEOBJECT_AddClothesData(EERIE_3DOBJ * obj) {
 
-	long sel = -1;
-	long selmounocol = -1;
+	ObjSelection sel = ObjSelection();
+	ObjSelection selmounocol = ObjSelection();
 
 	for(size_t i = 0; i < obj->selections.size(); i++) { // TODO iterator
 		if(obj->selections[i].name == "mou") {
-			sel = i;
+			sel = ObjSelection(i);
 			break;
 		}
 	}
 	
 	for(size_t i = 0; i < obj->selections.size(); i++) { // TODO iterator
 		if(obj->selections[i].name == "mounocol") {
-			selmounocol = i;
+			selmounocol = ObjSelection(i);
 			break;
 		}
 	}
 
-	if(sel == -1)
+	if(sel == ObjSelection())
 		return;
 
-	if(obj->selections[sel].selected.size() > 0) {
+	if(obj->selections[sel.handleData()].selected.size() > 0) {
 		obj->cdata = new CLOTHES_DATA();
 
-		obj->cdata->nb_cvert = (short)obj->selections[sel].selected.size();
+		obj->cdata->nb_cvert = (short)obj->selections[sel.handleData()].selected.size();
 		obj->cdata->cvert = new CLOTHESVERTEX[obj->cdata->nb_cvert]; 
 		memset(obj->cdata->cvert, 0, sizeof(CLOTHESVERTEX)*obj->cdata->nb_cvert);
 
@@ -150,14 +150,14 @@ void EERIEOBJECT_AddClothesData(EERIE_3DOBJ * obj) {
 
 
 	// There is a Mollesse (TM) (C) Selection
-	if(obj->selections[sel].selected.size() > 0) {
+	if(obj->selections[sel.handleData()].selected.size() > 0) {
 		for(int i = 0; i < obj->cdata->nb_cvert; i++) {
-			obj->cdata->cvert[i].idx = (short)obj->selections[sel].selected[i];
+			obj->cdata->cvert[i].idx = (short)obj->selections[sel.handleData()].selected[i];
 			obj->cdata->cvert[i].pos = obj->vertexlist[obj->cdata->cvert[i].idx].v;
 			obj->cdata->cvert[i].t_pos = obj->vertexlist[obj->cdata->cvert[i].idx].v;
 			obj->cdata->cvert[i].mass = 0.5f; 
 
-			if(selmounocol != -1 && IsInSelection(obj, obj->selections[sel].selected[i], selmounocol) >= 0) {
+			if(selmounocol != ObjSelection() && IsInSelection(obj, obj->selections[sel.handleData()].selected[i], selmounocol)) {
 				obj->cdata->cvert[i].flags = CLOTHES_FLAG_NORMAL | CLOTHES_FLAG_NOCOL;
 			} else {
 				obj->cdata->cvert[i].flags = CLOTHES_FLAG_NORMAL;
@@ -170,7 +170,7 @@ void EERIEOBJECT_AddClothesData(EERIE_3DOBJ * obj) {
 			for(long j = 0; j < obj->ndata[obj->cdata->cvert[i].idx].nb_Nvertex; j++) {
 				short vert = obj->ndata[obj->cdata->cvert[i].idx].Nvertex[j];
 
-				if(IsInSelection(obj, vert, sel) >= 0) {
+				if(IsInSelection(obj, vert, sel)) {
 					AddSpring(obj, (short)i, (short)GetIDXVert(obj, vert), 11.f, 0.3f, 0); 
 				} else {
 					obj->cdata->cvert[i].flags |= CLOTHES_FLAG_FIX;
@@ -188,7 +188,7 @@ void EERIEOBJECT_AddClothesData(EERIE_3DOBJ * obj) {
 				if(vert == obj->cdata->cvert[i].idx)
 					continue; // Cannot add a spring between 1 node :p
 
-				if(IsInSelection(obj, vert, sel) >= 0) {
+				if(IsInSelection(obj, vert, sel)) {
 					float distance = glm::distance2(obj->vertexlist[obj->cdata->cvert[i].idx].v,
 					                         obj->vertexlist[vert].v) * square(1.2f);
 
@@ -196,7 +196,7 @@ void EERIEOBJECT_AddClothesData(EERIE_3DOBJ * obj) {
 					for(long k = 0; k < obj->ndata[vert].nb_Nvertex; k++) {
 						short ver = obj->ndata[vert].Nvertex[k];
 
-						if(IsInSelection(obj, ver, sel) >= 0) { // This time we have one !
+						if(IsInSelection(obj, ver, sel)) { // This time we have one !
 							if(ver == obj->cdata->cvert[i].idx)
 								continue;
 
@@ -220,12 +220,12 @@ void EERIEOBJECT_AddClothesData(EERIE_3DOBJ * obj) {
 				if(vert == obj->cdata->cvert[i].idx)
 					continue; // Cannot add a spring between 1 node :p
 
-				if(IsInSelection(obj, vert, sel) >= 0) {
+				if(IsInSelection(obj, vert, sel)) {
 					// We springed it in the previous part of code
 					for(long k = 0; k < obj->ndata[vert].nb_Nvertex; k++) {
 						short ver = obj->ndata[vert].Nvertex[k];
 
-						if(IsInSelection(obj, ver, sel) >= 0) { // This time we have one !
+						if(IsInSelection(obj, ver, sel)) { // This time we have one !
 							float distance = glm::distance2(obj->vertexlist[obj->cdata->cvert[i].idx].v,
 							                         obj->vertexlist[ver].v) * square(1.2f);
 
@@ -235,7 +235,7 @@ void EERIEOBJECT_AddClothesData(EERIE_3DOBJ * obj) {
 								if(ve == vert)
 									continue;
 
-								if(IsInSelection(obj, ve, sel) >= 0) { // This time we have one !
+								if(IsInSelection(obj, ve, sel)) { // This time we have one !
 
 									if(obj->cdata->cvert[(short)GetIDXVert(obj, ve)].flags & CLOTHES_FLAG_FIX)
 										continue;

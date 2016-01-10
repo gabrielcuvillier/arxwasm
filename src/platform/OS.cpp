@@ -44,8 +44,11 @@
 #include "io/fs/FilePath.h"
 #include "io/fs/Filesystem.h"
 #include "io/fs/FileStream.h"
+
 #include "platform/Architecture.h"
 #include "platform/Process.h"
+#include "platform/WindowsUtils.h"
+
 #include "util/String.h"
 
 namespace platform {
@@ -58,7 +61,7 @@ typedef void (WINAPI *PGNSI)(LPSYSTEM_INFO);
 //! Get a string describing the Windows version
 static std::string getWindowsVersionName() {
 	
-	OSVERSIONINFOEX osvi;
+	OSVERSIONINFOEXW osvi;
 	SYSTEM_INFO si;
 	
 	ZeroMemory(&si, sizeof(SYSTEM_INFO));
@@ -68,7 +71,7 @@ static std::string getWindowsVersionName() {
 	#pragma warning(push)
 	#pragma warning(disable:4996) // VC12+ deprecates GetVersionEx
 	#endif
-	if(GetVersionEx((OSVERSIONINFO *)&osvi) == 0) {
+	if(GetVersionExW((OSVERSIONINFO *)&osvi) == 0) {
 		return "Windows";
 	}
 	#if ARX_COMPILER_MSVC
@@ -76,7 +79,7 @@ static std::string getWindowsVersionName() {
 	#endif
 	
 	// Call GetNativeSystemInfo if supported or GetSystemInfo otherwise.
-	HMODULE kernel32 = GetModuleHandle(TEXT("kernel32.dll"));
+	HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
 	PGNSI pGNSI = (PGNSI) GetProcAddress(kernel32, "GetNativeSystemInfo");
 	if(NULL != pGNSI) {
 		pGNSI(&si);
@@ -132,8 +135,8 @@ static std::string getWindowsVersionName() {
 	#undef ARX_WINVER
 	
 	// Include service pack (if any) and build number
-	if(strlen(osvi.szCSDVersion) > 0) {
-		os << " " << osvi.szCSDVersion;
+	if(osvi.szCSDVersion[0] != L'\0') {
+		os << " " << platform::WideString::toUTF8(osvi.szCSDVersion);
 	}
 	
 	os << " (build " << osvi.dwBuildNumber << ")";
@@ -188,8 +191,7 @@ std::string getOSArchitecture() {
 	return ARX_ARCH_NAME_X86_64; // 64-bit programs run only on Win64
 	#elif defined(_WIN32)
 	// 32-bit programs run on both 32-bit and 64-bit Windows
-	BOOL f64 = FALSE;
-	if(IsWow64Process(GetCurrentProcess(), &f64) && f64) {
+	if(platform::isWoW64Process(GetCurrentProcess())) {
 		return ARX_ARCH_NAME_X86_64;
 	} else {
 		return ARX_ARCH_NAME_X86;

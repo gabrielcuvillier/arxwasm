@@ -60,72 +60,70 @@ void ARX_SPELLS_Precast_Add(SpellType typ, long _level, SpellcastFlags flags, lo
 	Precast.push_back(precast);
 }
 
-static long PrecastCheckCanPayMana(PrecastHandle num, float cost) {
-	
-	if(num < 0)
-		return 0;
-
-	if(Precast[num].flags & SPELLCAST_FLAG_NOMANA)
-		return 1;
-
-	if(player.manaPool.current >= cost)
-		return 1;
-	
-	ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE);
-	
-	ARX_SPEECH_Add(getLocalised("player_cantcast"));
-	ARX_SPEECH_AddSpeech(entities.player(), "player_cantcast", ANIM_TALK_NEUTRAL);
-	
-	return 0;
-}
-
 void ARX_SPELLS_Precast_Launch(PrecastHandle num) {
 	
-	if(size_t(num) >= Precast.size()) {
+	if(num.handleData() < 0)
+		return;
+	
+	size_t idx = size_t(num.handleData());
+	
+	if(idx >= Precast.size()) {
 		return;
 	}
 	
-	if(float(arxtime) >= LAST_PRECAST_TIME + 1000) {
-		SpellType type = Precast[num].typ;
-		
-		// Calculate the player's magic level
-		float playerCasterLevel = player.m_skillFull.casting + player.m_attributeFull.mind;
-		playerCasterLevel = glm::clamp(playerCasterLevel * 0.1f, 1.f, 10.f);
-		
-		float cost = ARX_SPELLS_GetManaCost(type, playerCasterLevel);
-
-		if(type != SPELL_NONE && !PrecastCheckCanPayMana(num,cost))
-			return;
-
+	if(float(arxtime) < LAST_PRECAST_TIME + 1000) {
+		return;
+	}
+	
+	PRECAST_STRUCT & precast = Precast[idx];
+	
+	if(precast.typ == SPELL_NONE) {
+		return;
+	}
+	
+	// Calculate the player's magic level
+	float playerSpellLevel = player.m_skillFull.casting + player.m_attributeFull.mind;
+	playerSpellLevel = glm::clamp(playerSpellLevel * 0.1f, 1.f, 10.f);
+	
+	float cost = ARX_SPELLS_GetManaCost(precast.typ, playerSpellLevel);
+	
+	if(   (precast.flags & SPELLCAST_FLAG_NOMANA)
+	   || player.manaPool.current >= cost
+	) {
 		LAST_PRECAST_TIME = (unsigned long)(arxtime);
-
-		if(Precast[num].launch_time == 0) {
-			Precast[num].launch_time = (unsigned long)(arxtime);
+		
+		if(precast.launch_time == 0) {
+			precast.launch_time = (unsigned long)(arxtime);
 			ARX_SOUND_PlaySFX(SND_SPELL_CREATE_FIELD);
 		}
+	} else {
+		ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE);
+		
+		ARX_SPEECH_Add(getLocalised("player_cantcast"));
+		ARX_SPEECH_AddSpeech(entities.player(), "player_cantcast", ANIM_TALK_NEUTRAL);
 	}
 }
 
 void ARX_SPELLS_Precast_Check() {
 	for(size_t i = 0; i < Precast.size(); i++) {
 		if(Precast[i].launch_time > 0 && float(arxtime) >= Precast[i].launch_time) {
-			ANIM_USE *ause1 = &entities.player()->animlayer[1];
+			AnimLayer & layer1 = entities.player()->animlayer[1];
 			
 			if(player.Interface & INTER_COMBATMODE) {
 				WILLRETURNTOCOMBATMODE = true;
 				ARX_INTERFACE_Combat_Mode(0);
-				ResetAnim(&entities.player()->animlayer[1]);
-				entities.player()->animlayer[1].flags&=~EA_LOOP;
+				ResetAnim(layer1);
+				layer1.flags &= ~EA_LOOP;
 			}
 
-			if(ause1->cur_anim && ause1->cur_anim == entities.player()->anims[ANIM_CAST]) {
-				if(ause1->ctime > ause1->cur_anim->anims[ause1->altidx_cur]->anim_time - 550)
+			if(layer1.cur_anim && layer1.cur_anim == entities.player()->anims[ANIM_CAST]) {
+				if(layer1.ctime > layer1.cur_anim->anims[layer1.altidx_cur]->anim_time - 550)
 				{
 					ARX_SPELLS_Launch(	Precast[i].typ,
 										PlayerEntityHandle,
 										Precast[i].flags | SPELLCAST_FLAG_LAUNCHPRECAST, 
 										Precast[i].level, 
-										EntityHandle::Invalid,
+										EntityHandle(),
 										Precast[i].duration);
 					
 					Precast.erase(Precast.begin() + i);
