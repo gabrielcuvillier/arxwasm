@@ -101,7 +101,7 @@ short ANIM_GetAltIdx(ANIM_HANDLE * ah, long old) {
 
 	while(1) {
 		for(short i = 0; i < ah->alt_nb; i++) {
-			float r = rnd() * tot;
+			float r = Random::getf() * tot;
 
 			if(r < anim_power[std::min((int)i,14)] && i != old)
 				return i;
@@ -109,27 +109,27 @@ short ANIM_GetAltIdx(ANIM_HANDLE * ah, long old) {
 	}
 }
 
-void ANIM_Set(ANIM_USE *au, ANIM_HANDLE *anim)
+void ANIM_Set(AnimLayer & layer, ANIM_HANDLE *anim)
 {
-	if(!au || !anim)
+	if(!anim)
 		return;
 
-	au->cur_anim = anim;
-	au->altidx_cur = ANIM_GetAltIdx(anim, au->altidx_cur);
+	layer.cur_anim = anim;
+	layer.altidx_cur = ANIM_GetAltIdx(anim, layer.altidx_cur);
 
-	if(au->altidx_cur > au->cur_anim->alt_nb)
-		au->altidx_cur = 0;
+	if(layer.altidx_cur > layer.cur_anim->alt_nb)
+		layer.altidx_cur = 0;
 
-	au->ctime = 0;
-	au->lastframe = -1;
-	au->flags &= ~EA_PAUSED;
-	au->flags &= ~EA_ANIMEND;
-	au->flags &= ~EA_LOOP;
-	au->flags &= ~EA_FORCEPLAY;
+	layer.ctime = 0;
+	layer.lastframe = -1;
+	layer.flags &= ~EA_PAUSED;
+	layer.flags &= ~EA_ANIMEND;
+	layer.flags &= ~EA_LOOP;
+	layer.flags &= ~EA_FORCEPLAY;
 }
 
 void stopAnimation(Entity * entity, size_t layer) {
-	ANIM_USE  & animlayer = entity->animlayer[layer];
+	AnimLayer  & animlayer = entity->animlayer[layer];
 	AcquireLastAnim(entity);
 	FinishAnim(entity, animlayer.cur_anim);
 	animlayer.cur_anim = NULL;
@@ -137,10 +137,10 @@ void stopAnimation(Entity * entity, size_t layer) {
 
 void changeAnimation(Entity * entity, size_t layer, ANIM_HANDLE * animation,
                           AnimUseType flags, bool startAtBeginning) {
-	ANIM_USE  & animlayer = entity->animlayer[layer];
+	AnimLayer  & animlayer = entity->animlayer[layer];
 	AcquireLastAnim(entity);
 	FinishAnim(entity, animlayer.cur_anim);
-	ANIM_Set(&animlayer, animation);
+	ANIM_Set(animlayer, animation);
 	animlayer.flags |= flags;
 	if(startAtBeginning) {
 		animlayer.altidx_cur = 0;
@@ -569,52 +569,49 @@ Vec3f GetAnimTotalTranslate(ANIM_HANDLE * eanim, long alt_idx) {
  * \param time Time increment to current animation in Ms
  * \param io Referrence to Interactive Object (NULL if no IO)
  */
-void PrepareAnim(ANIM_USE *eanim, unsigned long time, Entity *io) {
-	
-	if(!eanim)
-		return;
+void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 
-	if(eanim->flags & EA_PAUSED)
+	if(layer.flags & EA_PAUSED)
 		time = 0;
 
 	if(io && (io->ioflags & IO_FREEZESCRIPT))
 		time = 0;
 
-	if(eanim->altidx_cur >= eanim->cur_anim->alt_nb)
-		eanim->altidx_cur = 0;
+	if(layer.altidx_cur >= layer.cur_anim->alt_nb)
+		layer.altidx_cur = 0;
 
-	if(!(eanim->flags & EA_EXCONTROL))
-		eanim->ctime += time;
+	if(!(layer.flags & EA_EXCONTROL))
+		layer.ctime += time;
 
-	eanim->flags &= ~EA_ANIMEND;
+	layer.flags &= ~EA_ANIMEND;
 
-	const long animTime = eanim->cur_anim->anims[eanim->altidx_cur]->anim_time;
+	const long animTime = layer.cur_anim->anims[layer.altidx_cur]->anim_time;
 	
-	if(eanim->ctime > animTime) {
+	if(layer.ctime > animTime) {
 	
-		if(eanim->flags & EA_STOPEND) {
-			eanim->ctime = animTime;
+		if(layer.flags & EA_STOPEND) {
+			layer.ctime = animTime;
 		}
 		
-		long lost = eanim->ctime - animTime;
+		long lost = layer.ctime - animTime;
 		
-		if((eanim->flags & EA_LOOP)
-		   || (io && ((eanim->cur_anim == io->anims[ANIM_WALK])
-					  || (eanim->cur_anim == io->anims[ANIM_WALK2])
-					  || (eanim->cur_anim == io->anims[ANIM_WALK3])
-					  || (eanim->cur_anim == io->anims[ANIM_RUN])
-					  || (eanim->cur_anim == io->anims[ANIM_RUN2])
-					  || (eanim->cur_anim == io->anims[ANIM_RUN3])))
+		if((layer.flags & EA_LOOP)
+		   || (io && ((layer.cur_anim == io->anims[ANIM_WALK])
+					  || (layer.cur_anim == io->anims[ANIM_WALK2])
+					  || (layer.cur_anim == io->anims[ANIM_WALK3])
+					  || (layer.cur_anim == io->anims[ANIM_RUN])
+					  || (layer.cur_anim == io->anims[ANIM_RUN2])
+					  || (layer.cur_anim == io->anims[ANIM_RUN3])))
 		) {
-				if(!eanim->next_anim) {
+				if(!layer.next_anim) {
 					long t = animTime;
-					eanim->ctime= eanim->ctime % t;
+					layer.ctime= layer.ctime % t;
 	
 					if(io)
-						FinishAnim(io,eanim->cur_anim);
+						FinishAnim(io,layer.cur_anim);
 				} else {
 					if(io) {
-						FinishAnim(io,eanim->cur_anim);
+						FinishAnim(io,layer.cur_anim);
 						
 						if(io->animBlend.lastanimtime != 0)
 							AcquireLastAnim(io);
@@ -622,116 +619,114 @@ void PrepareAnim(ANIM_USE *eanim, unsigned long time, Entity *io) {
 							io->animBlend.lastanimtime = 1;
 					}
 					
-					eanim->cur_anim=eanim->next_anim;
-					eanim->altidx_cur=ANIM_GetAltIdx(eanim->next_anim,eanim->altidx_cur);
-					eanim->next_anim=NULL;
-					ResetAnim(eanim);
-					eanim->ctime = lost;
-					eanim->flags=eanim->nextflags;
-					eanim->flags&=~EA_ANIMEND;
+					layer.cur_anim=layer.next_anim;
+					layer.altidx_cur=ANIM_GetAltIdx(layer.next_anim,layer.altidx_cur);
+					layer.next_anim=NULL;
+					ResetAnim(layer);
+					layer.ctime = lost;
+					layer.flags=layer.nextflags;
+					layer.flags&=~EA_ANIMEND;
 				}
 		} else {
-			if(io && eanim->next_anim) {
-					FinishAnim(io,eanim->cur_anim);
+			if(io && layer.next_anim) {
+					FinishAnim(io,layer.cur_anim);
 					
 					if (io->animBlend.lastanimtime!=0)
 						AcquireLastAnim(io);
 					else
 						io->animBlend.lastanimtime=1;
 					
-					eanim->cur_anim=eanim->next_anim;
-					eanim->altidx_cur=ANIM_GetAltIdx(eanim->next_anim,eanim->altidx_cur);
-					eanim->next_anim=NULL;
-					ResetAnim(eanim);
-					eanim->ctime = lost;
-					eanim->flags=eanim->nextflags;
-					eanim->flags&=~EA_ANIMEND;
+					layer.cur_anim=layer.next_anim;
+					layer.altidx_cur=ANIM_GetAltIdx(layer.next_anim,layer.altidx_cur);
+					layer.next_anim=NULL;
+					ResetAnim(layer);
+					layer.ctime = lost;
+					layer.flags=layer.nextflags;
+					layer.flags&=~EA_ANIMEND;
 			} else {
-				eanim->flags |= EA_ANIMEND;
-				eanim->ctime = eanim->cur_anim->anims[eanim->altidx_cur]->anim_time;
+				layer.flags |= EA_ANIMEND;
+				layer.ctime = layer.cur_anim->anims[layer.altidx_cur]->anim_time;
 			}
 		}
 	
 	}
 	
-	if (!eanim->cur_anim)
+	if (!layer.cur_anim)
 		return;
 
 	long tim;
-	if(eanim->flags & EA_REVERSE)
-		tim = animTime - eanim->ctime;
+	if(layer.flags & EA_REVERSE)
+		tim = animTime - layer.ctime;
 	else
-		tim = eanim->ctime;
-
-	eanim->fr = eanim->cur_anim->anims[eanim->altidx_cur]->nb_key_frames - 2;
-	eanim->pour = 1.f;
-
-	long fr;
-	for(long i = 1; i < eanim->cur_anim->anims[eanim->altidx_cur]->nb_key_frames; i++) {
-		long tcf = (long)eanim->cur_anim->anims[eanim->altidx_cur]->frames[i - 1].time;
-		long tnf = (long)eanim->cur_anim->anims[eanim->altidx_cur]->frames[i].time;
+		tim = layer.ctime;
+	
+	EERIE_ANIM * anim = layer.cur_anim->anims[layer.altidx_cur];
+	
+	layer.fr = anim->nb_key_frames - 2;
+	layer.pour = 1.f;
+	
+	for(long i = 1; i < anim->nb_key_frames; i++) {
+		long tcf = (long)anim->frames[i - 1].time;
+		long tnf = (long)anim->frames[i].time;
 
 		if(tcf == tnf)
 			return;
 
-		if((tim < tnf && tim >= tcf) || (i == eanim->cur_anim->anims[eanim->altidx_cur]->nb_key_frames - 1 && tim == tnf)) {
-			fr = i - 1;
+		if((tim < tnf && tim >= tcf) || (i == anim->nb_key_frames - 1 && tim == tnf)) {
+			long fr = i - 1;
 			tim -= tcf;
 			float pour = (float)((float)tim/((float)tnf-(float)tcf));
 			
 			// Frame Sound Management
-			if(!(eanim->flags & EA_ANIMEND) && time
-			   && (eanim->cur_anim->anims[eanim->altidx_cur]->frames[fr].sample != -1)
-			   && (eanim->lastframe != fr)) {
+			if(!(layer.flags & EA_ANIMEND) && time
+			   && (anim->frames[fr].sample != -1)
+			   && (layer.lastframe != fr)) {
 
 				Vec3f * position = io ? &io->pos : NULL;
 				
-				if(eanim->lastframe < fr && eanim->lastframe != -1) {
-					for(long n = eanim->lastframe + 1; n <= fr; n++)
-						ARX_SOUND_PlayAnim(eanim->cur_anim->anims[eanim->altidx_cur]->frames[n].sample, position);
+				if(layer.lastframe < fr && layer.lastframe != -1) {
+					for(long n = layer.lastframe + 1; n <= fr; n++)
+						ARX_SOUND_PlayAnim(anim->frames[n].sample, position);
 				} else {
-					ARX_SOUND_PlayAnim(eanim->cur_anim->anims[eanim->altidx_cur]->frames[fr].sample, position);
+					ARX_SOUND_PlayAnim(anim->frames[fr].sample, position);
 				}
 			}
 
 			// Frame Flags Management
-			if(!(eanim->flags & EA_ANIMEND) && time
-			   && (eanim->cur_anim->anims[eanim->altidx_cur]->frames[fr].flag > 0)
-			   && (eanim->lastframe != fr)) {
+			if(!(layer.flags & EA_ANIMEND) && time
+			   && (anim->frames[fr].flag > 0)
+			   && (layer.lastframe != fr)) {
 				
 				if(io && io != entities.player()) {
-					if(eanim->lastframe < fr && eanim->lastframe != -1) {
-						for(long n = eanim->lastframe + 1; n <= fr; n++) {
-							if(eanim->cur_anim->anims[eanim->altidx_cur]->frames[n].flag == 9)
+					if(layer.lastframe < fr && layer.lastframe != -1) {
+						for(long n = layer.lastframe + 1; n <= fr; n++) {
+							if(anim->frames[n].flag == 9)
 								ARX_NPC_NeedStepSound(io, io->pos);
 						}
 					}
-					else if(eanim->cur_anim->anims[eanim->altidx_cur]->frames[fr].flag == 9)
+					else if(anim->frames[fr].flag == 9)
 						ARX_NPC_NeedStepSound(io, io->pos);
 				}
 			}
 			
 			// Memorize this frame as lastframe.
-			eanim->lastframe = fr;
-			eanim->fr = fr;
-			eanim->pour = pour;
+			layer.lastframe = fr;
+			layer.fr = fr;
+			layer.pour = pour;
 			break;
 		}
 	}
 }
 
 
-void ResetAnim(ANIM_USE * eanim)
-{
-	if(!eanim)
-		return;
-
-	eanim->ctime=0;
-	eanim->lastframe=-1;
-	eanim->flags&=~EA_PAUSED;
-	eanim->flags&=~EA_ANIMEND;
-	eanim->flags&=~EA_LOOP;
-	eanim->flags&=~EA_FORCEPLAY;
+void ResetAnim(AnimLayer & layer) {
+	
+	layer.ctime=0;
+	layer.lastframe=-1;
+	layer.flags&=~EA_PAUSED;
+	layer.flags&=~EA_ANIMEND;
+	layer.flags&=~EA_LOOP;
+	layer.flags&=~EA_FORCEPLAY;
 }
 
 static void EERIE_ANIMMANAGER_Clear(long i) {
@@ -874,14 +869,16 @@ void ARX_SOUND_PopAnimSamples() {
 
 void ReleaseAnimFromIO(Entity * io, long num) {
 
-	for(long count = 0; count < MAX_ANIM_LAYERS; count++) {
-		if(io->animlayer[count].cur_anim == io->anims[num]) {
-			memset(&io->animlayer[count], 0, sizeof(ANIM_USE));
-			io->animlayer[count].cur_anim = NULL;
+	for(size_t count = 0; count < MAX_ANIM_LAYERS; count++) {
+		AnimLayer & layer = io->animlayer[count];
+		
+		if(layer.cur_anim == io->anims[num]) {
+			layer = AnimLayer();
+			layer.cur_anim = NULL;
 		}
 
-		if(io->animlayer[count].next_anim == io->anims[num])
-			io->animlayer[count].next_anim = NULL;
+		if(layer.next_anim == io->anims[num])
+			layer.next_anim = NULL;
 	}
 
 	EERIE_ANIMMANAGER_ReleaseHandle(io->anims[num]);

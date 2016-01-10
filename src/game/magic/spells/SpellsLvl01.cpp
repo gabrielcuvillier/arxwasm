@@ -19,6 +19,8 @@
 
 #include "game/magic/spells/SpellsLvl01.h"
 
+#include <boost/foreach.hpp>
+
 #include "core/Application.h"
 #include "core/GameTime.h"
 
@@ -32,7 +34,6 @@
 #include "game/magic/spells/SpellsLvl03.h"
 #include "graphics/particle/ParticleEffects.h"
 #include "graphics/particle/ParticleManager.h"
-#include "graphics/spells/Spells01.h"
 #include "physics/Collisions.h"
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
@@ -202,10 +203,10 @@ void MagicMissileSpell::Launch() {
 	
 	m_hand_group = GetActionPointIdx(entities[m_caster]->obj, "primary_attach");
 	
-	if(m_hand_group != -1) {
+	if(m_hand_group != ActionPoint()) {
 		Entity * caster = entities[m_caster];
-		long group = m_hand_group;
-		m_hand_pos = caster->obj->vertexlist3[group].v;
+		ActionPoint group = m_hand_group;
+		m_hand_pos = actionPointPosition(caster->obj, group);
 	}
 	
 	Vec3f aePos;
@@ -216,7 +217,7 @@ void MagicMissileSpell::Launch() {
 		
 		Vec3f vector = angleToVector(Anglef(afAlpha, afBeta, 0.f)) * 60.f;
 		
-		if(m_hand_group != -1) {
+		if(m_hand_group != ActionPoint()) {
 			aePos = m_hand_pos;
 		} else {
 			aePos = player.pos;
@@ -231,7 +232,7 @@ void MagicMissileSpell::Launch() {
 		
 		Vec3f vector = angleToVector(Anglef(afAlpha, afBeta, 0.f)) * 60.f;
 		
-		if(m_hand_group != -1) {
+		if(m_hand_group != ActionPoint()) {
 			aePos = m_hand_pos;
 		} else {
 			aePos = entities[m_caster]->pos;
@@ -266,31 +267,30 @@ void MagicMissileSpell::Launch() {
 	pTab.reserve(number);
 	
 	for(size_t i = 0; i < size_t(number); i++) {
-		CMagicMissile * missile = new CMagicMissile(m_mrCheat);
+		CMagicMissile * missile = NULL;
+		if(!m_mrCheat) {
+			missile = new CMagicMissile();
+		} else {
+			missile = new MrMagicMissileFx();
+		}
+		
 		pTab.push_back(missile);
 		
 		Anglef angles(afAlpha, afBeta, 0.f);
 		
 		if(i > 0) {
-			angles.setYaw(angles.getYaw() + frand2() * 4.0f);
-			angles.setPitch(angles.getPitch() + frand2() * 6.0f);
+			angles.setYaw(angles.getYaw() + Random::getf(-4.0f, 4.0f));
+			angles.setPitch(angles.getPitch() + Random::getf(-6.0f, 6.0f));
 		}
 		
 		missile->Create(aePos, angles);
 		
-		float fTime = m_duration + frand2() * 1000.0f;
-		long lTime = checked_range_cast<long>(fTime);
+		long lTime = m_duration + Random::get(-1000, 1000);
 		
 		lTime		= std::max(1000L, lTime);
 		lMax		= std::max(lMax, lTime);
 		
 		missile->SetDuration(lTime);
-		
-		if(m_mrCheat) {
-			missile->SetColor(Color3f(0.9f, 0.2f, 0.5f));
-		} else {
-			missile->SetColor(Color3f(0.9f, 0.9f, 0.7f) + Color3f(0.1f, 0.1f, 0.3f) * randomColor3f());
-		}
 		
 		missile->lLightId = GetFreeDynLight();
 		
@@ -343,7 +343,7 @@ void MagicMissileSpell::Update(float timeDelta) {
 			missile->bExplo = true;
 			missile->bMove  = false;
 			
-			missile->lLightId = LightHandle::Invalid;
+			missile->lLightId = LightHandle();
 			
 			DamageParameters damage;
 			damage.pos = missile->eCurPos;
@@ -381,7 +381,7 @@ void MagicMissileSpell::Update(float timeDelta) {
 	for(size_t i = 0; i < pTab.size(); i++) {
 		pTab[i]->Render();
 		
-		CMagicMissile * pMM = (CMagicMissile *) pTab[i];
+		CMagicMissile * pMM = pTab[i];
 		
 		if(lightHandleIsValid(pMM->lLightId)) {
 			EERIE_LIGHT * el	= lightHandleGet(pMM->lLightId);
@@ -404,7 +404,7 @@ void IgnitSpell::Launch()
 {
 	m_duration = 500;
 	
-	if(m_hand_group != -1) {
+	if(m_hand_group != ActionPoint()) {
 		m_srcPos = m_hand_pos;
 	} else {
 		m_srcPos = m_caster_pos - Vec3f(0.f, 50.f, 0.f);
@@ -454,19 +454,18 @@ void IgnitSpell::Launch()
 			
 			T_LINKLIGHTTOFX entry;
 			
-			entry.iLightNum = ii;
-			entry.poslight = light->pos;
+			entry.m_targetLight = ii;
+			
+			entry.m_effectLight = GetFreeDynLight();
 		
-			entry.idl = GetFreeDynLight();
-		
-			if(lightHandleIsValid(entry.idl)) {
-				EERIE_LIGHT * light = lightHandleGet(entry.idl);
+			if(lightHandleIsValid(entry.m_effectLight)) {
+				EERIE_LIGHT * light = lightHandleGet(entry.m_effectLight);
 				
-				light->intensity = 0.7f + 2.f * rnd();
+				light->intensity = Random::getf(0.7f, 2.7f);
 				light->fallend = 400.f;
 				light->fallstart = 300.f;
 				light->rgb = Color3f(1.f, 1.f, 1.f);
-				light->pos = entry.poslight;
+				light->pos = light->pos;
 			}
 		
 			m_lights.push_back(entry);
@@ -494,9 +493,10 @@ void IgnitSpell::End() {
 	
 	std::vector<T_LINKLIGHTTOFX>::iterator itr;
 	for(itr = m_lights.begin(); itr != m_lights.end(); ++itr) {
-		GLight[itr->iLightNum]->m_ignitionStatus = true;
-		ARX_SOUND_PlaySFX(SND_SPELL_IGNITE, &itr->poslight);
-		lightHandleDestroy(itr->idl);
+		EERIE_LIGHT * light = GLight[itr->m_targetLight];
+		light->m_ignitionStatus = true;
+		ARX_SOUND_PlaySFX(SND_SPELL_IGNITE, &light->pos);
+		lightHandleDestroy(itr->m_effectLight);
 	}
 	
 	m_lights.clear();
@@ -512,16 +512,19 @@ void IgnitSpell::Update(float timeDelta)
 		
 		std::vector<T_LINKLIGHTTOFX>::iterator itr;
 		for(itr = m_lights.begin(); itr != m_lights.end(); ++itr) {
-			Vec3f pos = glm::mix(m_srcPos, itr->poslight, a);
 			
-				LightHandle id = itr->idl;
+			EERIE_LIGHT * targetLight = GLight[itr->m_targetLight];
+			
+			Vec3f pos = glm::mix(m_srcPos, targetLight->pos, a);
+			
+			LightHandle id = itr->m_effectLight;
+			
+			if(lightHandleIsValid(id)) {
+				EERIE_LIGHT * light = lightHandleGet(id);
 				
-				if(lightHandleIsValid(id)) {
-					EERIE_LIGHT * light = lightHandleGet(id);
-					
-					light->intensity = 0.7f + 2.f * rnd();
-					light->pos = pos;
-				}
+				light->intensity = Random::getf(0.7f, 2.7f);
+				light->pos = pos;
+			}
 		}
 	}
 	
@@ -534,7 +537,7 @@ void DouseSpell::Launch()
 	m_duration = 500;
 	
 	Vec3f target;
-	if(m_hand_group >= 0) {
+	if(m_hand_group != ActionPoint()) {
 		target = m_hand_pos;
 	} else {
 		target = m_caster_pos;
@@ -563,11 +566,7 @@ void DouseSpell::Launch()
 		}
 		
 		if(!fartherThan(target, light->pos, fPerimeter)) {
-			T_LINKLIGHTTOFX entry;
-			
-			entry.iLightNum = ii;
-			entry.poslight = light->pos;
-			m_lights.push_back(entry);
+			m_lights.push_back(ii);
 		}
 	}
 	
@@ -614,10 +613,10 @@ void DouseSpell::Launch()
 
 void DouseSpell::End() {
 	
-	std::vector<T_LINKLIGHTTOFX>::const_iterator itr;
-	for(itr = m_lights.begin(); itr != m_lights.end(); ++itr) {
-		GLight[itr->iLightNum]->m_ignitionStatus = false;
-		ARX_SOUND_PlaySFX(SND_SPELL_DOUSE, &itr->poslight);
+	BOOST_FOREACH(size_t index, m_lights) {
+		EERIE_LIGHT * light = GLight[index];
+		light->m_ignitionStatus = false;
+		ARX_SOUND_PlaySFX(SND_SPELL_DOUSE, &light->pos);
 	}
 }
 

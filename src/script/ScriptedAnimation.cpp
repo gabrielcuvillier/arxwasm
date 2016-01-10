@@ -100,19 +100,21 @@ class ForceAnimCommand : public Command {
 	
 	static void forceAnim(Entity & io, ANIM_HANDLE * ea) {
 		
-		if(io.animlayer[0].cur_anim
-		   && io.animlayer[0].cur_anim != io.anims[ANIM_DIE]
-		   && io.animlayer[0].cur_anim != io.anims[ANIM_HIT1]) {
+		AnimLayer & layer0 = io.animlayer[0];
+		
+		if(layer0.cur_anim
+		   && layer0.cur_anim != io.anims[ANIM_DIE]
+		   && layer0.cur_anim != io.anims[ANIM_HIT1]) {
 			AcquireLastAnim(&io);
 		}
 		
-		FinishAnim(&io, io.animlayer[0].cur_anim);
+		FinishAnim(&io, layer0.cur_anim);
 		io.lastmove = Vec3f_ZERO;
-		ANIM_Set(&io.animlayer[0], ea);
-		io.animlayer[0].flags |= EA_FORCEPLAY;
-		io.animlayer[0].nextflags = 0;
+		ANIM_Set(layer0, ea);
+		layer0.flags |= EA_FORCEPLAY;
+		layer0.nextflags = 0;
 		
-		CheckSetAnimOutOfTreatZone(&io, 0);
+		CheckSetAnimOutOfTreatZone(&io, layer0);
 	}
 	
 public:
@@ -165,7 +167,7 @@ public:
 
 class PlayAnimCommand : public Command {
 	
-	static void setNextAnim(Entity * io, ANIM_HANDLE * ea, long layer, bool loop, bool nointerpol) {
+	static void setNextAnim(Entity * io, ANIM_HANDLE * ea, AnimLayer & layer, bool loop, bool nointerpol) {
 		
 		if(IsDeadNPC(io)) {
 			return;
@@ -175,16 +177,16 @@ class PlayAnimCommand : public Command {
 			AcquireLastAnim(io);
 		}
 		
-		FinishAnim(io, io->animlayer[layer].cur_anim);
-		ANIM_Set(&io->animlayer[layer], ea);
-		io->animlayer[layer].next_anim = NULL;
+		FinishAnim(io, layer.cur_anim);
+		ANIM_Set(layer, ea);
+		layer.next_anim = NULL;
 		
 		if(loop) {
-			io->animlayer[layer].flags |= EA_LOOP;
+			layer.flags |= EA_LOOP;
 		} else {
-			io->animlayer[layer].flags &= ~EA_LOOP;
+			layer.flags &= ~EA_LOOP;
 		}
-		io->animlayer[layer].flags |= EA_FORCEPLAY;
+		layer.flags |= EA_FORCEPLAY;
 	}
 	
 public:
@@ -194,20 +196,20 @@ public:
 	Result execute(Context & context) {
 		
 		Entity * iot = context.getEntity();
-		long nu = 0;
+		long layerIndex = 0;
 		bool loop = false;
 		bool nointerpol = false;
 		bool execute = false;
 		
 		HandleFlags("123lnep") {
 			if(flg & flag('1')) {
-				nu = 0;
+				layerIndex = 0;
 			}
 			if(flg & flag('2')) {
-				nu = 1;
+				layerIndex = 1;
 			}
 			if(flg & flag('3')) {
-				nu = 2;
+				layerIndex = 2;
 			}
 			loop = test_flag(flg, 'l');
 			nointerpol = test_flag(flg, 'n');
@@ -227,7 +229,7 @@ public:
 			return Failed;
 		}
 		
-		ANIM_USE & layer = iot->animlayer[nu];
+		AnimLayer & layer = iot->animlayer[layerIndex];
 		
 		if(anim == "none") {
 			layer.cur_anim = NULL;
@@ -247,10 +249,10 @@ public:
 		}
 		
 		iot->ioflags |= IO_NO_PHYSICS_INTERPOL;
-		setNextAnim(iot, iot->anims[num], nu, loop, nointerpol);
+		setNextAnim(iot, iot->anims[num], layer, loop, nointerpol);
 		
 		if(!loop) {
-			CheckSetAnimOutOfTreatZone(iot, nu);
+			CheckSetAnimOutOfTreatZone(iot, layer);
 		}
 		
 		if(iot == entities.player()) {

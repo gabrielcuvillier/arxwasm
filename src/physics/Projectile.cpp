@@ -86,11 +86,8 @@ static bool IsPointInField(const Vec3f & pos) {
 			if(ValidIONum(sp->m_entity)) {
 				Entity * pfrm = entities[sp->m_entity];
 				
-				Cylinder cyl;
-				cyl.height = -35.f;
-				cyl.radius = 35.f;
-				cyl.origin = pos + Vec3f(0.f, 17.5f, 0.f);
-
+				Cylinder cyl = Cylinder(pos + Vec3f(0.f, 17.5f, 0.f), 35.f, -35.f);
+				
 				if(CylinderPlatformCollide(cyl, pfrm) != 0.f) {
 					return true;
 				}
@@ -169,7 +166,7 @@ void ARX_THROWN_OBJECT_Throw(EntityHandle source, const Vec3f & position, const 
 	thrownObj->creation_time = (unsigned long)(arxtime);
 	thrownObj->flags |= ATO_EXIST | ATO_MOVING;
 	
-	if(source == 0
+	if(source == PlayerEntityHandle
 	   && ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])
 	) {
 		Entity * tio = entities[player.equiped[EQUIP_SLOT_WEAPON]];
@@ -205,10 +202,10 @@ static float ARX_THROWN_ComputeDamages(long thrownum, EntityHandle source,
 	backstab = 1.f;
 	bool critical = false;
 
-	if(source == 0) {
+	if(source == PlayerEntityHandle) {
 		attack = Thrown[thrownum].damages;
 
-		if(rnd() * 100 <= float(player.m_attributeFull.dexterity - 9) * 2.f
+		if(Random::getf(0.f, 100.f) <= float(player.m_attributeFull.dexterity - 9) * 2.f
 						   + float(player.m_skillFull.projectile * 0.2f)) {
 			if(SendIOScriptEvent(io_source, SM_CRITICAL, "bow") != REFUSE)
 				critical = true;
@@ -217,7 +214,7 @@ static float ARX_THROWN_ComputeDamages(long thrownum, EntityHandle source,
 		dmgs = attack;
 
 		if(io_target->_npcdata->npcflags & NPCFLAG_BACKSTAB) {
-			if(rnd() * 100.f <= player.m_skillFull.stealth) {
+			if(Random::getf(0.f, 100.f) <= player.m_skillFull.stealth) {
 				if(SendIOScriptEvent(io_source, SM_BACKSTAB, "bow") != REFUSE)
 					backstab = 1.5f;
 			}
@@ -232,7 +229,7 @@ static float ARX_THROWN_ComputeDamages(long thrownum, EntityHandle source,
 
 	float absorb;
 
-	if(target == 0) {
+	if(target == PlayerEntityHandle) {
 		ac = player.m_miscFull.armorClass;
 		absorb = player.m_skillFull.defense * .5f;
 	} else {
@@ -274,7 +271,7 @@ static float ARX_THROWN_ComputeDamages(long thrownum, EntityHandle source,
 	dmgs -= dmgs * (absorb * ( 1.0f / 100 ));
 
 	float chance = 100.f - (ac - attack);
-	float dice = rnd() * 100.f;
+	float dice = Random::getf(0.f, 100.f);
 
 	if(dice <= chance) {
 		if(dmgs > 0.f) {
@@ -427,33 +424,8 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 				light->extras |= EXTRAS_FLARE;
 				light->duration = static_cast<long>(framedelay * 0.5f);
 			}
-
-			float p = 3.f;
-
-			while(p > 0.f) {
-				p -= 0.5f;
-
-				if(thrownObj->obj) {
-					long notok = 10;
-					std::vector<EERIE_FACE>::iterator it;
-
-					while(notok-- > 0) {
-						it = Random::getIterator(thrownObj->obj->facelist);
-						arx_assert(it != thrownObj->obj->facelist.end());
-
-						if(it->facetype & POLY_HIDE)
-							continue;
-
-						notok = -1;
-					}
-
-					if(notok < 0) {
-						Vec3f pos = thrownObj->obj->vertexlist3[it->vid[0]].v;
-
-						createFireParticles(pos, 2, 180);
-					}
-				}
-			}
+			
+			createObjFireParticles(thrownObj->obj, 6, 2, 180);
 		}
 
 		if(thrownObj->pRuban) {
@@ -502,7 +474,7 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 
 				rad *= .5f;
 
-				const Vec3f v0 = thrownObj->obj->vertexlist3[thrownObj->obj->actionlist[j].idx].v;
+				const Vec3f v0 = actionPointPosition(thrownObj->obj, thrownObj->obj->actionlist[j].idx);
 				Vec3f dest = original_pos + thrownObj->vector * 95.f;
 				Vec3f orgn = original_pos - thrownObj->vector * 25.f;
 				EERIEPOLY * ep = CheckArrowPolyCollision(orgn, dest);
@@ -558,7 +530,7 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 
 						std::vector<EntityHandle> sphereContent;
 
-						if(CheckEverythingInSphere(sphere, thrownObj->source, EntityHandle::Invalid, sphereContent)) {
+						if(CheckEverythingInSphere(sphere, thrownObj->source, EntityHandle(), sphereContent)) {
 							for(size_t jj = 0; jj < sphereContent.size(); jj++) {
 
 								if(ValidIONum(sphereContent[jj])
@@ -591,7 +563,7 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 											pos = target->obj->vertexlist3[hitpoint].v;
 										}
 
-										if(thrownObj->source == 0) {
+										if(thrownObj->source == PlayerEntityHandle) {
 											float damages = ARX_THROWN_ComputeDamages(i, thrownObj->source, sphereContent[jj]);
 
 											if(damages > 0.f) {
@@ -605,7 +577,7 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 												ARX_PARTICLES_Spawn_Blood2(pos, damages, color, target);
 												ARX_DAMAGES_DamageNPC(target, damages, thrownObj->source, false, &pos);
 
-												if(rnd() * 100.f > target->_npcdata->resist_poison) {
+												if(Random::getf(0.f, 100.f) > target->_npcdata->resist_poison) {
 													target->_npcdata->poisonned += thrownObj->poisonous;
 												}
 

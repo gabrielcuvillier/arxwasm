@@ -47,6 +47,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <cstring>
 
 #include <boost/foreach.hpp>
+#include <glm/gtc/random.hpp>
 
 #include "core/GameTime.h"
 
@@ -57,6 +58,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/effects/SpellEffects.h"
 #include "graphics/particle/ParticleParams.h"
 #include "graphics/particle/Particle.h"
+
+#include "math/Random.h"
 
 
 ParticleSystem::ParticleSystem() {
@@ -162,13 +165,19 @@ void ParticleSystem::SetParticleParams(Particle * pP) {
 	
 	if((m_parameters.m_spawnFlags & PARTICLE_CIRCULAR) == PARTICLE_CIRCULAR) {
 		
-		float randd = rnd() * 360.f;
-		pP->p3Pos.x = std::sin(randd);
-		pP->p3Pos.y = rnd();
-		pP->p3Pos.z = std::cos(randd);
+		Vec2f pos = glm::circularRand(1.f);
+		pP->p3Pos.x = pos.x;
+		pP->p3Pos.z = pos.y;
 		
+		pP->p3Pos.y = Random::getf();
+		
+<<<<<<< HEAD
 		if(!((m_parameters.m_spawnFlags & PARTICLE_BORDER) == PARTICLE_BORDER)) {
 			pP->p3Pos *= Vec3f(rnd(), 1.f, rnd());
+=======
+		if((m_parameters.m_spawnFlags & PARTICLE_BORDER) != PARTICLE_BORDER) {
+			pP->p3Pos *= Vec3f(Random::getf(), 1.f, Random::getf());
+>>>>>>> dc68772370e05c952d4630d66299f2762d946f14
 		}
 	} else {
 		pP->p3Pos = randomVec(-1.f, 1.f);
@@ -176,11 +185,11 @@ void ParticleSystem::SetParticleParams(Particle * pP) {
 	
 	pP->p3Pos *= m_parameters.m_pos;
 	
-	float fTTL = m_parameters.m_life + rnd() * m_parameters.m_lifeRandom;
+	float fTTL = m_parameters.m_life + Random::getf() * m_parameters.m_lifeRandom;
 	pP->m_timeToLive = checked_range_cast<long>(fTTL);
 	pP->fOneOnTTL = 1.0f / (float)pP->m_timeToLive;
 
-	float fAngleX = rnd() * m_parameters.m_angle; //*0.5f;
+	float fAngleX = Random::getf() * m_parameters.m_angle; //*0.5f;
  
 	Vec3f vv1, vvz;
 	
@@ -189,31 +198,29 @@ void ParticleSystem::SetParticleParams(Particle * pP) {
 	vv1 = -Vec3f_Y_AXIS;
 	
 	vvz = VRotateZ(vv1, glm::degrees(fAngleX));
-	vv1 = VRotateY(vvz, rnd() * 360.0f);
+	vv1 = VRotateY(vvz, Random::getf(0.f, 360.0f));
 	
 	vvz = Vec3f(eMat * Vec4f(vv1, 1.f));
 
-	float fSpeed = m_parameters.m_speed + rnd() * m_parameters.m_speedRandom;
+	float fSpeed = m_parameters.m_speed + Random::getf() * m_parameters.m_speedRandom;
 
 	pP->p3Velocity = vvz * fSpeed;
-	pP->fSizeStart = m_parameters.m_startSegment.m_size + rnd() * m_parameters.m_startSegment.m_sizeRandom;
+	pP->fSizeStart = m_parameters.m_startSegment.m_size + Random::getf() * m_parameters.m_startSegment.m_sizeRandom;
 
 	{
-	Color4f rndColor = Color4f(rnd(), rnd(), rnd(), rnd());
+	Color4f rndColor = Color4f(Random::getf(), Random::getf(), Random::getf(), Random::getf());
 	pP->fColorStart = m_parameters.m_startSegment.m_color + rndColor * m_parameters.m_startSegment.m_colorRandom;
 	}
 
-	pP->fSizeEnd = m_parameters.m_endSegment.m_size + rnd() * m_parameters.m_endSegment.m_sizeRandom;
+	pP->fSizeEnd = m_parameters.m_endSegment.m_size + Random::getf() * m_parameters.m_endSegment.m_sizeRandom;
 
 	{
-	Color4f rndColor = Color4f(rnd(), rnd(), rnd(), rnd());
+	Color4f rndColor = Color4f(Random::getf(), Random::getf(), Random::getf(), Random::getf());
 	pP->fColorEnd = m_parameters.m_endSegment.m_color + rndColor * m_parameters.m_endSegment.m_colorRandom;
 	}
 	
 	if(m_parameters.m_rotationRandomDirection) {
-		float fRandom	= frand2();
-
-		pP->iRot = checked_range_cast<int>(fRandom);
+		pP->iRot = Random::get(-1, 1);
 
 		if(pP->iRot < 0)
 			pP->iRot = -1;
@@ -225,7 +232,7 @@ void ParticleSystem::SetParticleParams(Particle * pP) {
 	}
 
 	if(m_parameters.m_rotationRandomStart) {
-		pP->fRotStart = rnd() * 360.0f;
+		pP->fRotStart = Random::getf(0.f, 360.0f);
 	} else {
 		pP->fRotStart = 0;
 	}
@@ -315,7 +322,7 @@ void ParticleSystem::Render() {
 
 		if(p->isAlive()) {
 			if(m_parameters.m_flash > 0) {
-				if(rnd() < m_parameters.m_flash)
+				if(Random::getf() < m_parameters.m_flash)
 					continue;
 			}
 

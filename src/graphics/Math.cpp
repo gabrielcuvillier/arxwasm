@@ -580,17 +580,6 @@ glm::mat4 toRotationMatrix(const Anglef & angle) {
 	float yaw = glm::radians(angle.getYaw());
 	float pitch = glm::radians(angle.getPitch());
 	float roll = glm::radians(angle.getRoll());
-	
-	// 0.9.4.5 and older have a reversed sign in glm::eulerAngleY()
-#if GLM_VERSION_MAJOR == 0 \
-	&& (GLM_VERSION_MINOR < 9 || (GLM_VERSION_MINOR == 9 \
-		&& (GLM_VERSION_PATCH < 4 || (GLM_VERSION_PATCH == 4 \
-			&& GLM_VERSION_REVISION < 6 \
-		)) \
-	))
-	pitch = -pitch;
-#endif
-	
 	glm::mat4 rotateX = glm::eulerAngleX(yaw);
 	glm::mat4 rotateY = glm::eulerAngleY(pitch);
 	glm::mat4 rotateZ = glm::eulerAngleZ(-roll);
@@ -631,8 +620,9 @@ std::pair<Vec3f, Vec3f> angleToFrontUpVec(const Anglef & angle) {
 	
 	arx_assert(glm::abs(glm::dot(front, up)) < 5.f * std::numeric_limits<float>::epsilon(),
 	           "front=(%f,%f,%f) and up=(%f,%f,%f) should be orthogonal; dot=%1f*epsilon",
-	           front.x, front.y, front.z, up.x, up.y, up.z,
-	           glm::dot(front, up) / std::numeric_limits<float>::epsilon());
+	           double(front.x), double(front.y), double(front.z),
+	           double(up.x), double(up.y), double(up.z),
+	           double(glm::dot(front, up) / std::numeric_limits<float>::epsilon()));
 	
 	return std::make_pair(front, up);
 }

@@ -63,7 +63,7 @@ public:
 	 *
 	 * \return True if initialized correctly, false otherwise.
 	 */
-	static bool initialize();
+	static bool initialize(int argc, char ** argv);
 
 	/*!
 	 * \brief Shut down the crash handler
@@ -104,10 +104,36 @@ public:
 	static bool setVariable(const std::string & name, const T & value) {
 		std::stringstream ss;
 		ss << value;
-		return setNamedVariable(name, ss.str());
+		return setVariable(name, ss.str());
 	}
-
-	static bool setNamedVariable(const std::string& name, const std::string & value);
+	
+	/*!
+	 * \brief Set a variable value, which will be included in the crash report
+	 *
+	 * You can set up to CrashInfo::MaxNbVariables variables.
+	 * If called multiple times with the same name, only the last value will be kept.
+	 *
+	 * \param name Name of the variable
+	 * \param value Value of the variable, which will be converted to string.
+	 *
+	 * \return True if the variable could be set, false otherwise.
+	 */
+	static bool setVariable(const std::string & name, const char * value) {
+		return setVariable(name, std::string(value));
+	}
+	
+	/*!
+	 * \brief Set a variable value, which will be included in the crash report
+	 *
+	 * You can set up to CrashInfo::MaxNbVariables variables.
+	 * If called multiple times with the same name, only the last value will be kept.
+	 *
+	 * \param name Name of the variable
+	 * \param value Value of the variable.
+	 *
+	 * \return True if the variable could be set, false otherwise.
+	 */
+	static bool setVariable(const std::string& name, const std::string & value);
 
 	/*!
 	 * \brief Specify the location where crash reports will be written
@@ -160,15 +186,6 @@ public:
 	 * \brief Unregister a previously registed crash callback
 	 */
 	static void unregisterCrashCallback(CrashCallback crashCallback);
-
-	/*!
-	 * \brief Handle a crash and trigger the execution of the crash reporter
-	 *
-	 * This method is public in order to allow you to trigger it by yourself.
-	 * It might be useful for test purpose, or to allow a user to report a
-	 * defect which is not a crash.
-	 */
-	static void handleCrash(int crashType, void* crashExtraInfo = 0, int fpeCode = 0);
 	
 };
 

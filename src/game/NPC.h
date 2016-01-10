@@ -54,8 +54,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "math/Types.h"
 #include "platform/Flags.h"
 
-#define MAX_STACKED_BEHAVIOR 5
-#define MAX_EXTRA_ROTATE 4
+static const size_t MAX_STACKED_BEHAVIOR = 5;
+static const size_t MAX_EXTRA_ROTATE = 4;
 
 enum MoveMode {
 	WALKMODE = 0,
@@ -91,7 +91,7 @@ struct IO_BEHAVIOR_DATA {
 	long tactics; // 0=none ; 1=side ; 2=side+back
 	EntityHandle target;
 	MoveMode movemode;
-	ANIM_USE animlayer[MAX_ANIM_LAYERS];
+	AnimLayer animlayer[MAX_ANIM_LAYERS];
 };
 
 enum PathfindFlag {
@@ -116,21 +116,21 @@ struct IO_PATHFIND {
 		, list(NULL)
 		, listpos(0)
 		, pathwait(0)
-		, truetarget(0) // TODO is this correct ? use EntityHandle::Invalid ?
+		, truetarget(0) // TODO is this correct ? use EntityHandle() ?
 	{}
 };
 
 struct EERIE_EXTRA_ROTATE {
-	short group_number[MAX_EXTRA_ROTATE];
+	ObjVertGroup group_number[MAX_EXTRA_ROTATE];
 	Anglef group_rotate[MAX_EXTRA_ROTATE];
 };
 
 struct EERIE_EXTRA_SCALE {
-	int groupIndex;
+	ObjVertGroup groupIndex;
 	Vec3f scale;
 
 	EERIE_EXTRA_SCALE()
-		: groupIndex(-1)
+		: groupIndex()
 		, scale(Vec3f_ZERO)
 	{}
 };
@@ -140,6 +140,18 @@ enum NPCFlag {
 };
 DECLARE_FLAGS(NPCFlag, NPCFlags)
 DECLARE_FLAGS_OPERATORS(NPCFlags)
+
+enum DismembermentFlag {
+	FLAG_CUT_HEAD  = (1<<0),
+	FLAG_CUT_TORSO = (1<<1),
+	FLAG_CUT_LARM  = (1<<2),
+	FLAG_CUT_RARM  = (1<<3),
+	FLAG_CUT_LLEG  = (1<<4),
+	FLAG_CUT_RLEG  = (1<<5)
+};
+
+DECLARE_FLAGS(DismembermentFlag, DismembermentFlags)
+DECLARE_FLAGS_OPERATORS(DismembermentFlags)
 
 struct IO_NPCDATA {
 	
@@ -203,7 +215,7 @@ struct IO_NPCDATA {
 	float climb_count;
 	float stare_factor;
 	float fDetect;
-	short cuts;
+	DismembermentFlags cuts;
 	short unused;
 	
 };
@@ -253,7 +265,5 @@ float GetIOHeight(Entity * io);
 float GetIORadius(Entity * io);
 
 Cylinder GetIOCyl(Entity * io);
-
-void createFireParticles(Vec3f &pos,const int particlesToCreate, const int particleDelayFactor);
 
 #endif // ARX_GAME_NPC_H

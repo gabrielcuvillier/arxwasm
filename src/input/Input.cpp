@@ -48,6 +48,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include <string>
 #include <map>
+#include <cmath>
 
 #include "core/Application.h"
 #include "core/Config.h"
@@ -397,7 +398,7 @@ void Input::update() {
 		float fSensMax = 1.f / 6.f;
 		float fSensMin = 2.f;
 		float fSens = ( ( fSensMax - fSensMin ) * ( (float)iSensibility ) / 10.f ) + fSensMin;
-		fSens = pow( .7f, fSens ) * 2.f;
+		fSens = std::pow(0.7f, fSens) * 2.f;
 		iMouseR.x = relX * fSens;
 		iMouseR.y = relY * fSens;
 		
@@ -729,7 +730,7 @@ int Input::getMouseButtonClicked() const {
 	return 0;
 }
 
-bool Input::actionNowPressed(int actionId) const {
+bool Input::actionNowPressed(ControlAction actionId) const {
 	
 	for(size_t j = 0; j < ARRAY_SIZE(config.actions[actionId].key); j++) {
 		
@@ -770,7 +771,7 @@ bool Input::actionNowPressed(int actionId) const {
 static unsigned int uiOneHandedMagicMode = 0;
 static unsigned int uiOneHandedStealth = 0;
 
-bool Input::actionPressed(int actionId) const {
+bool Input::actionPressed(ControlAction actionId) const {
 	switch(actionId) {
 		case CONTROLS_CUST_USE:
 		case CONTROLS_CUST_ACTION:
@@ -870,6 +871,8 @@ bool Input::actionPressed(int actionId) const {
 										}
 									}
 									break;
+									default:
+										break;
 								}
 							}
 						}
@@ -886,7 +889,8 @@ bool Input::actionPressed(int actionId) const {
 						if(uiOneHandedStealth == 1 || uiOneHandedStealth == 2) {
 							return true;
 						}
-
+						break;
+					default:
 						break;
 				}
 			} else {
@@ -923,7 +927,7 @@ bool Input::actionPressed(int actionId) const {
 	return false;
 }
 
-bool Input::actionNowReleased(int actionId) const {
+bool Input::actionNowReleased(ControlAction actionId) const {
 	
 	for(size_t j = 0; j < ARRAY_SIZE(config.actions[actionId].key); j++) {
 		

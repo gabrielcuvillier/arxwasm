@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -41,43 +41,39 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
 
-#ifndef ARX_GRAPHICS_SPELLS_SPELLS01_H
-#define ARX_GRAPHICS_SPELLS_SPELLS01_H
+#ifndef ARX_GRAPHICS_EFFECTS_FIELD_H
+#define ARX_GRAPHICS_EFFECTS_FIELD_H
 
 #include "graphics/effects/SpellEffects.h"
 
-// Done By : Didier Pédreno
-class CMagicMissile : public CSpellFx {
+// Done By : Didier Pedreno
+class CCreateField : public CSpellFx {
 	
 public:
-	explicit CMagicMissile(bool mrCheat);
-	~CMagicMissile();
+	CCreateField();
 	
-	void SetTTL(unsigned long);
-	void SetColor(Color3f);
-	
-	void Create(const Vec3f &, const Anglef &);
+	void Create(Vec3f);
 	void Update(float timeDelta);
 	void Render();
 	
-	bool bExplo;
-	bool bMove;
 	Vec3f eSrc;
-	Vec3f eCurPos;
-	
-	float lightIntensityFactor;
 	
 	LightHandle lLightId;
 private:
-	int iLength;
-	int	iBezierPrecision;
-	Color3f fColor;
-	float fTrail;
-	float fOneOnBezierPrecision;
-	TextureContainer * tex_mm;
-	Vec3f pathways[6];
-	audio::SourceId snd_loop;
-	bool m_mrCheat;
+	TextureContainer * tex_jelly;
+	bool youp;
+	float fwrap;
+	float ysize;
+	float size;
+	float ft;
+	float fglow ;
+	Vec3f b[4];
+	Vec3f t[4];
+	
+	float falpha;
+	
+	void RenderQuad(const Vec3f & p1, const Vec3f & p2, const Vec3f & p3, const Vec3f & p4, int rec, Vec3f norm, RenderMaterial & mat);
+	void RenderSubDivFace(Vec3f * b, Vec3f * t, int b1, int b2, int t1, int t2, RenderMaterial & mat);
 };
 
-#endif // ARX_GRAPHICS_SPELLS_SPELLS01_H
+#endif // ARX_GRAPHICS_EFFECTS_FIELD_H

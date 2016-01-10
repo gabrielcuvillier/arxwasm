@@ -60,7 +60,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 struct EERIE_3DOBJ;
 class TextureContainer;
 
-#define MAX_EQUIPED 12
+static const int MAX_EQUIPED = 12;
 
 struct ARX_INTERFACE_MEMORIZE_SPELL {
 	bool bSpell;
@@ -145,7 +145,7 @@ struct ARXCHARACTER {
 	Anglef angle;
 	IO_PHYSICS physics;
 	
-	ANIM_USE bookAnimation[MAX_ANIM_LAYERS];
+	AnimLayer bookAnimation[MAX_ANIM_LAYERS];
 
 	// Jump Sub-data
 	unsigned long jumpstarttime;
@@ -153,6 +153,8 @@ struct ARXCHARACTER {
 	JumpPhase jumpphase;
 	
 	bool climbing;
+	
+	bool m_paralysed;
 	
 	// Updated by spells
 	bool levitate;
@@ -297,7 +299,7 @@ struct ARXCHARACTER {
 	unsigned char Attribute_Redistribute;
 	unsigned char Skill_Redistribute;
 	
-	unsigned char level;
+	short level;
 	
 	long xp;
 	char skin;
@@ -331,11 +333,7 @@ struct ARXCHARACTER {
 	}
 	
 	Cylinder baseCylinder() {
-		Cylinder c;
-		c.height = baseHeight();
-		c.radius = baseRadius();
-		c.origin = basePosition();
-		return c;
+		return Cylinder(basePosition(), baseRadius(), baseHeight());
 	}
 	
 };
@@ -404,7 +402,7 @@ void ARX_PLAYER_Restore_Skin();
 float GetPlayerStealth();
 
 void ARX_GAME_Reset(long type = 0);
-long GetXPforLevel(long level);
+long GetXPforLevel(short level);
 bool ARX_PLAYER_IsInFightMode();
 void ARX_PLAYER_Invulnerability(long flag);
 

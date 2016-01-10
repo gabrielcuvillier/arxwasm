@@ -25,10 +25,10 @@ Reddit: [http://www.reddit.com/r/ArxFatalis/](http://www.reddit.com/r/ArxFatalis
 
 ## Dependencies
 
-* **[CMake](http://www.cmake.org/) 2.8**+ (compile-time only, 2.8.5+ under Windows)
+* **[CMake](http://www.cmake.org/) 2.8.3**+ (compile-time only, 2.8.5+ under Windows)
 * **[zlib](http://zlib.net/)**
 * **[Boost](http://www.boost.org/) 1.48**+ (headers only)
-* **[GLM](http://glm.g-truc.net/) 0.9.2.7**+
+* **[GLM](http://glm.g-truc.net/) 0.9.5.0**+
 * **[FreeType](http://www.freetype.org/) 2.3.0**+
 * **OpenAL 1.1**+ ([OpenAL Soft](http://kcat.strangesoft.net/openal.html) strongly recommended!)
 
@@ -46,7 +46,8 @@ There is currently a single rendering backend for OpenGL:
 
 Arx Libertatis comes with an optional gui crash reporter which has additional dependencies:
 
-* **Qt 4.7**+ or **5** (`QtCore`, `QtGui`, `QtWidgets`^1 and `QtNetwork` libraries)
+* **[Qt](http://www.qt.io/) 4.7**+ or **5** (`QtCore`, `QtConcurrent`^1, `QtGui` and `QtWidgets`^1 libraries)
+* **[libcurl](http://curl.haxx.se/libcurl/) 7.20.0**+ (not required on Windows)
 * **GDB** (Linux-only, optional, run-time only)
 * **DbgHelp** (Windows-only)
 
@@ -74,7 +75,9 @@ Getting all the dependencies set up for Windows is more tricky. Pre-build depend
 ### Build options:
 
 * `BUILD_TOOLS` (default=ON): Build tools
-* `BUILD_CRASHREPORTER` (default=ON): Build the Qt crash reporter gui (default OFF for Mac)
+* `BUILD_IO_LIBRARY` (default=ON): Build helper library for the Blender plugin
+* `BUILD_CRASHHANDLER` (default=ON): Enable the built-in crash handler (default OFF for Mac)
+* `BUILD_CRASHREPORTER` (default=ON): Build the Qt crash reporter gui - requires `BUILD_CRASHHANDLER` (default OFF for Mac)
 * `UNITY_BUILD` (default=OFF): Unity build (faster build, better optimizations but no incremental build)
 * `CMAKE_BUILD_TYPE` (default=Release): Set to `Debug` for debug binaries
 * `DEBUG` (default=OFF^1): Enable debug output and runtime checks
@@ -94,9 +97,9 @@ Advanced options not listed here are documented in **OPTIONS.md**.
 
 ## Data file, config and savegame locations
 
-You will need to [get either the full game or demo data of Arx Fatalis](http://wiki.arx-libertatis.org/Getting_the_game_data).
+You will need to [get either the full game or demo data of Arx Fatalis](http://arx.vg/data).
 
-Where arx will look for data files and write config and save files depends on the operating system and environment - the wiki has a page detailing the [full data directory detection algorithm](http://wiki.arx-libertatis.org/Data_directories).
+Where arx will look for data files and write config and save files depends on the operating system and environment - the wiki has a page detailing the [full data directory detection algorithm](http://arx.vg/paths).
 
 **For Unix-like systems**:
 The game will try to rename all used files in the user directory (but not the data directory) to lowercase on the first run. System-wide installations with case-sensitive filesystems always need to manually rename the files to lowercase. The `arx-install-data` script can be used to install the data files, convert them to lowercase and verify that all required files are present.
@@ -153,7 +156,7 @@ See the `arx --help` and `man arx` output for more details.
 
 ## Scripts
 
-The `arx-install-data` script can extract and install the game data under Linux and FreeBSD from the CD, demo, [GOG.com](http://www.gog.com/) installer or any Arx Fatalis install (such as on Steam) - simply run it and follow the GUI dialogs. Also see the [wiki page on installing the game data under Linux](http://wiki.arx-libertatis.org/Installing_the_game_data_under_Linux).
+The `arx-install-data` script can extract and install the game data under Linux and FreeBSD from the CD, demo, [GOG.com](http://www.gog.com/) installer or any Arx Fatalis install (such as on Steam) - simply run it and follow the GUI dialogs. Also see the [wiki page on installing the game data under non-Windows systems](http://arx.vg/install-data).
 
 Or, if you prefer a command-line interface, run it as
 

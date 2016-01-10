@@ -62,9 +62,9 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 class TextureContainer;
 struct SavedMiniMap;
 
-#define MINIMAP_MAX_X 50
-#define MINIMAP_MAX_Z 50
-#define MAX_MINIMAP_LEVELS 32
+static const size_t MINIMAP_MAX_X = 50;
+static const size_t MINIMAP_MAX_Z = 50;
+static const size_t MAX_MINIMAP_LEVELS = 32;
 
 class MiniMap {
 	
@@ -76,16 +76,13 @@ public:
 		TextureContainer* m_texContainer;
 		
 		//! Start of scene pos x
-		float m_offsetX;
-		float m_offsetY;
+		Vec2f m_offset;
 		
 		//! Multiply x by ratioX to obtain real-world pos
-		float m_ratioX;
-		float m_ratioY;
+		Vec2f m_ratio;
 		
 		//! Bitmap width/height
-		float m_width;
-		float m_height;
+		Vec2f m_size;
 		
 		unsigned char m_revealed[MINIMAP_MAX_X][MINIMAP_MAX_Z];
 		
@@ -155,8 +152,7 @@ private:
 	EntityManager *m_entities;
 	EERIE_BACKGROUND *m_activeBkg;
 	
-	float m_miniOffsetX[MAX_MINIMAP_LEVELS];
-	float m_miniOffsetY[MAX_MINIMAP_LEVELS];
+	Vec2f m_miniOffset[MAX_MINIMAP_LEVELS];
 	float m_mapMaxY[MAX_MINIMAP_LEVELS];
 	
 	TextureContainer *m_pTexDetect;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -17,22 +17,15 @@
  * along with Arx Libertatis.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ARX_TOOLS_CRASHREPORTER_WIN32UTILITIES_H
-#define ARX_TOOLS_CRASHREPORTER_WIN32UTILITIES_H
+#include "platform/WindowsMain.h"
 
-#include "platform/Platform.h"
+#include "platform/WindowsMainCommon.h"
 
-#if ARX_PLATFORM == ARX_PLATFORM_WIN32
 
-#include <windows.h>
-#include <string>
-
-ULONG64 ConvertSystemTimeToULONG64( const SYSTEMTIME& st );
-
-bool GetCallStackInfo(HANDLE hProcess, HANDLE hThread, PCONTEXT pContext, std::string& callstack, std::string& callstackTop, u32& callstackCrc);
-std::string GetRegisters(PCONTEXT pCtx);
-std::string GetExceptionString(DWORD dwCode);
-
-#endif // ARX_PLATFORM == ARX_PLATFORM_WIN32
-
-#endif // ARX_TOOLS_CRASHREPORTER_WIN32UTILITIES_H
+#undef main
+int main() {
+	
+	WindowsMain init;
+	
+	return utf8_main(init.argc, init.argv);
+}

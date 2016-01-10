@@ -77,6 +77,8 @@ ErrorReportDialog::ErrorReportDialog(ErrorReport& errorReport, QWidget *parent) 
 	ui->pageBinary->layout()->addWidget(&m_fileViewHex);
 
 	startTask(new GatherInfoTask(m_errorReport), Pane_Welcome);
+	
+	setWindowIcon(QApplication::windowIcon());
 }
 
 ErrorReportDialog::~ErrorReportDialog()
@@ -208,6 +210,11 @@ void ErrorReportDialog::onShowFileContent(const QItemSelection& newSelection, co
 	{
 		QFile binaryFile(fileName.string().c_str());
 		binaryFile.open(QIODevice::ReadOnly);
+		
+		if(binaryFile.size() > 20 * 1024 * 1024) {
+			ui->stackedFileViews->setCurrentIndex(3);
+			return;
+		}
 
 		QByteArray data;
 		data = binaryFile.readAll();
@@ -232,17 +239,10 @@ void ErrorReportDialog::onTaskStepStarted(const QString& taskStepDescription)
 								.arg(taskStepDescription);
 
 	ui->lblProgressDescription->setText(textDescription);
-
-	taskTimer.start();
 }
 
 void ErrorReportDialog::onTaskStepEnded()
 {
-	qint64 sleepTimeMs = 500 - taskTimer.elapsed();
-
-	if(sleepTimeMs > 0)
-		m_pCurrentTask->msleep(sleepTimeMs);
-
 	ui->progressBar->setValue(ui->progressBar->value() + 1);
 }
 
@@ -250,8 +250,25 @@ void ErrorReportDialog::onTaskCompleted()
 {
 	if(m_pCurrentTask->getErrorString().isEmpty())
 	{
-		QString htmlLink = QString("<a href=\"%1\">%1</a>").arg(m_errorReport.GetIssueLink());
+		QString link = m_errorReport.GetIssueLink();
+		QString prefix = "https://bugs.arx-libertatis.org/arx/issues/";
+		if(link.startsWith(prefix)) {
+			link = "http://arx.vg/" + link.mid(prefix.length());
+		}
+		QString htmlLink = QString("<a href=\"%1\">%1</a>").arg(link);
 		ui->lblIssueLink->setText(htmlLink);
+		
+		const QList<QString> & files = m_errorReport.getFailedFiles();
+		if(!files.empty()) {
+			QString message = "<b>The following files could not be uploaded:</b><br><br>";
+			Q_FOREACH(const QString & file, files) {
+				message += file + "<br>";
+			}
+			message += "<br>Please attach them manually!";
+			ui->lblFailedFiles->setText(message);
+			ui->lblFailedFiles->setTextInteractionFlags(Qt::TextSelectableByMouse);
+		}
+		
 		ui->stackedWidget->setCurrentIndex(m_nextPane);
 	}
 	else

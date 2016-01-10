@@ -44,14 +44,11 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #ifndef ARX_CORE_ARXGAME_H
 #define ARX_CORE_ARXGAME_H
 
-#include <string>
-
 #include "core/Application.h"
-#include "graphics/Renderer.h"
-#include "window/Window.h"
-#include "window/RenderWindow.h"
 
-class Font;
+#include "graphics/Renderer.h"
+
+#include "window/Window.h"
 
 class ArxGame : public Application, public Window::Listener, public Renderer::Listener {
 	
@@ -71,18 +68,16 @@ protected:
 	
 	void doFrame();
 	void update();
-	void render();	
+	void render();
 
 	void manageKeyMouse();
 	void manageEditorControls();
 	void managePlayerControls();
 	void updateAllInterface();
-	void drawAllInterfac(); //TODO rename this
-	void drawAllInterface();
 
 	void update2DFX();
 	void goFor2DFX();
-		
+	
 public:
 	
 	ArxGame();
@@ -93,20 +88,20 @@ public:
 private:
 	void updateTime();
 	void updateInput();
-
+	
 	// Camera stuff
 	void updateFirstPersonCamera();
 	void speechControlledCinematic();
 	void handlePlayerDeath();
 	void updateActiveCamera();
-
+	
 	bool isInMenu() const;
-
+	
 	void renderMenu();
-
+	
 	void updateLevel();
 	void renderLevel();
-
+	
 	
 	virtual void onWindowGotFocus(const Window & window);
 	virtual void onWindowLostFocus(const Window & window);
@@ -114,7 +109,7 @@ private:
 	virtual void onDestroyWindow(const Window & window);
 	virtual void onToggleFullscreen(const Window & window);
 	
-	bool wasResized;
+	bool m_wasResized;
 	
 	void onRendererInit(Renderer &);
 	void onRendererShutdown(Renderer &);

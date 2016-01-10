@@ -283,9 +283,9 @@ void CPoisonProjectile::Render() {
 	if(ulCurrentTime >= ulDuration)
 		return;
 	
-	GRenderer->SetCulling(Renderer::CullNone);
+	GRenderer->SetCulling(CullNone);
 	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+	GRenderer->SetBlendFunc(BlendOne, BlendOne);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 	
 	int n = BEZIERPrecision;
@@ -338,7 +338,7 @@ void CPoisonProjectile::Render() {
 		LaunchPoisonExplosion(lastpos);
 	}
 	
-	GRenderer->SetCulling(Renderer::CullNone);
+	GRenderer->SetCulling(CullNone);
 	GRenderer->SetRenderState(Renderer::DepthWrite, false);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 }

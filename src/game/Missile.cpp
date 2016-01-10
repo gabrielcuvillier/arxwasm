@@ -134,7 +134,7 @@ void ARX_MISSILES_Spawn(Entity * io, ARX_SPELLS_MISSILE_TYPE type, const Vec3f &
 
 	if (i == -1) return;
 
-	missiles[i].owner = (io == NULL) ? EntityHandle::Invalid : io->index();
+	missiles[i].owner = (io == NULL) ? EntityHandle() : io->index();
 	missiles[i].type = type;
 	missiles[i].lastpos = missiles[i].startpos = startpos;
 
@@ -257,9 +257,9 @@ void ARX_MISSILES_Update() {
 					break;
 				}
 
-				long ici = IsCollidingAnyInter(dest, tro);
+				EntityHandle ici = IsCollidingAnyInter(dest, tro);
 
-				if(ici != -1 && ici != missiles[i].owner) {
+				if(ici != EntityHandle() && ici != missiles[i].owner) {
 					ARX_MISSILES_Kill(i);
 					ARX_BOOMS_Add(dest);
 					Add3DBoom(dest);

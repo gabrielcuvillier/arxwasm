@@ -406,9 +406,9 @@ public:
 		
 		DebugScript(' ' << target);
 		
-		long t = entities.getById(target);
+		EntityHandle t = entities.getById(target);
 		
-		if(t == -1) {
+		if(t == EntityHandle()) {
 			context.skipStatement();
 		}
 		
@@ -724,7 +724,7 @@ public:
 			return Failed;
 		}
 		
-		EntityHandle self = (context.getEntity() == NULL) ? EntityHandle::Invalid : context.getEntity()->index();
+		EntityHandle self = (context.getEntity() == NULL) ? EntityHandle() : context.getEntity()->index();
 		ARX_DAMAGES_DealDamages(t->index(), damage, self, type, &t->pos);
 		
 		return Success;

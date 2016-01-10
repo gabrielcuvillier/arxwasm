@@ -7,6 +7,33 @@
 # Build the binaries using either separate_build(), shared_build() or unity_build().
 #
 
+# Add compile flags for specific source files
+#  SOURCES Source(s) to add flags to
+#  FLAG    String containing the flag(s) to add
+function(add_source_flags SOURCES FLAG)
+	foreach(source IN LISTS SOURCES)
+		get_source_file_property(flags "${source}" COMPILE_FLAGS)
+		if(flags)
+			set_source_files_properties("${source}" PROPERTIES COMPILE_FLAGS "${flags} ${FLAG}")
+		else()
+			set_source_files_properties("${source}" PROPERTIES COMPILE_FLAGS "${FLAG}")
+		endif()
+	endforeach()
+endfunction()
+
+# Add compile definitions for specific source files
+#  SOURCES Source(s) to add definitjons to
+#  ...     Compile definitons to add
+function(add_source_definitions SOURCES)
+	foreach(def IN LISTS ARGN)
+		if("${def}" MATCHES "^([/-]D)?([a-zA-Z0-9_]+(=.*)?)$")
+			set_property(SOURCE ${SOURCES} APPEND PROPERTY COMPILE_DEFINITIONS ${CMAKE_MATCH_2})
+		else()
+			add_source_flags("${SOURCES}" "${def}")
+		endif()
+	endforeach()
+endfunction()
+
 function(get_short_filename variable file)
 	get_filename_component(file "${file}" ABSOLUTE)
 	get_source_file_property(is_generated "${file}" GENERATED)
@@ -39,6 +66,7 @@ function(enable_unity_build UB_SUFFIX SOURCE_VARIABLE_NAME)
 	else()
 		set(compile_flags "")
 	endif()
+	set(compile_definitions)
 	
 	# Add include statement for each translation unit
 	list(LENGTH files numfiles)
@@ -58,6 +86,10 @@ function(enable_unity_build UB_SUFFIX SOURCE_VARIABLE_NAME)
 			if(source_compile_flags)
 				set(compile_flags "${compile_flags} ${source_compile_flags}")
 			endif()
+			get_source_file_property(source_compile_defs "${source_file}" COMPILE_DEFINITIONS)
+			if(source_compile_defs)
+				list(APPEND compile_definitions ${source_compile_defs})
+			endif()
 			
 			get_filename_component(source_file "${source_file}" ABSOLUTE)
 			
@@ -75,10 +107,8 @@ function(enable_unity_build UB_SUFFIX SOURCE_VARIABLE_NAME)
 			endif()
 			
 			get_short_filename(relative_file "${source_file}")
-			if(NOT DEBUG)
-				file(APPEND ${unit_build_file} "#undef ARX_FILE\n")
-				file(APPEND ${unit_build_file} "#define ARX_FILE \"${relative_file}\"\n")
-			endif()
+			file(APPEND ${unit_build_file} "#undef ARX_FILE\n")
+			file(APPEND ${unit_build_file} "#define ARX_FILE \"${relative_file}\"\n")
 			string(REGEX REPLACE "\\.[^\\./\\\\]*$" "" file_symbol "${relative_file}")
 			string(REGEX REPLACE "^(src|build)[/\\\\]" "" file_symbol "${file_symbol}")
 			string(REGEX REPLACE "[^a-zA-Z0-9]+" "_" file_symbol "${file_symbol}")
@@ -96,6 +126,7 @@ function(enable_unity_build UB_SUFFIX SOURCE_VARIABLE_NAME)
 	set(${SOURCE_VARIABLE_NAME} ${${SOURCE_VARIABLE_NAME}} ${unit_build_file} PARENT_SCOPE)
 	
 	set_source_files_properties("${unit_build_file}" PROPERTIES COMPILE_FLAGS "${compile_flags}")
+	set_property(SOURCE "${unit_build_file}" PROPERTY COMPILE_DEFINITIONS ${compile_definitions})
 	
 	# Put ub file at the root of the project
 	source_group("" FILES ${unit_build_file})
@@ -138,6 +169,14 @@ function(set_binary_public_headers BIN HEADERS)
 	set(SHARED_BUILD_${BIN}_HEADERS "${HEADERS}" CACHE INTERNAL "")
 endfunction()
 
+# Add include directories to a binary
+#  BIN  Name of the binary to add include directories to.
+#  ...  Include directories to add to the binary.
+function(add_binary_includes BIN)
+	set(includes ${SHARED_BUILD_${BIN}_INCLUDES})
+	list(APPEND includes ${ARGN})
+	set(SHARED_BUILD_${BIN}_INCLUDES "${includes}" CACHE INTERNAL "")
+endfunction()
 
 function(_add_binary_shared BIN TYPE SRC LIBS EXTRA INSTALLDIR)
 	list(REMOVE_DUPLICATES SRC)
@@ -147,6 +186,7 @@ function(_add_binary_shared BIN TYPE SRC LIBS EXTRA INSTALLDIR)
 	set(SHARED_BUILD_${BIN}_LIBS "${LIBS}" CACHE INTERNAL "")
 	set(SHARED_BUILD_${BIN}_EXTRA "${EXTRA}" CACHE INTERNAL "")
 	set(SHARED_BUILD_${BIN}_HEADERS "" CACHE INTERNAL "")
+	set(SHARED_BUILD_${BIN}_INCLUDES "" CACHE INTERNAL "")
 	set_binary_installdir("${BIN}" "${INSTALLDIR}")
 	set(SHARED_BUILD_BINARIES ${SHARED_BUILD_BINARIES} ${BIN} CACHE INTERNAL "")
 endfunction()
@@ -216,7 +256,7 @@ function(_shared_build_helper LIB LIST BINARIES FIRST)
 	set(list ${LIST})
 	set(first ${FIRST})
 	
-	# Find common sources and extract static libraries.
+	# Find common sources and extract object libraries.
 	foreach(bin IN LISTS LIST)
 		
 		list(REMOVE_ITEM list ${bin})
@@ -235,8 +275,10 @@ function(_shared_build_helper LIB LIST BINARIES FIRST)
 		if(first)
 			set(first 0)
 			set(common_src "${SHARED_BUILD_${bin}_SOURCES}")
+			set(common_inc "${SHARED_BUILD_${bin}_INCLUDES}")
 		else()
 			intersect(common_src "${common_src}" "${SHARED_BUILD_${bin}_SOURCES}")
+			intersect(common_inc "${common_inc}" "${SHARED_BUILD_${bin}_INCLUDES}")
 		endif()
 	endforeach()
 	
@@ -250,16 +292,18 @@ function(_shared_build_helper LIB LIST BINARIES FIRST)
 			set(lib _${LIB}_common)
 		endif()
 		
-		if(NOT DEBUG)
-			foreach(source_file IN LISTS common_src)
-				get_short_filename(relative_file "${source_file}")
-				set_property(SOURCE "${source_file}" APPEND PROPERTY COMPILE_DEFINITIONS
-				             "ARX_FILE=\"${relative_file}\"")
-			endforeach()
-		endif()
+		foreach(source_file IN LISTS common_src)
+			get_short_filename(relative_file "${source_file}")
+			set_property(SOURCE "${source_file}" APPEND PROPERTY COMPILE_DEFINITIONS
+			             "ARX_FILE=\"${relative_file}\"")
+		endforeach()
 		
 		# Add a new library for the common sources
-		add_library(${lib} STATIC ${common_src})
+		if(CMAKE_VERSION VERSION_LESS 2.8.8)
+			add_library(${lib} STATIC ${common_src})
+		else()
+			add_library(${lib} OBJECT ${common_src})
+		endif()
 		
 		set(is_shared_lib 0)
 		
@@ -277,7 +321,12 @@ function(_shared_build_helper LIB LIST BINARIES FIRST)
 			endforeach()
 			set(SHARED_BUILD_${bin}_SOURCES "${uncommon_src}" CACHE INTERNAL "")
 			
-			set(SHARED_BUILD_${bin}_LIBS ${lib} "${SHARED_BUILD_${bin}_LIBS}" CACHE INTERNAL "")
+			if(CMAKE_VERSION VERSION_LESS 2.8.8)
+				set(SHARED_BUILD_${bin}_LIBS ${lib} "${SHARED_BUILD_${bin}_LIBS}" CACHE INTERNAL "")
+			else()
+				set(SHARED_BUILD_${bin}_EXTRA $<TARGET_OBJECTS:${lib}>
+				    "${SHARED_BUILD_${bin}_EXTRA}" CACHE INTERNAL "")
+			endif()
 			
 		endforeach()
 		
@@ -288,6 +337,12 @@ function(_shared_build_helper LIB LIST BINARIES FIRST)
 			else()
 				set_target_properties(${lib} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 			endif()
+		endif()
+		
+		if(CMAKE_VERSION VERSION_LESS 2.8.12)
+			# these will be included globally later on
+		else()
+			target_include_directories(${lib} SYSTEM PRIVATE ${common_inc})
 		endif()
 		
 	endif()
@@ -312,14 +367,6 @@ endfunction()
 
 function(_shared_build_add_binary bin)
 	
-	if(NOT DEBUG)
-		foreach(source_file IN LISTS SHARED_BUILD_${bin}_SOURCES)
-			get_short_filename(relative_file "${source_file}")
-			set_property(SOURCE "${source_file}" APPEND PROPERTY COMPILE_DEFINITIONS
-			             "ARX_FILE=\"${relative_file}\"")
-		endforeach()
-	endif()
-	
 	set(build_type "${SHARED_BUILD_${bin}_TYPE}")
 	if(build_type STREQUAL "SHARED")
 		add_library(
@@ -341,6 +388,15 @@ function(_shared_build_add_binary bin)
 		set_target_properties(${bin} PROPERTIES PUBLIC_HEADER "${SHARED_BUILD_${bin}_HEADERS}")
 	endif()
 	
+	if(NOT "${SHARED_BUILD_${bin}_INCLUDES}" STREQUAL "")
+		if(CMAKE_VERSION VERSION_LESS 2.8.12)
+			# Cannot set per-target (SYSTEM) includes
+			include_directories(SYSTEM ${SHARED_BUILD_${bin}_INCLUDES})
+		else()
+			target_include_directories(${bin} SYSTEM PRIVATE ${SHARED_BUILD_${bin}_INCLUDES})
+		endif()
+	endif()
+	
 	install(TARGETS ${bin} ${SHARED_BUILD_${bin}_INSTALL})
 	
 endfunction()
@@ -349,6 +405,11 @@ endfunction()
 function(separate_build)
 	
 	foreach(bin IN LISTS SHARED_BUILD_BINARIES)
+		foreach(source_file IN LISTS SHARED_BUILD_${bin}_SOURCES)
+			get_short_filename(relative_file "${source_file}")
+			set_property(SOURCE "${source_file}" APPEND PROPERTY COMPILE_DEFINITIONS
+			             "ARX_FILE=\"${relative_file}\"")
+		endforeach()
 		_shared_build_add_binary(${bin})
 	endforeach()
 	

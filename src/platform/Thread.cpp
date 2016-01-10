@@ -40,7 +40,10 @@ void Thread::setThreadName(const std::string & _threadName) {
 #include <pthread_np.h>
 #endif
 
-Thread::Thread() : started(false) {
+Thread::Thread()
+	: thread()
+	, started(false)
+{
 	setPriority(Normal);
 }
 
@@ -129,10 +132,6 @@ void Thread::exit() {
 
 thread_id_type Thread::getCurrentThreadId() {
 	return pthread_self();
-}
-
-process_id_type getProcessId() {
-	return getpid();
 }
 
 #elif ARX_PLATFORM == ARX_PLATFORM_WIN32
@@ -233,10 +232,6 @@ void Thread::waitForCompletion() {
 
 thread_id_type Thread::getCurrentThreadId() {
 	return GetCurrentThreadId();
-}
-
-process_id_type getProcessId() {
-	return GetCurrentProcessId();
 }
 
 #endif

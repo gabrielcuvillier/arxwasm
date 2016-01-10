@@ -27,6 +27,7 @@
 
 #include "core/Core.h"
 #include "core/ArxGame.h"
+#include "core/GameTime.h"
 
 #include "font/Font.h"
 
@@ -53,6 +54,7 @@
 
 #include "physics/Anchors.h"
 #include "physics/Collisions.h"
+#include "platform/profiler/Profiler.h"
 
 #include "scene/Interactive.h"
 #include "scene/Light.h"
@@ -115,9 +117,9 @@ static void drawDebugBoundingBox(const EERIE_2D_BBOX & box, Color color = Color:
 static void drawDebugLights() {
 	
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetCulling(Renderer::CullNone);
+	GRenderer->SetCulling(CullNone);
 	
-	GRenderer->SetBlendFunc(Renderer::BlendOne, Renderer::BlendOne);
+	GRenderer->SetBlendFunc(BlendOne, BlendOne);
 	
 	for(size_t i = 0; i < MAX_LIGHTS; i++) {
 		
@@ -162,7 +164,7 @@ static void drawDebugLights() {
 		EERIEDrawSprite(light->pos, 11.f, g_lightSourceTexture, light->rgb.to<u8>(), 0.5f);
 	}
 	
-	GRenderer->SetCulling(Renderer::CullCCW);
+	GRenderer->SetCulling(CullCCW);
 	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 	
 }
@@ -421,10 +423,8 @@ static void drawDebugEntityPhysicsCylinder(Entity * io) {
 		levitate = CFLAG_LEVITATE;
 	}
 	
-	Cylinder cyll;
-	cyll.height = GetIOHeight(io);
-	cyll.radius = GetIORadius(io);
-	cyll.origin = io->physics.startpos;
+	Cylinder cyll = Cylinder(io->physics.startpos, GetIORadius(io), GetIOHeight(io));
+	
 	drawLineCylinder(cyll, Color::green);
 	
 	if(!(AttemptValidCylinderPos(cyll, io, levitate | CFLAG_NPC))) {
@@ -498,7 +498,7 @@ static void drawDebugEntities() {
 			
 			if(entity->obj) {
 				for(size_t j = 0; j < entity->obj->linked.size(); j++) {
-					Vec3f pos = entity->obj->vertexlist3[entity->obj->linked[j].lidx].v;
+					Vec3f pos = actionPointPosition(entity->obj, entity->obj->linked[j].lidx);
 					Entity * other = entity->obj->linked[j].io;
 					drawTextAt(hFontDebug, pos, other->idString(), Color::cyan);
 				}
@@ -834,7 +834,51 @@ static void drawDebugMaterials() {
 	
 }
 
+
+struct DebugRay {
+	Vec3f start;
+	Vec3f dir;
+	Color color;
+	float expiration;
+	
+	DebugRay(Vec3f start, Vec3f dir, Color color, float expiration)
+		: start(start)
+		, dir(dir)
+		, color(color)
+		, expiration(expiration)
+	{}
+};
+
+std::vector<DebugRay> debugRays;
+
+void debug::drawRay(Vec3f start, Vec3f dir, Color color, float duration) {
+	DebugRay ray = DebugRay(start, dir, color, float(arxtime) + duration * 1000);
+	debugRays.push_back(ray);
+}
+
+static void updateAndRenderDebugDrawables() {
+	for(size_t i = 0; i < debugRays.size(); i++) {
+		const DebugRay & ray = debugRays[i];
+		drawLine(ray.start, ray.dir, ray.color);
+	}
+	
+	float currentTime = float(arxtime);
+	
+	for(size_t i = 0; i < debugRays.size(); i++) {
+		if(debugRays[i].expiration < currentTime) {
+			std::swap(debugRays[i], debugRays.back());
+			debugRays.pop_back();
+			i--;
+		}
+	}
+}
+
+
 void drawDebugRender() {
+	
+	ARX_PROFILE_FUNC();
+	
+	updateAndRenderDebugDrawables();
 	
 	if(g_debugView == DebugView_None) {
 		return;
@@ -893,9 +937,9 @@ void drawDebugRender() {
 	}
 	
 	s32 width = hFontDebug->getTextSize(ss.str()).x;
-	Vec2f pos = Vec2f(g_size.topRight());
-	pos += Vec2f(-10 , 10);
-	pos += Vec2f(-width, 0);
+	Vec2i pos = g_size.topRight();
+	pos += Vec2i(-10 , 10);
+	pos += Vec2i(-width, 0);
 	
-	ARX_TEXT_Draw(hFontDebug, pos, ss.str(), Color::yellow);
+	hFontDebug->draw(pos, ss.str(), Color::yellow);
 }

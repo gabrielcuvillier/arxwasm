@@ -10,7 +10,7 @@ if(MSVC)
 		set(CMAKE_LIBRARY_ARCHITECTURE "x86")
 	endif()
 else()
-	cmake_minimum_required(VERSION 2.8)
+	cmake_minimum_required(VERSION 2.8.3)
 endif()
 
 # Eliminate a warning on Windows with CMake 2.8.11
@@ -33,13 +33,17 @@ endif()
 # Components
 option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_TOOLS "Build tools" ON)
-set(def_BUILD_CRASHREPORTER ON)
+set(def_BUILD_CRASHHANDLER ON)
 if(MACOSX)
-	set(def_BUILD_CRASHREPORTER OFF)
+	set(def_BUILD_CRASHHANDLER OFF)
 elseif(WIN32 AND NOT MSVC)
-	set(def_BUILD_CRASHREPORTER OFF)
+	set(def_BUILD_CRASHHANDLER OFF)
 endif()
-option(BUILD_CRASHREPORTER "Build the crash reporter" ${def_BUILD_CRASHREPORTER})
+option(BUILD_CRASHHANDLER "Build the crash handler" ${def_BUILD_CRASHHANDLER})
+option(BUILD_CRASHREPORTER "Build the crash reporter" ${BUILD_CRASHHANDLER})
+if(NOT BUILD_CRASHHANDLER)
+	set(BUILD_CRASHREPORTER OFF)
+endif()
 option(BUILD_PROFILER "Build the profiler GUI" ON)
 option(BUILD_PROFILER_INSTRUMENT "Enable instrumentation for the profiler" OFF)
 option(BUILD_EDIT_LOADSAVE "Build save/load functions only used by the editor" ON)
@@ -49,6 +53,7 @@ option(INSTALL_SCRIPTS "Install the data install script" ON)
 # Optional dependencies
 option(USE_OPENAL "Build the OpenAL audio backend" ON)
 option(USE_OPENGL "Build the OpenGL renderer backend" ON)
+option(USE_WINHTTP "Use the native WinHTTP API instead of CURL on Windows" ON)
 option(USE_NATIVE_FS "Use the native filesystem backend directly instead of boost" ON)
 
 # Alternative dependencies
@@ -59,7 +64,9 @@ set(WITH_QT CACHE STRING "The Qt version to use: 4 or 5 or empty (use any)")
 option(UNITY_BUILD "Unity build" OFF)
 option(DEBUG_EXTRA "Expensive debug options" OFF)
 option(SET_WARNING_FLAGS "Adjust compiler warning flags" ON)
+option(SET_NOISY_WARNING_FLAGS "Enable noisy compiler warnings" OFF)
 option(SET_OPTIMIZATION_FLAGS "Adjust compiler optimization flags" ON)
+
 option(USE_CXX11 "Try to use C++11 if available" ON)
 if(NOT DEFINED DEBUG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
 	set(DEBUG 1)
@@ -225,9 +232,11 @@ if((NOT LAST_CMAKE_CXX_FLAGS STREQUAL CMAKE_CXX_FLAGS)
 	force_recheck_library(OpenGL)
 	force_recheck_library(GLEW)
 	force_recheck_library(Boost)
-	force_recheck_library(QtCore QT_QTCORE)
-	force_recheck_library(QtGui QT_QTGUI)
-	force_recheck_library(QtNetwork QT_QTNETWORK)
+	force_recheck_library(QtCore)
+	force_recheck_library(QtConcurrent)
+	force_recheck_library(QtGui)
+	force_recheck_library(QtWidgets)
+	force_recheck_library(CURL)
 	unset(Boost_INCLUDE_DIR CACHE)
 	set(LAST_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE INTERNAL
 	    "The last C++ compiler flags")
@@ -239,6 +248,9 @@ endif()
 if(WIN32)
 	# Ensure we aren't using functionalities not found under Window XP SP1
 	add_definitions(-D_WIN32_WINNT=0x0502)
+	# Define this so that we don't accitenally use ANSI functions
+	add_definitions(-DUNICODE)
+	add_definitions(-D_UNICODE)
 	if(MSVC)
 		if(CMAKE_LIBRARY_ARCHITECTURE STREQUAL "x64")
 			set(subsystem_xp "5.02")
@@ -333,7 +345,7 @@ list(APPEND ARX_LIBRARIES ${FREETYPE_LIBRARIES})
 # OpenGL
 if(USE_OPENGL)
 	find_package(OpenGL ${OPTIONAL_DEPENDENCY})
-	find_package(GLEW ${OPTIONAL_DEPENDENCY})
+	find_package(GLEW 1.5.2 ${OPTIONAL_DEPENDENCY})
 	add_definitions(-DGLEW_NO_GLU)
 	if(NOT MSVC AND OPENGL_FOUND AND GLEW_FOUND)
 		check_link_library(OpenGL OPENGL_gl_LIBRARY)
@@ -343,7 +355,7 @@ endif()
 
 # OpenAL
 if(USE_OPENAL)
-	find_package(OpenAL 1.1 ${OPTIONAL_DEPENDENCY})
+	find_package(OpenAL ${OPTIONAL_DEPENDENCY})
 	find_package(OpenALEFX)
 	if(NOT MSVC AND OPENAL_FOUND)
 		check_link_library(OpenAL OPENAL_LIBRARY)
@@ -387,68 +399,45 @@ endif()
 find_package(Boost 1.48 REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 add_definitions(-DBOOST_ALL_NO_LIB)
+# We compile with -fno-rtti and boost is not able to detect that for all compilers.
+add_definitions(-DBOOST_NO_RTTI -DBOOST_NO_TYPEID)
 
 # glm
-find_package(GLM REQUIRED)
+find_package(GLM 0.9.5.0 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIRS})
 add_definitions(-DGLM_FORCE_RADIANS)
 
-# Qt and DbgHelp
+# DbgHelp
+if(MSVC AND BUILD_CRASHHANDLER)
+	find_package(DbgHelp ${OPTIONAL_DEPENDENCY})
+endif()
+
+# Qt
 set(ARX_HAVE_CRASHREPORTER 0)
 if(BUILD_CRASHREPORTER OR BUILD_PROFILER)
 	
-	# Try to find Qt 5 modules
-	if(NOT HAVE_QT AND (NOT WITH_QT OR WITH_QT EQUAL 5))
-		if(NOT WITH_QT)
-			# Missing Qt5*Config.cmake files are not errors, reduce log spam
-			set(Qt_OPTIONAL_DEPENDENCY QUIET)
-		else()
-			set(Qt_OPTIONAL_DEPENDENCY ${OPTIONAL_DEPENDENCY})
-		endif()
-		find_package(Qt5Core ${Qt_OPTIONAL_DEPENDENCY})
-		find_package(Qt5Gui ${Qt_OPTIONAL_DEPENDENCY})
-		find_package(Qt5Widgets ${Qt_OPTIONAL_DEPENDENCY})
-		find_package(Qt5Network ${Qt_OPTIONAL_DEPENDENCY})
-		if(Qt5Core_FOUND AND Qt5Gui_FOUND AND Qt5Widgets_FOUND AND Qt5Network_FOUND)
-			if(NOT ARX_FOUND_QT_VERSION EQUAL 5)
-				message(STATUS "Using Qt 5")
-				set(ARX_FOUND_QT_VERSION 5 CACHE INTERNAL "foobar")
-			endif()
-			set(HAVE_QT5 1)
-			set(HAVE_QT 1)
-		endif()
-	endif()
+	find_package(Qt 4.7 COMPONENTS Core Concurrent Gui Widgets ${OPTIONAL_DEPENDENCY})
 	
-	# Otherwise, look for Qt 4
-	if(NOT HAVE_QT AND (NOT WITH_QT OR WITH_QT EQUAL 4))
-		set(QT_USE_IMPORTED_TARGETS 1)
-		find_package(Qt4 4.7 COMPONENTS QtCore QtGui QtNetwork ${OPTIONAL_DEPENDENCY})
-		# QT_VERSION_MAJOR check required because of FindQt4.cmake bug
-		if(QT4_FOUND AND QT_VERSION_MAJOR EQUAL 4)
-			if(NOT MSVC)
-				check_link_library(QtCore QT_QTCORE_LIBRARY_RELEASE QT_QTCORE)
-				check_link_library(QtGui QT_QTGUI_LIBRARY_RELEASE QT_QTGUI)
-				check_link_library(QtNetwork QT_QTNETWORK_LIBRARY_RELEASE QT_QTNETWORK)
-			endif()
-			if(NOT ARX_FOUND_QT_VERSION EQUAL 4)
-				message(STATUS "Using Qt 4")
-				set(ARX_FOUND_QT_VERSION 4 CACHE INTERNAL "foobar")
-			endif()
-			set(HAVE_QT4 1)
-			set(HAVE_QT 1)
-		endif()
+	if(HAVE_QT4 AND NOT MSVC)
+		check_link_library(QtCore QtCore_LIBRARIES)
+		check_link_library(QtConcurrent QtConcurrent_LIBRARIES)
+		check_link_library(QtGui QtGui_LIBRARIES)
+		check_link_library(QtWidgets QtWidgets_LIBRARIES)
 	endif()
 	
 	# Needed by the crash reporter
 	
 	if(HAVE_QT AND BUILD_CRASHREPORTER)
-		if(MSVC)
-			find_package(DbgHelp ${OPTIONAL_DEPENDENCY})
-			if(DBGHELP_FOUND)
+		if(NOT WIN32 OR NOT USE_WINHTTP)
+			find_package(CURL 7.20.0 ${OPTIONAL_DEPENDENCY})
+			if(CURL_FOUND AND NOT MSVC)
+				check_link_library(CURL CURL_LIBRARIES)
+			endif()
+		endif()
+		if((WIN32 AND USE_WINHTTP) OR CURL_FOUND)
+			if(NOT MSVC OR DBGHELP_FOUND)
 				set(ARX_HAVE_CRASHREPORTER 1)
 			endif()
-		else()
-			set(ARX_HAVE_CRASHREPORTER 1)
 		endif()
 	endif()
 	
@@ -470,6 +459,7 @@ if(USE_CXX11)
 	check_cxx11("alignas"                ARX_HAVE_CXX11_ALIGNAS            1900)
 	check_cxx11("alignof"                ARX_HAVE_CXX11_ALIGNOF            1900)
 	check_cxx11("auto"                   ARX_HAVE_CXX11_AUTO               1600)
+	check_cxx11("std::atomic"            ARX_HAVE_CXX11_ATOMIC             1700)
 	check_cxx11("std::forward"           ARX_HAVE_CXX11_FORWARD            1800)
 	check_cxx11("std::integral_constant" ARX_HAVE_CXX11_INTEGRAL_CONSTANT  1500)
 	check_cxx11("std::max_align_t"       ARX_HAVE_CXX11_MAX_ALIGN_T        1700)
@@ -560,6 +550,7 @@ else(MSVC)
 	find_library(LIBRT_LIBRARY rt)
 	
 	if(LIBRT_LIBRARY)
+		check_link_library(librt LIBRT_LIBRARY)
 		set(CMAKE_REQUIRED_LIBRARIES "${LIBRT_LIBRARY}")
 	endif()
 	check_symbol_exists(clock_gettime "time.h" ARX_HAVE_CLOCK_GETTIME)
@@ -576,6 +567,7 @@ else(MSVC)
 	check_symbol_exists(open "fcntl.h" ARX_HAVE_OPEN)
 	check_symbol_exists(fcntl "fcntl.h" ARX_HAVE_FCNTL)
 	
+	check_symbol_exists(chdir "unistd.h" ARX_HAVE_CHDIR)
 	check_symbol_exists(fork "unistd.h" ARX_HAVE_FORK)
 	check_symbol_exists(readlink "unistd.h" ARX_HAVE_READLINK)
 	check_symbol_exists(dup2 "unistd.h" ARX_HAVE_DUP2)
@@ -598,16 +590,22 @@ else(MSVC)
 	check_symbol_exists(backtrace "execinfo.h" ARX_HAVE_BACKTRACE)
 	
 	check_include_file("sys/types.h" ARX_HAVE_SYS_TYPES_H)
-	check_symbol_exists(getpid "unistd.h" ARX_HAVE_GETPID)
-	if(CMAKE_USE_PTHREADS_INIT AND ARX_HAVE_SYS_TYPES_H AND ARX_HAVE_GETPID)
+	if(CMAKE_USE_PTHREADS_INIT AND ARX_HAVE_SYS_TYPES_H)
 		set(ARX_HAVE_PTHREADS 1)
 	endif()
+	
+	check_symbol_exists(getpid "unistd.h" ARX_HAVE_GETPID)
+	check_symbol_exists(getgid "unistd.h" ARX_HAVE_GETGID)
+	check_symbol_exists(getuid "unistd.h" ARX_HAVE_GETUID)
 	
 	check_symbol_exists(sysconf "unistd.h" ARX_HAVE_SYSCONF)
 	
 	check_symbol_exists(sigaction "signal.h" ARX_HAVE_SIGACTION)
 	
+	check_symbol_exists(setrlimit "sys/resource.h" ARX_HAVE_SETRLIMIT)
+	
 	check_symbol_exists(sysctl "sys/sysctl.h" ARX_HAVE_SYSCTL)
+	check_symbol_exists(sysctlbyname "sys/sysctl.h" ARX_HAVE_SYSCTLBYNAME)
 	
 	if(USE_NATIVE_FS)
 		
@@ -694,6 +692,7 @@ set(AUDIO_OPENAL_SOURCES
 set(CORE_SOURCES
 	src/core/Application.cpp
 	src/core/ArxGame.cpp
+	src/core/Benchmark.cpp
 	src/core/Config.cpp
 	src/core/Core.cpp
 	src/core/GameTime.cpp
@@ -755,12 +754,14 @@ set(GRAPHICS_SOURCES
 	src/graphics/data/TextureContainer.cpp
 	src/graphics/effects/DrawEffects.cpp
 	src/graphics/effects/Fade.cpp
+	src/graphics/effects/Field.cpp
 	src/graphics/effects/Fissure.cpp
 	src/graphics/effects/FloatingStones.cpp
 	src/graphics/effects/Fog.cpp
 	src/graphics/effects/SpellEffects.cpp
 	src/graphics/effects/Halo.cpp
 	src/graphics/effects/Lightning.cpp
+	src/graphics/effects/MagicMissile.cpp
 	src/graphics/effects/RotatingCone.cpp
 	src/graphics/effects/Trail.cpp
 	src/graphics/font/Font.cpp
@@ -774,9 +775,7 @@ set(GRAPHICS_SOURCES
 	src/graphics/particle/ParticleManager.cpp
 	src/graphics/particle/ParticleSystem.cpp
 	src/graphics/particle/MagicFlare.cpp
-	src/graphics/spells/Spells01.cpp
 	src/graphics/spells/Spells05.cpp
-	src/graphics/spells/Spells06.cpp
 	src/graphics/texture/PackedTexture.cpp
 	src/graphics/texture/Texture.cpp
 	src/graphics/texture/TextureStage.cpp
@@ -809,6 +808,18 @@ set(GUI_SOURCES
 	src/gui/TextManager.cpp
 	src/gui/book/Book.cpp
 	src/gui/book/Necklace.cpp
+	src/gui/hud/HudCommon.cpp
+	src/gui/hud/PlayerInventory.cpp
+	src/gui/hud/SecondaryInventory.cpp
+	src/gui/menu/MenuCursor.cpp
+	src/gui/widget/ButtonWidget.cpp
+	src/gui/widget/CheckboxWidget.cpp
+	src/gui/widget/CycleTextWidget.cpp
+	src/gui/widget/PanelWidget.cpp
+	src/gui/widget/SliderWidget.cpp
+	src/gui/widget/TextWidget.cpp
+	src/gui/widget/Widget.cpp
+	src/gui/widget/WidgetContainer.cpp
 )
 
 set(INPUT_SOURCES src/input/Input.cpp)
@@ -878,6 +889,13 @@ set(PLATFORM_SOURCES
 	src/platform/ProgramOptions.cpp
 	src/platform/Time.cpp
 )
+set(PLATFORM_CONSOLE_SOURCES)
+set(PLATFORM_GUI_SOURCES)
+if(WIN32)
+	list(APPEND PLATFORM_SOURCES src/platform/WindowsUtils.cpp)
+	list(APPEND PLATFORM_CONSOLE_SOURCES src/platform/WindowsMainConsole.cpp)
+	list(APPEND PLATFORM_GUI_SOURCES src/platform/WindowsMainGUI.cpp)
+endif()
 
 # Extra platform abstraction - depends on the crash handler or SDL
 set(PLATFORM_EXTRA_SOURCES
@@ -891,8 +909,14 @@ endif()
 # Crash handler sources
 set(PLATFORM_CRASHHANDLER_SOURCES src/platform/CrashHandler.cpp)
 set(PLATFORM_CRASHHANDLER_IMPL_SOURCES src/platform/crashhandler/CrashHandlerImpl.cpp)
-set(PLATFORM_CRASHHANDLER_POSIX_SOURCES src/platform/crashhandler/CrashHandlerPOSIX.cpp)
-set(PLATFORM_CRASHHANDLER_WINDOWS_SOURCES src/platform/crashhandler/CrashHandlerWindows.cpp)
+set(PLATFORM_CRASHHANDLER_POSIX_SOURCES
+	src/platform/crashhandler/CrashHandlerPOSIX.cpp
+	src/platform/crashhandler/CrashProcessorPOSIX.cpp
+)
+set(PLATFORM_CRASHHANDLER_WINDOWS_SOURCES
+	src/platform/crashhandler/CrashHandlerWindows.cpp
+	src/platform/crashhandler/CrashProcessorWindows.cpp
+)
 
 # Profiler sources
 set(PLATFORM_PROFILER_SOURCES src/platform/profiler/Profiler.cpp)
@@ -1021,7 +1045,7 @@ else()
 	# This means the Boost.Filesystem ABI depends on what C++ version was used
 	# to compile the library - check for that!
 	check_compile(boost_filesystem_abi_matches
-		"${CMAKE_MODULE_PATH}/check_boostfs_cxx11_scoped_enum.cpp"
+		"${CXX11_CHECK_DIR}/check_boostfs_cxx11_scoped_enum.cpp"
 		"scoped enum" "Boost ABI"
 		"${Boost_LIBRARIES}"
 		"mismatch, fixing"
@@ -1029,8 +1053,8 @@ else()
 	if(NOT boost_filesystem_abi_matches)
 		add_definitions(
 			# Different names for different Boost versions :/
-			-DBOOST_NO_SCOPED_ENUMS=1
-			-DBOOST_NO_CXX11_SCOPED_ENUMS=1
+			-DBOOST_NO_SCOPED_ENUMS
+			-DBOOST_NO_CXX11_SCOPED_ENUMS
 		)
 	endif()
 	
@@ -1038,16 +1062,16 @@ endif()
 list(APPEND IO_SOURCES ${IO_FILESYSTEM_SOURCES})
 
 # Crash reporter
-if(ARX_HAVE_CRASHREPORTER)
+if(BUILD_CRASHHANDLER)
 	if(ARX_HAVE_EXECVP AND ARX_HAVE_FORK AND ARX_HAVE_KILL)
 		list(APPEND PLATFORM_CRASHHANDLER_SOURCES ${PLATFORM_CRASHHANDLER_IMPL_SOURCES})
 		list(APPEND PLATFORM_CRASHHANDLER_SOURCES ${PLATFORM_CRASHHANDLER_POSIX_SOURCES})
 		set(ARX_HAVE_CRASHHANDLER_POSIX 1)
-	elseif(MSVC)
+	elseif(MSVC AND DBGHELP_FOUND)
 		list(APPEND PLATFORM_CRASHHANDLER_SOURCES ${PLATFORM_CRASHHANDLER_IMPL_SOURCES})
 		list(APPEND PLATFORM_CRASHHANDLER_SOURCES ${PLATFORM_CRASHHANDLER_WINDOWS_SOURCES})
 		set(ARX_HAVE_CRASHHANDLER_WINDOWS 1)
-		list(APPEND ARX_LIBRARIES ${DBGHELP_LIBRARIES})
+		list(APPEND ARX_LIBRARIES ${DBGHELP_LIBRARIES} psapi)
 		include_directories(SYSTEM ${DBGHELP_INCLUDE_DIR})
 	else()
 		# Don't bother building arxcrashreporter if it will never be used.
@@ -1067,9 +1091,8 @@ if(NOT MSVC)
 endif()
 
 if(BUILD_PROFILER_INSTRUMENT)
-	find_package(Boost 1.53 COMPONENTS atomic)
-	if(NOT Boost_ATOMIC_FOUND)
-		message(WARNING "Missing boost atomic, profiler instrumentation disabled")
+	if(NOT ARX_HAVE_CXX11_ATOMIC)
+		message(WARNING "Missing c++11 atomic, profiler instrumentation disabled")
 		set(BUILD_PROFILER_INSTRUMENT 0)
 	endif()
 endif()
@@ -1088,6 +1111,7 @@ set(ARX_SOURCES
 	${MATH_SOURCES}
 	${PHYSICS_SOURCES}
 	${PLATFORM_SOURCES}
+	${PLATFORM_GUI_SOURCES}
 	${PLATFORM_EXTRA_SOURCES}
 	${PLATFORM_CRASHHANDLER_SOURCES}
 	${PLATFORM_PROFILER_SOURCES}
@@ -1099,7 +1123,8 @@ set(ARX_SOURCES
 
 # Set the icon for the Windows executable by adding this resource file to the sources
 if(WIN32)
-	list(APPEND ARX_SOURCES data/icons/arx-libertatis.rc)
+	set(ARX_ICON_RC data/icons/arx-libertatis.rc)
+	list(APPEND ARX_SOURCES ${ARX_ICON_RC})
 endif()
 
 
@@ -1123,7 +1148,7 @@ set(VERSION_FILE     "${CMAKE_BINARY_DIR}/core/Version.cpp")
 set(VERSION_SOURCES  VERSION "VERSION" AUTHORS "AUTHORS" COPYING "COPYING")
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/core")
 version_file("${VERSION_TEMPLATE}" "${VERSION_FILE}" "${VERSION_SOURCES}" ".git")
-list(APPEND ARX_SOURCES "${VERSION_FILE}")
+list(APPEND ARX_SOURCES ${VERSION_FILE})
 
 
 # Add executables
@@ -1150,36 +1175,27 @@ if(ARX_HAVE_CRASHREPORTER)
 		tools/crashreporter/tbg/TBG.cpp
 		tools/crashreporter/ui/ErrorReportDialog.h
 		tools/crashreporter/ui/ErrorReportDialog.cpp
+		${QtGui_SOURCES}
 	)
 	
 	set(arxcrashreporter_SOURCES
+		tools/crashreporter/tbg/HTTPClient.h
 		${PLATFORM_SOURCES}
 		${IO_FILESYSTEM_SOURCES}
 		${IO_LOGGER_SOURCES}
 		${UTIL_SOURCES}
-		"${VERSION_FILE}"
+		${VERSION_FILE}
 	)
 	
-	if(WIN32)
-		list(APPEND arxcrashreporter_SOURCES
-			tools/crashreporter/Win32Utilities.h
-			tools/crashreporter/Win32Utilities.cpp
-		)
+	if(WIN32 AND USE_WINHTTP)
+		list(APPEND arxcrashreporter_SOURCES tools/crashreporter/tbg/HTTPClientWindows.cpp)
+	else()
+		list(APPEND arxcrashreporter_SOURCES tools/crashreporter/tbg/HTTPClientCURL.cpp)
 	endif()
 	
-	set(arxcrashreporter_UIs
-		tools/crashreporter/ui/ErrorReportDialog.ui
-	)
-	
-	set(arxcrashreporter_MOC_HEADERS
-		tools/crashreporter/ui/ErrorReportDialog.h
-		tools/crashreporter/qhexedit/QHexEdit.h
-		tools/crashreporter/qhexedit/QHexEditPrivate.h
-	)
-	
-	set(arxcrashreporter_RESOURCES
-		tools/crashreporter/resources/CrashReporter.qrc
-	)
+	if(WIN32)
+		list(APPEND arxcrashreporter_SOURCES ${ARX_ICON_RC})
+	endif()
 	
 	set(arxcrashreporter_MANUAL_SOURCES
 		${arxcrashreporter_SOURCES}
@@ -1188,104 +1204,66 @@ if(ARX_HAVE_CRASHREPORTER)
 	
 	set(SRC_DIR tools/crashreporter/)
 	
-	create_source_groups(arxcrashreporter_SOURCES)
+	create_source_groups(arxcrashreporter_MANUAL_SOURCES)
+	
+	qt_wrap_ui(arxcrashreporter_Qt_SOURCES
+		tools/crashreporter/ui/ErrorReportDialog.ui
+	)
+	qt_wrap_cpp(arxcrashreporter_Qt_SOURCES
+		tools/crashreporter/ui/ErrorReportDialog.h
+		tools/crashreporter/qhexedit/QHexEdit.h
+		tools/crashreporter/qhexedit/QHexEditPrivate.h
+	)
+	qt_add_resources(arxcrashreporter_Qt_SOURCES
+		tools/crashreporter/resources/CrashReporter.qrc
+	)
+	
+	list(APPEND arxcrashreporter_SOURCES ${arxcrashreporter_Qt_SOURCES})
+	
+	add_source_flags("${arxcrashreporter_Qt_SOURCES}"
+		"${QtCore_EXECUTABLE_COMPILE_FLAGS}"
+	)
+	
+	add_source_definitions("${arxcrashreporter_Qt_SOURCES}"
+		${QtCore_DEFINITIONS}
+		${QtConcurrent_DEFINITIONS}
+		${QtGui_DEFINITIONS}
+		${QtWidgets_DEFINITIONS}
+		-DQT_NO_DEBUG
+	)
+	
+	set(arxcrashreporter_INCLUDES
+		${QtCore_INCLUDE_DIRS}
+		${QtConcurrent_INCLUDE_DIRS}
+		${QtGui_INCLUDE_DIRS}
+		${QtWidgets_INCLUDE_DIRS}
+	)
+	
+	if(NOT WIN32 OR NOT USE_WINHTTP)
+		list(APPEND arxcrashreporter_INCLUDES ${CURL_INCLUDE_DIRS})
+	endif()
 	
 	set(arxcrashreporter_LIBRARIES
 		${BASE_LIBRARIES}
 		${CMAKE_THREAD_LIBS_INIT}
+		${QtCore_LIBRARIES}
+		${QtConcurrent_LIBRARIES}
+		${QtGui_LIBRARIES}
+		${QtWidgets_LIBRARIES}
+		${QtCore_QTMAIN_LIBRARIES}
 	)
 	
-	if(HAVE_QT5)
-		
-		qt5_wrap_ui(arxcrashreporter_Qt_SOURCES ${arxcrashreporter_UIs})
-		qt5_wrap_cpp(arxcrashreporter_Qt_SOURCES ${arxcrashreporter_MOC_HEADERS})
-		qt5_add_resources(arxcrashreporter_Qt_SOURCES ${arxcrashreporter_RESOURCES})
-		
-		set_property(
-			SOURCE ${arxcrashreporter_Qt_SOURCES}
-			APPEND PROPERTY COMPILE_FLAGS " ${Qt5Core_EXECUTABLE_COMPILE_FLAGS}"
-		)
-		
-		set(arxcrashreporter_qt_LIBRARIES
-			${Qt5Core_LIBRARIES}
-			${Qt5Gui_LIBRARIES}
-			${Qt5Widgets_LIBRARIES}
-			${Qt5Network_LIBRARIES}
-			${Qt5Core_QTMAIN_LIBRARIES}
-		)
-		
-		add_definitions(
-			${Qt5Core_DEFINITIONS}
-			${Qt5Gui_DEFINITIONS}
-			${Qt5Widgets_DEFINITIONS}
-			${Qt5Network_DEFINITIONS}
-			-DQT_NO_DEBUG
-		)
-		
-		include_directories(SYSTEM
-			${Qt5Core_INCLUDE_DIRS}
-			${Qt5Gui_INCLUDE_DIRS}
-			${Qt5Widgets_INCLUDE_DIRS}
-			${Qt5Network_INCLUDE_DIRS}
-		)
-		
-	elseif(HAVE_QT4)
-		
-		qt4_wrap_ui(arxcrashreporter_Qt_SOURCES ${arxcrashreporter_UIs})
-		qt4_wrap_cpp(arxcrashreporter_Qt_SOURCES ${arxcrashreporter_MOC_HEADERS})
-		qt4_add_resources(arxcrashreporter_Qt_RC_SOURCES ${arxcrashreporter_RESOURCES})
-		set_property(
-			SOURCE ${arxcrashreporter_Qt_RC_SOURCES}
-			APPEND PROPERTY COMPILE_FLAGS " -Wno-missing-declarations"
-		)
-		list(APPEND arxcrashreporter_Qt_SOURCES ${arxcrashreporter_Qt_RC_SOURCES})
-		
-		set(arxcrashreporter_qt_LIBRARIES
-			${QT_QTCORE_LIBRARY_RELEASE}
-			${QT_QTGUI_LIBRARY_RELEASE}
-			${QT_QTNETWORK_LIBRARY_RELEASE}
-			${QT_QTMAIN_LIBRARY_RELEASE}
-		)
-		
-		add_definitions(
-			${QT_DEFINITIONS}
-			-DQT_NO_DEBUG
-		)
-		
-		include_directories(SYSTEM
-			${QT_INCLUDE_DIR}
-			${QT_QTCORE_INCLUDE_DIR}
-			${QT_QTGUI_INCLUDE_DIR}
-			${QT_QTNETWORK_INCLUDE_DIR}
-		)
-		
+	if(WIN32 AND USE_WINHTTP)
+		list(APPEND arxcrashreporter_LIBRARIES winhttp wininet)
+	else()
+		list(APPEND arxcrashreporter_LIBRARIES ${CURL_LIBRARIES})
 	endif()
-	
-	# Always link agains release versions of the Qt libraries
-	# This is important on windows where we would otherwise end up
-	# with inconsistencies in the stdlib configuration.
-	if(MSVC AND NOT DEBUG_EXTRA)
-		foreach(lib IN LISTS arxcrashreporter_qt_LIBRARIES)
-			if(TARGET ${lib})
-				set_target_properties(${lib} PROPERTIES MAP_IMPORTED_CONFIG_DEBUG "Release")
-			endif()
-		endforeach()
-	endif()
-	
-	list(APPEND arxcrashreporter_LIBRARIES ${arxcrashreporter_qt_LIBRARIES})
-	
-	if(MSVC)
-		list(APPEND arxcrashreporter_LIBRARIES winmm psapi imm32)
-		list(APPEND arxcrashreporter_LIBRARIES ${DBGHELP_LIBRARIES})
-		include_directories(SYSTEM ${DBGHELP_INCLUDE_DIR})
-	endif()
-	
-	list(APPEND arxcrashreporter_SOURCES ${arxcrashreporter_Qt_SOURCES})
 	
 	add_executable_shared(arxcrashreporter
 	                      "${arxcrashreporter_SOURCES}" "${arxcrashreporter_LIBRARIES}")
 	set_binary_type(arxcrashreporter WIN32)
 	set_binary_installdir(arxcrashreporter "${CMAKE_INSTALL_LIBEXECDIR}")
+	add_binary_includes(arxcrashreporter ${arxcrashreporter_INCLUDES})
 	
 endif()
 
@@ -1295,21 +1273,20 @@ if(ARX_HAVE_PROFILER)
 		tools/profiler/ProfilerMain.cpp
 		tools/profiler/ui/ArxProfiler.h
 		tools/profiler/ui/ArxProfiler.cpp
+		${QtGui_SOURCES}
 	)
 	
 	set(arxprofiler_SOURCES
 		src/platform/profiler/ProfilerDataFormat.h
 		${UTIL_SOURCES}
-		"${VERSION_FILE}"
+		${VERSION_FILE}
 	)
 	
-	set(arxprofiler_UIs
-		tools/profiler/ui/ArxProfiler.ui
-	)
-	
-	set(arxprofiler_MOC_HEADERS
-		tools/profiler/ui/ArxProfiler.h
-	)
+	if(WIN32)
+		list(APPEND arxprofiler_SOURCES
+			${ARX_ICON_RC}
+		)
+	endif()
 	
 	set(arxprofiler_MANUAL_SOURCES
 		${arxprofiler_SOURCES}
@@ -1320,90 +1297,46 @@ if(ARX_HAVE_PROFILER)
 	
 	create_source_groups(arxprofiler_SOURCES)
 	
+	qt_wrap_ui(arxprofiler_Qt_SOURCES
+		tools/profiler/ui/ArxProfiler.ui
+	)
+	qt_wrap_cpp(arxprofiler_Qt_SOURCES
+		tools/profiler/ui/ArxProfiler.h
+	)
+	
+	list(APPEND arxprofiler_SOURCES ${arxprofiler_Qt_SOURCES})
+	
+	add_source_flags("${arxprofiler_Qt_SOURCES}"
+		"${QtCore_EXECUTABLE_COMPILE_FLAGS}"
+	)
+	
+	add_source_definitions("${arxprofiler_Qt_SOURCES}"
+		${QtCore_DEFINITIONS}
+		${QtGui_DEFINITIONS}
+		${QtWidgets_DEFINITIONS}
+		-DQT_NO_DEBUG
+	)
+	
+	set(arxprofiler_INCLUDES
+		${QtCore_INCLUDE_DIRS}
+		${QtGui_INCLUDE_DIRS}
+		${QtWidgets_INCLUDE_DIRS}
+	)
+	
 	set(arxprofiler_LIBRARIES
 		${BASE_LIBRARIES}
 		${CMAKE_THREAD_LIBS_INIT}
+		${QtCore_LIBRARIES}
+		${QtGui_LIBRARIES}
+		${QtWidgets_LIBRARIES}
+		${QtCore_QTMAIN_LIBRARIES}
 	)
-	
-	if(HAVE_QT5)
-		
-		qt5_wrap_ui(arxprofiler_Qt_SOURCES ${arxprofiler_UIs})
-		qt5_wrap_cpp(arxprofiler_Qt_SOURCES ${arxprofiler_MOC_HEADERS})
-		
-		set_property(
-			SOURCE ${arxprofiler_Qt_SOURCES}
-			APPEND PROPERTY COMPILE_FLAGS " ${Qt5Core_EXECUTABLE_COMPILE_FLAGS}"
-		)
-		
-		set(arxprofiler_qt_LIBRARIES
-			${Qt5Core_LIBRARIES}
-			${Qt5Gui_LIBRARIES}
-			${Qt5Widgets_LIBRARIES}
-			${Qt5Network_LIBRARIES}
-			${Qt5Core_QTMAIN_LIBRARIES}
-		)
-		
-		add_definitions(
-			${Qt5Core_DEFINITIONS}
-			${Qt5Gui_DEFINITIONS}
-			${Qt5Widgets_DEFINITIONS}
-			${Qt5Network_DEFINITIONS}
-			-DQT_NO_DEBUG
-		)
-		
-		include_directories(SYSTEM
-			${Qt5Core_INCLUDE_DIRS}
-			${Qt5Gui_INCLUDE_DIRS}
-			${Qt5Widgets_INCLUDE_DIRS}
-			${Qt5Network_INCLUDE_DIRS}
-		)
-		
-	elseif(HAVE_QT4)
-		
-		qt4_wrap_ui(arxprofiler_Qt_SOURCES ${arxprofiler_UIs})
-		qt4_wrap_cpp(arxprofiler_Qt_SOURCES ${arxprofiler_MOC_HEADERS})
-		
-		set(arxprofiler_qt_LIBRARIES
-			${QT_QTCORE_LIBRARY_RELEASE}
-			${QT_QTGUI_LIBRARY_RELEASE}
-			${QT_QTNETWORK_LIBRARY_RELEASE}
-			${QT_QTMAIN_LIBRARY_RELEASE}
-		)
-		
-		add_definitions(
-			${QT_DEFINITIONS}
-			-DQT_NO_DEBUG
-		)
-		
-		include_directories(SYSTEM
-			${QT_INCLUDE_DIR}
-			${QT_QTCORE_INCLUDE_DIR}
-			${QT_QTGUI_INCLUDE_DIR}
-			${QT_QTNETWORK_INCLUDE_DIR}
-		)
-		
-	endif()
-	
-	# Always link agains release versions of the Qt libraries
-	# This is important on windows where we would otherwise end up
-	# with inconsistencies in the stdlib configuration.
-	if(MSVC AND NOT DEBUG_EXTRA)
-		foreach(lib IN LISTS arxprofiler_qt_LIBRARIES)
-			if(TARGET ${lib})
-				set_target_properties(${lib} PROPERTIES MAP_IMPORTED_CONFIG_DEBUG "Release")
-			endif()
-		endforeach()
-	endif()
-	
-	list(APPEND arxprofiler_LIBRARIES ${arxprofiler_qt_LIBRARIES})
-	
-	
-	list(APPEND arxprofiler_SOURCES ${arxprofiler_Qt_SOURCES})
 	
 	add_executable_shared(arxprofiler
 	                      "${arxprofiler_SOURCES}" "${arxprofiler_LIBRARIES}")
 	set_binary_type(arxprofiler WIN32)
 	set_binary_installdir(arxprofiler "${CMAKE_INSTALL_LIBEXECDIR}")
+	add_binary_includes(arxprofiler ${arxprofiler_INCLUDES})
 	
 endif()
 
@@ -1411,6 +1344,7 @@ if(BUILD_TOOLS)
 	
 	set(arxsavetool_SOURCES
 		${PLATFORM_SOURCES}
+		${PLATFORM_CONSOLE_SOURCES}
 		${IO_FILESYSTEM_SOURCES}
 		${IO_LOGGER_SOURCES}
 		${IO_RESOURCE_SOURCES}
@@ -1433,6 +1367,7 @@ if(BUILD_TOOLS)
 	
 	set(arxunpak_SOURCES
 		${PLATFORM_SOURCES}
+		${PLATFORM_CONSOLE_SOURCES}
 		${IO_FILESYSTEM_SOURCES}
 		${IO_LOGGER_SOURCES}
 		${IO_RESOURCE_SOURCES}
@@ -1459,6 +1394,9 @@ if(BUILD_IO_LIBRARY)
 		src/platform/Environment.cpp
 		src/lib/ArxIO.cpp
 	)
+	if(WIN32)
+		list(APPEND ArxIO_SOURCES src/platform/WindowsUtils.cpp)
+	endif()
 	
 	set(ArxIO_LIBRARIES ${BASE_LIBRARIES} ${ZLIB_LIBRARIES})
 	

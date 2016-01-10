@@ -52,6 +52,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "game/NPC.h"
 #include "graphics/GraphicsFormat.h"
 #include "graphics/GraphicsModes.h"
+#include "graphics/GraphicsTypes.h"
 #include "graphics/data/Mesh.h"
 #include "graphics/data/MeshManipulation.h"
 #include "platform/Platform.h"
@@ -247,12 +248,12 @@ struct SavedMiniMap {
 	inline operator MiniMap::MiniMapData() const {
 		MiniMap::MiniMapData a;
 		a.m_texContainer = NULL;
-		a.m_offsetX = offsetx;
-		a.m_offsetY = offsety;
-		a.m_ratioX = xratio;
-		a.m_ratioY = yratio;
-		a.m_width = width;
-		a.m_height = height;
+		a.m_offset.x = offsetx;
+		a.m_offset.y = offsety;
+		a.m_ratio.x = xratio;
+		a.m_ratio.y = yratio;
+		a.m_size.x = width;
+		a.m_size.y = height;
 		ARX_STATIC_ASSERT(SavedMiniMap::MAX_X == MINIMAP_MAX_X, "array size mismatch");
 		ARX_STATIC_ASSERT(SavedMiniMap::MAX_Z == MINIMAP_MAX_Z, "array size mismatch");
 		std::copy(&revealed[0][0], &revealed[0][0] + (SavedMiniMap::MAX_X * SavedMiniMap::MAX_Z), &a.m_revealed[0][0]);
@@ -261,12 +262,12 @@ struct SavedMiniMap {
 	
 	inline SavedMiniMap & operator=(const MiniMap::MiniMapData & b) {
 		padding = 0;
-		offsetx = b.m_offsetX;
-		offsety = b.m_offsetY;
-		xratio = b.m_ratioX;
-		yratio = b.m_ratioY;
-		width = b.m_width;
-		height = b.m_height;
+		offsetx = b.m_offset.x;
+		offsety = b.m_offset.y;
+		xratio = b.m_ratio.x;
+		yratio = b.m_ratio.y;
+		width = b.m_size.x;
+		height = b.m_size.y;
 		ARX_STATIC_ASSERT(SavedMiniMap::MAX_X == MINIMAP_MAX_X, "array size mismatch");
 		ARX_STATIC_ASSERT(SavedMiniMap::MAX_Z == MINIMAP_MAX_Z, "array size mismatch");
 		std::copy(&b.m_revealed[0][0], &b.m_revealed[0][0] + (SavedMiniMap::MAX_X * SavedMiniMap::MAX_Z), &revealed[0][0]);
@@ -306,6 +307,7 @@ struct SavedPrecast {
 	
 };
 
+const size_t SAVED_INVENTORY_BAGS = 3;
 const size_t SAVED_INVENTORY_X = 16;
 const size_t SAVED_INVENTORY_Y = 3;
 const size_t SAVED_MAX_MINIMAPS = 32;
@@ -377,8 +379,8 @@ struct ARX_CHANGELEVEL_PLAYER {
 	u32 jumpstarttime;
 	s32 jumpphase;	// 0 no jump, 1 doing anticipation anim
 	
-	char id_inventory[3][SAVED_INVENTORY_X][SAVED_INVENTORY_Y][SIZE_ID];
-	s32 inventory_show[3][SAVED_INVENTORY_X][SAVED_INVENTORY_Y];
+	char id_inventory[SAVED_INVENTORY_BAGS][SAVED_INVENTORY_X][SAVED_INVENTORY_Y][SIZE_ID];
+	s32 inventory_show[SAVED_INVENTORY_BAGS][SAVED_INVENTORY_X][SAVED_INVENTORY_Y];
 	SavedMiniMap minimap[SAVED_MAX_MINIMAPS];
 	char equiped[SAVED_MAX_EQUIPED][SIZE_ID];
 	s32 nb_PlayerQuest;
@@ -477,8 +479,8 @@ struct SavedAnimUse {
 	f32 pour;
 	s32 fr;
 	
-	inline operator ANIM_USE() const {
-		ANIM_USE a;
+	inline operator AnimLayer() const {
+		AnimLayer a;
 		a.next_anim = NULL;
 		a.cur_anim = NULL;
 		a.altidx_next = altidx_next;
@@ -492,7 +494,7 @@ struct SavedAnimUse {
 		return a;
 	}
 	
-	inline SavedAnimUse & operator=(const ANIM_USE & b) {
+	inline SavedAnimUse & operator=(const AnimLayer & b) {
 		next_anim = 0;
 		cur_anim = 0;
 		altidx_next = b.altidx_next;
@@ -538,7 +540,7 @@ struct SavedSpellcastData {
 		std::copy(b.symb, b.symb + 4, symb);
 		spell_flags = b.spell_flags;
 		spell_level = b.spell_level;
-		target = b.target;
+		target = b.target.handleData();
 		duration = b.duration;
 		return *this;
 	}
@@ -691,7 +693,7 @@ struct SavedBehaviour {
 		behavior = b.behavior;
 		behavior_param = b.behavior_param;
 		tactics = b.tactics;
-		target = b.target;
+		target = b.target.handleData();
 		movemode = b.movemode;
 		ARX_STATIC_ASSERT(SAVED_MAX_ANIM_LAYERS == MAX_ANIM_LAYERS, "array size mismatch");
 		std::copy(b.animlayer, b.animlayer + SAVED_MAX_ANIM_LAYERS, animlayer);
@@ -716,13 +718,21 @@ struct SavedPathfindTarget {
 	
 	inline SavedPathfindTarget & operator=(const IO_PATHFIND & b) {
 		padding[0] = padding[1] = padding[2] = padding[3] = 0;
-		truetarget = b.truetarget;
+		truetarget = b.truetarget.handleData();
 		return *this;
 	}
 	
 };
 
 const size_t SAVED_MAX_EXTRA_ROTATE = 4;
+
+inline ObjVertGroup saved_toObjGroup(short value) {
+	return ObjVertGroup(value);
+}
+
+inline short saved_fromObjGroup(ObjVertGroup value) {
+	return value.handleData();
+}
 
 struct SavedExtraRotate {
 	
@@ -733,7 +743,7 @@ struct SavedExtraRotate {
 	inline operator EERIE_EXTRA_ROTATE() const {
 		EERIE_EXTRA_ROTATE a;
 		ARX_STATIC_ASSERT(SAVED_MAX_EXTRA_ROTATE == MAX_EXTRA_ROTATE, "array size mismatch");
-		std::copy(group_number, group_number + SAVED_MAX_EXTRA_ROTATE, a.group_number);
+		std::transform(group_number, group_number + SAVED_MAX_EXTRA_ROTATE, a.group_number, saved_toObjGroup);
 		std::copy(group_rotate, group_rotate + SAVED_MAX_EXTRA_ROTATE, a.group_rotate);
 		return a;
 	}
@@ -741,7 +751,7 @@ struct SavedExtraRotate {
 	inline SavedExtraRotate & operator=(const EERIE_EXTRA_ROTATE & b) {
 		flags = 0;
 		ARX_STATIC_ASSERT(SAVED_MAX_EXTRA_ROTATE == MAX_EXTRA_ROTATE, "array size mismatch");
-		std::copy(b.group_number, b.group_number + SAVED_MAX_EXTRA_ROTATE, group_number);
+		std::transform(b.group_number, b.group_number + SAVED_MAX_EXTRA_ROTATE, group_number, saved_fromObjGroup);
 		std::copy(b.group_rotate, b.group_rotate + SAVED_MAX_EXTRA_ROTATE, group_rotate);
 		return *this;
 	}

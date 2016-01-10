@@ -245,7 +245,7 @@ void ARX_SCRIPT_AllowInterScriptExec() {
 	for(long n = 0; n < heartbeat_count; n++) {
 		
 		EntityHandle i = EntityHandle(ppos++);
-		if(i >= long(entities.size())){
+		if(i.handleData() >= long(entities.size())){
 			ppos = 0;
 			return;
 		}
@@ -574,7 +574,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 				// if inclusive, use proper integer random, otherwise fix rnd()?
 				if(max[0]) {
 					float t = (float)atof(max);
-					*fcontent = t * rnd();
+					*fcontent = Random::getf(0.f, t);
 					return TYPE_FLOAT;
 				}
 				*fcontent = 0;
@@ -1205,7 +1205,7 @@ std::string GetVarValueInterpretedAsText(const std::string & temp1, const EERIE_
 					return var_text;
 					break;
 				default:
-					sprintf(var_text, "%f", fv);
+					sprintf(var_text, "%f", double(fv));
 					return var_text;
 					break;
 			}
@@ -1249,7 +1249,7 @@ std::string GetVarValueInterpretedAsText(const std::string & temp1, const EERIE_
 		return "";
 	}
 
-	sprintf(var_text, "%f", t1);
+	sprintf(var_text, "%f", double(t1));
 	return var_text;
 }
 
@@ -1361,7 +1361,7 @@ void MakeGlobalText(std::string & tx)
 			case TYPE_G_FLOAT:
 				tx += svar[i].name;
 				tx += " = ";
-				sprintf(texx, "%f", svar[i].fval);
+				sprintf(texx, "%f", double(svar[i].fval));
 				tx += texx;
 				tx += "\r\n";
 				break;
@@ -1401,7 +1401,7 @@ void MakeLocalText(EERIE_SCRIPT * es, std::string& tx)
 			case TYPE_L_FLOAT:
 				tx += v.name;
 				tx += " = ";
-				sprintf(texx, "%f", v.fval);
+				sprintf(texx, "%f", double(v.fval));
 				tx += texx;
 				tx += "\r\n";
 				break;
@@ -1792,7 +1792,7 @@ static bool Manage_Specific_RAT_Timer(SCR_TIMER * st) {
 	GetTargetPos(io);
 	Vec3f target = io->target - io->pos;
 	target = glm::normalize(target);
-	Vec3f targ = VRotateY(target, rnd() * 60.f - 30.f);
+	Vec3f targ = VRotateY(target, Random::getf(-30.f, 30.f));
 	target = io->target + targ * 100.f;
 	
 	if(ARX_INTERACTIVE_ConvertToValidPosForIO(io, &target)) {

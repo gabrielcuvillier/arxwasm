@@ -26,9 +26,17 @@
 #include <boost/interprocess/detail/os_thread_functions.hpp>
 
 #include "platform/Platform.h"
-#include "platform/Thread.h"
+#include "platform/Process.h"
+
+#pragma pack(push,1)
 
 struct CrashInfoBase {
+	
+	CrashInfoBase()
+		: processorDone(0)
+		, reporterStarted(0)
+		, exitLock(0)
+	{ }
 	
 	enum Constants {
 		MaxNbFiles = 32,
@@ -36,8 +44,9 @@ struct CrashInfoBase {
 		MaxNbVariables = 64,
 		MaxVariableNameLen = 64,
 		MaxVariableValueLen = 128,
-		MaxDetailCrashInfoLen = 4096,
-		MaxCallstackDepth = 256
+		MaxDetailCrashInfoLen = 128 * 1024,
+		MaxCallstackDepth = 256,
+		MaxCrashTitleLen = 256,
 	};
 	
 	char executablePath[MaxFilenameLen];
@@ -46,62 +55,100 @@ struct CrashInfoBase {
 	u32 architecture;
 	
 	// Files to attach to the report.
-	int	 nbFilesAttached;
+	u32 nbFilesAttached;
 	char attachedFiles[MaxNbFiles][MaxFilenameLen];
 	
 	// Variables to add to the report.
-	int nbVariables;
+	u32 nbVariables;
 	struct Variable {
 		char name[MaxVariableNameLen];
 		char value[MaxVariableValueLen];
 	} variables[MaxNbVariables];
 	
 	// ID of the crashed process & thread
-	process_id_type processId;
+	platform::process_id processId;
+	
+	u64 memoryUsage;
+	double runningTime;
 	
 	// Where the crash reports should be written.
 	char crashReportFolder[MaxFilenameLen];
 	
+	// On-line crash description
+	char title[MaxCrashTitleLen];
+	
+	// Detailed crash info (messages, registers, whatever).
+	char description[MaxDetailCrashInfoLen];
+	
+	u32 crashId;
+	
+	int signal;
+	int code;
+	
+	bool hasAddress;
+	bool hasMemory;
+	bool hasStack;
+	bool hasFrame;
+	u64 address;
+	u64 memory;
+	u64 stack;
+	u64 frame;
+	
+	platform::process_id processorProcessId;
+	boost::interprocess::interprocess_semaphore processorDone;
+	
+	boost::interprocess::interprocess_semaphore reporterStarted;
+	
+	// Once released, this lock will allow the crashed application to terminate.
+	boost::interprocess::interprocess_semaphore exitLock;
+	
 };
 
+#pragma pack(pop)
 
 #if ARX_PLATFORM != ARX_PLATFORM_WIN32
 
 struct CrashInfo : public CrashInfoBase {
 	
-	CrashInfo()
-		: signal(0)
-		, code(0)
-		, backtrace()
-	{}
-	
-	int signal;
-	int code;
-	
 	void * backtrace[100];
+	
+	char coreDumpFile[MaxFilenameLen];
+	
 };
 
 #else
 
 #include <windows.h>
-#include <dbghelp.h>
+
+enum CrashType {
+	USER_CRASH,
+	SEH_EXCEPTION,
+	TERMINATE_CALL,
+	UNEXPECTED_CALL,
+	PURE_CALL,
+	NEW_OPERATOR_ERROR,
+	INVALID_PARAMETER,
+	SIGNAL_SIGABRT,
+	SIGNAL_SIGFPE,
+	SIGNAL_SIGILL,
+	SIGNAL_SIGINT,
+	SIGNAL_SIGSEGV,
+	SIGNAL_SIGTERM,
+	SIGNAL_UNKNOWN
+};
+
+#pragma pack(push,1)
 
 struct CrashInfo : public CrashInfoBase {
 	
-	CrashInfo() : exitLock(0) { }
-	
-	// Detailed crash info (messages, registers, whatever).
-	char detailedCrashInfo[MaxDetailCrashInfoLen];
-	
-	CONTEXT contextRecord;
-	CHAR	miniDumpTmpFile[MAX_PATH];
-	HANDLE  threadHandle;
-	DWORD	exceptionCode;
-	
-	// Once released, this lock will allow the crashed application to terminate.
-	boost::interprocess::interprocess_semaphore	exitLock;
+	char contextRecord[1232];
+	WCHAR miniDumpTmpFile[MAX_PATH + 64];
+	u32 threadId;
+	u32 exceptionCode;
 	
 };
+
+#pragma pack(pop)
 
 #endif
 

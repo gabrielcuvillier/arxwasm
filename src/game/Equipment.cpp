@@ -51,6 +51,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <vector>
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
 
 #include "animation/Animation.h"
@@ -155,7 +156,7 @@ static void ARX_EQUIPMENT_Release(EntityHandle id) {
 	if(ValidIONum(id)) {
 		for(long i = 0; i < MAX_EQUIPED; i++) {
 			if(player.equiped[i] == id) {
-				player.equiped[i] = EntityHandle::Invalid;
+				player.equiped[i] = EntityHandle();
 			}
 		}
 	}
@@ -200,14 +201,14 @@ static void applyTweak(EquipmentSlot equip, TweakType tw, const std::string & se
 	
 	long mapidx = ObjectAddMap(io->obj, temp);
 	
-	long sel = -1;
+	ObjSelection sel = ObjSelection();
 	for(size_t i = 0; i < io->obj->selections.size(); i++) {
 		if(io->obj->selections[i].name == selection) {
-			sel = i;
+			sel = ObjSelection(i);
 			break;
 		}
 	}
-	if(sel == -1) {
+	if(sel == ObjSelection()) {
 		return;
 	}
 	
@@ -224,9 +225,10 @@ static void applyTweak(EquipmentSlot equip, TweakType tw, const std::string & se
 	for(size_t i = 0; i < io->obj->facelist.size(); i++) {
 		EERIE_FACE & face = io->obj->facelist[i];
 
-		if(IsInSelection(io->obj, face.vid[0], sel) != -1
-		   && IsInSelection(io->obj, face.vid[1], sel) != -1
-		   && IsInSelection(io->obj, face.vid[2], sel) != -1) {
+		if(   IsInSelection(io->obj, face.vid[0], sel)
+		   && IsInSelection(io->obj, face.vid[1], sel)
+		   && IsInSelection(io->obj, face.vid[2], sel)
+		) {
 			if(face.texid == textochange) {
 				face.texid = (short)mapidx;
 			}
@@ -503,7 +505,7 @@ float ARX_EQUIPMENT_ComputeDamages(Entity * io_source, Entity * io_target, float
 
 		attack = player.m_miscFull.damages;
 
-		if(rnd() * 100 <= player.m_miscFull.criticalHit)
+		if(Random::getf(0.f, 100.f) <= player.m_miscFull.criticalHit)
 		{
 			if(SendIOScriptEvent(io_source, SM_CRITICAL) != REFUSE)
 				critical = true;
@@ -514,7 +516,7 @@ float ARX_EQUIPMENT_ComputeDamages(Entity * io_source, Entity * io_target, float
 		damages = attack * ratioaim; 
 
 		if(io_target->_npcdata->npcflags & NPCFLAG_BACKSTAB) {
-			if(rnd() * 100.f <= player.m_skillFull.stealth * ( 1.0f / 2 )) {
+			if(Random::getf(0.f, 100.f) <= player.m_skillFull.stealth * ( 1.0f / 2 )) {
 				if(SendIOScriptEvent(io_source, SM_BACKSTAB) != REFUSE)
 					backstab = 1.5f; 
 			}
@@ -536,21 +538,21 @@ float ARX_EQUIPMENT_ComputeDamages(Entity * io_source, Entity * io_target, float
 		
 		attack = io_source->_npcdata->tohit;
 		
-		damages = io_source->_npcdata->damages * ratioaim * (rnd() * ( 1.0f / 2 ) + 0.5f);
+		damages = io_source->_npcdata->damages * ratioaim * Random::getf(0.5f, 1.0f);
 
 		SpellBase * spell = spells.getSpellOnTarget(io_source->index(), SPELL_CURSE);
 		if(spell) {
 			damages *= (1 - spell->m_level * 0.05f);
 		}
 
-		if(rnd() * 100 <= io_source->_npcdata->critical) {
+		if(Random::getf(0.f, 100) <= io_source->_npcdata->critical) {
 			if(SendIOScriptEvent(io_source, SM_CRITICAL) != REFUSE)
 				critical = true;
 		}
 		else
 			critical = false;
 
-		if(rnd() * 100.f <= (float)io_source->_npcdata->backstab_skill) {
+		if(Random::getf(0.f, 100.f) <= (float)io_source->_npcdata->backstab_skill) {
 			if(SendIOScriptEvent(io_source, SM_BACKSTAB) != REFUSE)
 				backstab = 1.5f; 
 		}
@@ -595,7 +597,7 @@ float ARX_EQUIPMENT_ComputeDamages(Entity * io_source, Entity * io_target, float
 	ARX_SOUND_PlayCollision(*amat, *wmat, power, 1.f, pos, io_source);
 	
 	float chance = 100.f - (ac - attack); 
-	if(rnd() * 100.f > chance) {
+	if(Random::getf(0.f, 100.f) > chance) {
 		return 0.f;
 	}
 	
@@ -667,23 +669,19 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 	EntityHandle weapon = io_weapon->index();
 	Sphere sphere;
 
-	Vec3f * v0;
 	EXCEPTIONS_LIST_Pos = 0;
 
-	long nbact = io_weapon->obj->actionlist.size();
 	float drain_life = ARX_EQUIPMENT_GetSpecialValue(io_weapon, IO_SPECIAL_ELEM_DRAIN_LIFE);
 	float paralyse = ARX_EQUIPMENT_GetSpecialValue(io_weapon, IO_SPECIAL_ELEM_PARALYZE);
 
-	for (long j = 0; j < nbact; j++) // TODO iterator
-	{
-		float rad = GetHitValue(io_weapon->obj->actionlist[j].name);
+	BOOST_FOREACH(const EERIE_ACTIONLIST & action, io_weapon->obj->actionlist) {
+		
+		float rad = GetHitValue(action.name);
 
 		if(rad == -1)
 			continue;
 		
-		v0 = &io_weapon->obj->vertexlist3[io_weapon->obj->actionlist[j].idx].v;
-		sphere.origin = *v0;
-		
+		sphere.origin = actionPointPosition(io_weapon->obj, action.idx);
 		sphere.radius = rad; 
 
 		if(source != PlayerEntityHandle)
@@ -692,18 +690,18 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 		std::vector<EntityHandle> sphereContent;
 
 		if(CheckEverythingInSphere(sphere, source, targ, sphereContent)) {
-			for(size_t jj = 0; jj < sphereContent.size(); jj++) {
-				if(ValidIONum(sphereContent[jj])
-						&& !(entities[sphereContent[jj]]->ioflags & IO_BODY_CHUNK))
+			BOOST_FOREACH(const EntityHandle & content, sphereContent) {
+				if(ValidIONum(content)
+						&& !(entities[content]->ioflags & IO_BODY_CHUNK))
 				{
 					long HIT_SPARK = 0;
-					EXCEPTIONS_LIST[EXCEPTIONS_LIST_Pos] = sphereContent[jj];
+					EXCEPTIONS_LIST[EXCEPTIONS_LIST_Pos] = content;
 					EXCEPTIONS_LIST_Pos++;
 
 					if(EXCEPTIONS_LIST_Pos >= MAX_IN_SPHERE)
 						EXCEPTIONS_LIST_Pos--;
 
-					Entity * target = entities[sphereContent[jj]];
+					Entity * target = entities[content];
 			
 					Vec3f pos;
 					Color color = Color::white;
@@ -757,7 +755,7 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 							if(paralyse > 0.f) {
 								float ptime = std::min(dmgs * 1000.f, paralyse);
 								ARX_SPELLS_Launch(SPELL_PARALYSE, weapon, SPELLCAST_FLAG_NOMANA | SPELLCAST_FLAG_NOCHECKCANCAST
-												  , 5, sphereContent[jj], (long)(ptime));
+												  , 5, content, (long)(ptime));
 							}
 						}
 
@@ -798,9 +796,9 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 							ARX_PARTICLES_Spawn_Blood2(pos, dmgs, color, target);
 						} else {
 							if(target->ioflags & IO_ITEM)
-								ARX_PARTICLES_Spawn_Spark(pos, rnd() * 3.f, 0);
+								ARX_PARTICLES_Spawn_Spark(pos, Random::get(0, 3), 0);
 							else
-								ARX_PARTICLES_Spawn_Spark(pos, rnd() * 30.f, 0);
+								ARX_PARTICLES_Spawn_Spark(pos, Random::get(0, 30), 0);
 
 							ARX_NPC_SpawnAudibleSound(pos, io_source);
 
@@ -808,7 +806,7 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 								HIT_SPARK = 1;
 						}
 					} else if((target->ioflags & IO_NPC) && (dmgs <= 0.f || target->spark_n_blood == SP_SPARKING)) {
-						long nb;
+						int nb;
 
 						if(target->spark_n_blood == SP_SPARKING)
 							nb = Random::get(0, 3);
@@ -818,14 +816,14 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 						if(target->ioflags & IO_ITEM)
 							nb = 1;
 
-						ARX_PARTICLES_Spawn_Spark(pos, (float)nb, 0); 
+						ARX_PARTICLES_Spawn_Spark(pos, nb, 0);
 						ARX_NPC_SpawnAudibleSound(pos, io_source);
 						target->spark_n_blood = SP_SPARKING;
 
 						if(!(target->ioflags & IO_NPC))
 							HIT_SPARK = 1;
 					} else if(dmgs <= 0.f && ((target->ioflags & IO_FIX) || (target->ioflags & IO_ITEM))) {
-						long  nb;
+						int nb;
 
 						if(target->spark_n_blood == SP_SPARKING)
 							nb = Random::get(0, 3);
@@ -835,7 +833,7 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 						if(target->ioflags & IO_ITEM)
 							nb = 1;
 
-						ARX_PARTICLES_Spawn_Spark(pos, (float)nb, 0);
+						ARX_PARTICLES_Spawn_Spark(pos, nb, 0);
 						ARX_NPC_SpawnAudibleSound(pos, io_source);
 						target->spark_n_blood = SP_SPARKING;
 
@@ -887,7 +885,7 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 				}
 			}
 
-			ARX_PARTICLES_Spawn_Spark(sphere.origin, rnd() * 10.f, 0);
+			ARX_PARTICLES_Spawn_Spark(sphere.origin, Random::get(0, 10), 0);
 			ARX_NPC_SpawnAudibleSound(sphere.origin, io_source);
 		}
 	}
@@ -941,7 +939,7 @@ void ARX_EQUIPMENT_UnEquipPlayerWeapon()
 		DRAGINTER = pioOldDragInter;
 	}
 
-	player.equiped[EQUIP_SLOT_WEAPON] = EntityHandle::Invalid;
+	player.equiped[EQUIP_SLOT_WEAPON] = EntityHandle();
 }
 
 bool bRing = false;
@@ -951,7 +949,7 @@ void ARX_EQUIPMENT_Equip(Entity * target, Entity * toequip)
 	if(!target || !toequip || target != entities.player())
 		return;
 
-	EntityHandle validid = EntityHandle::Invalid;
+	EntityHandle validid = EntityHandle();
 
 	for(size_t i = 0; i < entities.size(); i++) {
 		const EntityHandle handle = EntityHandle(i);
@@ -963,7 +961,7 @@ void ARX_EQUIPMENT_Equip(Entity * target, Entity * toequip)
 		}
 	}
 
-	if(validid == EntityHandle::Invalid)
+	if(validid == EntityHandle())
 		return;
 
 	RemoveFromAllInventories(toequip);
@@ -1003,10 +1001,10 @@ void ARX_EQUIPMENT_Equip(Entity * target, Entity * toequip)
 		{
 			long willequip = -1;
 
-			if(player.equiped[EQUIP_SLOT_RING_LEFT] == EntityHandle::Invalid)
+			if(player.equiped[EQUIP_SLOT_RING_LEFT] == EntityHandle())
 				willequip = EQUIP_SLOT_RING_LEFT;
 
-			if(player.equiped[EQUIP_SLOT_RING_RIGHT] == EntityHandle::Invalid)
+			if(player.equiped[EQUIP_SLOT_RING_RIGHT] == EntityHandle())
 				willequip = EQUIP_SLOT_RING_RIGHT;
 
 			if(willequip == -1) {

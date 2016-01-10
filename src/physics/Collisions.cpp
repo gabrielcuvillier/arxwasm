@@ -62,7 +62,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 long ON_PLATFORM=0;
 //-----------------------------------------------------------------------------
 size_t EXCEPTIONS_LIST_Pos = 0;
-short EXCEPTIONS_LIST[MAX_IN_SPHERE + 1];
+EntityHandle EXCEPTIONS_LIST[MAX_IN_SPHERE + 1];
 
 static long POLYIN = 0;
 long COLLIDED_CLIMB_POLY=0;
@@ -664,7 +664,7 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 									ARX_DAMAGES_DealDamages(ioo->index(), io->damager_damages, io->index(), io->damager_type, &ioo->pos);
 							}
 							
-							if(io->targetinfo == i) {
+							if(io->targetinfo == handle) {
 								if(io->_npcdata->pathfind.listnb > 0) {
 									io->_npcdata->pathfind.listpos = 0;
 									io->_npcdata->pathfind.listnb = -1;
@@ -696,8 +696,7 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 
 					if(In3DBBoxTolerance(cyl.origin, io->bbox3D, cyl.radius + 30.f)) {
 						std::vector<EERIE_VERTEX> & vlist = io->obj->vertexlist3;
-						size_t nbv = io->obj->vertexlist.size();
-
+						
 						if(io->obj->grouplist.size() > 10) {
 							for(size_t ii = 0; ii < io->obj->grouplist.size(); ii++) {
 								long idx = io->obj->grouplist[ii].origin;
@@ -754,7 +753,9 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 								sp.radius = 32.f;
 							else
 								sp.radius = 25.f;
-
+							
+							size_t nbv = io->obj->vertexlist.size();
+							
 							if(nbv < 300)
 								step = 1;
 							else if(nbv < 600)
@@ -819,7 +820,7 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 	return anything;	
 }
 
-static bool InExceptionList(long val) {
+static bool InExceptionList(EntityHandle val) {
 	
 	for(size_t i = 0; i < EXCEPTIONS_LIST_Pos; i++) {
 		if(val == EXCEPTIONS_LIST[i]) {
@@ -830,12 +831,12 @@ static bool InExceptionList(long val) {
 	return false;
 }
 
-bool CheckEverythingInSphere(const Sphere & sphere, long source, EntityHandle targ, std::vector<EntityHandle> & sphereContent) //except source...
+bool CheckEverythingInSphere(const Sphere & sphere, EntityHandle source, EntityHandle targ, std::vector<EntityHandle> & sphereContent) //except source...
 {
 	bool vreturn = false;
 	
 	Entity * io;
-	EntityHandle ret_idx = EntityHandle::Invalid;
+	EntityHandle ret_idx = EntityHandle();
 	
 	float sr30 = sphere.radius + 20.f;
 	float sr40 = sphere.radius + 30.f;
@@ -1004,7 +1005,7 @@ bool CheckAnythingInSphere(const Sphere & sphere, EntityHandle source, CASFlags 
 	ARX_PROFILE_FUNC();
 	
 	if(num)
-		*num = EntityHandle::Invalid;
+		*num = EntityHandle();
 	
 	if(!(flags & CAS_NO_BACKGROUND_COL)) {
 		ARX_PROFILE("Background Collision");

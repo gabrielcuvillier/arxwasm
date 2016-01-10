@@ -95,11 +95,14 @@ Entity::Entity(const res::path & classPath, EntityInstance instance)
 	requestRoomUpdate = 1;
 	original_height = 0.f;
 	original_radius = 0.f;
-	inv = NULL;
+	m_icon = NULL;
 	obj = NULL;
 	std::fill_n(anims, MAX_ANIMS, (ANIM_HANDLE *)NULL);
-	std::memset(animlayer, 0, sizeof(ANIM_USE) * MAX_ANIM_LAYERS); // TODO use constructor
-
+	
+	for(size_t l = 0; l < MAX_ANIM_LAYERS; l++) {
+		animlayer[l] = AnimLayer();
+	}
+	
 	animBlend.m_active = false;
 	animBlend.lastanimtime = 0;
 	
@@ -135,7 +138,7 @@ Entity::Entity(const res::path & classPath, EntityInstance instance)
 	
 	usepath = NULL;
 	symboldraw = NULL;
-	dynlight = LightHandle::Invalid;
+	dynlight = LightHandle();
 	lastspeechflag = 2;
 	inzone = NULL;
 	halo = IO_HALO();
@@ -162,7 +165,7 @@ Entity::Entity(const res::path & classPath, EntityInstance instance)
 	
 	spellcast_data = IO_SPELLCAST_DATA();
 	flarecount = 0;
-	no_collide = EntityHandle::Invalid;
+	no_collide = EntityHandle();
 	invisibility = 0.f;
 	frameloss = 0.f;
 	basespeed = 1.f;
@@ -175,7 +178,7 @@ Entity::Entity(const res::path & classPath, EntityInstance instance)
 	poisonous_count = 0;
 	
 	ignition = 0.f;
-	ignit_light = LightHandle::Invalid;
+	ignit_light = LightHandle();
 	ignit_sound = audio::INVALID_ID;
 	head_rot = 0.f;
 	
@@ -188,7 +191,7 @@ Entity::Entity(const res::path & classPath, EntityInstance instance)
 	shop_multiply = 1.f;
 	isHit = false;
 	inzone_show = 0;
-	summoner = EntityHandle::Invalid;
+	summoner = EntityHandle();
 	spark_n_blood = 0;
 
 	special_color = Color3f::white;
@@ -244,8 +247,7 @@ Entity::~Entity() {
 		
 	} else if(ioflags & IO_ITEM) {
 		free(_itemdata->equipitem);
-		free(_itemdata);
-		
+		delete _itemdata;
 	} else if(ioflags & IO_FIX) {
 		delete _fixdata;
 		
@@ -330,7 +332,7 @@ void Entity::destroy() {
 	
 	if(obj) {
 		while(obj->linked.size()) {
-			if(obj->linked[0].lgroup != -1 && obj->linked[0].obj) {
+			if(obj->linked[0].lgroup != ObjVertGroup() && obj->linked[0].obj) {
 				Entity * linked = obj->linked[0].io;
 				if(linked && ValidIOAddress(linked)) {
 					EERIE_LINKEDOBJ_UnLinkObjectFromObject(obj, linked->obj);

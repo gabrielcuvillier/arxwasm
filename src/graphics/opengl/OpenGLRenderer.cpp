@@ -19,10 +19,13 @@
 
 #include "graphics/opengl/OpenGLRenderer.h"
 
+#include <sstream>
+
 #include <glm/gtc/type_ptr.hpp>
 
 #include "core/Application.h"
 #include "core/Config.h"
+#include "gui/Credits.h"
 #include "graphics/opengl/GLDebug.h"
 #include "graphics/opengl/GLNoVertexBuffer.h"
 #include "graphics/opengl/GLTexture2D.h"
@@ -51,13 +54,10 @@ OpenGLRenderer::OpenGLRenderer()
 	, maxTextureStage(0)
 	, shader(0)
 	, m_maximumAnisotropy(0.f)
+	, m_glcull(GL_NONE)
 	, m_hasMSAA(false)
-	, m_hasColorKey(false)
-	, m_hasBlend(false)
 	, m_hasTextureNPOT(false)
-{
-	resetStateCache();
-}
+{ }
 
 OpenGLRenderer::~OpenGLRenderer() {
 	
@@ -139,17 +139,37 @@ void OpenGLRenderer::initialize() {
 		return;
 	}
 	
-	LogInfo << "Using GLEW " << glewGetString(GLEW_VERSION);
-	CrashHandler::setVariable("GLEW version", glewGetString(GLEW_VERSION));
+	const GLubyte * glewVersion = glewGetString(GLEW_VERSION);
+	LogInfo << "Using GLEW " << glewVersion;
+	CrashHandler::setVariable("GLEW version", glewVersion);
 	
-	LogInfo << "Using OpenGL " << glGetString(GL_VERSION);
-	CrashHandler::setVariable("OpenGL version", glGetString(GL_VERSION));
+	const GLubyte * glVersion = glGetString(GL_VERSION);
+	LogInfo << "Using OpenGL " << glVersion;
+	CrashHandler::setVariable("OpenGL version", glVersion);
 	
-	LogInfo << " ├─ Vendor: " << glGetString(GL_VENDOR);
-	CrashHandler::setVariable("OpenGL vendor", glGetString(GL_VENDOR));
+	const GLubyte * glVendor = glGetString(GL_VENDOR);
+	LogInfo << " ├─ Vendor: " << glVendor;
+	CrashHandler::setVariable("OpenGL vendor", glVendor);
 	
-	LogInfo << " └─ Device: " << glGetString(GL_RENDERER);
-	CrashHandler::setVariable("OpenGL device", glGetString(GL_RENDERER));
+	const GLubyte * glRenderer = glGetString(GL_RENDERER);
+	LogInfo << " └─ Device: " << glRenderer;
+	CrashHandler::setVariable("OpenGL device", glRenderer);
+	
+	{
+		std::ostringstream oss;
+		oss << "GLEW " << glewVersion << '\n';
+		const char * start = reinterpret_cast<const char *>(glVersion);
+		while(*start == ' ') {
+			start++;
+		}
+		const char * end = start;
+		while(*end != '\0' && *end != ' ') {
+			end++;
+		}
+		oss << "OpenGL ";
+		oss.write(start, end - start);
+		credits::setLibraryCredits("graphics", oss.str());
+	}
 	
 	gldebug::initialize();
 }
@@ -213,12 +233,28 @@ void OpenGLRenderer::reinit() {
 		LogWarning << "Missing OpenGL extension ARB_map_buffer_range, VBO performance will suffer.";
 	}
 
-	resetStateCache();
+	// Synchronize GL state cache
 	
-	SetRenderState(ZBias, true);
+	m_glcull = GL_BACK;
+	m_glstate.setCull(CullNone);
+	
+	glFogi(GL_FOG_MODE, GL_LINEAR);
+	m_glstate.setFog(false);
+	
+	SetAlphaFunc(CmpNotEqual, 0.0f);
+	m_glstate.setColorKey(false);
 	
 	glEnable(GL_DEPTH_TEST);
-	SetRenderState(DepthTest, false);
+	glDepthFunc(GL_ALWAYS);
+	m_glstate.setDepthTest(false);
+	
+	m_glstate.setDepthWrite(true);
+	
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	m_glstate.setDepthOffset(0);
+	
+	glEnable(GL_BLEND);
+	m_glstate.setBlend(BlendOne, BlendZero);
 	
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -230,8 +266,6 @@ void OpenGLRenderer::reinit() {
 	for(size_t i = 0; i < m_TextureStages.size(); ++i) {
 		m_TextureStages[i] = new GLTextureStage(this, i);
 	}
-	
-	SetRenderState(ColorKey, true);
 	
 	// Clear screen
 	Clear(ColorBuffer | DepthBuffer);
@@ -260,14 +294,6 @@ void OpenGLRenderer::reinit() {
 	
 	onRendererInit();
 	
-}
-
-void OpenGLRenderer::resetStateCache() {
-	m_cachedStates.clear();
-	m_cachedSrcBlend = BlendOne;
-	m_cachedDstBlend = BlendZero;
-	m_cachedDepthBias = 0;
-	m_cachedCullMode = CullNone;
 }
 
 void OpenGLRenderer::shutdown() {
@@ -392,144 +418,6 @@ Texture2D * OpenGLRenderer::CreateTexture2D() {
 	return texture;
 }
 
-bool OpenGLRenderer::getGLState(GLenum state) const {
-	BoolStateCache::iterator it = m_cachedStates.find(state);
-	
-	if(it != m_cachedStates.end()) {
-		return it->second;
-	}
-
-	bool isEnabled = glIsEnabled(state) == GL_TRUE;
-	m_cachedStates[state] = isEnabled;
-
-	return isEnabled;
-}
-
-void OpenGLRenderer::setGLState(GLenum state, bool enable) {
-	BoolStateCache::iterator it = m_cachedStates.find(state);
-
-	// No change ?
-	if(it == m_cachedStates.end() || it->second != enable) {
-		if(enable) {
-			glEnable(state);
-		} else {
-			glDisable(state);
-		}
-		m_cachedStates[state] = enable;
-	}
-}
-
-bool OpenGLRenderer::GetRenderState(RenderState renderState) const {
-
-	switch(renderState) {
-		
-		case AlphaBlending: {
-			return m_hasBlend;
-		}
-		
-		case ColorKey: {
-			return m_hasColorKey;
-		}
-		
-		case DepthTest: {
-			return getGLState(GL_DEPTH_TEST);
-		}
-				
-		case Fog: {
-			return getGLState(GL_FOG);
-		}
-		
-		case Lighting: {
-			return getGLState(GL_LIGHTING);
-		}
-		
-		case ZBias: {
-			return getGLState(GL_POLYGON_OFFSET_FILL);
-		}
-		
-		default:
-			LogWarning << "Unsupported render state: " << renderState;
-	}
-
-	return false;
-}
-
-void OpenGLRenderer::SetRenderState(RenderState renderState, bool enable) {
-	
-	switch(renderState) {
-		
-		case AlphaBlending: {
-			if(m_hasBlend == enable) {
-				return;
-			}
-			/*
-			 * When rendering color-keyed textures with GL_BLEND enabled we still
-			 * need to 'discard' transparent texels, as blending might not use the src alpha!
-			 * On the other hand, we can't use GL_SAMPLE_ALPHA_TO_COVERAGE when blending
-			 * as that could result in the src alpha being applied twice (e.g. for text).
-			 * So we must toggle between alpha to coverage and alpha test when toggling blending.
-			 * TODO Fix it so that the apha channel from the color-keyed textures is
-			 *      always used as part of the blending factor.
-			 */
-			bool colorkey = m_hasColorKey;
-			if(colorkey && m_hasMSAA && config.video.colorkeyAlphaToCoverage) {
-				SetRenderState(ColorKey, false);
-			}
-			m_hasBlend = enable;
-			if(colorkey && m_hasMSAA && config.video.colorkeyAlphaToCoverage) {
-				SetRenderState(ColorKey, true);
-			}
-			setGLState(GL_BLEND, enable);
-			break;
-		}
-		
-		case ColorKey: {
-			if(m_hasColorKey == enable) {
-				return;
-			}
-			m_hasColorKey = enable;
-			if(m_hasMSAA && config.video.colorkeyAlphaToCoverage && !m_hasBlend) {
-				// TODO(option-video) add a config option for this
-				setGLState(GL_SAMPLE_ALPHA_TO_COVERAGE, enable);
-			} else {
-				setGLState(GL_ALPHA_TEST, enable);
-				if(enable) {
-					SetAlphaFunc(CmpNotEqual, 0.0f);
-				}
-			}
-			break;
-		}
-		
-		case DepthTest: {
-			glDepthFunc(enable ? GL_LEQUAL : GL_ALWAYS);
-			break;
-		}
-		
-		case DepthWrite: {
-			glDepthMask(enable ? GL_TRUE : GL_FALSE);
-			break;
-		}
-		
-		case Fog: {
-			setGLState(GL_FOG, enable);
-			break;
-		}
-		
-		case Lighting: {
-			setGLState(GL_LIGHTING, enable);
-			break;
-		}
-		
-		case ZBias: {
-			setGLState(GL_POLYGON_OFFSET_FILL, enable);
-			break;
-		}
-		
-		default:
-			LogWarning << "Unsupported render state: " << renderState;
-	}
-}
-
 static const GLenum arxToGlPixelCompareFunc[] = {
 	GL_NEVER, // CmpNever,
 	GL_LESS, // CmpLess,
@@ -543,33 +431,6 @@ static const GLenum arxToGlPixelCompareFunc[] = {
 
 void OpenGLRenderer::SetAlphaFunc(PixelCompareFunc func, float ref) {
 	glAlphaFunc(arxToGlPixelCompareFunc[func], ref);
-}
-
-static const GLenum arxToGlBlendFactor[] = {
-	GL_ZERO, // BlendZero,
-	GL_ONE, // BlendOne,
-	GL_SRC_COLOR, // BlendSrcColor,
-	GL_SRC_ALPHA, // BlendSrcAlpha,
-	GL_ONE_MINUS_SRC_COLOR, // BlendInvSrcColor,
-	GL_ONE_MINUS_SRC_ALPHA, // BlendInvSrcAlpha,
-	GL_SRC_ALPHA_SATURATE, // BlendSrcAlphaSaturate,
-	GL_DST_COLOR, // BlendDstColor,
-	GL_DST_ALPHA, // BlendDstAlpha,
-	GL_ONE_MINUS_DST_COLOR, // BlendInvDstColor,
-	GL_ONE_MINUS_DST_ALPHA // BlendInvDstAlpha
-};
-
-void OpenGLRenderer::GetBlendFunc(PixelBlendingFactor& srcFactor, PixelBlendingFactor& dstFactor) const {
-	srcFactor = m_cachedSrcBlend;
-	dstFactor = m_cachedDstBlend;
-}
-
-void OpenGLRenderer::SetBlendFunc(PixelBlendingFactor srcFactor, PixelBlendingFactor dstFactor) {
-	if(srcFactor != m_cachedSrcBlend || dstFactor != m_cachedDstBlend) {
-		glBlendFunc(arxToGlBlendFactor[srcFactor], arxToGlBlendFactor[dstFactor]);
-		m_cachedSrcBlend = srcFactor;
-		m_cachedDstBlend = dstFactor;
-	}
 }
 
 void OpenGLRenderer::SetViewport(const Rect & _viewport) {
@@ -613,12 +474,13 @@ void OpenGLRenderer::Clear(BufferFlags bufferFlags, Color clearColor, float clea
 	}
 	
 	if(bufferFlags & DepthBuffer) {
-		glClearDepth(clearDepth);
+		if(!m_glstate.getDepthWrite()) {
+			// glClear() respects the depth mask
+			glDepthMask(GL_TRUE);
+			m_glstate.setDepthWrite(true);
+		}
+		glClearDepth((GLclampd)clearDepth);
 		buffers |= GL_DEPTH_BUFFER_BIT;
-	}
-	
-	if(bufferFlags & StencilBuffer) {
-		buffers |= GL_STENCIL_BUFFER_BIT;
 	}
 	
 	if(nrects) {
@@ -647,81 +509,36 @@ void OpenGLRenderer::SetFogColor(Color color) {
 	glFogfv(GL_FOG_COLOR, fogColor);
 }
 
-static const GLint arxToGlFogMode[] = {
-	-1, // FogNone, TODO(unused) why is there a FogNone if there is also a separate Fog render state?
-	GL_EXP, // FogExp,
-	GL_EXP2, // FogExp2,
-	GL_LINEAR, // FogLinear
-};
-
-
-void OpenGLRenderer::SetFogParams(FogMode fogMode, float fogStart, float fogEnd, float fogDensity) {
-	
-	glFogi(GL_FOG_MODE, arxToGlFogMode[fogMode]);
-	
+void OpenGLRenderer::SetFogParams(float fogStart, float fogEnd) {
 	glFogf(GL_FOG_START, fogStart);
 	glFogf(GL_FOG_END, fogEnd);
-	glFogf(GL_FOG_DENSITY, fogDensity);
 }
 
 void OpenGLRenderer::SetAntialiasing(bool enable) {
 	
-	bool colorkey = m_hasColorKey;
-	if(colorkey) {
-		SetRenderState(ColorKey, false);
+	if(enable == m_hasMSAA) {
+		return;
+	}
+	
+	// The state used for color keying can differ between msaa and non-msaa.
+	// Clear the old flushed state.
+	if(m_glstate.getColorKey()) {
+		bool colorkey = m_state.getColorKey();
+		m_state.setColorKey(false);
+		flushState();
+		m_state.setColorKey(colorkey);
 	}
 	
 	// This is mostly useless as multisampling must be enabled/disabled at GL context creation.
-	setGLState(GL_MULTISAMPLE, enable);
-	
-	m_hasMSAA = enable;
-	
-	if(colorkey) {
-		SetRenderState(ColorKey, true);
-	}
-}
-
-static const GLenum arxToGlCullMode[] = {
-	(GLenum)-1, // CullNone,
-	GL_BACK, // CullCW,
-	GL_FRONT, // CullCCW,
-};
-
-Renderer::CullingMode OpenGLRenderer::GetCulling() const {
-	return m_cachedCullMode;
-}
-
-void OpenGLRenderer::SetCulling(CullingMode mode) {
-	if(mode == m_cachedCullMode)
-		return;
-
-	m_cachedCullMode = mode;
-
-	if(mode == CullNone) {
-		setGLState(GL_CULL_FACE, false);
+	if(enable) {
+		glEnable(GL_MULTISAMPLE);
 	} else {
-		setGLState(GL_CULL_FACE, true);
-		glCullFace(arxToGlCullMode[mode]);
+		glDisable(GL_MULTISAMPLE);
 	}
-}
-
-int OpenGLRenderer::GetDepthBias() const {
-	return m_cachedDepthBias;
-}
-
-void OpenGLRenderer::SetDepthBias(int depthBias) {
-	if(depthBias == m_cachedDepthBias)
-		return;
-	
-	m_cachedDepthBias = depthBias;
-
-	float bias = -(float)m_cachedDepthBias;
-	
-	glPolygonOffset(bias, bias);
+	m_hasMSAA = enable;
 }
 
 static const GLenum arxToGlFillMode[] = {
-	GL_POINT, // FillPoint,
 	GL_LINE,  // FillWireframe,
 	GL_FILL,  // FillSolid
 };
@@ -730,17 +547,86 @@ void OpenGLRenderer::SetFillMode(FillMode mode) {
 	glPolygonMode(GL_FRONT_AND_BACK, arxToGlFillMode[mode]);
 }
 
+template <typename Vertex>
+static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
+                                                     size_t capacity,
+                                                     Renderer::BufferUsage usage,
+                                                     const std::string & setting) {
+	
+	bool matched = false;
+	
+	if(GLEW_ARB_map_buffer_range) {
+		
+		#ifdef GL_ARB_buffer_storage
+		
+		if(GLEW_ARB_buffer_storage) {
+			
+			if(setting.empty() || setting == "persistent-orphan") {
+				if(usage != Renderer::Static) {
+					return new GLPersistentOrphanVertexBuffer<Vertex>(renderer, capacity);
+				}
+				matched = true;
+			}
+			if(setting.empty() || setting == "persistent-x3") {
+				if(usage == Renderer::Stream) {
+					return new GLPersistentFenceVertexBuffer<Vertex, 3>(renderer, capacity, 3);
+				}
+				matched = true;
+			}
+			if(setting.empty() || setting == "persistent-x2") {
+				if(usage == Renderer::Stream) {
+					return new GLPersistentFenceVertexBuffer<Vertex, 3>(renderer, capacity, 2);
+				}
+				matched = true;
+			}
+			if(setting.empty() || setting == "persistent-nosync") {
+				if(usage != Renderer::Static) {
+					return new GLPersistentUnsynchronizedVertexBuffer<Vertex>(renderer, capacity);
+				}
+				matched = true;
+			}
+			
+		}
+		
+		#endif // GL_ARB_buffer_storage
+		
+		if(setting.empty() || setting == "maprange" || setting == "maprange+subdata") {
+			return new GLMapRangeVertexBuffer<Vertex>(renderer, capacity, usage);
+		}
+		
+	}
+	
+	if(setting.empty() || setting == "map" || setting == "map+subdata") {
+		return new GLVertexBuffer<Vertex>(renderer, capacity, usage);
+	}
+	
+	static bool warned = false;
+	if(!matched && !warned) {
+		LogWarning << "Ignoring unsupported video.buffer_upload setting: " << setting;
+		warned = true;
+	}
+	return createVertexBufferImpl<Vertex>(renderer, capacity, usage, std::string());
+}
+
+template <typename Vertex>
+static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
+                                                     size_t capacity,
+                                                     Renderer::BufferUsage usage) {
+	const std::string & setting = config.video.bufferUpload;
+	return createVertexBufferImpl<Vertex>(renderer, capacity, usage, setting);
+}
+
 VertexBuffer<TexturedVertex> * OpenGLRenderer::createVertexBufferTL(size_t capacity, BufferUsage usage) {
 	if(useVBOs && shader) {
-		return new GLVertexBuffer<TexturedVertex>(this, capacity, usage); 
+		return createVertexBufferImpl<TexturedVertex>(this, capacity, usage); 
 	} else {
-		return new GLNoVertexBuffer<TexturedVertex>(this, capacity); 
+		return new GLNoVertexBuffer<TexturedVertex>(this, capacity);
 	}
 }
 
 VertexBuffer<SMY_VERTEX> * OpenGLRenderer::createVertexBuffer(size_t capacity, BufferUsage usage) {
 	if(useVBOs) {
-		return new GLVertexBuffer<SMY_VERTEX>(this, capacity, usage);
+		return createVertexBufferImpl<SMY_VERTEX>(this, capacity, usage);
 	} else {
 		return new GLNoVertexBuffer<SMY_VERTEX>(this, capacity);
 	}
@@ -748,7 +634,7 @@ VertexBuffer<SMY_VERTEX> * OpenGLRenderer::createVertexBuffer(size_t capacity, B
 
 VertexBuffer<SMY_VERTEX3> * OpenGLRenderer::createVertexBuffer3(size_t capacity, BufferUsage usage) {
 	if(useVBOs) {
-		return new GLVertexBuffer<SMY_VERTEX3>(this, capacity, usage);
+		return createVertexBufferImpl<SMY_VERTEX3>(this, capacity, usage);
 	} else {
 		return new GLNoVertexBuffer<SMY_VERTEX3>(this, capacity);
 	}
@@ -815,10 +701,104 @@ bool OpenGLRenderer::getSnapshot(Image & image, size_t width, size_t height) {
 	return true;
 }
 
-void OpenGLRenderer::applyTextureStages() {
+static const GLenum arxToGlBlendFactor[] = {
+	GL_ZERO, // BlendZero,
+	GL_ONE, // BlendOne,
+	GL_SRC_COLOR, // BlendSrcColor,
+	GL_SRC_ALPHA, // BlendSrcAlpha,
+	GL_ONE_MINUS_SRC_COLOR, // BlendInvSrcColor,
+	GL_ONE_MINUS_SRC_ALPHA, // BlendInvSrcAlpha,
+	GL_SRC_ALPHA_SATURATE, // BlendSrcAlphaSaturate,
+	GL_DST_COLOR, // BlendDstColor,
+	GL_DST_ALPHA, // BlendDstAlpha,
+	GL_ONE_MINUS_DST_COLOR, // BlendInvDstColor,
+	GL_ONE_MINUS_DST_ALPHA // BlendInvDstAlpha
+};
+
+void OpenGLRenderer::flushState() {
+	
+	if(m_glstate != m_state) {
+		
+		if(m_glstate.getCull() != m_state.getCull()) {
+			if(m_state.getCull() == CullNone) {
+				glDisable(GL_CULL_FACE);
+			} else {
+				if(m_glstate.getCull() == CullNone) {
+					glEnable(GL_CULL_FACE);
+				}
+				GLenum glcull = m_state.getCull() == CullCW ? GL_BACK : GL_FRONT;
+				if(m_glcull != glcull) {
+					glCullFace(glcull);
+					m_glcull = glcull;
+				}
+			}
+		}
+		
+		if(m_glstate.getFog() != m_state.getFog()) {
+			if(m_state.getFog()) {
+				glEnable(GL_FOG);
+			} else {
+				glDisable(GL_FOG);
+			}
+		}
+		
+		bool useA2C = m_hasMSAA && config.video.colorkeyAlphaToCoverage;
+		if(m_glstate.getColorKey() != m_state.getColorKey()
+		   || (useA2C && m_state.getColorKey()
+		       && m_glstate.isBlendEnabled() != m_state.isBlendEnabled())) {
+			/* When rendering color-keyed textures with alpha blending enabled we still
+			 * need to 'discard' transparent texels, as blending might not use the src alpha!
+			 * On the other hand, we can't use GL_SAMPLE_ALPHA_TO_COVERAGE when blending
+			 * as that could result in the src alpha being applied twice (e.g. for text).
+			 * So we must toggle between alpha to coverage and alpha test when toggling blending.
+			 */
+			bool disableA2C = useA2C && !m_glstate.isBlendEnabled()
+				                && (!m_state.getColorKey() || m_state.isBlendEnabled());
+			bool enableA2C = useA2C && !m_state.isBlendEnabled()
+				               && (!m_glstate.getColorKey() || m_glstate.isBlendEnabled());
+			if(m_glstate.getColorKey()) {
+				if(disableA2C) {
+					glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+				} else if(!m_state.getColorKey() || enableA2C) {
+					glDisable(GL_ALPHA_TEST);
+				}
+			}
+			if(m_state.getColorKey()) {
+				if(enableA2C) {
+					glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+				} else if(!m_glstate.getColorKey() || disableA2C) {
+					glEnable(GL_ALPHA_TEST);
+				}
+			}
+		}
+		
+		if(m_glstate.getDepthTest() != m_state.getDepthTest()) {
+			glDepthFunc(m_state.getDepthTest() ? GL_LEQUAL : GL_ALWAYS);
+		}
+		
+		if(m_glstate.getDepthWrite() != m_state.getDepthWrite()) {
+			glDepthMask(m_state.getDepthWrite() ? GL_TRUE : GL_FALSE);
+		}
+		
+		if(m_glstate.getDepthOffset() != m_state.getDepthOffset()) {
+			GLfloat depthOffset = -GLfloat(m_state.getDepthOffset());
+			glPolygonOffset(depthOffset, depthOffset);
+		}
+		
+		if(m_glstate.getBlendSrc() != m_state.getBlendSrc()
+		   || m_glstate.getBlendDst() != m_state.getBlendDst()) {
+			GLenum blendSrc = arxToGlBlendFactor[m_state.getBlendSrc()];
+			GLenum blendDst = arxToGlBlendFactor[m_state.getBlendDst()];
+			glBlendFunc(blendSrc, blendDst);
+		}
+		
+		m_glstate = m_state;
+	}
+	
 	for(size_t i = 0; i <= maxTextureStage; i++) {
 		GetTextureStage(i)->apply();
 	}
+	
 }
 
 bool OpenGLRenderer::isFogInEyeCoordinates() {

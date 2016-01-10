@@ -125,7 +125,7 @@ void RestoreInitialIOStatus();
 long GetNumberInterWithOutScriptLoad();
 
 void UnlinkAllLinkedObjects();
-long IsCollidingAnyInter(const Vec3f & pos, const Vec3f & size);
+EntityHandle IsCollidingAnyInter(const Vec3f & pos, const Vec3f & size);
 Entity * GetFirstInterAtPos(const Vec2s & pos, long flag = 0, Vec3f * _pRef = NULL, Entity ** _pTable = NULL, int * _pnNbInTable = NULL);
 
 /*!
@@ -175,7 +175,7 @@ bool IsSameObject(Entity * io, Entity * ioo);
 void ARX_INTERACTIVE_ClearAllDynData();
 bool HaveCommonGroup(Entity * io, Entity * ioo);
 void UpdateIOInvisibility(Entity * io);
-void CheckSetAnimOutOfTreatZone(Entity * io, long num);
+void CheckSetAnimOutOfTreatZone(Entity * io, AnimLayer & layer);
 void ARX_HALO_SetToNative(Entity * io);
 void ARX_INTERACTIVE_ActivatePhysics(EntityHandle t);
 void ResetVVPos(Entity * io);

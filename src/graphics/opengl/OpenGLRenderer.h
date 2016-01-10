@@ -20,7 +20,6 @@
 #ifndef ARX_GRAPHICS_OPENGL_OPENGLRENDERER_H
 #define ARX_GRAPHICS_OPENGL_OPENGLRENDERER_H
 
-#include <map>
 #include <boost/intrusive/list.hpp>
 
 #include "graphics/Renderer.h"
@@ -55,13 +54,10 @@ public:
 	Texture2D * CreateTexture2D();
 	
 	// Render states
-	bool GetRenderState(RenderState renderState) const;
-	void SetRenderState(RenderState renderState, bool enable);
+	void SetRenderState(RenderStateFlag renderState, bool enable);
 	
 	// Alphablending & Transparency
 	void SetAlphaFunc(PixelCompareFunc func, float fef); // Ref = [0.0f, 1.0f]
-	void GetBlendFunc(PixelBlendingFactor& srcFactor, PixelBlendingFactor& dstFactor) const;
-	void SetBlendFunc(PixelBlendingFactor srcFactor, PixelBlendingFactor dstFactor);
 	
 	// Viewport
 	void SetViewport(const Rect & viewport);
@@ -74,14 +70,10 @@ public:
 	
 	// Fog
 	void SetFogColor(Color color);
-	void SetFogParams(FogMode fogMode, float fogStart, float fogEnd, float fogDensity = 1.0f);
+	void SetFogParams(float fogStart, float fogEnd);
 	
 	// Rasterizer
 	void SetAntialiasing(bool enable);
-	CullingMode GetCulling() const;
-	void SetCulling(CullingMode mode);
-	int GetDepthBias() const;
-	void SetDepthBias(int depthBias);
 	void SetFillMode(FillMode mode);
 	
 	inline float getMaxAnisotropy() const { return m_maximumAnisotropy; }
@@ -102,6 +94,9 @@ public:
 	}
 	
 	bool hasTextureNPOT() { return m_hasTextureNPOT; }
+
+	template <class Vertex>
+	inline void beforeDraw() { flushState(); selectTrasform<Vertex>(); }
 	
 private:
 	
@@ -113,24 +108,13 @@ private:
 	
 	Rect viewport;
 	
-	void applyTextureStages();
+	void flushState();
 	
 	template <class Vertex>
 	void selectTrasform();
 	
 	void enableTransform();
 	void disableTransform();
-
-	bool getGLState(GLenum state) const;
-	void setGLState(GLenum state, bool enable);
-	
-	template <class Vertex>
-	inline void beforeDraw() { applyTextureStages(); selectTrasform<Vertex>(); }
-	
-	template <class Vertex>
-	friend class GLNoVertexBuffer;
-	template <class Vertex>
-	friend class GLVertexBuffer;
 	
 	friend class GLTextureStage;
 	
@@ -142,19 +126,11 @@ private:
 	
 	typedef boost::intrusive::list<GLTexture2D, boost::intrusive::constant_time_size<false> > TextureList;
 	TextureList textures;
-
-	// State cache...
-	void resetStateCache();
-	typedef std::map<GLenum, bool> BoolStateCache;
-	mutable BoolStateCache m_cachedStates;
-	PixelBlendingFactor	m_cachedSrcBlend;
-	PixelBlendingFactor	m_cachedDstBlend;
-	CullingMode m_cachedCullMode;
-	int m_cachedDepthBias;
+	
+	RenderState m_glstate;
+	GLenum m_glcull;
 	
 	bool m_hasMSAA;
-	bool m_hasColorKey;
-	bool m_hasBlend;
 	bool m_hasTextureNPOT;
 	
 };

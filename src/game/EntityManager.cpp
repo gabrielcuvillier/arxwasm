@@ -62,7 +62,7 @@ struct EntityManager::Impl {
 	
 	EntityHandle getById(const std::string & idString) const {
 		Impl::Index::const_iterator i = m_index.find(idString);
-		return (i != m_index.end()) ? i->second->index() : EntityHandle::Invalid;
+		return (i != m_index.end()) ? i->second->index() : EntityHandle();
 	}
 	
 };
@@ -105,7 +105,7 @@ void EntityManager::clear() {
 EntityHandle EntityManager::getById(const std::string & idString) const {
 	
 	if(idString.empty() || idString == "none") {
-		return EntityHandle::Invalid;
+		return EntityHandle();
 	} else if(idString == "self" || idString == "me") {
 		return EntityHandle(-2);
 	} else if(idString == "player") {
@@ -119,7 +119,7 @@ EntityHandle EntityManager::getById(const EntityId & id) const {
 	
 	if(id.isSpecial()) {
 		if(id.className().empty()) {
-			return EntityHandle::Invalid;
+			return EntityHandle();
 		} else if(id.className() == "self" || id.className() == "me") {
 			return EntityHandle(-2);
 		} else if(id.className() == "player") {
@@ -131,7 +131,7 @@ EntityHandle EntityManager::getById(const EntityId & id) const {
 }
 
 Entity * EntityManager::getById(const std::string & name, Entity * self) const {
-	long index = getById(name);
+	long index = getById(name).handleData();
 	return (index == -1) ? NULL : (index == -2) ? self : entries[index]; 
 }
 

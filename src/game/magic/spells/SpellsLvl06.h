@@ -23,7 +23,7 @@
 #include "game/magic/Spell.h"
 
 #include "graphics/effects/Fissure.h"
-#include "graphics/spells/Spells06.h"
+#include "graphics/effects/Field.h"
 
 class RiseDeadSpell : public SpellBase {
 public:
@@ -40,6 +40,7 @@ private:
 	CRiseDead m_fissure;
 	LightHandle m_light;
 	Vec3f m_targetPos;
+	bool m_creationFailed;
 	EntityHandle m_entity;
 };
 

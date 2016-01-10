@@ -50,6 +50,7 @@
 #include "graphics/DrawLine.h"
 
 #include "window/RenderWindow.h"
+#include "platform/profiler/Profiler.h"
 
 template <typename T>
 struct FlagName {
@@ -120,6 +121,23 @@ std::string flagNames(const FlagName<T> (&names)[N], const T flags) {
 	return ss.str();
 }
 
+
+static const char * entityVisilibityToString(EntityVisilibity value) {
+	switch (value) {
+		case SHOW_FLAG_NOT_DRAWN:    return "NOT_DRAWN"; break;
+		case SHOW_FLAG_IN_SCENE:     return "IN_SCENE"; break;
+		case SHOW_FLAG_LINKED:       return "LINKED"; break;
+		case SHOW_FLAG_IN_INVENTORY: return "IN_INVENTORY"; break;
+		case SHOW_FLAG_HIDDEN:       return "HIDDEN"; break;
+		case SHOW_FLAG_TELEPORTING:  return "TELEPORTING"; break;
+		case SHOW_FLAG_KILLED:       return "KILLED"; break;
+		case SHOW_FLAG_MEGAHIDE:     return "MEGAHIDE"; break;
+		case SHOW_FLAG_ON_PLAYER:    return "ON_PLAYER"; break;
+		default:                     return "Unknown";
+	}
+}
+
+
 class DebugBox {
 public:
 	DebugBox(const Vec2i & pos, const std::string & title)
@@ -139,7 +157,7 @@ public:
 		m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
 	}
 	
-	void add(std::string key, const double value) {
+	void add(std::string key, const float value) {
 		m_maxKeyLen = std::max(m_maxKeyLen, key.length());
 		std::string valueStr = boost::str(boost::format("%4.2f") % value);
 		m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
@@ -206,13 +224,14 @@ private:
 
 std::string LAST_FAILED_SEQUENCE = "none";
 extern float CURRENT_PLAYER_COLOR;
-EntityHandle LastSelectedIONum = EntityHandle::Invalid;
+EntityHandle LastSelectedIONum = EntityHandle();
 
 void ShowInfoText() {
 	
 	DebugBox frameInfo = DebugBox(Vec2i(10, 10), "FrameInfo");
 	frameInfo.add("Prims", EERIEDrawnPolys);
 	frameInfo.add("Particles", getParticleCount());
+	frameInfo.add("Polybooms", long(polyboom.size()));
 	frameInfo.add("TIME", static_cast<long>((unsigned long)(arxtime) / 1000));
 	frameInfo.print();
 	
@@ -312,6 +331,7 @@ void ShowInfoText() {
 			entityBox.add("Room", static_cast<long>(io->room));
 			entityBox.add("Move", io->move);
 			entityBox.add("Flags", flagNames(EntityFlagNames, io->ioflags));
+			entityBox.add("Show", entityVisilibityToString(io->show));
 			entityBox.print();
 			
 			if(io->ioflags & IO_NPC) {
@@ -327,7 +347,7 @@ void ShowInfoText() {
 				npcBox.add("Moveproblem", npcData->moveproblem);
 				npcBox.add("Pathfind listpos", static_cast<long>(npcData->pathfind.listpos));
 				npcBox.add("Pathfind listnb", npcData->pathfind.listnb);
-				npcBox.add("Pathfind targ", npcData->pathfind.truetarget);
+				npcBox.add("Pathfind targ", npcData->pathfind.truetarget.handleData());
 				npcBox.add("Behavior", flagNames(BehaviourFlagNames, npcData->behavior));
 				
 				// TODO should those really be flags ?
@@ -363,14 +383,42 @@ void ShowFPS() {
 }
 
 void ShowDebugToggles() {
+	
+	const int lineHeight = hFontDebug->getLineHeight();
+	int line = 0;
+	
+	hFontDebug->draw(0.f, line * lineHeight, "Key Toggle Trigger", Color::white);
+	line++;
+	
 	for(size_t i = 0; i < ARRAY_SIZE(g_debugToggles); i++) {
 		std::stringstream textStream;
-		textStream << "Toggle " << i << ": " << (g_debugToggles[i] ? "true" : "false");
-		hFontDebug->draw(0.f, i * hFontDebug->getLineHeight(), textStream.str(), Color::white);
+		textStream << i << "   ";
+		textStream << (g_debugToggles[i] ? "on " : "off") << "    ";
+		
+		if(platform::getElapsedMs(g_debugTriggersTime[i]) <= g_debugTriggersDecayDuration)
+			textStream << "fired";
+		
+		hFontDebug->draw(0.f, line * lineHeight, textStream.str(), Color::white);
+		line++;
+	}
+	
+	line++;
+	
+	hFontDebug->draw(0.f, line * lineHeight, "Values", Color::white);
+	line++;
+	
+	for(size_t i = 0; i < ARRAY_SIZE(g_debugValues); i++) {
+		std::stringstream textStream;
+		textStream << i << "   ";
+		textStream << g_debugValues[i];
+		hFontDebug->draw(0.f, line * lineHeight, textStream.str(), Color::white);
+		line++;
 	}
 }
 
 void ShowFpsGraph() {
+	
+	ARX_PROFILE_FUNC();
 
 	GRenderer->ResetTexture(0);
 

@@ -22,7 +22,7 @@
 
 #include "game/magic/Spell.h"
 
-#include "graphics/spells/Spells01.h"
+#include "graphics/effects/MagicMissile.h"
 
 class MagicSightSpell : public SpellBase {
 public:
@@ -59,9 +59,8 @@ private:
 	unsigned int m_elapsed;
 	
 	struct T_LINKLIGHTTOFX {
-		Vec3f poslight;
-		LightHandle idl;
-		int iLightNum;
+		LightHandle m_effectLight;
+		int m_targetLight;
 	};
 	std::vector<T_LINKLIGHTTOFX> m_lights;
 };
@@ -73,11 +72,7 @@ public:
 	void Update(float timeDelta);
 	
 private:
-	struct T_LINKLIGHTTOFX {
-		Vec3f poslight;
-		int iLightNum;
-	};
-	std::vector<T_LINKLIGHTTOFX> m_lights;
+	std::vector<size_t> m_lights;
 };
 
 class ActivatePortalSpell : public SpellBase {

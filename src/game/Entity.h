@@ -76,9 +76,9 @@ struct IO_ITEMDATA;
 struct IO_NPCDATA;
 struct TWEAK_INFO;
 
-#define MAX_ANIMS 200 // max loadable anims per character
-#define MAX_ANIM_LAYERS 4
-#define BASE_RUBBER 1.5f
+static const int MAX_ANIMS = 200; // max loadable anims per character
+static const size_t MAX_ANIM_LAYERS = 4;
+static const float BASE_RUBBER = 1.5f;
 
 struct IO_PHYSICS {
 	Cylinder cyl;
@@ -140,6 +140,13 @@ struct IO_SPELLCAST_DATA {
 	short spell_level;
 	EntityHandle target;
 	long duration;
+	
+	IO_SPELLCAST_DATA()
+		: castingspell(SPELL_NONE)
+	{
+		for(unsigned long j(0); j < 4; j++)
+			symb[j] = RUNE_NONE;
+	}
 };
 
 enum EntityFlag {
@@ -246,10 +253,10 @@ public:
 	bool requestRoomUpdate;
 	float original_height;
 	float original_radius;
-	TextureContainer * inv; // Object Icon
+	TextureContainer * m_icon; // Object Icon
 	EERIE_3DOBJ * obj; // IO Mesh data
 	ANIM_HANDLE * anims[MAX_ANIMS]; // Object Animations
-	ANIM_USE animlayer[MAX_ANIM_LAYERS];
+	AnimLayer animlayer[MAX_ANIM_LAYERS];
 
 	AnimationBlendStatus animBlend;
 	
@@ -429,6 +436,10 @@ private:
 	const res::path m_classPath; //!< the full path to this entity's class
 	
 };
+
+inline Vec3f actionPointPosition(const EERIE_3DOBJ * obj, ActionPoint ap) {
+	return obj->vertexlist3[ap.handleData()].v;
+}
 
 // TODO move this somewhere else
 struct IO_FIXDATA {

@@ -19,33 +19,28 @@
  
 #include "platform/Dialog.h"
 
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 #include "platform/Platform.h"
 
 #include "Configure.h"
 
 #if ARX_PLATFORM == ARX_PLATFORM_WIN32
-
 #include <windows.h>
-
-#else
-
-#include <cstdlib>
-#include <sstream>
-#include <cstring>
-#include <sys/wait.h>
+#endif
 
 #if ARX_HAVE_SDL2
 #include <SDL.h>
 #endif
 
-#endif
-
-#include <boost/format.hpp>
 #include <boost/foreach.hpp>
 
-#include "util/String.h"
+#include "platform/Process.h"
+#include "platform/WindowsUtils.h"
 
 
 namespace platform {
@@ -65,7 +60,7 @@ static bool showDialog(DialogType type, const std::string & message,
 		case DialogOkCancel:  flags = MB_ICONQUESTION | MB_OKCANCEL; break;
 	}
 	
-	int ret = MessageBoxA(NULL, message.c_str(), title.c_str(),
+	int ret = MessageBoxW(NULL, platform::WideString(message), platform::WideString(title),
 	                      flags | MB_SETFOREGROUND | MB_TOPMOST);
 	
 	switch(ret) {
@@ -86,10 +81,6 @@ static bool showDialog(DialogType type, const std::string & message,
 bool showDialog(DialogType type, const std::string & message, const std::string & title);
 
 #else
-
-static std::string escape(const std::string & input) {
-	return util::escapeString(input, "\\\"$`");
-}
 
 static bool isAllowedInUrl(char c) {
 	return !isspace(c) && c != '"' && c != '\'' && c != ')';
@@ -212,84 +203,121 @@ static std::string formatAsHtml(const std::string & text, bool newline, bool ul 
 static int zenityCommand(DialogType type, const std::string & message,
                          const std::string & title) {
 	
-	const char * options = "";
+	std::vector<const char *> command;
+	command.push_back("zenity");
 	switch(type) {
-		case DialogInfo:      options = "--info"; break;
-		case DialogWarning:   options = "--warning"; break;
-		case DialogError:     options = "--error"; break;
-		case DialogYesNo:     options = "--question --ok-label=Yes --cancel-label=No"; break;
-		case DialogWarnYesNo: options = "--question --ok-label=Yes --cancel-label=No"
-		                                "  --window-icon=warning --icon-name=dialog-warning";
-		break;
-		case DialogOkCancel:  options = "--question --ok-label=OK --cancel-label=Cancel";
-		break;
+		case DialogInfo:      command.push_back("--info"); break;
+		case DialogWarning:   command.push_back("--warning"); break;
+		case DialogError:     command.push_back("--error"); break;
+		case DialogYesNo: {
+			command.push_back("--question");
+			command.push_back("--ok-label=Yes");
+			command.push_back("--cancel-label=No");
+			break;
+		}
+		case DialogWarnYesNo: {
+			command.push_back("--question");
+			command.push_back("--ok-label=Yes");
+			command.push_back("--cancel-label=No");
+			command.push_back("--icon-name=dialog-warning");
+			command.push_back("--window-icon=warning");
+			break;
+		}
+		case DialogOkCancel:  {
+			command.push_back("--question");
+			command.push_back("--ok-label=OK");
+			command.push_back("--cancel-label=Cancel");
+			break;
+		}
 	}
+	command.push_back("--no-wrap");
+	std::string messageArg = "--text=" + formatAsHtml(message, true);
+	command.push_back(messageArg.c_str());
+	std::string titleArg = "--text=" + title;
+	command.push_back(messageArg.c_str());
+	command.push_back(NULL);
 	
-	boost::format command("zenity %1% --no-wrap --text=\"%2%\" --title=\"%3%\"");
-	command = command % options;
-	command = command % escape(formatAsHtml(message, true));
-	command = command % escape(title);
-	
-	return system(command.str().c_str());
+	return platform::run(&command[0]);
 }
 
 static int kdialogCommand(DialogType type, const std::string & message,
                           const std::string & title) {
 	
-	const char * options = "";
+	std::vector<const char *> command;
+	command.push_back("kdialog");
 	switch(type) {
-		case DialogInfo:      options = "--msgbox"; break;
-		case DialogWarning:   options = "--sorry"; break;
-		case DialogError:     options = "--error"; break;
-		case DialogYesNo:     options = "--yesno"; break;
-		case DialogWarnYesNo: options = "--warningyesno"; break;
-		case DialogOkCancel:  options = "--continuecancel"; break;
+		case DialogInfo:      command.push_back("--msgbox"); break;
+		case DialogWarning:   command.push_back("--sorry"); break;
+		case DialogError:     command.push_back("--error"); break;
+		case DialogYesNo:     command.push_back("--yesno"); break;
+		case DialogWarnYesNo: command.push_back("--warningyesno"); break;
+		case DialogOkCancel:  command.push_back("--continuecancel"); break;
+	}
+	std::string messageArg = formatAsHtml(message, false);
+	command.push_back(messageArg.c_str());
+	command.push_back("--title");
+	command.push_back(title.c_str());
+	command.push_back("--icon");
+	command.push_back("arx-libertatis");
+	command.push_back(NULL);
+	
+	return platform::run(&command[0]);
+}
+
+static void xmessageButtons(std::vector<const char *> & command, DialogType type) {
+	
+	command.push_back("-center");
+	command.push_back("-buttons");
+	switch(type) {
+		default:             command.push_back("OK"); break;
+		case DialogWarnYesNo: /* fall-through */
+		case DialogYesNo:    command.push_back("Yes:0,No:1"); break;
+		case DialogOkCancel: command.push_back("OK:0,Cancel:1"); break;
 	}
 	
-	boost::format command("kdialog %1% \"%2%\" --title \"%3%\" --icon arx-libertatis");
-	command = command % options;
-	command = command % escape(formatAsHtml(message, false));
-	command = command % escape(title);
-	
-	return system(command.str().c_str());
 }
 
 static int gxmessageCommand(DialogType type, const std::string & message,
                             const std::string & title) {
 	
-	const char * options = "";
-	switch(type) {
-		default:             options = "-buttons OK"; break;
-		case DialogWarnYesNo: /* fall-through */
-		case DialogYesNo:    options = "-buttons Yes:0,No:1"; break;
-		case DialogOkCancel: options = "-buttons OK:0,Cancel:1"; break;
-	}
+	std::vector<const char *> command;
+	command.push_back("gxmessage");
+	command.push_back("-geometry");
+	command.push_back("550x300");
+	xmessageButtons(command, type);
+	command.push_back("-title");
+	command.push_back(title.c_str());
+	command.push_back(message.c_str());
+	command.push_back(NULL);
 	
-	boost::format command("gxmessage -geometry 550x300 -center %1% -title \"%2%\" \"%3%\"");
-	command = command % options;
-	command = command % escape(title);
-	command = command % escape(message);
-	
-	return system(command.str().c_str());
+	return platform::run(&command[0]);
 }
 
 static int xdialogCommand(DialogType type, const std::string & message,
                           const std::string & title) {
 	
-	const char * options = "";
+	std::vector<const char *> command;
+	command.push_back("Xdialog");
+	command.push_back("--left");
+	command.push_back("--title");
+	command.push_back(title.c_str());
 	switch(type) {
-		default:             options = "--msgbox"; break;
+		default:             command.push_back("--msgbox"); break;
 		case DialogWarnYesNo: /* fall-through */
-		case DialogYesNo:    options = "--yesno"; break;
-		case DialogOkCancel: options = "--ok-label OK --cancel-label Cancel --yesno"; break;
+		case DialogYesNo:    command.push_back("--yesno"); break;
+		case DialogOkCancel: {
+			command.push_back("--ok-label"), command.push_back("OK");
+			command.push_back("--cancel-label"), command.push_back("Cancel");
+			command.push_back("--yesno");
+			break;
+		}
 	}
+	command.push_back(message.c_str());
+	command.push_back("0");
+	command.push_back("0");
+	command.push_back(NULL);
 	
-	boost::format command("Xdialog --left --title \"%3%\" %1% \"%2%\" 0 0");
-	command = command % options;
-	command = command % escape(message);
-	command = command % escape(title);
-	
-	return system(command.str().c_str());
+	return platform::run(&command[0]);
 }
 
 static int xmessageCommand(DialogType type, const std::string & message,
@@ -297,20 +325,88 @@ static int xmessageCommand(DialogType type, const std::string & message,
 	
 	ARX_UNUSED(title);
 	
-	const char * options = "";
-	switch(type) {
-		default:             options = "-buttons OK"; break;
-		case DialogWarnYesNo: /* fall-through */
-		case DialogYesNo:    options = "-buttons Yes:0,No:1"; break;
-		case DialogOkCancel: options = "-buttons OK:0,Cancel:1"; break;
+	std::vector<const char *> command;
+	command.push_back("xmessage");
+	xmessageButtons(command, type);
+	command.push_back(message.c_str());
+	command.push_back(NULL);
+	
+	return platform::run(&command[0]);
+}
+
+#if ARX_HAVE_SDL2
+static int sdlDialogCommand(DialogType type, const std::string & message,
+                            const std::string & title) {
+	
+	bool wasInitialized = (SDL_WasInit(SDL_INIT_VIDEO) != 0);
+	if(!wasInitialized && SDL_Init(SDL_INIT_VIDEO) != 0) {
+		return -2;
 	}
 	
-	boost::format command("xmessage -center %1% \"%2%\"");
-	command = command % options;
-	command = command % escape(message);
+	int ret = -2;
 	
-	return system(command.str().c_str());
+	SDL_MessageBoxData box = {
+		SDL_MESSAGEBOX_INFORMATION,
+		NULL,
+		title.c_str(),
+		message.c_str(),
+		0, NULL,
+		NULL
+	};
+	
+	switch(type) {
+		case DialogInfo:      box.flags = SDL_MESSAGEBOX_INFORMATION; break;
+		case DialogWarning:   box.flags = SDL_MESSAGEBOX_WARNING; break;
+		case DialogError:     box.flags = SDL_MESSAGEBOX_ERROR; break;
+		case DialogYesNo:     box.flags = SDL_MESSAGEBOX_INFORMATION; break;
+		case DialogWarnYesNo: box.flags = SDL_MESSAGEBOX_WARNING; break;
+		case DialogOkCancel:  box.flags = SDL_MESSAGEBOX_INFORMATION; break;
+	}
+	
+	const SDL_MessageBoxButtonData buttonsOK[] = {
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "OK" },
+	};
+	const SDL_MessageBoxButtonData buttonsYesNo[] = {
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Yes" },
+		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "No" },
+	};
+	const SDL_MessageBoxButtonData buttonsOKCancel[] = {
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "OK" },
+		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Cancel" },
+	};
+	switch(type) {
+		case DialogInfo:
+		case DialogWarning:
+		case DialogError: {
+			box.buttons = buttonsOK,
+			box.numbuttons = ARRAY_SIZE(buttonsOK);
+			break;
+		}
+		case DialogYesNo:
+		case DialogWarnYesNo: {
+			box.buttons = buttonsYesNo,
+			box.numbuttons = ARRAY_SIZE(buttonsYesNo);
+			break;
+		}
+		case DialogOkCancel: {
+			box.buttons = buttonsOKCancel,
+			box.numbuttons = ARRAY_SIZE(buttonsOKCancel);
+			break;
+		}
+	}
+	
+	int buttonid;
+	if(SDL_ShowMessageBox(&box, &buttonid) >= 0) {
+		ret = (buttonid == -1) ? 2 : buttonid;
+	}
+	
+	if(!wasInitialized) {
+		SDL_QuitSubSystem(SDL_INIT_VIDEO);
+	}
+	
+	return ret;
 }
+#endif
 
 static bool showDialog(DialogType type, const std::string & message,
                        const std::string & title) {
@@ -330,26 +426,22 @@ static bool showDialog(DialogType type, const std::string & message,
 		usingKDE ? &zenityCommand : &kdialogCommand,
 		&gxmessageCommand,
 		&xdialogCommand,
+		#if ARX_HAVE_SDL2
+		&sdlDialogCommand,
+		#endif
 		&xmessageCommand
 	};
 	
 	BOOST_FOREACH(dialogCommand_t command, commands) {
 		int code = command(type, message, title);
-		if(WIFEXITED(code) && WEXITSTATUS(code) >= 0 && WEXITSTATUS(code) < 127) {
-			return WEXITSTATUS(code) == 0;
+		if(code >= 0) {
+			return code == 0;
 		}
-		#ifdef SIGINT
-		if(WIFSIGNALED(code) && WTERMSIG(code) == SIGINT) {
-			return false;
-		}
-		#endif
 	}
 	
 	/*
 	 * If we have no native way to display a message box, fall back to SDL.
 	 * This will look ugly on Linux, so do this only if we really have to.
-	 * We can't use SDL_ShowMessageBox for additional button support as that requires
-	 * SDL to be initialized.
 	 */
 	#if ARX_HAVE_SDL2
 	Uint32 flags = 0;

@@ -59,7 +59,14 @@ void Renderer::SetTexture(unsigned int textureStage, TextureContainer * pTexture
 	}
 }
 
-Renderer::Renderer() : m_initialized(false) { }
+Renderer::Renderer()
+	: m_initialized(false)
+	, m_hasBlend()
+	, m_srcBlend(BlendOne)
+	, m_dstBlend(BlendZero)
+{
+	m_state.setColorKey(true); // TODO only enable this when needed
+}
 
 Renderer::~Renderer() {
 	if(isInitialized()) {
@@ -91,4 +98,43 @@ void Renderer::onRendererShutdown() {
 		listener->onRendererShutdown(*this);
 	}
 	m_initialized = false;
+}
+
+void Renderer::SetRenderState(RenderStateFlag renderState, bool enable) {
+	
+	switch(renderState) {
+		
+		case AlphaBlending: {
+			if(enable) {
+				m_state.setBlend(m_srcBlend, m_dstBlend);
+			} else {
+				m_state.setBlend(BlendOne, BlendZero);
+			}
+			m_hasBlend = enable;
+			break;
+		}
+		
+		case ColorKey: {
+			m_state.setColorKey(enable);
+			break;
+		}
+		
+		case DepthTest: {
+			m_state.setDepthTest(enable);
+			break;
+		}
+		
+		case DepthWrite: {
+			m_state.setDepthWrite(enable);
+			break;
+		}
+		
+		case Fog: {
+			m_state.setFog(enable);
+			break;
+		}
+		
+		default:
+			arx_assert(false, "Unsupported render state: %d", int(renderState));
+	}
 }

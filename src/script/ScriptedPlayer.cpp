@@ -437,7 +437,7 @@ public:
 			
 			DebugScript(" newspell");
 			
-			bookIconGuiRequestFX();
+			g_hudRoot.bookIconGui.requestFX();
 		} else if(type == "torch") {
 			
 			DebugScript(" torch");
@@ -580,7 +580,7 @@ public:
 			spflags |= SPELLCAST_FLAG_NOCHECKCANCAST;
 		}
 		
-		TryToCastSpell(entities.player(), spellid, level, EntityHandle::Invalid, spflags, duration);
+		TryToCastSpell(entities.player(), spellid, level, EntityHandle(), spflags, duration);
 		
 		return Success;
 	}

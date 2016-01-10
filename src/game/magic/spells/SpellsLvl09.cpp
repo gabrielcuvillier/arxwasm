@@ -19,6 +19,8 @@
 
 #include "game/magic/spells/SpellsLvl09.h"
 
+#include <boost/foreach.hpp>
+
 #include "core/Application.h"
 #include "core/Config.h"
 #include "core/GameTime.h"
@@ -56,8 +58,8 @@ void SummonCreatureSpell::GetTargetAndBeta(Vec3f & target, float & beta)
 SummonCreatureSpell::SummonCreatureSpell()
 	: m_targetPos(Vec3f_ZERO)
 	, m_megaCheat(false)
-	, m_longinfo_summon_creature(-1) //TODO is this correct ?
-	, m_longinfo2_entity(EntityHandle::Invalid)
+	, m_requestSummon(false)
+	, m_summonedEntity()
 {
 	
 }
@@ -81,8 +83,8 @@ void SummonCreatureSpell::Launch()
 {
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 1.9f;
-	m_longinfo_summon_creature = 0;
-	m_longinfo2_entity = PlayerEntityHandle; // TODO is this correct ?
+	m_requestSummon = false;
+	m_summonedEntity = EntityHandle();
 	m_duration = (m_launchDuration > -1) ? m_launchDuration : 2000000;
 	
 	Vec3f target;
@@ -111,22 +113,20 @@ void SummonCreatureSpell::Launch()
 	}
 }
 
-void SummonCreatureSpell::End()
-{
-	if(ValidIONum(m_longinfo2_entity) && m_longinfo2_entity != PlayerEntityHandle) {
-		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &entities[m_longinfo2_entity]->pos);
-	}
-
+void SummonCreatureSpell::End() {
+	
 	lightHandleDestroy(m_light);
 	// need to killio
 	
-	if(ValidIONum(m_longinfo2_entity) && m_longinfo2_entity != PlayerEntityHandle) {
+	if(ValidIONum(m_summonedEntity)) {
+		Entity * io = entities[m_summonedEntity];
 		
-		if(entities[m_longinfo2_entity]->scriptload
-		   && (entities[m_longinfo2_entity]->ioflags & IO_NOSAVE)) {
+		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &io->pos);
+		
+		if(io->scriptload && (io->ioflags & IO_NOSAVE)) {
 			
-			AddRandomSmoke(entities[m_longinfo2_entity], 100);
-			Vec3f posi = entities[m_longinfo2_entity]->pos;
+			AddRandomSmoke(io, 100);
+			Vec3f posi = io->pos;
 			posi.y -= 100.f;
 			MakeCoolFx(posi);
 		
@@ -134,7 +134,7 @@ void SummonCreatureSpell::End()
 			if(lightHandleIsValid(nn)) {
 				EERIE_LIGHT * light = lightHandleGet(nn);
 				
-				light->intensity = 0.7f + 2.f * rnd();
+				light->intensity = Random::getf(0.7f, 2.7f);
 				light->fallend = 600.f;
 				light->fallstart = 400.f;
 				light->rgb = Color3f(1.0f, 0.8f, 0.0f);
@@ -142,12 +142,11 @@ void SummonCreatureSpell::End()
 				light->duration = 600;
 			}
 			
-			entities[m_longinfo2_entity]->destroyOne();
+			io->destroyOne();
 		}
 	}
 	
-	// TODO is this correct ?
-	m_longinfo2_entity = PlayerEntityHandle;
+	m_summonedEntity = EntityHandle();
 }
 
 void SummonCreatureSpell::Update(float timeDelta) {
@@ -156,7 +155,7 @@ void SummonCreatureSpell::Update(float timeDelta) {
 		return;
 	
 	if(float(arxtime) - (float)m_timcreation <= 4000) {
-		if(rnd() > 0.7f) {
+		if(Random::getf() > 0.7f) {
 			Vec3f pos = m_fissure.m_eSrc;
 			MakeCoolFx(pos);
 		}
@@ -164,45 +163,43 @@ void SummonCreatureSpell::Update(float timeDelta) {
 		m_fissure.Update(timeDelta);
 		m_fissure.Render();
 		
-		m_longinfo_summon_creature = 1;
-		m_longinfo2_entity = EntityHandle::Invalid;
+		m_requestSummon = true;
+		m_summonedEntity = EntityHandle();
 
-	} else if(m_longinfo_summon_creature) {
+	} else if(m_requestSummon) {
 		lightHandleDestroy(m_light);
 		
-		m_longinfo_summon_creature = 0;
+		m_requestSummon = false;
 		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &m_targetPos);
 		
-			Cylinder phys;
-			phys.height = -200;
-			phys.radius = 50;
-			phys.origin = m_targetPos;
-			float anything = CheckAnythingInCylinder(phys, NULL, CFLAG_JUST_TEST);
-			
-			if(glm::abs(anything) < 30) {
+		Cylinder phys = Cylinder(m_targetPos, 50, -200);
+		
+		float anything = CheckAnythingInCylinder(phys, NULL, CFLAG_JUST_TEST);
+		
+		if(glm::abs(anything) < 30) {
 			
 			long tokeep;
 			res::path cls;
 			if(m_megaCheat) {
-				if(rnd() > 0.5) {
+				if(Random::getf() > 0.5f) {
 					tokeep = -1;
 					cls = "graph/obj3d/interactive/npc/wrat_base/wrat_base";
 				} else {
 					tokeep = 0;
 					cls = "graph/obj3d/interactive/npc/y_mx/y_mx";
 				}
-			} else if(rnd() > 0.997f || (sp_max && rnd() > 0.8f)
-			   || (cur_mr >= 3 && rnd() > 0.3f)) {
+			} else if(Random::getf() > 0.997f || (sp_max && Random::getf() > 0.8f)
+			   || (cur_mr >= 3 && Random::getf() > 0.3f)) {
 				tokeep = 0;
 				cls = "graph/obj3d/interactive/npc/y_mx/y_mx";
-			} else if(rnd() > 0.997f || (cur_rf >= 3 && rnd() > 0.8f)
-			   || (cur_mr >= 3 && rnd() > 0.3f)) {
+			} else if(Random::getf() > 0.997f || (cur_rf >= 3 && Random::getf() > 0.8f)
+			   || (cur_mr >= 3 && Random::getf() > 0.3f)) {
 				tokeep = -1;
 				cls = "graph/obj3d/interactive/npc/wrat_base/wrat_base";
 			} else if(m_level >= 9) {
 				tokeep = 1;
 				cls = "graph/obj3d/interactive/npc/demon/demon";
-			} else if(rnd() > 0.98f) {
+			} else if(Random::getf() > 0.98f) {
 				tokeep = -1;
 				cls = "graph/obj3d/interactive/npc/wrat_base/wrat_base";
 			} else {
@@ -255,19 +252,19 @@ void SummonCreatureSpell::Update(float timeDelta) {
 				}
 				
 				if(tokeep==1)
-					m_longinfo2_entity = io->index();
+					m_summonedEntity = io->index();
 				else
-					m_longinfo2_entity = EntityHandle::Invalid;
+					m_summonedEntity = EntityHandle();
 			}
-			}
-	} else if(m_longinfo2_entity <= PlayerEntityHandle) {
+		}
+	} else if(m_summonedEntity == EntityHandle()) {
 		m_duration = 0;
 	}
 }
 
 bool FakeSummonSpell::CanLaunch()
 {
-	if(m_caster <= PlayerEntityHandle || !ValidIONum(m_target)) {
+	if(m_caster.handleData() <= PlayerEntityHandle.handleData() || !ValidIONum(m_target)) {
 		return false;
 	}
 	
@@ -316,7 +313,7 @@ void FakeSummonSpell::End()
 void FakeSummonSpell::Update(float timeDelta)
 {
 	if(!arxtime.is_paused()) {
-		if(rnd() > 0.7f) {
+		if(Random::getf() > 0.7f) {
 			Vec3f pos = m_fissure.m_eSrc;
 			MakeCoolFx(pos);
 		}
@@ -373,7 +370,7 @@ void NegateMagicSpell::Update(float timeDelta)
 	mat.setBlendType(RenderMaterial::Additive);
 	
 	for(int i = 0; i < 360; i++) {
-		float t = rnd();
+		float t = Random::getf();
 		if(t < 0.04f) {
 			
 			PARTICLE_DEF * pd = createParticle();
@@ -381,8 +378,8 @@ void NegateMagicSpell::Update(float timeDelta)
 				break;
 			}
 			
-			pd->ov = stitepos + Vec3f(frand2() * 150.f, 0.f, frand2() * 150.f);
-			pd->move = Vec3f(0.f, -3.0f * rnd(), 0.f);
+			pd->ov = stitepos + Vec3f(Random::getf(-150.f, 150.f), 0.f, Random::getf(-150.f, 150.f));
+			pd->move = Vec3f(0.f, Random::getf(-3.f, 0.f), 0.f);
 			pd->siz = 0.3f;
 			pd->tolive = Random::get(2000, 4000);
 			pd->tc = tex_p2;
@@ -488,7 +485,7 @@ void MassParalyseSpell::Launch()
 		const EntityHandle handle = EntityHandle(ii);
 		Entity * tio = entities[handle];
 		
-		if(long(ii) == m_caster || !tio || !(tio->ioflags & IO_NPC)) {
+		if(handle == m_caster || !tio || !(tio->ioflags & IO_NPC)) {
 			continue;
 		}
 		
@@ -513,11 +510,7 @@ void MassParalyseSpell::Launch()
 
 void MassParalyseSpell::End()
 {
-	
-	std::vector<EntityHandle>::const_iterator itr;
-	for(itr = m_targets.begin(); itr != m_targets.end(); ++itr) {
-		EntityHandle handle = *itr;
-		
+	BOOST_FOREACH(EntityHandle handle, m_targets) {
 		if(ValidIONum(handle)) {
 			entities[handle]->ioflags &= ~IO_FREEZESCRIPT;
 		}

@@ -45,8 +45,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 //
 // Copyright (c) 1999 ARKANE Studios SA. All rights reserved
 
-#ifndef  ARX_CORE_APPLICATION_H
-#define  ARX_CORE_APPLICATION_H
+#ifndef ARX_CORE_APPLICATION_H
+#define ARX_CORE_APPLICATION_H
 
 class RenderWindow;
 
@@ -65,7 +65,11 @@ inline bool eeMouseUp1() {
 }
 
 inline bool eeMousePressed1() {
-	return (EERIEMouseButton & 1);
+	return (EERIEMouseButton & 1) != 0;
+}
+
+inline bool eeMouseDoubleClick1() {
+	return (EERIEMouseButton & 4) && !(LastMouseClick & 4);
 }
 
 inline bool eeMouseDown2() {
@@ -74,6 +78,10 @@ inline bool eeMouseDown2() {
 
 inline bool eeMouseUp2() {
 	return !(EERIEMouseButton & 2) && (LastMouseClick & 2);
+}
+
+inline bool eeMousePressed2() {
+	return (EERIEMouseButton & 2) != 0;
 }
 
 class Application {
@@ -85,7 +93,7 @@ public:
 	virtual bool initialize() = 0;
 	virtual void shutdown();
 	
-	RenderWindow * getWindow() { return m_MainWindow; }
+	RenderWindow * getWindow() const { return m_MainWindow; }
 	
 	//! Ask the game to quit at the end of the current frame.
 	void quit();

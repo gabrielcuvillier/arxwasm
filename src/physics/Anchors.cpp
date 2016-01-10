@@ -81,7 +81,7 @@ static EERIEPOLY * ANCHOR_CheckInPolyPrecis(const Vec3f & pos) {
 					Vec3f poss = pos;
 					float yy;
 
-					if(GetTruePolyY(ep, poss, &yy) && yy >= pos.y && (!found || (found && (yy <= foundY)))) {
+					if(GetTruePolyY(ep, poss, &yy) && yy >= pos.y && (!found || yy <= foundY)) {
 						found = ep;
 						foundY = yy;
 					}
@@ -113,7 +113,7 @@ static EERIEPOLY * ANCHOR_CheckInPoly(const Vec3f & pos) {
 		        &&	((ep->norm.y < 0.f) || ((ep->type & POLY_QUAD) && (ep->norm2.y < 0.f)))
 		        &&	(PointIn2DPolyXZ(ep, pos.x, pos.z)))
 		{
-			if(!found || (found && ep->min.y < found->min.y))
+			if(!found || ep->min.y < found->min.y)
 				found = ep;
 		}
 	}
@@ -970,6 +970,30 @@ static void AnchorData_Create_Links_Original_Method(EERIE_BACKGROUND * eb) {
 	EERIE_PATHFINDER_Create();
 }
 
+static float GetTileMinY(long i, long j) {
+	float minf = 9999999999.f;
+	EERIE_BKG_INFO *eg = &ACTIVEBKG->fastdata[i][j];
+
+	for (long kk = 0; kk < eg->nbpolyin; kk++) {
+		EERIEPOLY * ep = eg->polyin[kk];
+		minf = std::min(minf, ep->min.y);
+	}
+
+	return minf;
+}
+
+static float GetTileMaxY(long i, long j) {
+	float maxf = -9999999999.f;
+	EERIE_BKG_INFO *eg = &ACTIVEBKG->fastdata[i][j];
+
+	for(long kk = 0; kk < eg->nbpolyin; kk++) {
+		EERIEPOLY * ep = eg->polyin[kk];
+		maxf = std::max(maxf, ep->max.y);
+	}
+
+	return maxf;
+}
+
 static void AnchorData_Create_Phase_II_Original_Method(EERIE_BACKGROUND * eb) {
 	
 	Vec3f pos;
@@ -979,8 +1003,8 @@ static void AnchorData_Create_Phase_II_Original_Method(EERIE_BACKGROUND * eb) {
 	long per;
 	float total		=	static_cast<float>(eb->Zsize * eb->Xsize);
 	
-	for(long j = 0; j < eb->Zsize; j++)
-	for(long i = 0; i < eb->Xsize; i++) {
+	for(long z = 0; z < eb->Zsize; z++)
+	for(long x = 0; x < eb->Xsize; x++) {
 		per = count / total * 100.f;
 		
 		if(per != lastper) {
@@ -990,14 +1014,11 @@ static void AnchorData_Create_Phase_II_Original_Method(EERIE_BACKGROUND * eb) {
 		
 		count += 1.f;
 		
-		EERIE_BKG_INFO * eg = &eb->fastdata[i][j];
-		pos.x = (float)((float)((float)i) * (float)eb->Xdiv);
+		EERIE_BKG_INFO * eg = &eb->fastdata[x][z];
+		pos.x = float(x) * float(eb->Xdiv);
 		pos.y = 0.f;
-		pos.z = (float)((float)((float)j) * (float)eb->Zdiv);
-		Cylinder currcyl;
-		currcyl.radius = 30;
-		currcyl.height = -150.f;
-		currcyl.origin = pos;
+		pos.z = float(z) * float(eb->Zdiv);
+		Cylinder currcyl = Cylinder(pos, 30, -150.f);
 		
 		if(eg->nbpolyin) {
 			long ok = 0;
@@ -1014,8 +1035,8 @@ static void AnchorData_Create_Phase_II_Original_Method(EERIE_BACKGROUND * eb) {
 			if(!ok)
 				continue;
 			
-			float roof = GetTileMinY(i, j); 
-			float current_y = GetTileMaxY(i, j); 
+			float roof = GetTileMinY(x, z); 
+			float current_y = GetTileMaxY(x, z); 
 			
 			while(current_y > roof) {
 				long added = 0;
@@ -1076,8 +1097,8 @@ void AnchorData_Create(EERIE_BACKGROUND * eb) {
 	long per;
 	float total		=	static_cast<float>(eb->Zsize * eb->Xsize * 9);
 
-	for(long j = 0; j < eb->Zsize; j++)
-	for(long i = 0; i < eb->Xsize; i++) {
+	for(long z = 0; z < eb->Zsize; z++)
+	for(long x = 0; x < eb->Xsize; x++) {
 		long LASTFOUND = 0;
 		
 		for(long divv = 0; divv < 9; divv++) {
@@ -1134,25 +1155,17 @@ void AnchorData_Create(EERIE_BACKGROUND * eb) {
 			if(LASTFOUND)
 				break;
 			
-			EERIE_BKG_INFO * eg = &eb->fastdata[i][j];
-			pos.x = (float)((float)((float)i + 0.33f * (float)divvx) * (float)eb->Xdiv);
+			EERIE_BKG_INFO * eg = &eb->fastdata[x][z];
+			pos.x = (float)((float)((float)x + 0.33f * (float)divvx) * (float)eb->Xdiv);
 			pos.y = 0.f;
-			pos.z = (float)((float)((float)j + 0.33f * (float)divvy) * (float)eb->Zdiv);
+			pos.z = (float)((float)((float)z + 0.33f * (float)divvy) * (float)eb->Zdiv);
 			EERIEPOLY * ep = GetMinPoly(pos);
-			Cylinder currcyl;
-			currcyl.radius = 20 - (4.f * divv);
-			currcyl.height = -120.f;
-			currcyl.origin = pos;
+			Cylinder currcyl = Cylinder(pos, 20 - (4.f * divv), -120.f);
 			
 			if(ep) {
 				EERIEPOLY * epmax;
 				epmax = GetMaxPoly(pos);
-				float roof = 9999999.f;
-				
-				roof = ep->min.y - 300;
-				
-				if(epmax)
-					roof = epmax->min.y - 300;
+				float roof = (epmax ? epmax->min.y : ep->min.y) - 300;
 				
 				float current_y = ep->max.y;
 				

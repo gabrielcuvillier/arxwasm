@@ -93,10 +93,8 @@ struct EERIE_BACKGROUND
 	short		Zdiv;
 	float		Xmul;
 	float		Zmul;
-	Color3f ambient;
 	long		  nbanchors;
 	ANCHOR_DATA * anchors;
-	char		name[256];
 };
 
 extern long EERIEDrawnPolys;
@@ -176,8 +174,6 @@ bool RayCollidingPoly(const Vec3f & orgn, const Vec3f & dest, const EERIEPOLY & 
 
 void EERIEPOLY_Compute_PolyIn();
 
-float GetTileMinY(long i,long j);
-float GetTileMaxY(long i,long j);
 
 #define MAX_FRUSTRUMS 32
 
@@ -211,9 +207,6 @@ struct PORTAL_ROOM_DRAW
 	EERIE_2D_BBOX	bbox;
 	EERIE_FRUSTRUM_DATA	frustrum;
 };
-
-// Default Mode for Portals when found
-#define NPC_ITEMS_AMBIENT_VALUE_255 35
 
 struct ROOM_DIST_DATA
 {

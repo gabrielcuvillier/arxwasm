@@ -108,9 +108,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/particle/ParticleEffects.h"
 #include "graphics/particle/ParticleSystem.h"
 #include "graphics/particle/MagicFlare.h"
-#include "graphics/spells/Spells01.h"
+
 #include "graphics/spells/Spells05.h"
-#include "graphics/spells/Spells06.h"
 
 #include "input/Input.h"
 
@@ -171,7 +170,7 @@ void SpellManager::clearAll() {
 }
 
 SpellBase * SpellManager::operator[](const SpellHandle handle) {
-	return m_spells[handle];
+	return m_spells[handle.handleData()];
 }
 
 void SpellManager::endSpell(SpellBase * spell)
@@ -235,7 +234,7 @@ bool SpellManager::ExistAnyInstanceForThisCaster(SpellType typ, EntityHandle cas
 
 SpellBase * SpellManager::getSpellOnTarget(EntityHandle target, SpellType type)
 {
-	if(target == EntityHandle::Invalid)
+	if(target == EntityHandle())
 		return NULL;
 	
 	for(size_t i = 0; i < MAX_SPELLS; i++) {
@@ -389,7 +388,7 @@ static void SPELLCAST_Notify(const SpellBase & spell) {
 		const EntityHandle handle = EntityHandle(i);
 		
 		if(entities[handle] != NULL) {
-			EVENT_SENDER = (source != EntityHandle::Invalid) ? entities[source] : NULL;
+			EVENT_SENDER = (source != EntityHandle()) ? entities[source] : NULL;
 			char param[256];
 			sprintf(param, "%s %ld", spellName, (long)spell.m_level);
 			SendIOScriptEvent(entities[handle], SM_SPELLCAST, param);
@@ -406,7 +405,7 @@ static void SPELLCAST_NotifyOnlyTarget(const SpellBase & spell) {
 	const char * spellName = MakeSpellName(spell.m_type);
 	
 	if(spellName) {
-		if(source != EntityHandle::Invalid)
+		if(source != EntityHandle())
 			EVENT_SENDER = entities[source];
 		else
 			EVENT_SENDER = NULL;
@@ -464,8 +463,6 @@ void ARX_SPELLS_Fizzle(SpellBase * spell) {
 	}
 }
 
-extern long PLAYER_PARALYSED;
-
 
 void ARX_SPELLS_ManageMagic() {
 	arx_assert(entities.player());
@@ -495,14 +492,14 @@ void ARX_SPELLS_ManageMagic() {
 	if(   !(player.Current_Movement & PLAYER_CROUCH)
 	   && !BLOCK_PLAYER_CONTROLS
 	   && GInput->actionPressed(CONTROLS_CUST_MAGICMODE)
-	   && !PLAYER_PARALYSED
+	   && !player.m_paralysed
 	) {
 		if(player.Interface & INTER_COMBATMODE) {
 			WILLRETURNTOCOMBATMODE = true;
 
 			ARX_INTERFACE_Combat_Mode(0);
 
-			ResetAnim(&io->animlayer[1]);
+			ResetAnim(io->animlayer[1]);
 			io->animlayer[1].flags &= ~EA_LOOP;
 		}
 
@@ -547,7 +544,7 @@ void ARX_SPELLS_ManageMagic() {
 						g_LastFlarePosition = pos;
 					}
 					
-					if(rnd() > 0.6)
+					if(Random::getf() > 0.6f)
 						AddFlare(pos, 1.f, -1);
 					else
 						AddFlare(pos, 1.f, 3);
@@ -654,7 +651,7 @@ static bool CanPayMana(SpellBase * spell, float cost, bool _bSound = true) {
 static EntityHandle TemporaryGetSpellTarget(const Vec3f & from) {
 	
 	float mindist = std::numeric_limits<float>::max();
-	EntityHandle found = EntityHandle(0);
+	EntityHandle found = PlayerEntityHandle;
 	for(size_t i = 1; i < entities.size(); i++) {
 		const EntityHandle handle = EntityHandle(i);
 		Entity * e = entities[handle];
@@ -662,7 +659,7 @@ static EntityHandle TemporaryGetSpellTarget(const Vec3f & from) {
 		if(e && e->ioflags & IO_NPC) {
 			float dist = glm::distance2(from, e->pos);
 			if(dist < mindist) {
-				found = EntityHandle(i);
+				found = handle;
 				mindist = dist;
 			}
 		}
@@ -893,7 +890,7 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 		}
 	}
 	
-	float Player_Magic_Level = 0;
+	float playerSpellLevel = 0;
 	
 	if(source == PlayerEntityHandle) {
 		ARX_SPELLS_ResetRecognition();
@@ -906,20 +903,21 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 		ARX_PLAYER_ComputePlayerFullStats();
 
 		if(level == -1) {
-			Player_Magic_Level = player.m_skillFull.casting + player.m_attributeFull.mind;
-			Player_Magic_Level = glm::clamp(Player_Magic_Level * 0.1f, 1.0f, 10.0f);
+			playerSpellLevel = player.m_skillFull.casting + player.m_attributeFull.mind;
+			playerSpellLevel = glm::clamp(playerSpellLevel * 0.1f, 1.0f, 10.0f);
 		} else {
-			Player_Magic_Level = static_cast<float>(level);
+			playerSpellLevel = static_cast<float>(level);
 		}
 	}
-
-	arx_assert(!(source && (flags & SPELLCAST_FLAG_PRECAST)));
+	
+	// Todo what was this assert supposed to do ?
+	// arx_assert(!(source && (flags & SPELLCAST_FLAG_PRECAST)));
 
 	if(flags & SPELLCAST_FLAG_PRECAST) {
 		int l = level;
 
 		if(l <= 0) {
-			l = checked_range_cast<int>(Player_Magic_Level);
+			l = checked_range_cast<int>(playerSpellLevel);
 		}
 
 		SpellcastFlags flgs = flags;
@@ -928,7 +926,7 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 		return true;
 	}
 	
-	if(target == EntityHandle::Invalid && source == PlayerEntityHandle)
+	if(target == EntityHandle() && source == PlayerEntityHandle)
 	switch(typ) {
 		case SPELL_LOWER_ARMOR:
 		case SPELL_CURSE:
@@ -1006,30 +1004,28 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 	if(!spells.hasFreeSlot())
 		return false;
 	
-	SpellBase * sp = createSpellInstance(typ);
-	if(!sp)
+	SpellBase * spell = createSpellInstance(typ);
+	if(!spell)
 		return false;
-	
-	SpellBase & spell = *sp;
 	
 	if(ValidIONum(source) && spellicons[typ].bAudibleAtStart) {
 		ARX_NPC_SpawnAudibleSound(entities[source]->pos, entities[source]);
 	}
 	
-	spell.m_caster = source; // Caster...
-	spell.m_target = target;
+	spell->m_caster = source; // Caster...
+	spell->m_target = target;
 	
-	if(target == EntityHandle::Invalid)
-		spell.m_target = TemporaryGetSpellTarget(entities[spell.m_caster]->pos);
+	if(target == EntityHandle())
+		spell->m_target = TemporaryGetSpellTarget(entities[spell->m_caster]->pos);
 	
-	spell.updateCasterHand();
-	spell.updateCasterPosition();
+	spell->updateCasterHand();
+	spell->updateCasterPosition();
 	
 	float spellLevel;
 	
 	if(source == PlayerEntityHandle) {
 		// Player source
-		spellLevel = Player_Magic_Level; // Level of caster
+		spellLevel = playerSpellLevel; // Level of caster
 	} else {
 		// IO source
 		spellLevel = (float)glm::clamp(level, 1l, 10l);
@@ -1043,38 +1039,38 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 		spellLevel += 2;
 	}
 	
-	spell.m_level = spellLevel;
-	spell.m_flags = flags;
-	spell.m_type = typ;
-	spell.m_timcreation = (unsigned long)(arxtime);
-	spell.m_fManaCostPerSecond = 0.f;
-	spell.m_launchDuration = duration;
+	spell->m_level = spellLevel;
+	spell->m_flags = flags;
+	spell->m_type = typ;
+	spell->m_timcreation = (unsigned long)(arxtime);
+	spell->m_fManaCostPerSecond = 0.f;
+	spell->m_launchDuration = duration;
 
-	if(!CanPayMana(&spell, ARX_SPELLS_GetManaCost(typ, spell.m_level))) {
-		delete &spell;
+	if(!CanPayMana(spell, ARX_SPELLS_GetManaCost(typ, spell->m_level))) {
+		delete spell;
 		return false;
 	}
 	
 	if(!GLOBAL_MAGIC_MODE) {
 		ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE);
-		delete &spell;
+		delete spell;
 		return false;
 	}
 	
-	if(!spell.CanLaunch()) {
-		delete &spell;
+	if(!spell->CanLaunch()) {
+		delete spell;
 		return false;
 	}
 	
-	spell.Launch();
+	spell->Launch();
 	
-	spells.addSpell(sp);
+	spells.addSpell(spell);
 	
 	// TODO inconsistent use of the SM_SPELLCAST event
 	if(typ == SPELL_CONFUSE || typ == SPELL_ENCHANT_WEAPON) {
-		SPELLCAST_NotifyOnlyTarget(spell);
+		SPELLCAST_NotifyOnlyTarget(*spell);
 	} else {
-		SPELLCAST_Notify(spell);
+		SPELLCAST_Notify(*spell);
 	}
 	
 	return true;

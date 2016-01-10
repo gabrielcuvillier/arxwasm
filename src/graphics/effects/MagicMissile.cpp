@@ -41,7 +41,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
 
-#include "graphics/spells/Spells01.h"
+#include "graphics/effects/MagicMissile.h"
 
 #include "animation/AnimationRender.h"
 
@@ -69,7 +69,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "scene/Interactive.h"
 
 
-CMagicMissile::CMagicMissile(bool mrCheat)
+CMagicMissile::CMagicMissile()
 	: CSpellFx()
 	, bExplo(false)
 	, bMove(true)
@@ -78,22 +78,21 @@ CMagicMissile::CMagicMissile(bool mrCheat)
 	, lightIntensityFactor()
 	, iLength()
 	, iBezierPrecision()
-	, fColor(Color3f::white)
 	, fTrail()
 	, fOneOnBezierPrecision()
-	, tex_mm()
 	, snd_loop()
-	, m_mrCheat(mrCheat)
 {
 	SetDuration(2000);
 	ulCurrentTime = ulDuration + 1;
-
+	
+	m_trailColor = Color3f(0.9f, 0.9f, 0.7f) + Color3f(0.1f, 0.1f, 0.3f) * randomColor3f();
+	m_projectileColor = Color3f(0.3f, 0.3f, 0.5f);
 	tex_mm = TextureContainer::Load("graph/obj3d/textures/(fx)_bandelette_blue");
 }
 
 CMagicMissile::~CMagicMissile() {
 
-	lLightId = LightHandle::Invalid;
+	lLightId = LightHandle();
 
 	ARX_SOUND_Stop(snd_loop);
 }
@@ -132,10 +131,6 @@ void CMagicMissile::Create(const Vec3f & aeSrc, const Anglef & angles)
 	snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_MM_LOOP, &eCurPos, 1.0F, ARX_SOUND_PLAY_LOOPED);
 }
 
-void CMagicMissile::SetColor(Color3f color) {
-	fColor = color;
-}
-
 void CMagicMissile::SetTTL(unsigned long aulTTL)
 {
 	unsigned long t = ulCurrentTime;
@@ -143,7 +138,7 @@ void CMagicMissile::SetTTL(unsigned long aulTTL)
 	SetDuration(ulDuration);
 	ulCurrentTime = t;
 	
-	lLightId = LightHandle::Invalid;
+	lLightId = LightHandle();
 }
 
 void CMagicMissile::Update(float timeDelta)
@@ -155,7 +150,7 @@ void CMagicMissile::Update(float timeDelta)
 	if(ulCurrentTime >= ulDuration)
 		lightIntensityFactor = 0.f;
 	else
-		lightIntensityFactor = 1 - 0.5f * rnd();
+		lightIntensityFactor = Random::getf(0.5f, 1.0f);
 }
 
 void CMagicMissile::Render()
@@ -167,11 +162,11 @@ void CMagicMissile::Render()
 		return;
 	
 	RenderMaterial mat;
-	mat.setCulling(Renderer::CullNone);
+	mat.setCulling(CullNone);
 	mat.setDepthTest(true);
 	mat.setBlendType(RenderMaterial::Additive);
 	
-	if(tex_mm && !m_mrCheat)
+	if(tex_mm)
 		mat.setTexture(tex_mm);
 	
 	if(bMove) {
@@ -233,20 +228,19 @@ void CMagicMissile::Render()
 				if(alpha < 0.2f)
 					alpha = 0.2f;
 
-				c += frand2() * 0.1f;
-
-				if (c < 0) c = 0;
-				else if (c > 1) c = 1;
-
-				Color color = (fColor * (c * alpha)).to<u8>();
+				c += Random::getf(-0.1f, 0.1f);
+				
+				c = glm::clamp(c, 0.f, 1.f);
+				
+				Color color = (m_trailColor * (c * alpha)).to<u8>();
 
 				if(fsize < 0.5f)
 					fsize = fsize * 2 * 3;
 				else
 					fsize = (1.0f - fsize + 0.5f) * 2 * (3 * 0.5f);
 
-				float fs = fsize * 6 + rnd() * 0.3f;
-				float fe = fsize * 6 + rnd() * 0.3f;
+				float fs = fsize * 6 + Random::getf(0.f, 0.3f);
+				float fe = fsize * 6 + Random::getf(0.f, 0.3f);
 				Draw3DLineTexNew(mat, lastpos, newpos, color, color, fs, fe);
 			}
 
@@ -277,7 +271,14 @@ void CMagicMissile::Render()
 	if(stiteangle.getRoll() < 0)
 		stiteangle.setRoll(stiteangle.getRoll() + 360.0f);
 
-	Color3f stitecolor = m_mrCheat ? Color3f(1.f, 0.f, 0.2f) : Color3f(0.3f, 0.3f, 0.5f);
-	
-	Draw3DObject(smissile, stiteangle, eCurPos, Vec3f_ONE, stitecolor, mat);
+	Draw3DObject(smissile, stiteangle, eCurPos, Vec3f_ONE, m_projectileColor, mat);
+}
+
+
+MrMagicMissileFx::MrMagicMissileFx()
+	: CMagicMissile()
+{
+	m_trailColor = Color3f(0.9f, 0.2f, 0.5f);
+	m_projectileColor = Color3f(1.f, 0.f, 0.2f);
+	tex_mm = NULL;
 }

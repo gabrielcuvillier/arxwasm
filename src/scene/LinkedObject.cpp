@@ -69,7 +69,7 @@ void EERIE_LINKEDOBJ_UnLinkObjectFromObject(EERIE_3DOBJ * obj, EERIE_3DOBJ * tou
 		return;
 	
 	for(size_t k = 0; k < obj->linked.size(); k++) {
-		if(obj->linked[k].lgroup != -1 && obj->linked[k].obj == tounlink) {
+		if(obj->linked[k].lgroup != ObjVertGroup() && obj->linked[k].obj == tounlink) {
 			for(size_t i = 0; i < tounlink->vertexlist.size(); i++) {
 				tounlink->vertexlist[i].vert.p = tounlink->vertexlist[i].v;
 			}
@@ -85,16 +85,16 @@ bool EERIE_LINKEDOBJ_LinkObjectToObject(EERIE_3DOBJ * obj, EERIE_3DOBJ * tolink,
 	if(!obj || !tolink)
 		return false;
 	
-	long ni = GetActionPointIdx(obj, actiontext);
-	if(ni < 0)
+	ActionPoint ni = GetActionPointIdx(obj, actiontext);
+	if(ni == ActionPoint())
 		return false;
 	
-	long group = GetActionPointGroup(obj, ni);
-	if(group < 0)
+	ObjVertGroup group = GetActionPointGroup(obj, ni);
+	if(group == ObjVertGroup())
 		return false;
 
-	long ni2 = GetActionPointIdx(tolink, actiontext2);
-	if(ni2 < 0)
+	ActionPoint ni2 = GetActionPointIdx(tolink, actiontext2);
+	if(ni2 == ActionPoint())
 		return false;
 
 	EERIE_LINKED link;
