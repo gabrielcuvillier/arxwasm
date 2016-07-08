@@ -4,8 +4,8 @@ Implementation notes for PNACL Port
 
 * Build System
 
-There is two new CMAKE toolchain files, under 'cmake' subfolder: _toolchain-pnacl.cmake_ and 
-_toolchain-x86_64-nacl.cmake_. 
+There is two new CMAKE toolchain files, under 'cmake' subfolder: toolchain-pnacl.cmake and 
+toolchain-x86_64-nacl.cmake. 
 
 Both rely on NACL_SDK_ROOT environment variable, and setup everything necessary to build using the 
 NACL SDK: compilers, root paths, include directories, library dependencies, and a few additional 
@@ -16,7 +16,7 @@ PACKAGE).
 
 The pnacl toolchain file contains definition of two special commands: 'pnacl-finalize' (executed 
 automatically at end of the build) and 'pnacl-compress' (can be executed manually). The x86_64-nacl 
-file contain the special command 'nacl-strip' (executed automatically at end of the build).
+file define the special command 'nacl-strip' (executed automatically at end of the build).
 
 Note that there is a small hack in CMAKE_FIND_ROOT_PATH definition of PNACL toolchain file, to be 
 able to find some commands such as "ar", "objdump", and "strip": the directory 
@@ -33,9 +33,9 @@ Overview of the changes to the main CMakeList.txt file:
   - Force usage of SDL2
   - Manual handling for OpenGL library dependency
   - GLEW disabled
-  - add of PPAPI library dependency
+  - add of PPAPI library dependencies
 
-in file cmake/BuildType.cmake (for PNACL only)
+in file cmake/BuildType.cmake (for PNACL only):
   - Some warning disable for LLVM
   - Force optimize for Size instead of for Speed
   - Enable PNACL exceptions

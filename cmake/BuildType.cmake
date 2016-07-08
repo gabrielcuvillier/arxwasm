@@ -110,7 +110,7 @@ else(MSVC)
 
   if(PNACL)
     #Exceptions must be enabled manualy on pnacl, and are required for Arx to function properly
-    add_ldflag("--pnacl-exceptions=sjlj")
+    #add_ldflag("--pnacl-exceptions=sjlj")
   endif()
 	
 	if(SET_WARNING_FLAGS)
@@ -144,7 +144,7 @@ else(MSVC)
     
 		if(NOT DEBUG_EXTRA)
 		
-      if (PNACL) # too noisy on LLVM version of PNACL (occurs in Boost and GLM)
+      if (NACL) # too noisy on LLVM version of PNACL (occurs in Boost and GLM)
         add_cxxflag("-Wno-undef")
         add_cxxflag("-Wno-unused-local-typedef")
       endif()
@@ -255,7 +255,7 @@ else(MSVC)
 			
 			add_cxxflag("-ffast-math")
 			
-      if(PNACL)
+      if(NACL)
         check_compiler_flag(RESULT "-Os")
         string(REGEX REPLACE "-O[0-9]" "-Os" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${RESULT}")

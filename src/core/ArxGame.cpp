@@ -200,6 +200,10 @@ bool ARX_FLARES_Block = true;
 Vec3f LASTCAMPOS;
 Anglef LASTCAMANGLE;
 
+Vec3f PUSH_PLAYER_FORCE;
+static EERIE_BACKGROUND* DefaultBkg = NULL;
+EERIE_CAMERA subj,bookcam,conversationcamera;
+
 // ArxGame constructor. Sets attributes for the app.
 ArxGame::ArxGame()
 	: m_wasResized(false)
@@ -757,11 +761,6 @@ static bool HandleGameFlowTransitions() {
 	return false;
 }
 
-
-Vec3f PUSH_PLAYER_FORCE;
-static EERIE_BACKGROUND DefaultBkg;
-EERIE_CAMERA subj,bookcam,conversationcamera;
-
 bool ArxGame::initGame()
 {
 	// Check if the game will be able to use the current game directory.
@@ -863,9 +862,9 @@ bool ArxGame::initGame()
 	
 	LastLoadedScene.clear();
 	
-	DefaultBkg = EERIE_BACKGROUND();
-	memset(&DefaultBkg, 0, sizeof(DefaultBkg));
-	ACTIVEBKG=&DefaultBkg;
+	DefaultBkg = new EERIE_BACKGROUND();
+  memset(DefaultBkg, 0, sizeof(EERIE_BACKGROUND));
+	ACTIVEBKG=DefaultBkg;
 	InitBkg(ACTIVEBKG,MAX_BKGX,MAX_BKGZ,BKG_SIZX,BKG_SIZZ);
 	
 	player.size.y = -player.baseHeight();

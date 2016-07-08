@@ -24,7 +24,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <stdarg.h>
 
 #include "Configure.h"
 #include "platform/Platform.h"
@@ -79,16 +78,13 @@ extern char ** environ;
 namespace platform {
 
 #if ARX_PLATFORM != ARX_PLATFORM_WIN32
-static int run(const char * exe, bool wait, const char * const args[],
-               int stdoutdescr, bool unlocalized, bool detach) {
+static process_handle run(const char * exe, const char * const args[], int nstdout,
+                          bool unlocalized, bool detach) {
 	
 	char ** argv = const_cast<char **>(args);
 	
 	#if ARX_HAVE_OPEN
 	static int dev_null = open("/dev/null", O_RDWR);
-	if(stdoutdescr <= 0) {
-		stdoutdescr = dev_null;
-	}
 	#endif
 	
 	pid_t pid = 0;
@@ -97,7 +93,7 @@ static int run(const char * exe, bool wait, const char * const args[],
 	
 	// Fast POSIX implementation: posix_spawnp avoids unnecessary vm copies
 	
-	if(stdoutdescr == dev_null && unlocalized == false && detach) {
+	if(nstdout <= 0 && unlocalized == false) {
 		
 		// Redirect standard input, output and error to /dev/null
 		static posix_spawn_file_actions_t * file_actionsp = NULL;
@@ -145,14 +141,14 @@ static int run(const char * exe, bool wait, const char * const args[],
 			#if ARX_HAVE_OPEN
 			if(detach && dev_null > 0) {
 				(void)dup2(dev_null, 0);
-				if(stdoutdescr > 0) {
+				if(nstdout > 0) {
 					dup2(dev_null, 1);
 				}
 				(void)dup2(dev_null, 2);
 			}
 			#endif
-			if(stdoutdescr > 0) {
-				(void)dup2(stdoutdescr, 1);
+			if(nstdout > 0) {
+				(void)dup2(nstdout, 1);
 			}
 			#endif
 			
@@ -181,7 +177,7 @@ static int run(const char * exe, bool wait, const char * const args[],
 	}
 	
 #if !ARX_HAVE_POSIX_SPAWNP && !(ARX_HAVE_FORK && ARX_HAVE_EXECVP)
-	ARX_UNUSED(argv), ARX_UNUSED(stdoutdescr), ARX_UNUSED(unlocalized), ARX_UNUSED(detach);
+	ARX_UNUSED(argv), ARX_UNUSED(nstdout), ARX_UNUSED(unlocalized), ARX_UNUSED(detach);
 	#warning "Executing helper processes not supported on this system."
 #endif
 	
@@ -227,7 +223,7 @@ process_handle runAsync(const char * exe, const char * const args[], bool detach
 	
 #else
 	
-	return run(exe, wait, args, /*stdout=*/ 0, /*unlocalized=*/ false, /*detach=*/ true);
+	return run(exe, args, /*nstdout=*/ 0, /*unlocalized=*/ false, detach);
 	
 #endif
 	

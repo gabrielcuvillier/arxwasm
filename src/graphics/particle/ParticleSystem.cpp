@@ -171,13 +171,8 @@ void ParticleSystem::SetParticleParams(Particle * pP) {
 		
 		pP->p3Pos.y = Random::getf();
 		
-<<<<<<< HEAD
-		if(!((m_parameters.m_spawnFlags & PARTICLE_BORDER) == PARTICLE_BORDER)) {
-			pP->p3Pos *= Vec3f(rnd(), 1.f, rnd());
-=======
 		if((m_parameters.m_spawnFlags & PARTICLE_BORDER) != PARTICLE_BORDER) {
 			pP->p3Pos *= Vec3f(Random::getf(), 1.f, Random::getf());
->>>>>>> dc68772370e05c952d4630d66299f2762d946f14
 		}
 	} else {
 		pP->p3Pos = randomVec(-1.f, 1.f);
