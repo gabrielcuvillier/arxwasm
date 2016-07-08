@@ -76,7 +76,7 @@ class InventoryCommand : public Command {
 		explicit SubCommand(const std::string & name)
 			: Command("inventory " + name, AnyEntity), command(name) { }
 		
-		inline const std::string & getCommand() { return command; }
+		const std::string & getCommand() { return command; }
 		
 	};
 	
@@ -421,6 +421,13 @@ public:
 		addCommand(new DestroyCommand);
 		addCommand(new OpenCommand);
 		addCommand(new CloseCommand);
+	}
+	
+	~InventoryCommand() {
+		for(Commands::iterator i = commands.begin(); i != commands.end(); ++i) {
+			delete i->second;
+		}
+		commands.clear();
 	}
 	
 	Result execute(Context & context) {

@@ -27,12 +27,13 @@ Reddit: [http://www.reddit.com/r/ArxFatalis/](http://www.reddit.com/r/ArxFatalis
 
 * **[CMake](http://www.cmake.org/) 2.8.3**+ (compile-time only, 2.8.5+ under Windows)
 * **[zlib](http://zlib.net/)**
-* **[Boost](http://www.boost.org/) 1.48**+ (headers only)
+* **[Boost](http://www.boost.org/) 1.48**+ (headers only^1)
 * **[GLM](http://glm.g-truc.net/) 0.9.5.0**+
 * **[FreeType](http://www.freetype.org/) 2.3.0**+
 * **OpenAL 1.1**+ ([OpenAL Soft](http://kcat.strangesoft.net/openal.html) strongly recommended!)
+* **iconutil** (from Xcode) or **[icnsutil](https://github.com/pornel/libicns)** (Mac OS X only)
 
-Systems without Win32 or POSIX filesystem support will also the `filesystem` and `system` libraries from Boost.
+1. Systems without Win32 or POSIX filesystem support will also the `filesystem` and `system` libraries from Boost.
 
 ### Renderer
 
@@ -55,11 +56,25 @@ Arx Libertatis comes with an optional gui crash reporter which has additional de
 
 While the crash reporter can be run without GDB, it's main usefulness comes from generating and submitting detailed back-traces in the event of a crash. On non-window systems we use GDB, the GNU Debugger, to accomplish that. If you want to help out the arx project, please install GDB before running arx. GDB is however purely a run-time dependency and is not needed when building the crash reporter.
 
+### Git Build Dependencies
+
+Building checkouts from git on their own requires additional dependencies:
+* **[Inkscape](https://inkscape.org/)**
+* **[ImageMagick](http://www.imagemagick.org/script/index.php)**
+* **[OptiPNG](http://optipng.sourceforge.net/)**
+
+These are needed to render and scale the svg icons, which currently only render correctly in in Inkscape. Release and development snapshot source tarballs include the pre-built icon files and do not need these dependencies to build.
+
+To avoid the Inkscape (and ImageMagick) dependency for git builds, pre-build icons can be downloaded from http://arx-libertatis.org/files/data/ or the [ArxLibertatisData](https://github.com/arx/ArxLibertatisData/) repository. The required data version is listed in the VERSION file. Place `arx-libertatis-data-$version` directory into the build directory or tell the build system about it's location using the `-DDATA_FILES=…` cmake option.
+
+Alternatively, icons can be disabled using the `-DICON_TYPE=none` cmake option. See **OPTIONS.md** for other supported icon type values.
+
 ## Compile and install
 
 For Linux run:
 
-    $ mkdir build && cd build && cmake ..
+    $ mkdir build && cd build
+    $ cmake ..
     $ make
 
 To install the binaries system-wide, run as root:
@@ -78,12 +93,14 @@ Getting all the dependencies set up for Windows is more tricky. Pre-build depend
 * `BUILD_IO_LIBRARY` (default=ON): Build helper library for the Blender plugin
 * `BUILD_CRASHHANDLER` (default=ON): Enable the built-in crash handler (default OFF for Mac)
 * `BUILD_CRASHREPORTER` (default=ON): Build the Qt crash reporter gui - requires `BUILD_CRASHHANDLER` (default OFF for Mac)
-* `UNITY_BUILD` (default=OFF): Unity build (faster build, better optimizations but no incremental build)
+* `UNITY_BUILD` (default=ON): Unity build (faster build, better optimizations but no incremental build)
 * `CMAKE_BUILD_TYPE` (default=Release): Set to `Debug` for debug binaries
 * `DEBUG` (default=OFF^1): Enable debug output and runtime checks
 * `DEBUG_EXTRA` (default=OFF): Expensive debug options
+* `DEVELOPER` (default=OFF): Enable build options suitable for developers^2
 
 1. Enabled automatically if `CMAKE_BUILD_TYPE` is set to `Debug`.
+2. Currently this disables `UNITY_BUILD` for faster incremental builds and enables `DEBUG`, unles those options have been explicitly specified by the user.
 
 Install options:
 

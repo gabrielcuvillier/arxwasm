@@ -73,13 +73,11 @@ CMagicMissile::CMagicMissile()
 	: CSpellFx()
 	, bExplo(false)
 	, bMove(true)
-	, eSrc(Vec3f_ZERO)
 	, eCurPos()
 	, lightIntensityFactor()
 	, iLength()
 	, iBezierPrecision()
 	, fTrail()
-	, fOneOnBezierPrecision()
 	, snd_loop()
 {
 	SetDuration(2000);
@@ -97,24 +95,24 @@ CMagicMissile::~CMagicMissile() {
 	ARX_SOUND_Stop(snd_loop);
 }
 
-void CMagicMissile::Create(const Vec3f & aeSrc, const Anglef & angles)
+void CMagicMissile::Create(const Vec3f & startPos, const Anglef & angles)
 {
 	SetDuration(ulDuration);
 	
-	eCurPos = eSrc = aeSrc;
+	eCurPos = startPos;
 	
 	short i = 40.f;
-	Vec3f e = eSrc;
-	e += angleToVectorXZ(angles.getPitch()) * (50.f * i);
-	e.y += std::sin(glm::radians(MAKEANGLE(angles.getYaw()))) * (50.f * i);
+	Vec3f endPos = startPos;
+	endPos += angleToVectorXZ(angles.getPitch()) * (50.f * i);
+	endPos.y += std::sin(glm::radians(MAKEANGLE(angles.getYaw()))) * (50.f * i);
 	
-	pathways[0] = eSrc;
-	pathways[5] = e;
+	pathways[0] = startPos;
+	pathways[5] = endPos;
 	Split(pathways, 0, 5, 50, 0.5f);
 
 	for(i = 0; i < 6; i++) {
-		if(pathways[i].y >= eSrc.y + 150) {
-			pathways[i].y = eSrc.y + 150;
+		if(pathways[i].y >= startPos.y + 150) {
+			pathways[i].y = startPos.y + 150;
 		}
 	}
 
@@ -122,7 +120,6 @@ void CMagicMissile::Create(const Vec3f & aeSrc, const Anglef & angles)
 
 	iLength = 50;
 	iBezierPrecision = BEZIERPrecision;
-	fOneOnBezierPrecision = 1.0f / (float) iBezierPrecision;
 	bExplo = false;
 	bMove = true;
 
@@ -177,40 +174,20 @@ void CMagicMissile::Render()
 	newpos = lastpos = pathways[0];
 	
 	for(int i = 0; i < 5; i++) {
-		int kp = i;
-		int kpprec = (i > 0) ? kp - 1 : kp ;
-		int kpsuiv = kp + 1 ;
-		int kpsuivsuiv = (i < (5 - 2)) ? kpsuiv + 1 : kpsuiv;
-
+		
+		const Vec3f v1 = pathways[std::max(0, i - 1)];
+		const Vec3f v2 = pathways[i];
+		const Vec3f v3 = pathways[i + 1];
+		const Vec3f v4 = pathways[std::min(5, i + 2)];
+		
 		for(int toto = 1; toto < iBezierPrecision; toto++) {
 			if(fTrail < i * iBezierPrecision + toto)
 				break;
 
-			float t = toto * fOneOnBezierPrecision;
-
-			float t1 = t;
-			float t2 = t1 * t1 ;
-			float t3 = t2 * t1 ;
-			float f0 = 2.f * t3 - 3.f * t2 + 1.f ;
-			float f1 = -2.f * t3 + 3.f * t2 ;
-			float f2 = t3 - 2.f * t2 + t1 ;
-			float f3 = t3 - t2 ;
-
-			float val = pathways[kpsuiv].x;
-			float p0 = 0.5f * (val - pathways[kpprec].x) ;
-			float p1 = 0.5f * (pathways[kpsuivsuiv].x - pathways[kp].x) ;
-			v.x = f0 * pathways[kp].x + f1 * val + f2 * p0 + f3 * p1 ;
-
-			val = pathways[kpsuiv].y ;
-			p0 = 0.5f * (val - pathways[kpprec].y) ;
-			p1 = 0.5f * (pathways[kpsuivsuiv].y - pathways[kp].y) ;
-			v.y = f0 * pathways[kp].y + f1 * val + f2 * p0 + f3 * p1 ;
-
-			val = pathways[kpsuiv].z ;
-			p0 = 0.5f * (val - pathways[kpprec].z) ;
-			p1 = 0.5f * (pathways[kpsuivsuiv].z - pathways[kp].z) ;
-			v.z = f0 * pathways[kp].z + f1 * val + f2 * p0 + f3 * p1 ;
-
+			float t = toto * (1.0f / iBezierPrecision);
+			
+			v = glm::catmullRom(v1, v2, v3, v4, t);
+			
 			newpos = v;
 
 			if(!((fTrail - (i * iBezierPrecision + toto)) > iLength)) {

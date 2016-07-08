@@ -48,6 +48,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "cinematic/Cinematic.h"
 #include "cinematic/CinematicKeyframer.h"
 
+#include "core/Core.h"
+
 #include "graphics/Math.h"
 #include "graphics/Draw.h"
 #include "cinematic/CinematicTexture.h"
@@ -64,50 +66,26 @@ static float OldAz[NBOLDPOS];
 /*---------------------------------------------------------------------------------*/
 Color FX_FadeIN(float a, Color color, Color colord)
 {
-	float	r, g, b;
-	float	rd, gd, bd;
+	float r = (color.r - colord.r) * a + colord.r;
+	float g = (color.g - colord.g) * a + colord.g;
+	float b = (color.b - colord.b) * a + colord.b;
 	
-	r = color.r;
-	g = color.g;
-	b = color.b;
-	
-	rd = colord.r;
-	gd = colord.g;
-	bd = colord.b;
-
-	r = (r - rd) * a + rd;
-	g = (g - gd) * a + gd;
-	b = (b - bd) * a + bd;
-	
-	return Color((int)r, (int)g, (int)b, 0);
+	return Color(u8(r), u8(g), u8(b), 0);
 
 }
 /*---------------------------------------------------------------------------------*/
 Color FX_FadeOUT(float a, Color color, Color colord)
 {
-	float	r, g, b;
-	float	rd, gd, bd;
-
 	a = 1.f - a;
 	
-	r = color.r;
-	g = color.g;
-	b = color.b;
-	
-	rd = colord.r;
-	gd = colord.g;
-	bd = colord.b;
+	float r = (color.r - colord.r) * a + colord.r;
+	float g = (color.g - colord.g) * a + colord.g;
+	float b = (color.b - colord.b) * a + colord.b;
 
-	r = (r - rd) * a + rd;
-	g = (g - gd) * a + gd;
-	b = (b - bd) * a + bd;
-
-	return Color((int)r, (int)g, (int)b, 0);
+	return Color(u8(r), u8(g), u8(b), 0);
 }
 
 static float LastTime;
-
-extern Rect g_size;
 
 bool FX_Blur(Cinematic *c, CinematicBitmap *tb, EERIE_CAMERA &camera)
 {
@@ -141,7 +119,7 @@ bool FX_Blur(Cinematic *c, CinematicBitmap *tb, EERIE_CAMERA &camera)
 		PrepareCamera(&camera, g_size);
 		
 		Color col = Color(255, 255, 255, int(alpha));
-		DrawGrille(tb, col, 0, NULL, &c->posgrille, c->angzgrille, c->fadegrille);
+		DrawGrille(tb, col, 0, NULL, c->posgrille, c->angzgrille, c->fadegrille);
 
 		alpha += dalpha;
 		pos++;
@@ -206,9 +184,7 @@ void FX_DreamPrecalc(CinematicBitmap * bi, float amp, float fps) {
 	n.x = (bi->m_count.x + 1) << 1;
 	n.y = (bi->m_count.y + 1) << 1;
 	
-	Vec2f nn;
-	nn.x = ((float)n.x) + s.x;
-	nn.y = ((float)n.y) + s.y;
+	Vec2f nn = Vec2f(n) + s;
 	
 	Vec2f o;
 	o.x = amp * ((2 * (std::sin(nn.x / 20) + std::sin(nn.x * nn.y / 2000)

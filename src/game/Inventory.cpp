@@ -88,8 +88,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "script/Script.h"
 
-extern float InventoryX;
-extern float InventoryDir;
 
 void ARX_INVENTORY_ReOrder();
 
@@ -867,9 +865,6 @@ bool CanBePutInSecondaryInventory(INVENTORY_DATA * id, Entity * io)
 	return false;
 }
 
-extern Vec2s DANAEMouse;
-
-
 /*!
  * \brief Try to put DRAGINTER object in an inventory
  * \return
@@ -1094,14 +1089,22 @@ void CheckForInventoryReplaceMe(Entity * io, Entity * old) {
 bool TakeFromInventory(const Vec2s & pos) {
 	Entity * io = GetFromInventory(pos);
 	
-	if(io == NULL)
+	if(io == NULL) {
 		return false;
+	}
 	
-	if(g_secondaryInventoryHud.dragEntity(io, pos))
-		return true;
+	switch(HERO_OR_SECONDARY) {
+		case 1: //player inventory
+			g_playerInventoryHud.dragEntity(io, pos);
+			break;
+		case 2: //secondary inventory
+			g_secondaryInventoryHud.dragEntity(io, pos);
+			break;
+		default:
+			ARX_DEAD_CODE();
+			return false;
+	}
 	
-	g_playerInventoryHud.dragEntity(io, pos);
-
 	return true;
 }
 
@@ -1258,7 +1261,7 @@ void ARX_INVENTORY_OpenClose(Entity * _io)
 		if(SecondaryInventory && SecondaryInventory->io)
 			SendIOScriptEvent(SecondaryInventory->io, SM_INVENTORY2_CLOSE);
 
-		InventoryDir = -1;
+		g_secondaryInventoryHud.m_fadeDirection = SecondaryInventoryHud::Fade_left;
 		TSecondaryInventory = SecondaryInventory;
 		SecondaryInventory = NULL;
 		DRAGGING = false;
@@ -1266,12 +1269,12 @@ void ARX_INVENTORY_OpenClose(Entity * _io)
 		if(TSecondaryInventory && TSecondaryInventory->io)
 			SendIOScriptEvent(TSecondaryInventory->io, SM_INVENTORY2_CLOSE);
 
-		InventoryDir = 1;
+		g_secondaryInventoryHud.m_fadeDirection = SecondaryInventoryHud::Fade_right;
 		TSecondaryInventory = SecondaryInventory = _io->inventory;
 
 		if(SecondaryInventory && SecondaryInventory->io != NULL) {
 			if(SendIOScriptEvent(SecondaryInventory->io, SM_INVENTORY2_OPEN) == REFUSE) {
-				InventoryDir = -1;
+				g_secondaryInventoryHud.m_fadeDirection = SecondaryInventoryHud::Fade_left;
 				TSecondaryInventory = SecondaryInventory = NULL;
 				return;
 			}

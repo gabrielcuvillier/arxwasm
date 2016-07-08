@@ -19,6 +19,7 @@
 
 #include "game/magic/spells/SpellsLvl02.h"
 
+#include "core/Core.h"
 #include "core/GameTime.h"
 #include "game/Damage.h"
 #include "game/Entity.h"
@@ -113,9 +114,9 @@ void HealSpell::End() {
 	
 }
 
-void HealSpell::Update(float timeDelta) {
+void HealSpell::Update() {
 	
-	m_currentTime += timeDelta;
+	m_currentTime += g_framedelay;
 	
 	if(m_caster == PlayerEntityHandle) {
 		m_pos = player.pos;
@@ -160,7 +161,7 @@ void HealSpell::Update(float timeDelta) {
 	}
 
 	m_particles.SetPos(m_pos);
-	m_particles.Update(timeDelta);
+	m_particles.Update(g_framedelay);
 	m_particles.Render();
 	
 	for(size_t ii = 0; ii < entities.size(); ii++) {
@@ -182,11 +183,12 @@ void HealSpell::Update(float timeDelta) {
 				dist=fdist(m_pos, e->pos);
 
 			if(dist<300.f) {
-				float gain = Random::getf(0.8f, 2.4f) * m_level * (300.f - dist) * (1.0f/300) * timeDelta * (1.0f/1000);
+				float gain = Random::getf(0.8f, 2.4f) * m_level * (300.f - dist) * (1.0f/300) * g_framedelay * (1.0f/1000);
 
 				if(handle == PlayerEntityHandle) {
-					if (!BLOCK_PLAYER_CONTROLS)
-						player.lifePool.current=std::min(player.lifePool.current+gain,player.Full_maxlife);									
+					if(!BLOCK_PLAYER_CONTROLS) {
+						player.lifePool.current = std::min(player.lifePool.current + gain, player.Full_maxlife);
+					}
 				}
 				else
 					e->_npcdata->lifePool.current = std::min(e->_npcdata->lifePool.current+gain, e->_npcdata->lifePool.max);
@@ -222,8 +224,7 @@ void DetectTrapSpell::End()
 	m_targets.clear();
 }
 
-void DetectTrapSpell::Update(float timeDelta) {
-	ARX_UNUSED(timeDelta);
+void DetectTrapSpell::Update() {
 	
 	if(m_caster == PlayerEntityHandle) {
 		Vec3f pos = ARX_PLAYER_FrontPos();
@@ -279,9 +280,7 @@ void ArmorSpell::End()
 	m_targets.clear();
 }
 
-void ArmorSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void ArmorSpell::Update() {
 	
 	if(ValidIONum(m_target)) {
 		Entity *io = entities[m_target];
@@ -352,9 +351,7 @@ void LowerArmorSpell::End()
 	m_targets.clear();
 }
 
-void LowerArmorSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void LowerArmorSpell::Update() {
 	
 	if(ValidIONum(m_target)) {
 		Entity *io = entities[m_target];
@@ -430,7 +427,7 @@ void HarmSpell::End()
 }
 
 // TODO copy-paste cabal
-void HarmSpell::Update(float timeDelta)
+void HarmSpell::Update()
 {
 	float refpos;
 	float scaley;
@@ -438,25 +435,26 @@ void HarmSpell::Update(float timeDelta)
 	if(m_caster == PlayerEntityHandle)
 		scaley = 90.f;
 	else
-		scaley = glm::abs(entities[m_caster]->physics.cyl.height*( 1.0f / 2 ))+30.f;
+		scaley = glm::abs(entities[m_caster]->physics.cyl.height * (1.0f/2)) + 30.f;
 	
+	const float frametime = float(arxtime.get_frame_time());
 	
-	float mov=std::sin((float)arxtime.get_frame_time()*( 1.0f / 800 ))*scaley;
+	float mov = std::sin(frametime * (1.0f/800)) * scaley;
 	
 	Vec3f cabalpos;
 	if(m_caster == PlayerEntityHandle) {
 		cabalpos.x = player.pos.x;
 		cabalpos.y = player.pos.y + 60.f - mov;
 		cabalpos.z = player.pos.z;
-		refpos=player.pos.y+60.f;
+		refpos = player.pos.y + 60.f;
 	} else {
 		cabalpos.x = entities[m_caster]->pos.x;
 		cabalpos.y = entities[m_caster]->pos.y - scaley - mov;
 		cabalpos.z = entities[m_caster]->pos.z;
-		refpos=entities[m_caster]->pos.y-scaley;
+		refpos = entities[m_caster]->pos.y - scaley;
 	}
 	
-	float Es=std::sin((float)arxtime.get_frame_time()*( 1.0f / 800 ) + glm::radians(scaley));
+	float Es = std::sin(frametime * (1.0f/800) + glm::radians(scaley));
 	
 	if(lightHandleIsValid(m_light)) {
 		EERIE_LIGHT * light = lightHandleGet(m_light);
@@ -475,25 +473,25 @@ void HarmSpell::Update(float timeDelta)
 	mat.setBlendType(RenderMaterial::Additive);
 	
 	Anglef cabalangle(0.f, 0.f, 0.f);
-	cabalangle.setPitch(m_pitch + (float)timeDelta*0.1f);
+	cabalangle.setPitch(m_pitch + g_framedelay * 0.1f);
 	m_pitch = cabalangle.getPitch();
 	
 	Vec3f cabalscale = Vec3f(Es);
 	Color3f cabalcolor = Color3f(0.8f, 0.4f, 0.f);
 	Draw3DObject(cabal, cabalangle, cabalpos, cabalscale, cabalcolor, mat);
 	
-	mov=std::sin((float)(arxtime.get_frame_time()-30.f)*( 1.0f / 800 ))*scaley;
+	mov = std::sin((frametime - 30.f) * (1.0f/800)) * scaley;
 	cabalpos.y = refpos - mov;
 	cabalcolor = Color3f(0.5f, 3.f, 0.f);
 	Draw3DObject(cabal, cabalangle, cabalpos, cabalscale, cabalcolor, mat);
 	
-	mov=std::sin((float)(arxtime.get_frame_time()-60.f)*( 1.0f / 800 ))*scaley;
-	cabalpos.y=refpos-mov;
+	mov = std::sin((frametime - 60.f) * (1.0f/800)) * scaley;
+	cabalpos.y = refpos - mov;
 	cabalcolor = Color3f(0.25f, 0.1f, 0.f);
 	Draw3DObject(cabal, cabalangle, cabalpos, cabalscale, cabalcolor, mat);
 	
-	mov=std::sin((float)(arxtime.get_frame_time()-120.f)*( 1.0f / 800 ))*scaley;
-	cabalpos.y=refpos-mov;
+	mov = std::sin((frametime - 120.f) * (1.0f/800)) * scaley;
+	cabalpos.y = refpos - mov;
 	cabalcolor = Color3f(0.15f, 0.1f, 0.f);
 	Draw3DObject(cabal, cabalangle, cabalpos, cabalscale, cabalcolor, mat);
 	

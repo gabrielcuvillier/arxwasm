@@ -44,6 +44,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #ifndef ARX_GAME_ENTITY_H
 #define ARX_GAME_ENTITY_H
 
+#include <stddef.h>
 #include <set>
 #include <string>
 #include <vector>
@@ -60,9 +61,9 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "io/resource/ResourcePath.h"
 #include "math/Vector.h"
 #include "math/Angle.h"
-#include "platform/Flags.h"
 #include "scene/Light.h"
 #include "script/Script.h" // TODO remove this
+#include "util/Flags.h"
 
 class TextureContainer;
 struct ANIM_HANDLE;
@@ -76,7 +77,7 @@ struct IO_ITEMDATA;
 struct IO_NPCDATA;
 struct TWEAK_INFO;
 
-static const int MAX_ANIMS = 200; // max loadable anims per character
+static const size_t MAX_ANIMS = 200; // max loadable anims per character
 static const size_t MAX_ANIM_LAYERS = 4;
 static const float BASE_RUBBER = 1.5f;
 
@@ -143,6 +144,10 @@ struct IO_SPELLCAST_DATA {
 	
 	IO_SPELLCAST_DATA()
 		: castingspell(SPELL_NONE)
+		, spell_flags()
+		, spell_level(0)
+		, target()
+		, duration(0)
 	{
 		for(unsigned long j(0); j < 4; j++)
 			symb[j] = RUNE_NONE;

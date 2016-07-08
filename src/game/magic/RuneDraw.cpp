@@ -84,7 +84,7 @@ void ARX_SPELLS_Init_Rects() {
 
 void ARX_SPELLS_UpdateSymbolDraw() {
 	
-	unsigned long curtime = (unsigned long)(arxtime);
+	unsigned long now = arxtime.now_ul();
 	
 	for(size_t i = 0; i < entities.size(); i++) {
 		const EntityHandle handle = EntityHandle(i);
@@ -121,11 +121,19 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 					}
 
 					io->spellcast_data.symb[3] = RUNE_NONE;
-					ARX_SPELLS_RequestSymbolDraw2(io, symb, (1000-(io->spellcast_data.spell_level*60))*std::max(io->speed_modif+io->basespeed,0.01f));
+					float speedFactor = std::max(io->speed_modif + io->basespeed, 0.01f);
+					float duration = (1000 - (io->spellcast_data.spell_level * 60)) * speedFactor;
+					ARX_SPELLS_RequestSymbolDraw2(io, symb, duration);
 					io->gameFlags &= ~GFLAG_INVISIBILITY;
 				} else if(tst) { // cast spell !!!
 					io->gameFlags &= ~GFLAG_INVISIBILITY;
-					ARX_SPELLS_Launch(io->spellcast_data.castingspell, handle, io->spellcast_data.spell_flags,io->spellcast_data.spell_level,io->spellcast_data.target,io->spellcast_data.duration);
+					
+					ARX_SPELLS_Launch(io->spellcast_data.castingspell,
+					                  handle,
+					                  io->spellcast_data.spell_flags,
+					                  io->spellcast_data.spell_level,
+					                  io->spellcast_data.target,
+					                  io->spellcast_data.duration);
 
 					if(!(io->spellcast_data.spell_flags & SPELLCAST_FLAG_NOANIM) && (io->ioflags & IO_NPC)) {
 						changeAnimation(io, 1, io->anims[ANIM_CAST]);
@@ -147,8 +155,8 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 				light->pos += Vec3f(0.f, -120.f, 0.f);
 				
 				float rr = Random::getf();
-				light->fallstart=140.f+(float)io->flarecount*0.333333f+rr*5.f;
-				light->fallend=220.f+(float)io->flarecount*0.5f+rr*5.f;
+				light->fallstart = 140.f + io->flarecount * 0.333333f + rr * 5.f;
+				light->fallend = 220.f + io->flarecount * 0.5f + rr * 5.f;
 				light->intensity=1.6f;
 				light->rgb.r=0.01f*io->flarecount*2;
 				light->rgb.g=0.009f*io->flarecount*2;
@@ -161,9 +169,9 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 
 		if(io->symboldraw) {
 			SYMBOL_DRAW * sd = entities[handle]->symboldraw;
-			long tim = curtime - sd->starttime;
+			long elapsed = now - sd->starttime;
 
-			if(tim > sd->duration) {
+			if(elapsed > sd->duration) {
 				endLightDelayed(io->dynlight, 600);
 				io->dynlight = LightHandle();
 				
@@ -172,9 +180,9 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 				continue;
 			}
 
-			long nbcomponents = sd->sequence.length();
+			const size_t nbcomponents = sd->sequence.length();
 
-			if(nbcomponents <= 0) {
+			if(nbcomponents == 0) {
 				delete io->symboldraw;
 				io->symboldraw = NULL;
 				continue;
@@ -185,8 +193,8 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 			if(ti <= 0)
 				ti = 1;
 			
-			long newtime=tim;
-			long oldtime=sd->lasttim;
+			long newtime=elapsed;
+			long oldtime = sd->lastElapsed;
 
 			if(oldtime>sd->duration)
 				oldtime=sd->duration;
@@ -194,7 +202,7 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 			if(newtime>sd->duration)
 				newtime=sd->duration;
 
-			sd->lasttim=(short)tim;
+			sd->lastElapsed = (short)elapsed;
 			
 			float div_ti=1.f/ti;
 
@@ -204,7 +212,7 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 				
 				Vec2s old_pos = pos1;
 
-				for(long j = 0; j < nbcomponents; j++) {
+				for(size_t j = 0; j < nbcomponents; j++) {
 					Vec2s vect = GetSymbVector(sd->sequence[j]);
 					vect *= symbolVecScale;
 					vect += vect / Vec2s(2);
@@ -219,7 +227,7 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 					oldtime -= (long)ti;
 				}
 
-				for(int j = 0; j < nbcomponents; j++) {
+				for(size_t j = 0; j < nbcomponents; j++) {
 					Vec2s vect = GetSymbVector(sd->sequence[j]);
 					vect *= symbolVecScale;
 					vect += vect / Vec2s(2);
@@ -251,7 +259,7 @@ void ARX_SPELLS_UpdateSymbolDraw() {
 				pos1 += (lMaxSymbolDrawSize - iSize) / Vec2s(2);
 				pos1 -= iMin;
 
-				for(long j = 0; j < nbcomponents; j++) {
+				for(size_t j = 0; j < nbcomponents; j++) {
 
 					Vec2s vect = GetSymbVector(sd->sequence[j]);
 					vect *= symbolVecScale;
@@ -297,8 +305,8 @@ static void ARX_SPELLS_RequestSymbolDrawCommon(Entity * io, float duration,
 	sd->duration = (short)std::max(1l, long(duration));
 	sd->sequence = info.sequence;
 
-	sd->starttime = (unsigned long)(arxtime);
-	sd->lasttim = 0;
+	sd->starttime = arxtime.now_ul();
+	sd->lastElapsed = 0;
 	
 	float tmpAngle = io->angle.getPitch() - 45.0F + info.startOffset.x * 2;
 	

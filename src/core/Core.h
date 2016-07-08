@@ -87,35 +87,36 @@ extern std::string TELEPORT_TO_LEVEL;
 extern std::string TELEPORT_TO_POSITION;
 
 extern float PULSATE;
-extern float framedelay;
-extern float BASE_FOCAL;
+extern float g_framedelay;
 
 extern bool g_requestLevelInit;
 
 extern long CURRENTLEVEL;
 extern long TELEPORT_TO_ANGLE;
 
-extern float BOW_FOCAL;
+extern float GLOBAL_SLOWDOWN;
+
+inline float bowZoomFromDuration(float duration) {
+	return duration / 710.f;
+}
 
 extern Rect g_size;
 
 extern Vec2f g_sizeRatio;
 inline float minSizeRatio() { return std::min(g_sizeRatio.x, g_sizeRatio.y); }
-#define RATIO_X(a)    (((float)a)*g_sizeRatio.x)
-#define RATIO_Y(a)    (((float)a)*g_sizeRatio.y)
+
+inline float RATIO_X(float a) { return a * g_sizeRatio.x; }
+inline float RATIO_Y(float a) { return a * g_sizeRatio.y; }
 
 inline Vec2f RATIO_2(const Vec2f & in) {
 	return Vec2f(RATIO_X(in.x), RATIO_Y(in.y));
 }
 
-
-extern unsigned long AimTime;
-
 class Image;
 extern Image savegame_thumbnail;
 
 extern float Original_framedelay;
-extern long LOADEDD;
+extern bool LOADEDD;
 
 extern bool g_debugToggles[10];
 extern bool g_debugTriggers[10];

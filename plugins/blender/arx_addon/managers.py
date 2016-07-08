@@ -32,14 +32,14 @@ if "bpy" in locals():
 import bmesh
 import math
 import mathutils
-from mathutils import Vector
+from mathutils import Vector,Quaternion
 
 from .lib import ArxIO
 from .dataDlf import DlfSerializer
 from .dataFtl import FtlSerializer, FtlData, FtlMetadata, FtlVertex, FtlFace
 from .dataFts import FtsSerializer
 from .dataLlf import LlfSerializer
-# from .dataTea import TeaSerializer
+from .dataTea import TeaSerializer
 from .common import *
 from .files import *
 
@@ -84,7 +84,7 @@ class ArxObjectManager(object):
         self.log = logging.getLogger('ArxObjectManager')
         self.ioLib = ioLib
         self.dataPath = dataPath
-        self.ftlSerializer = FtlSerializer(ioLib)
+        self.ftlSerializer = FtlSerializer()
 
     def analyzeFaceData(self, faceData):
         # find weird face data
@@ -170,12 +170,12 @@ class ArxObjectManager(object):
             bpy.ops.object.mode_set(mode='OBJECT')
 
         obj = bpy.data.objects.new(name=mesh.name, object_data=mesh)
-        armatureObj.parent = obj
+        #armatureObj.parent = obj # this created a dependecy recursion, so i commented it
 
         obj['arx.ftl.name'] = data.metadata.name
         obj['arx.ftl.org'] = data.metadata.org
 
-        for i, (name, origin, indices) in enumerate(data.groups):
+        for i, (name, origin, indices, parentIndex) in enumerate(data.groups):
             grp = obj.vertex_groups.new(name="grp:" + str(i).zfill(2) + ":" + name)
             # XXX add the origin to the group ?
             for v in indices:
@@ -196,9 +196,23 @@ class ArxObjectManager(object):
             action.show_x_ray = True
             action.show_name = True
             action.scale = [3, 3, 3]
+            
+        #armatureModifier = obj.modifiers.new(type='ARMATURE', name="Skeleton")
+        #armatureModifier.object = armatureObj
+
+        for toDeSel in bpy.context.scene.objects: #deselect all first just to be sure
+            toDeSel.select = False
 
         bpy.context.scene.objects.link(obj)
+
+        #FIXME properly bind bones to mesh via vertex groups
+        obj.select = True
+        armatureObj.select = True
+        bpy.context.scene.objects.active = armatureObj #select both the mesh and armature and set armature active
+        bpy.ops.object.parent_set(type='ARMATURE_AUTO') # ctrl+p and automatic weights
         bpy.context.scene.objects.active = obj
+        armatureObj.select = False
+
         bpy.ops.object.mode_set(mode='EDIT')  # initialises UVmap correctly
 
         mesh.uv_textures.new()
@@ -208,7 +222,6 @@ class ArxObjectManager(object):
             obj.data.materials.append(mat)
             
         bpy.ops.object.mode_set(mode='OBJECT')
-        
         return obj
 
     def createArmature(self, canonicalId, bm, groups):
@@ -231,13 +244,19 @@ class ArxObjectManager(object):
 
         bpy.ops.object.mode_set(mode='EDIT')
 
-        for i, (name, origin, indices) in enumerate(groups):
+        for i, (name, origin, indices, parentIndex) in enumerate(groups):
             bGrpName = "grp:" + str(i).zfill(2) + ":" + name
 
             bone = amt.edit_bones.new(bGrpName)
             bone.head = bm.verts[origin].co
-            bone.tail = bm.verts[origin].co + Vector((0, 0, 5))
+            bone.tail = bm.verts[origin].co + Vector((0, -5, 0))
             bone["OriginVertex"] = origin
+
+        editBonesArray = amt.edit_bones.values()
+        for i, (name, origin, indices, parentIndex) in enumerate(groups):
+            if parentIndex>=0:
+                bone = editBonesArray[i]
+                bone.parent = editBonesArray[parentIndex]
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -393,6 +412,59 @@ class ArxObjectManager(object):
             f.write(binData)
 
         self.log.info("Written %i bytes to file %s" % (len(binData), path))
+        
+
+class ArxAnimationManager(object):
+    def __init__(self):
+        self.log = logging.getLogger('ArxAnimationManager')
+        self.teaSerializer = TeaSerializer()
+        
+    def loadAnimation(self,path):
+        data = self.teaSerializer.read(path)
+        
+        obj = bpy.context.active_object
+        armatureObj = bpy.data.objects[obj.name+'-amt']
+        bones = armatureObj.pose.bones
+        
+        bpy.context.scene.frame_set(1)
+        for frame in data:
+            bpy.context.scene.objects.active = obj
+            
+            if 'translation' in frame:
+                translation = frame['translation']
+                obj.location = (translation.x,translation.y,translation.z)
+                
+            if 'rotation' in frame:
+                rotation = frame['rotation']
+                obj.rotation_quaternion = (rotation.w,rotation.x,rotation.y,rotation.z)
+                
+            bpy.ops.anim.keyframe_insert(type='LocRotScale', confirm_success=False)
+            
+            bpy.context.scene.objects.active = armatureObj
+            bpy.ops.object.mode_set(mode='POSE')
+            for groupIndex, group in enumerate(frame['groups']): # group index = bone index
+                bone = bones[groupIndex]
+                location = Vector((group.translate.x,group.translate.y,group.translate.z))
+                #self.log.info("moving bone to %s" % str(group.translate))
+                #bone.location = location
+                rotation = Quaternion((group.Quaternion.w,group.Quaternion.x,group.Quaternion.y,group.Quaternion.z))
+                self.log.info("rotating bone to %s" % str(rotation))
+                bone.rotation_quaternion = rotation
+                scale = Vector((group.zoom.x,group.zoom.y,group.zoom.z))
+                #self.log.info("scaling bone to %s" % str(group.zoom))
+                #bone.scale = scale
+                bone.keyframe_insert(data_path="location")
+                bone.keyframe_insert(data_path="rotation_quaternion")
+                bone.keyframe_insert(data_path="scale")
+                #bpy.ops.anim.keyframe_insert(type='LocRotScale', confirm_success=False)
+                # FIXME translation and zoom are both 0,0,0
+                # TODO keyframes of rotation are glitchy. probably cause im not doing it right. keyframe has to be set via bpy.ops.anim.keyframe_insert but i dont know how to select the bone.
+                
+            bpy.ops.object.mode_set(mode='OBJECT')
+            
+            bpy.context.scene.frame_set(bpy.context.scene.frame_current+frame['duration'])  
+            self.log.info("Loaded Frame")
+        bpy.context.scene.frame_end = bpy.context.scene.frame_current
 
 
 class ArxSceneManager(object):
@@ -585,3 +657,4 @@ class ArxAddon(object):
         ioLib = ArxIO()
         self.objectManager = ArxObjectManager(ioLib, dataPath)
         self.sceneManager = ArxSceneManager(ioLib, dataPath, self.objectManager)
+        self.animationManager = ArxAnimationManager()

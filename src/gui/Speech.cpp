@@ -83,7 +83,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 extern TextureContainer *	arx_logo_tc;
 
 extern bool EXTERNALVIEW;
-extern long REQUEST_SPEECH_SKIP;
+extern bool REQUEST_SPEECH_SKIP;
 
 ARX_SPEECH aspeech[MAX_ASPEECH];
 Notification speech[MAX_SPEECH];
@@ -123,9 +123,9 @@ long ARX_SPEECH_Add(const std::string & text, long duration) {
 	if(text.empty())
 		return -1;
 	
-	unsigned long tim = (unsigned long)(arxtime);
-	if(tim == 0) {
-		tim = 1;
+	unsigned long now = arxtime.now_ul();
+	if(now == 0) {
+		now = 1;
 	}
 	
 	if(speech[MAX_SPEECH - 1].timecreation != 0) {
@@ -138,7 +138,7 @@ long ARX_SPEECH_Add(const std::string & text, long duration) {
 			continue;
 		
 		// Sets creation time
-		speech[i].timecreation = tim;
+		speech[i].timecreation = now;
 		
 		// Sets/computes speech duration
 		if(duration == -1) {
@@ -216,8 +216,9 @@ void ARX_SPEECH_Check()
 	for(size_t i = 0; i < MAX_SPEECH; i++) {
 		if(speech[i].timecreation == 0)
 			continue;
-
-		if(float(arxtime) > speech[i].timecreation + speech[i].duration) {
+		
+		float elapsed = arxtime.now_f() - speech[i].timecreation;
+		if(elapsed > speech[i].duration) {
 			ARX_SPEECH_MoveUp();
 			i--;
 		} else {
@@ -260,7 +261,7 @@ static void ARX_CONVERSATION_CheckAcceleratedSpeech() {
 				aspeech[i].duration = 0;
 			}
 		}
-		REQUEST_SPEECH_SKIP = 0;
+		REQUEST_SPEECH_SKIP = false;
 	}
 }
 
@@ -351,7 +352,8 @@ long ARX_SPEECH_AddSpeech(Entity * io, const std::string & data, long mood,
 	}
 	
 	aspeech[num].exist = 1;
-	aspeech[num].time_creation = arxtime.get_updated_ul();
+	arxtime.update();
+	aspeech[num].time_creation = arxtime.now_ul();
 	aspeech[num].io = io; // can be NULL
 	aspeech[num].duration = 2000; // Minimum value
 	aspeech[num].flags = flags;
@@ -425,7 +427,7 @@ long ARX_SPEECH_AddSpeech(Entity * io, const std::string & data, long mood,
 
 void ARX_SPEECH_Update() {
 	
-	unsigned long tim = (unsigned long)(arxtime);
+	unsigned long now = arxtime.now_ul();
 
 	if(cinematicBorder.isActive() || BLOCK_PLAYER_CONTROLS)
 		ARX_CONVERSATION_CheckAcceleratedSpeech();
@@ -459,7 +461,7 @@ void ARX_SPEECH_Update() {
 		}
 
 		// checks finished speech
-		if(tim >= aspeech[i].time_creation + aspeech[i].duration) {
+		if(now >= aspeech[i].time_creation + aspeech[i].duration) {
 			EERIE_SCRIPT *es = aspeech[i].es;
 			Entity *io = aspeech[i].ioscript;
 			long scrpos = aspeech[i].scrpos;
@@ -482,7 +484,7 @@ void ARX_SPEECH_Update() {
 		if(!cinematicBorder.isActive())
 			continue;
 
-		if(CINEMA_DECAL < 100.f)
+		if(cinematicBorder.CINEMA_DECAL < 100.f)
 			continue;
 
 		Vec2i sSize = hFontInBook->getTextSize(speech->text);
@@ -499,7 +501,7 @@ void ARX_SPEECH_Update() {
 		Rect::Num h = checked_range_cast<Rect::Num>(fAdd);
 		
 		Rect clippingRect(0, y+1, g_size.width(), h);
-		if(config.video.limitSpeechWidth) {
+		if(config.interface.limitSpeechWidth) {
 			s32 w = std::min(g_size.width(), s32(640 * g_sizeRatio.y));
 			clippingRect.left = (g_size.width() - w) / 2;
 			clippingRect.right = (g_size.width() + w) / 2;
@@ -540,19 +542,19 @@ void ARX_SPEECH_Update() {
 					duration = 4000.0f;
 				}
 
-				fDTime = (height * framedelay) / duration; //speech->duration;
-				float fTimeOneLine = ((float)sSize.y) * fDTime;
+				fDTime = (height * g_framedelay) / duration; //speech->duration;
+				float fTimeOneLine = sSize.y * fDTime;
 
-				if(((float)speech->iTimeScroll) >= fTimeOneLine) {
-					float fResteLine = (float)sSize.y - speech->fPixelScroll;
-					float fTimePlus = (fResteLine * framedelay) / duration;
+				if(speech->iTimeScroll >= fTimeOneLine) {
+					float fResteLine = sSize.y - speech->fPixelScroll;
+					float fTimePlus = (fResteLine * g_framedelay) / duration;
 					fDTime -= fTimePlus;
 					speech->fPixelScroll = 0.f;
 					speech->iTimeScroll = 0;
 				}
-				speech->iTimeScroll	+= checked_range_cast<int>(framedelay);
+				speech->iTimeScroll	+= checked_range_cast<int>(g_framedelay);
 			} else {
-				fDTime = (height * framedelay) / 4000.0f;
+				fDTime = (height * g_framedelay) / 4000.0f;
 			}
 
 			speech->fDeltaY			+= fDTime;

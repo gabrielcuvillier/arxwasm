@@ -418,26 +418,16 @@ EERIEPOLY * EEIsUnderWater(const Vec3f & pos) {
 
 bool GetTruePolyY(const EERIEPOLY * ep, const Vec3f & pos, float * ret) {
 	
+	Vec3f n = glm::cross(ep->v[1].p - ep->v[0].p, ep->v[2].p - ep->v[0].p);
+	if(n.y == 0.f) {
+		return false;
+	}
 	
-	Vec3f s21 = ep->v[1].p - ep->v[0].p;
-	Vec3f s31 = ep->v[2].p - ep->v[0].p;
+	float y = glm::dot(ep->v[0].p - Vec3f(pos.x, 0.f, pos.z), n) / n.y;
 	
-	Vec3f n;
-	n.y = (s21.z * s31.x) - (s21.x * s31.z);
-	if (n.y == 0.f) return false; 
-	n.x = (s21.y * s31.z) - (s21.z * s31.y);
-	n.z = (s21.x * s31.y) - (s21.y * s31.x);
+	// Perhaps we can remove the clamp... (need to test)
+	*ret = glm::clamp(y, ep->min.y, ep->max.y);
 	
-	// uses s21.x instead of d
-	s21.x = ep->v[0].p.x * n.x + ep->v[0].p.y * n.y + ep->v[0].p.z * n.z;
-	
-	s21.x = (s21.x - (n.x * pos.x) - (n.z * pos.z)) / n.y;
-	
-	// Perhaps we can remove the two following lines... (need to test)
-	if (s21.x < ep->min.y) s21.x = ep->min.y;
-	else if (s21.x > ep->max.y) s21.x = ep->max.y;
-	
-	*ret = s21.x;
 	return true;
 }
 
@@ -450,79 +440,52 @@ Vec3f EE_RT(const Vec3f & in) {
 }
 
 // TODO get rid of sw transform
-static inline float clamp_and_invert(float z) {
+static float clamp_and_invert(float z) {
 	
 	const float near_clamp = .000001f; // just a random small number
 	
 	return 1.f / std::max(z, near_clamp);
 }
 
-void EE_P(const Vec3f * in, TexturedVertex * out) {
+void EE_P(const Vec3f & in, TexturedVertex & out) {
 	
-	float fZTemp = clamp_and_invert(in->z);
+	float fZTemp = clamp_and_invert(in.z);
 	
-	out->p.z = fZTemp * ACTIVECAM->ProjectionMatrix[2][2] + ACTIVECAM->ProjectionMatrix[3][2]; //HYPERBOLIC
-	out->p.x = in->x * ACTIVECAM->ProjectionMatrix[0][0] * fZTemp + ACTIVECAM->orgTrans.mod.x;
-	out->p.y = in->y * ACTIVECAM->ProjectionMatrix[1][1] * fZTemp + ACTIVECAM->orgTrans.mod.y;
-	out->rhw = fZTemp;
+	out.p.z = fZTemp * ACTIVECAM->ProjectionMatrix[2][2] + ACTIVECAM->ProjectionMatrix[3][2]; //HYPERBOLIC
+	out.p.x = in.x * ACTIVECAM->ProjectionMatrix[0][0] * fZTemp + ACTIVECAM->orgTrans.mod.x;
+	out.p.y = in.y * ACTIVECAM->ProjectionMatrix[1][1] * fZTemp + ACTIVECAM->orgTrans.mod.y;
+	out.rhw = fZTemp;
 }
 
-void EE_RTP(const Vec3f & in, TexturedVertex * out) {
-	out->p = EE_RT(in);
-	EE_P(&out->p, out);
+void EE_RTP(const Vec3f & in, TexturedVertex & out) {
+	out.p = EE_RT(in);
+	EE_P(out.p, out);
 }
 
 //*************************************************************************************
 //*************************************************************************************
-
-Vec3f GetVertexPos(Entity * io, long id) {
-	
-	arx_assert(io);
-
-	if(id != -1) {
-		return io->obj->vertexlist3[id].v;
-	} else {
-		return io->pos + Vec3f(0.f, GetIOHeight(io), 0.f);
-	}
-}
 
 long EERIEDrawnPolys = 0;
 
 //*************************************************************************************
 //*************************************************************************************
 
-float PtIn2DPolyProj(EERIE_3DOBJ * obj, EERIE_FACE * ef, float x, float z) {
+float PtIn2DPolyProj(const std::vector<EERIE_VERTEX> & verts, EERIE_FACE * ef, float x, float z) {
 	
 	int i, j, c = 0;
 
 	for (i = 0, j = 2; i < 3; j = i++)
 	{
-		if ((((obj->vertexlist[ef->vid[i]].vert.p.y <= z) && (z < obj->vertexlist[ef->vid[j]].vert.p.y)) ||
-				((obj->vertexlist[ef->vid[j]].vert.p.y <= z) && (z < obj->vertexlist[ef->vid[i]].vert.p.y))) &&
-				(x < (obj->vertexlist[ef->vid[j]].vert.p.x - obj->vertexlist[ef->vid[i]].vert.p.x) *(z - obj->vertexlist[ef->vid[i]].vert.p.y) / (obj->vertexlist[ef->vid[j]].vert.p.y - obj->vertexlist[ef->vid[i]].vert.p.y) + obj->vertexlist[ef->vid[i]].vert.p.x))
+		if ((((verts[ef->vid[i]].vert.p.y <= z) && (z < verts[ef->vid[j]].vert.p.y)) ||
+				((verts[ef->vid[j]].vert.p.y <= z) && (z < verts[ef->vid[i]].vert.p.y))) &&
+				(x < (verts[ef->vid[j]].vert.p.x - verts[ef->vid[i]].vert.p.x) *(z - verts[ef->vid[i]].vert.p.y) / (verts[ef->vid[j]].vert.p.y - verts[ef->vid[i]].vert.p.y) + verts[ef->vid[i]].vert.p.x))
 			c = !c;
 	}
 
 	if (c)
-		return obj->vertexlist[ef->vid[0]].vert.p.z;
+		return verts[ef->vid[0]].vert.p.z;
 	else
 		return 0.f;
-}
-
-float CEDRIC_PtIn2DPolyProjV2(EERIE_3DOBJ * obj, EERIE_FACE * ef, float x, float z) {
-	
-	int i, j, c = 0;
-
-	for (i = 0, j = 2; i < 3; j = i++)
-	{
-		if ((((obj->vertexlist3[ef->vid[i]].vert.p.y <= z) && (z < obj->vertexlist3[ef->vid[j]].vert.p.y)) ||
-				((obj->vertexlist3[ef->vid[j]].vert.p.y <= z) && (z < obj->vertexlist3[ef->vid[i]].vert.p.y))) &&
-				(x < (obj->vertexlist3[ef->vid[j]].vert.p.x - obj->vertexlist3[ef->vid[i]].vert.p.x) *(z - obj->vertexlist3[ef->vid[i]].vert.p.y) / (obj->vertexlist3[ef->vid[j]].vert.p.y - obj->vertexlist3[ef->vid[i]].vert.p.y) + obj->vertexlist3[ef->vid[i]].vert.p.x))
-			c = !c;
-	}
-
-	if (c) return obj->vertexlist3[ef->vid[0]].vert.p.z;
-	else return 0.f;
 }
 
 int PointIn2DPolyXZ(const EERIEPOLY * ep, float x, float z) {
@@ -864,34 +827,27 @@ void UpdateIORoom(Entity * io)
 ROOM_DIST_DATA * RoomDistance = NULL;
 static long NbRoomDistance = 0;
 
-static void SetRoomDistance(long i, long j, float val, const Vec3f * p1, const Vec3f * p2) {
+static void SetRoomDistance(long i, long j, float val, const Vec3f & p1, const Vec3f & p2) {
 	
 	if(i < 0 || j < 0 || i >= NbRoomDistance || j >= NbRoomDistance || !RoomDistance)
 		return;
 	
 	long offs = i + j * NbRoomDistance;
 	
-	if(p1)
-		RoomDistance[offs].startpos = *p1;
-
-	if(p2)
-		RoomDistance[offs].endpos = *p2;
-
+	RoomDistance[offs].startpos = p1;
+	RoomDistance[offs].endpos = p2;
 	RoomDistance[offs].distance = val;
 }
 
-static float GetRoomDistance(long i, long j, Vec3f * p1, Vec3f * p2)
+static float GetRoomDistance(long i, long j, Vec3f & p1, Vec3f & p2)
 {
 	if(i < 0 || j < 0 || i >= NbRoomDistance || j >= NbRoomDistance)
 		return -1.f;
 
 	long offs = i + j * NbRoomDistance;
 
-	if(p1)
-		*p1 = RoomDistance[offs].startpos;
-
-	if(p2)
-		*p2 = RoomDistance[offs].endpos;
+	p1 = RoomDistance[offs].startpos;
+	p2 = RoomDistance[offs].endpos;
 
 	return RoomDistance[offs].distance;
 }
@@ -910,7 +866,7 @@ float SP_GetRoomDist(const Vec3f & pos, const Vec3f & c_pos, long io_room, long 
 
 	if(Room >= 0) {
 		Vec3f p1, p2;
-		float v = GetRoomDistance(Cam_Room, Room, &p1, &p2);
+		float v = GetRoomDistance(Cam_Room, Room, p1, p2);
 
 		if(v > 0.f) {
 			v += fdist(pos, p2);
@@ -987,12 +943,12 @@ static void EERIEPOLY_Add_PolyIn(EERIE_BKG_INFO * eg, EERIEPOLY * ep) {
 	eg->nbpolyin++;
 }
 
-static bool PointInBBox(const Vec3f & point, const EERIE_2D_BBOX & bb) {
+static bool PointInBBox(const Vec3f & point, const Rectf & bb) {
 	
-	if(   point.x > bb.max.x
-	   || point.x < bb.min.x
-	   || point.z > bb.max.y
-	   || point.z < bb.min.y
+	if(   point.x > bb.right
+	   || point.x < bb.left
+	   || point.z > bb.bottom
+	   || point.z < bb.top
 	)
 		return false;
 
@@ -1014,14 +970,12 @@ void EERIEPOLY_Compute_PolyIn() {
 		long maxx = std::min(x + 2, ACTIVEBKG->Xsize - 1L);
 		long maxz = std::min(z + 2, ACTIVEBKG->Zsize - 1L);
 		
-		EERIE_2D_BBOX bb;
-		bb.min.x = (float)x * ACTIVEBKG->Xdiv - 10;
-		bb.max.x = (float)bb.min.x + ACTIVEBKG->Xdiv + 20;
-		bb.min.y = (float)z * ACTIVEBKG->Zdiv - 10;
-		bb.max.y = (float)bb.min.y + ACTIVEBKG->Zdiv + 20;
-		Vec3f bbcenter;
-		bbcenter.x = (bb.min.x + bb.max.x) * .5f;
-		bbcenter.z = (bb.min.y + bb.max.y) * .5f;
+		Vec2f bbmin = Vec2f(x * ACTIVEBKG->Xdiv - 10, z * ACTIVEBKG->Zdiv - 10);
+		Vec2f bbmax = Vec2f(bbmin.x + ACTIVEBKG->Xdiv + 20, bbmin.y + ACTIVEBKG->Zdiv + 20);
+		
+		Rectf bb = Rectf(bbmin, bbmax);
+		
+		Vec2f bbcenter = bb.center();
 		
 		for(long z2 = minz; z2 < maxz; z2++)
 		for(long x2 = minx; x2 < maxx; x2++) {
@@ -1030,7 +984,7 @@ void EERIEPOLY_Compute_PolyIn() {
 			for(long l = 0; l < eg2->nbpoly; l++) {
 				EERIEPOLY *ep2 = &eg2->polydata[l];
 				
-				if(fartherThan(Vec2f(bbcenter.x, bbcenter.z), Vec2f(ep2->center.x, ep2->center.z), 120.f))
+				if(fartherThan(bbcenter, Vec2f(ep2->center.x, ep2->center.z), 120.f))
 					continue;
 				
 				long nbvert = (ep2->type & POLY_QUAD) ? 4 : 3;
@@ -1202,7 +1156,7 @@ void Draw3DObject(EERIE_3DOBJ *eobj, const Anglef & angle, const Vec3f & pos, co
 		eobj->vertexlist3[i].v = (rv.p += pos);
 
 		Vec3f tempWorld = EE_RT(rv.p);
-		EE_P(&tempWorld, &eobj->vertexlist[i].vert);
+		EE_P(tempWorld, eobj->vertexlist[i].vert);
 	}
 
 	for(size_t i = 0; i < eobj->facelist.size(); i++) {
@@ -1234,13 +1188,13 @@ void Draw3DObject(EERIE_3DOBJ *eobj, const Anglef & angle, const Vec3f & pos, co
 	}
 }
 
-bool IsVertexIdxInGroup(EERIE_3DOBJ *eobj, long idx, long grs) {
+bool IsVertexIdxInGroup(EERIE_3DOBJ *eobj, size_t idx, size_t grs) {
 
 	if(!eobj)
 		return false;
 
 	for(size_t i = 0; i < eobj->grouplist[grs].indexes.size(); i++) {
-		long ii = eobj->grouplist[grs].indexes[i];
+		size_t ii = eobj->grouplist[grs].indexes[i];
 
 		if(ii == idx)
 			return true;
@@ -1623,7 +1577,7 @@ static bool loadFastScene(const res::path & file, const char * data, const char 
 				rdds = fts_read<ROOM_DIST_DATA_SAVE>(data, end);
 				Vec3f start = rdds->startpos.toVec3();
 				Vec3f end = rdds->endpos.toVec3();
-				SetRoomDistance(m, n, rdds->distance, &start, &end);
+				SetRoomDistance(m, n, rdds->distance, start, end);
 			}
 		}
 	}
@@ -1672,10 +1626,7 @@ static void AddAData(ANCHOR_DATA * ad, long linked) {
 	ad->nblinked++;
 }
 
-static bool GetRoomCenter(long room_num, Vec3f * center) {
-	
-	if(!portals || (size_t)room_num >= portals->rooms.size() || portals->rooms[room_num].nb_polys <= 0)
-		return false;
+static Vec3f GetRoomCenter(long room_num) {
 	
 	EERIE_ROOM_DATA & room = portals->rooms[room_num];
 
@@ -1690,11 +1641,7 @@ static bool GetRoomCenter(long room_num, Vec3f * center) {
 		bbox.max = glm::max(bbox.max, ep.center);
 	}
 	
-	*center = (bbox.max + bbox.min) * .5f;
-	
-	room.center = *center;
-	room.radius = fdist(*center, bbox.max);
-	return true;
+	return (bbox.max + bbox.min) * .5f;
 }
 
 static void ComputeRoomDistance() {
@@ -1712,17 +1659,21 @@ static void ComputeRoomDistance() {
 
 	for (long n = 0; n < NbRoomDistance; n++)
 		for (long m = 0; m < NbRoomDistance; m++)
-			SetRoomDistance(m, n, -1.f, NULL, NULL);
+			SetRoomDistance(m, n, -1, Vec3f_ZERO, Vec3f_ZERO);
 
 	long nb_anchors = NbRoomDistance + (portals->portals.size() * 9);
-	ANCHOR_DATA * ad = (ANCHOR_DATA *)malloc(sizeof(ANCHOR_DATA) * nb_anchors);
-
-	memset(ad, 0, sizeof(ANCHOR_DATA)*nb_anchors);
+	
+	std::vector<ANCHOR_DATA> ad;
+	ad.resize(nb_anchors);
 
 	std::vector<EERIE_PORTALS *> ptr(nb_anchors, static_cast<EERIE_PORTALS *>(NULL));
 	
 	for(long i = 0; i < NbRoomDistance; i++) {
-		GetRoomCenter(i, &ad[i].pos);
+		
+		if(portals->rooms[i].nb_polys > 0) {
+			ad[i].pos = GetRoomCenter(i);
+		}
+		
 		ptr[i] = (EERIE_PORTALS *)&portals->rooms[i]; // FIXME mixing of pointer types
 	}
 
@@ -1793,12 +1744,12 @@ static void ComputeRoomDistance() {
 		}
 	}
 
-	PathFinder pathfinder(NbRoomDistance, ad, 0, NULL);
+	PathFinder pathfinder(NbRoomDistance, ad.data(), 0, NULL);
 
 	for(int i = 0; i < NbRoomDistance; i++) {
 		for(long j = 0; j < NbRoomDistance; j++) {
 			if(i == j) {
-				SetRoomDistance(i, j, -1, NULL, NULL);
+				SetRoomDistance(i, j, -1, Vec3f_ZERO, Vec3f_ZERO);
 				continue;
 			}
 			
@@ -1815,19 +1766,21 @@ static void ComputeRoomDistance() {
 
 				if(d < 0.f)
 					d = 0.f;
-
-				float old = GetRoomDistance(i, j, NULL, NULL);
+				
+				Vec3f startPos;
+				Vec3f endPos;
+				float old = GetRoomDistance(i, j, startPos, endPos);
 
 				if((d < old || old < 0.f) && rl.size() >= 2)
-					SetRoomDistance(i, j, d, &ad[rl[1]].pos, &ad[rl[rl.size()-2]].pos);
+					SetRoomDistance(i, j, d, ad[rl[1]].pos, ad[rl[rl.size()-2]].pos);
 			}
 		}
 	}
 
 	// Don't use this for contiguous rooms !
 	for(size_t i = 0; i < portals->portals.size(); i++) {
-		SetRoomDistance(portals->portals[i].room_1, portals->portals[i].room_2, -1, NULL, NULL);
-		SetRoomDistance(portals->portals[i].room_2, portals->portals[i].room_1, -1, NULL, NULL);
+		SetRoomDistance(portals->portals[i].room_1, portals->portals[i].room_2, -1, Vec3f_ZERO, Vec3f_ZERO);
+		SetRoomDistance(portals->portals[i].room_2, portals->portals[i].room_1, -1, Vec3f_ZERO, Vec3f_ZERO);
 	}
 
 	// Release our temporary Pathfinder data
@@ -1836,8 +1789,6 @@ static void ComputeRoomDistance() {
 			free(ad[ii].linked);
 		}
 	}
-
-	free(ad);
 }
 
 static void EERIE_PORTAL_Room_Poly_Add(EERIEPOLY * ep, long nr, long px, long py, long idx) {
@@ -2051,7 +2002,7 @@ static void SceneAddObjToBackground(EERIE_3DOBJ * eobj) {
 
 			for(size_t i = 0; i < eobj->facelist.size(); i++) {
 				for(long kk = 0; kk < 3; kk++) {
-					memcpy(&ep.v[kk], &eobj->vertexlist[eobj->facelist[i].vid[kk]].vert, sizeof(TexturedVertex));
+					ep.v[kk] = eobj->vertexlist[eobj->facelist[i].vid[kk]].vert;
 				}
 
 				if(i == 0) {
@@ -2295,6 +2246,7 @@ static bool FastSceneSave(const fs::path & partial_path) {
 	}
 	
 	for(long i = 0; i < ACTIVEBKG->nbanchors; i++) {
+		const ANCHOR_DATA & anchor = ACTIVEBKG->anchors[i];
 		
 		FAST_ANCHOR_DATA * fad = reinterpret_cast<FAST_ANCHOR_DATA *>(dat + pos);
 		pos += sizeof(FAST_ANCHOR_DATA);
@@ -2304,11 +2256,11 @@ static bool FastSceneSave(const fs::path & partial_path) {
 			return false;
 		}
 		
-		fad->flags = ACTIVEBKG->anchors[i].flags;
-		fad->pos = ACTIVEBKG->anchors[i].pos;
-		fad->nb_linked = ACTIVEBKG->anchors[i].nblinked;
-		fad->radius = ACTIVEBKG->anchors[i].radius;
-		fad->height = ACTIVEBKG->anchors[i].height;
+		fad->flags = anchor.flags;
+		fad->pos = anchor.pos;
+		fad->nb_linked = anchor.nblinked;
+		fad->radius = anchor.radius;
+		fad->height = anchor.height;
 		
 		for(long kk = 0; kk < fad->nb_linked; kk++) {
 			s32 * lng = reinterpret_cast<s32 *>(dat + pos);
@@ -2317,7 +2269,7 @@ static bool FastSceneSave(const fs::path & partial_path) {
 				delete[] dat;
 				return false;
 			}
-			*lng = ACTIVEBKG->anchors[i].linked[kk];
+			*lng = anchor.linked[kk];
 		}
 	}
 	
@@ -2384,7 +2336,7 @@ static bool FastSceneSave(const fs::path & partial_path) {
 				pos += sizeof(ROOM_DIST_DATA_SAVE);
 				Vec3f start;
 				Vec3f end;
-				rdds->distance = GetRoomDistance(m, n, &start, &end);
+				rdds->distance = GetRoomDistance(m, n, start, end);
 				rdds->startpos = start;
 				rdds->endpos = end;
 			}
@@ -2724,13 +2676,13 @@ void ComputePortalVertexBuffer() {
 
 long EERIERTPPoly(EERIEPOLY *ep)
 {
-	EE_RTP(ep->v[0].p, &ep->tv[0]);
-	EE_RTP(ep->v[1].p, &ep->tv[1]);
-	EE_RTP(ep->v[2].p, &ep->tv[2]);
+	EE_RTP(ep->v[0].p, ep->tv[0]);
+	EE_RTP(ep->v[1].p, ep->tv[1]);
+	EE_RTP(ep->v[2].p, ep->tv[2]);
 
 	if (ep->type & POLY_QUAD) 
 	{
-		EE_RTP(ep->v[3].p, &ep->tv[3]);
+		EE_RTP(ep->v[3].p, ep->tv[3]);
 
 		if ((ep->tv[0].p.z<=0.f) &&
 			(ep->tv[1].p.z<=0.f) &&

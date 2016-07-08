@@ -45,8 +45,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #define ARX_GRAPHICS_DATA_MESHMANIPULATION_H
 
 #include "graphics/GraphicsTypes.h"
-#include "platform/Flags.h"
 #include "io/resource/ResourcePath.h"
+#include "util/Flags.h"
 
 struct EERIE_3DOBJ;
 class TextureContainer;
@@ -73,8 +73,8 @@ struct TWEAK_INFO {
 };
 
 void EERIE_MESH_TWEAK_Do(Entity * io, TweakType tw, const res::path & path);
-bool IsInSelection(const EERIE_3DOBJ * obj, long vert, ObjSelection tw);
-void AddVertexIdxToGroup(EERIE_3DOBJ * obj, long group, long val);
+bool IsInSelection(const EERIE_3DOBJ * obj, size_t vert, ObjSelection tw);
+void AddVertexIdxToGroup(EERIE_3DOBJ * obj, size_t group, size_t val);
 void EERIE_MESH_TWEAK_Skin(EERIE_3DOBJ * obj, const res::path & skintochange, const res::path & skinname);
 long ObjectAddMap(EERIE_3DOBJ * obj, TextureContainer * tc);
 

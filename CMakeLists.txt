@@ -13,22 +13,28 @@ else()
 	cmake_minimum_required(VERSION 2.8.3)
 endif()
 
-# Eliminate a warning on Windows with CMake 2.8.11
-# CMP0020: Automatically link Qt executables to qtmain
-# CMake version 2.8.11.2 warns when the policy is not set
-# and uses OLD behavior.
-if(POLICY CMP0020)
-	cmake_policy(SET CMP0020 NEW)
+if(CMAKE_VERSION VERSION_GREATER 3.4)
+	cmake_policy(VERSION 3.4)
+else()
+	cmake_policy(VERSION ${CMAKE_VERSION})
 endif()
 
 
 # Define configuration options
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 	set(MACOSX 1)
 else()
 	set(MACOSX 0)
 endif()
+
+macro(suboption _var _comment _type _default)
+	if(NOT DEFINED ${_var})
+		set(${_var} "${_default}")
+	else()
+		set(${_var} "${${_var}}" CACHE ${_type} "${_comment}")
+	endif()
+endmacro()
 
 # Components
 option(BUILD_TESTS "Build tests" OFF)
@@ -44,10 +50,15 @@ option(BUILD_CRASHREPORTER "Build the crash reporter" ${BUILD_CRASHHANDLER})
 if(NOT BUILD_CRASHHANDLER)
 	set(BUILD_CRASHREPORTER OFF)
 endif()
-option(BUILD_PROFILER "Build the profiler GUI" ON)
 option(BUILD_PROFILER_INSTRUMENT "Enable instrumentation for the profiler" OFF)
+suboption(BUILD_PROFILER "Build the profiler GUI" BOOL ${BUILD_PROFILER_INSTRUMENT})
 option(BUILD_EDIT_LOADSAVE "Build save/load functions only used by the editor" ON)
-option(BUILD_IO_LIBRARY "Build shared library for reading and writing arx data" ON)
+option(INSTALL_BLENDER_PLUGIN "Install the Arx Libertatis blender plugin" ON)
+suboption(BUILD_IO_LIBRARY "Build shared library for reading and writing arx data"
+          BOOL ${INSTALL_BLENDER_PLUGIN})
+if(INSTALL_BLENDER_PLUGIN)
+	set(BUILD_IO_LIBRARY ON)
+endif()
 option(INSTALL_SCRIPTS "Install the data install script" ON)
 
 # Optional dependencies
@@ -61,16 +72,25 @@ set(WITH_SDL CACHE STRING "The SDL version to use: 1 or 2 or empty (use any)")
 set(WITH_QT CACHE STRING "The Qt version to use: 4 or 5 or empty (use any)")
 
 # Build types
-option(UNITY_BUILD "Unity build" OFF)
+option(DEVELOPER "Use build settings suitable for developers" OFF)
+if(DEVELOPER)
+	set(default_UNITY_BUILD OFF)
+else()
+	set(default_UNITY_BUILD ON)
+endif()
+suboption(UNITY_BUILD "Unity build" BOOL ${default_UNITY_BUILD})
 option(DEBUG_EXTRA "Expensive debug options" OFF)
 option(SET_WARNING_FLAGS "Adjust compiler warning flags" ON)
 option(SET_NOISY_WARNING_FLAGS "Enable noisy compiler warnings" OFF)
 option(SET_OPTIMIZATION_FLAGS "Adjust compiler optimization flags" ON)
 
 option(USE_CXX11 "Try to use C++11 if available" ON)
-if(NOT DEFINED DEBUG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-	set(DEBUG 1)
+if(DEVELOPER OR CMAKE_BUILD_TYPE STREQUAL "Debug")
+	set(default_DEBUG ON)
+else()
+	set(default_DEBUG OFF)
 endif()
+suboption(DEBUG "Build with debug output" BOOL ${default_DEBUG})
 if(DEBUG)
 	add_definitions(-DARX_DEBUG=1)
 endif()
@@ -81,11 +101,23 @@ if(WIN32)
 	set(default_USE_STATIC_LIBS ON)
 endif()
 option(USE_STATIC_LIBS          "Statically link libraries" ${default_USE_STATIC_LIBS})
-option(GLEW_USE_STATIC_LIBS     "Statically link GLEW"      ${USE_STATIC_LIBS})
-option(Boost_USE_STATIC_LIBS    "Statically link Boost"     ${USE_STATIC_LIBS})
+suboption(GLEW_USE_STATIC_LIBS     "Statically link GLEW"     BOOL ${USE_STATIC_LIBS})
+suboption(Boost_USE_STATIC_LIBS    "Statically link Boost"    BOOL ${USE_STATIC_LIBS})
 # Should be called FreeType_*, but keep it consistent with the FindFreetype.cmake module.
-option(Freetype_USE_STATIC_LIBS "Statically link FreeType"  ${USE_STATIC_LIBS})
-option(ZLIB_USE_STATIC_LIBS     "Statically link ZLIB"      ${USE_STATIC_LIBS})
+suboption(Freetype_USE_STATIC_LIBS "Statically link FreeType" BOOL ${USE_STATIC_LIBS})
+suboption(ZLIB_USE_STATIC_LIBS     "Statically link ZLIB"     BOOL ${USE_STATIC_LIBS})
+
+# Icons
+if(WIN32)
+	set(default_ICON_TYPE "ico")
+elseif(MACOSX)
+	set(default_ICON_TYPE "icns")
+else()
+	set(default_ICON_TYPE "iconset")
+endif()
+suboption(ICON_TYPE "Icon type (ico/icns/iconset/png)" STRING ${default_ICON_TYPE})
+suboption(DATA_FILES "Location of prebuilt data files" STRING "")
+option(OPTIMIZE_ICONS "Optimize PNG compression for generated icons" ON)
 
 # Make optional dependencies required
 option(STRICT_USE "Abort if there are missing optional dependencies"  OFF)
@@ -128,6 +160,8 @@ else()
 endif()
 set(ICONDIR "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps" CACHE
     STRING "Install location for icons (relative to prefix).")
+set(ICONTHEMEDIR "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor" CACHE
+    STRING "Install location for themable icons (relative to prefix).")
 set(APPDIR "${CMAKE_INSTALL_DATAROOTDIR}/applications" CACHE
     STRING "Install location for .desktop files (relative to prefix).")
 set(GAMESBINDIR "${CMAKE_INSTALL_BINDIR}" CACHE
@@ -136,6 +170,8 @@ set(SCRIPTDIR "${CMAKE_INSTALL_BINDIR}" CACHE
     STRING "Where to install the data install script (relative to prefix).")
 set(INSTALL_DATADIR "${CMAKE_INSTALL_DATAROOTDIR}/games/arx" CACHE
     STRING "Install location for Arx Libertatis data files (relative to prefix).")
+set(INSTALL_BLENDER_PLUGINDIR "${CMAKE_INSTALL_DATAROOTDIR}/blender/scripts/addons/arx" CACHE
+    STRING "Install location for the Arx Libertatis blender plugin (relative to prefix).")
 set(RUNTIME_LIBEXECDIR "${CMAKE_INSTALL_FULL_LIBEXECDIR}" CACHE
     STRING "Runtime search locations for helpers, relative to the game executable.")
 mark_as_advanced(
@@ -150,7 +186,6 @@ mark_as_advanced(
 # Default runtime user and data directories
 if(WIN32)
 	set(USER_DIR          "Arx Libertatis"                CACHE STRING "User dir names")
-	set(USER_DIR_PREFIXES "%FOLDERID_SavedGames%"         CACHE STRING "User dir paths")
 elseif(MACOSX)
 	set(DATA_DIR          "ArxLibertatis"                 CACHE STRING "Data dir names")
 	set(DATA_DIR_PREFIXES "/Applications"                 CACHE STRING "Data dir paths")
@@ -206,6 +241,14 @@ include(CheckSymbolExists)
 include(CheckTypeSize)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake") # For custom cmake modules
+
+include(VersionString)
+set(version_names VERSION ICON_NAME DATA_VERSION IO_LIBRARY_ABI_VERSION)
+parse_version_file("${version_names}" "VERSION")
+if(VERSION_ERROR OR DATA_VERSION_ERROR OR IO_LIBRARY_ABI_VERSION_ERROR)
+	message(WARNING "Error parsing version file!")
+endif()
+
 include(BuildSystem)
 include(BuildType)
 include(CompileCheck)
@@ -214,7 +257,6 @@ include(CreateSourceGroups)
 include(PrintConfiguration)
 include(StyleCheck)
 include(UseStaticLibs)
-include(VersionString)
 
 
 # Find required libraries
@@ -495,11 +537,11 @@ else(MSVC)
 	add_cxxflag("-fvisibility-inlines-hidden")
 	
 	# Define _POSIX_C_SOURCE and _XOPEN_SOURCE for GNU systems
-	if(${CMAKE_SYSTEM_NAME} MATCHES "Linux" OR ${CMAKE_SYSTEM_NAME} MATCHES "GNU"
-	   OR ${CMAKE_SYSTEM_NAME} MATCHES "kFreeBSD")
+	if(CMAKE_SYSTEM_NAME MATCHES "Linux" OR CMAKE_SYSTEM_NAME MATCHES "GNU"
+	   OR CMAKE_SYSTEM_NAME MATCHES "kFreeBSD")
 		set(CMAKE_REQUIRED_DEFINITIONS "-D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600")
 		add_definitions(-D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600)
-		if(${CMAKE_SYSTEM_NAME} MATCHES "kFreeBSD")
+		if(CMAKE_SYSTEM_NAME MATCHES "kFreeBSD")
 			set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_BSD_SOURCE")
 			add_definitions(-D_BSD_SOURCE)
 		endif()
@@ -546,6 +588,7 @@ else(MSVC)
 	
 	check_symbol_exists(getexecname "stdlib.h" ARX_HAVE_GETEXECNAME)
 	check_symbol_exists(setenv "stdlib.h" ARX_HAVE_SETENV)
+	check_symbol_exists(unsetenv "stdlib.h" ARX_HAVE_UNSETENV)
 	
 	find_library(LIBRT_LIBRARY rt)
 	
@@ -794,6 +837,7 @@ set(GUI_SOURCES
 	src/gui/Credits.cpp
 	src/gui/Cursor.cpp
 	src/gui/DebugHud.cpp
+	src/gui/DebugUtils.cpp
 	src/gui/Hud.cpp
 	src/gui/Interface.cpp
 	src/gui/LoadLevelScreen.cpp
@@ -812,6 +856,7 @@ set(GUI_SOURCES
 	src/gui/hud/PlayerInventory.cpp
 	src/gui/hud/SecondaryInventory.cpp
 	src/gui/menu/MenuCursor.cpp
+	src/gui/menu/MenuFader.cpp
 	src/gui/widget/ButtonWidget.cpp
 	src/gui/widget/CheckboxWidget.cpp
 	src/gui/widget/CycleTextWidget.cpp
@@ -1029,7 +1074,6 @@ list(APPEND IO_SOURCES ${IO_RESOURCE_SOURCES})
 if(ARX_HAVE_POSIX_FILESYSTEM)
 	list(APPEND IO_FILESYSTEM_SOURCES ${IO_FILESYSTEM_POSIX_SOURCES})
 elseif(USE_NATIVE_FS AND WIN32)
-	add_definitions(-DARX_HAVE_WINDOWS_FILESYSTEM)
 	list(APPEND IO_FILESYSTEM_SOURCES ${IO_FILESYSTEM_WINDOWS_SOURCES})
 	set(ARX_HAVE_WIN32_FILESYSTEM 1)
 else()
@@ -1045,7 +1089,7 @@ else()
 	# This means the Boost.Filesystem ABI depends on what C++ version was used
 	# to compile the library - check for that!
 	check_compile(boost_filesystem_abi_matches
-		"${CXX11_CHECK_DIR}/check_boostfs_cxx11_scoped_enum.cpp"
+		"${CXX11_CHECK_DIR}/boostfs-cxx11-scoped_enum.cpp"
 		"scoped enum" "Boost ABI"
 		"${Boost_LIBRARIES}"
 		"mismatch, fixing"
@@ -1121,10 +1165,12 @@ set(ARX_SOURCES
 	${WINDOW_SOURCES}
 )
 
+# Using include() for now as add_subdirectory causes problems with uses in qrc files
+include(data/CMakeLists.txt)
+
 # Set the icon for the Windows executable by adding this resource file to the sources
 if(WIN32)
-	set(ARX_ICON_RC data/icons/arx-libertatis.rc)
-	list(APPEND ARX_SOURCES ${ARX_ICON_RC})
+	list(APPEND ARX_SOURCES ${arx-libertatis-icon.rc})
 endif()
 
 
@@ -1149,6 +1195,26 @@ set(VERSION_SOURCES  VERSION "VERSION" AUTHORS "AUTHORS" COPYING "COPYING")
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/core")
 version_file("${VERSION_TEMPLATE}" "${VERSION_FILE}" "${VERSION_SOURCES}" ".git")
 list(APPEND ARX_SOURCES ${VERSION_FILE})
+
+if(WIN32)
+	set(VERSION_RC_TEMPLATE "${SRC_DIR}/core/Version.rc.in")
+	function(create_version_resource exe name)
+		set(rc_file "${CMAKE_BINARY_DIR}/${exe}-version.rc")
+		set(rc_sources VERSION "VERSION" COPYING "COPYING")
+		if(ARGC GREATER 2)
+			list(APPEND rc_sources ${ARGV2} "${ARGV2}")
+		endif()
+		set(rc_defines
+			"-DEXE=${exe}"
+			"-DNAME=${name}"
+		)
+		set(${exe}-version.rc "${rc_file}" PARENT_SCOPE)
+		version_file("${VERSION_RC_TEMPLATE}"
+		             "${rc_file}" "${rc_sources}" ".git" "${rc_defines}")
+	endfunction()
+	create_version_resource(arx "${VERSION_NAME}")
+	list(APPEND ARX_SOURCES ${arx-version.rc})
+endif()
 
 
 # Add executables
@@ -1175,7 +1241,6 @@ if(ARX_HAVE_CRASHREPORTER)
 		tools/crashreporter/tbg/TBG.cpp
 		tools/crashreporter/ui/ErrorReportDialog.h
 		tools/crashreporter/ui/ErrorReportDialog.cpp
-		${QtGui_SOURCES}
 	)
 	
 	set(arxcrashreporter_SOURCES
@@ -1194,7 +1259,9 @@ if(ARX_HAVE_CRASHREPORTER)
 	endif()
 	
 	if(WIN32)
-		list(APPEND arxcrashreporter_SOURCES ${ARX_ICON_RC})
+		list(APPEND arxcrashreporter_SOURCES ${arx-libertatis-icon.rc})
+		create_version_resource(arxcrashreporter "${VERSION_NAME} Crash Reporter")
+		list(APPEND arxcrashreporter_SOURCES ${arxcrashreporter-version.rc})
 	endif()
 	
 	set(arxcrashreporter_MANUAL_SOURCES
@@ -1206,6 +1273,7 @@ if(ARX_HAVE_CRASHREPORTER)
 	
 	create_source_groups(arxcrashreporter_MANUAL_SOURCES)
 	
+	list(APPEND arxcrashreporter_Qt_SOURCES ${QtGui_SOURCES})
 	qt_wrap_ui(arxcrashreporter_Qt_SOURCES
 		tools/crashreporter/ui/ErrorReportDialog.ui
 	)
@@ -1214,8 +1282,19 @@ if(ARX_HAVE_CRASHREPORTER)
 		tools/crashreporter/qhexedit/QHexEdit.h
 		tools/crashreporter/qhexedit/QHexEditPrivate.h
 	)
+	
+	file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tools/crashreporter/resources")
+	if(HAVE_QT4 AND "${arx-libertatis-logo-58.png}" STREQUAL "")
+		# Create a dummy file to prevent a RCC warning
+		set(arx-libertatis-logo-58.png "${CMAKE_BINARY_DIR}/arx-libertatis-logo-58.png")
+		file(WRITE ${arx-libertatis-logo-58.png} "")
+	endif()
+	configure_file(
+		tools/crashreporter/resources/CrashReporter.qrc.in
+		${CMAKE_BINARY_DIR}/tools/crashreporter/resources/CrashReporter.qrc
+	)
 	qt_add_resources(arxcrashreporter_Qt_SOURCES
-		tools/crashreporter/resources/CrashReporter.qrc
+		${CMAKE_BINARY_DIR}/tools/crashreporter/resources/CrashReporter.qrc
 	)
 	
 	list(APPEND arxcrashreporter_SOURCES ${arxcrashreporter_Qt_SOURCES})
@@ -1273,7 +1352,6 @@ if(ARX_HAVE_PROFILER)
 		tools/profiler/ProfilerMain.cpp
 		tools/profiler/ui/ArxProfiler.h
 		tools/profiler/ui/ArxProfiler.cpp
-		${QtGui_SOURCES}
 	)
 	
 	set(arxprofiler_SOURCES
@@ -1283,9 +1361,9 @@ if(ARX_HAVE_PROFILER)
 	)
 	
 	if(WIN32)
-		list(APPEND arxprofiler_SOURCES
-			${ARX_ICON_RC}
-		)
+		list(APPEND arxprofiler_SOURCES ${arx-libertatis-icon.rc})
+		create_version_resource(arxprofiler "${VERSION_NAME} Profiler")
+		list(APPEND arxprofiler_SOURCES ${arxprofiler-version.rc})
 	endif()
 	
 	set(arxprofiler_MANUAL_SOURCES
@@ -1297,6 +1375,7 @@ if(ARX_HAVE_PROFILER)
 	
 	create_source_groups(arxprofiler_SOURCES)
 	
+	list(APPEND arxprofiler_Qt_SOURCES ${QtGui_SOURCES})
 	qt_wrap_ui(arxprofiler_Qt_SOURCES
 		tools/profiler/ui/ArxProfiler.ui
 	)
@@ -1335,7 +1414,7 @@ if(ARX_HAVE_PROFILER)
 	add_executable_shared(arxprofiler
 	                      "${arxprofiler_SOURCES}" "${arxprofiler_LIBRARIES}")
 	set_binary_type(arxprofiler WIN32)
-	set_binary_installdir(arxprofiler "${CMAKE_INSTALL_LIBEXECDIR}")
+	set_binary_installdir(arxprofiler "${CMAKE_INSTALL_BINDIR}")
 	add_binary_includes(arxprofiler ${arxprofiler_INCLUDES})
 	
 endif()
@@ -1361,6 +1440,11 @@ if(BUILD_TOOLS)
 		tools/savetool/SaveView.cpp
 	)
 	
+	if(WIN32)
+		create_version_resource(arxsavetool "${VERSION_NAME} Save File Tool")
+		list(APPEND arxsavetool_SOURCES ${arxsavetool-version.rc})
+	endif()
+	
 	set(arxsavetool_LIBRARIES ${BASE_LIBRARIES} ${ZLIB_LIBRARIES})
 	
 	add_executable_shared(arxsavetool "${arxsavetool_SOURCES}" "${arxsavetool_LIBRARIES}")
@@ -1374,6 +1458,11 @@ if(BUILD_TOOLS)
 		${UTIL_SOURCES}
 		tools/unpak/UnPak.cpp
 	)
+	
+	if(WIN32)
+		create_version_resource(arxunpak "${VERSION_NAME} PAK File Unpacker")
+		list(APPEND arxunpak_SOURCES ${arxunpak-version.rc})
+	endif()
 	
 	set(arxunpak_LIBRARIES ${BASE_LIBRARIES})
 	
@@ -1402,7 +1491,12 @@ if(BUILD_IO_LIBRARY)
 	
 	add_library_shared(ArxIO "${ArxIO_SOURCES}" "${ArxIO_LIBRARIES}")
 	set_binary_public_headers(ArxIO src/lib/ArxIO.h)
+	set_binary_version(ArxIO "${VERSION_NUMBER}" "${IO_LIBRARY_ABI_VERSION}")
 	
+endif()
+
+if(INSTALL_BLENDER_PLUGIN)
+	install(DIRECTORY plugins/blender/arx_addon/ DESTINATION "${INSTALL_BLENDER_PLUGINDIR}")
 endif()
 
 
@@ -1436,6 +1530,7 @@ set(STYLE_CHECKED_SOURCES
 	${arxsavetool_SOURCES}
 	${arxunpak_SOURCES}
 	${arxcrashreporter_MANUAL_SOURCES}
+	${arxprofiler_MANUAL_SOURCES}
 	${ArxIO_SOURCES}
 )
 
@@ -1475,7 +1570,7 @@ if(NOT WIN32 AND NOT MACOSX)
 	find_program(DESKTOP_FILE_VALIDATE desktop-file-validate)
 	
 	if(DESKTOP_FILE_VALIDATE)
-		get_filename_component(ABS_DESKTOP_FILE data/icons/arx-libertatis.desktop ABSOLUTE)
+		get_filename_component(ABS_DESKTOP_FILE "data/icons/${ICON_NAME}.desktop" ABSOLUTE)
 		add_custom_target(
 			validate_desktop_file ALL
 			"${DESKTOP_FILE_VALIDATE}" "${ABS_DESKTOP_FILE}" VERBATIM
@@ -1483,8 +1578,7 @@ if(NOT WIN32 AND NOT MACOSX)
 		)
 	endif()
 	
-	install(FILES data/icons/arx-libertatis.png DESTINATION "${ICONDIR}" OPTIONAL)
-	install(FILES data/icons/arx-libertatis.desktop DESTINATION "${APPDIR}" OPTIONAL)
+	install(FILES "data/icons/${ICON_NAME}.desktop" DESTINATION "${APPDIR}" OPTIONAL)
 	
 endif()
 

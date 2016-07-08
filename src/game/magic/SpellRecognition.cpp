@@ -350,6 +350,16 @@ void ARX_SPELLS_Analyse() {
 	}
 }
 
+static void handleRuneDetection(Rune rune) {
+	SpellSymbol[CurrSpellSymbol++] = rune;
+
+	if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
+		CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
+	}
+
+	ARX_SOUND_PlaySFX(SND_SYMB[rune]);
+}
+
 void ARX_SPELLS_AnalyseSYMBOL() {
 	
 	long sm = 0;
@@ -367,30 +377,16 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 62498  :
 		case 62748  :
 		case 6248   :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_COSUM;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_COSUM]);
+			handleRuneDetection(RUNE_COSUM);
 			break;
-
 		// COMUNICATUM
 		case 632426 :
 		case 627426 :
 		case 634236 :
 		case 624326 :
 		case 62426  :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_COMUNICATUM;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_COMUNICATUM]);
+			handleRuneDetection(RUNE_COMUNICATUM);
 			break;
-
 		// FOLGORA
 		case 9823   :
 		case 9232   :
@@ -399,44 +395,23 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 923    :
 		case 932    :
 		case 93     :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_FOLGORA;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_FOLGORA]);
+			handleRuneDetection(RUNE_FOLGORA);
 			break;
-
 		// SPACIUM
 		case 42368  :
 		case 42678  :
 		case 42698  :
 		case 4268   :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_SPACIUM;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_SPACIUM]);
+			handleRuneDetection(RUNE_SPACIUM);
 			break;
-
 		// TERA
 		case 9826   :
 		case 92126  :
 		case 9264   :
 		case 9296   :
 		case 926    :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_TERA;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_TERA]);
+			handleRuneDetection(RUNE_TERA);
 			break;
-
 		// CETRIUS
 		case 286   :
 		case 3286  :
@@ -445,42 +420,21 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 2986  :
 		case 2386  :
 		case 386   :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_CETRIUS;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_CETRIUS]);
+			handleRuneDetection(RUNE_CETRIUS);
 			break;
-
 		// RHAA
 		case 28    :
 		case 2     :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_RHAA;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_RHAA]);
+			handleRuneDetection(RUNE_RHAA);
 			break;
-
 		// FRIDD
 		case 98362	:
 		case 8362	:
 		case 8632	:
 		case 8962	:
 		case 862	:
-				SpellSymbol[CurrSpellSymbol++] = RUNE_FRIDD;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_FRIDD]);
+			handleRuneDetection(RUNE_FRIDD);
 			break;
-
 		// KAOM
 		case 41236	:
 		case 23		:
@@ -489,24 +443,9 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 136	:
 		case 12369	:
 		case 1236	:
-				if(cur_arm >= 0 && (cur_arm & 1)){
-					cur_arm++;					
-
-					if(cur_arm > 20)
-						ApplySPArm();
-				}
-				else
-					cur_arm=-1;
-
-				SpellSymbol[CurrSpellSymbol++] = RUNE_KAOM;
-
-				if((size_t)CurrSpellSymbol >= MAX_SPELL_SYMBOLS) {
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-				}
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_KAOM]);
+			handleCheatRuneDetection(CheatRune_KAOM);
+			handleRuneDetection(RUNE_KAOM);
 			break;
-
 		// STREGUM
 		case 82328 :
 		case 8328  :
@@ -514,38 +453,20 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 8938  :
 		case 8238  :
 		case 838   :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_STREGUM;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_STREGUM]);
+			handleRuneDetection(RUNE_STREGUM);
 			break;
-
 		// MORTE
 		case 628   :
 		case 621   :
 		case 62    :
-				SpellSymbol[CurrSpellSymbol++] = RUNE_MORTE;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_MORTE]);
+			handleRuneDetection(RUNE_MORTE);
 			break;
-
 		// TEMPUS
 		case 962686  :
 		case 862686  :
 		case 8626862 : 
-				SpellSymbol[CurrSpellSymbol++] = RUNE_TEMPUS;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_TEMPUS]);
+			handleRuneDetection(RUNE_TEMPUS);
 			break;
-
 		// MOVIS
 		case 6316:
 		case 61236:
@@ -558,36 +479,18 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 6126:
 		case 6136:
 		case 616: 
-				SpellSymbol[CurrSpellSymbol++] = RUNE_MOVIS;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_MOVIS]);
+			handleRuneDetection(RUNE_MOVIS);
 			break;
-
 		// NHI
 		case 46:
 		case 4:
-				SpellSymbol[CurrSpellSymbol++] = RUNE_NHI;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_NHI]);
+			handleRuneDetection(RUNE_NHI);
 			break;
-
 		// AAM
 		case 64:
 		case 6:
-				SpellSymbol[CurrSpellSymbol++] = RUNE_AAM;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_AAM]);
+			handleRuneDetection(RUNE_AAM);
 			break;
-																		
 		// YOK
 		case 412369:
 		case 2687:
@@ -597,42 +500,20 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 2368:
 		case 2689:
 		case 268:
-				SpellSymbol[CurrSpellSymbol++] = RUNE_YOK;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_YOK]);
+			handleRuneDetection(RUNE_YOK);
 			break;
-
 		// TAAR
 		case 6236:
 		case 6264:
 		case 626:
-				SpellSymbol[CurrSpellSymbol++] = RUNE_TAAR;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_TAAR]);
+			handleRuneDetection(RUNE_TAAR);
 			break;
-
 		// MEGA
 		case 82:
 		case 8:
-				if(cur_arm >= 0 && !(cur_arm & 1))
-					cur_arm++;					
-				else
-					cur_arm=-1;
-
-				SpellSymbol[CurrSpellSymbol++] = RUNE_MEGA;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_MEGA]);
+			handleCheatRuneDetection(CheatRune_MEGA);
+			handleRuneDetection(RUNE_MEGA);
 			break;
-
 		// VISTA
 		case 3614:
 		case 361:
@@ -643,39 +524,23 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 314:
 		case 321:
 		case 31:
-				SpellSymbol[CurrSpellSymbol++] = RUNE_VISTA;
-
-				if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-					CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-				ARX_SOUND_PlaySFX(SND_SYMB[RUNE_VISTA]);
+			handleRuneDetection(RUNE_VISTA);
 			break;
-
 		// VITAE
 		case 698:
 		case 68:
-			SpellSymbol[CurrSpellSymbol++] = RUNE_VITAE;
-
-			if(CurrSpellSymbol >= MAX_SPELL_SYMBOLS)
-				CurrSpellSymbol = MAX_SPELL_SYMBOLS - 1;
-
-			ARX_SOUND_PlaySFX(SND_SYMB[RUNE_VITAE]);
+			handleRuneDetection(RUNE_VITAE);
 			break;
-
-//--------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------
 // Cheat spells
-
 		// Special UW mode
 		case 238:
 		case 2398:
 		case 23898:
 		case 236987:
-		case 23698:	
-			if(uw_mode_pos == 0)
-				uw_mode_pos++;
-		
+		case 23698:
+			handleCheatRuneDetection(CheatRune_U);
 			goto failed; 
-		break;
 		case 2382398:
 		case 2829:
 		case 23982398:
@@ -733,32 +598,13 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 2982398:
 		case 238298:
 		case 3939:
-			if(uw_mode_pos == 1)
-				ApplySPuw();
-
+			handleCheatRuneDetection(CheatRune_W);
 			goto failed; 
 		case 161:
 		case 1621:
-		case 1261: {
-			if(cur_sm == 0)
-				cur_sm++;
-
-			if(cur_bh == 0)
-				cur_bh++;
-
-			if(cur_bh == 2)
-				cur_bh++;
-
-			if(cur_sos == 0)
-				cur_sos++;
-
-			if(cur_sos == 2) {
-				cur_sos = 0;
-				ApplyCurSOS();
-			}
-
+		case 1261:
+			handleCheatRuneDetection(CheatRune_S);
 			goto failed;
-		}
 		case 83614:
 		case 8361:
 		case 8341:
@@ -772,26 +618,9 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 834:
 		case 823:
 		case 8234:
-		case 8231: {
-			if(cur_pom == 0)
-				cur_pom++;
-
-			if(cur_pnux == 0)
-				cur_pnux++;
-
-			if(cur_pnux == 2)
-				cur_pnux++;
-
-			if(cur_bh == 1)
-				cur_bh++;
-
-			if(cur_bh == 3) {
-				cur_bh = 0;
-				EERIE_OBJECT_SetBHMode();
-			}
-
+		case 8231:
+			handleCheatRuneDetection(CheatRune_P);
 			goto failed;
-		}
 		case 83692:
 		case 823982:
 		case 83982:
@@ -799,77 +628,30 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 82392:
 		case 83892:
 		case 823282:
-		case 8392: {
-			if(cur_sm == 2) {
-				cur_sm++;
-				ApplySPBow();
-			}
-
-			if(cur_mx == 0)
-				cur_mx = 1;
-
-			if(cur_mr == 0)
-				cur_mr = 1;
-
-			if(cur_pom == 2) {
-				cur_pom++;
-				ApplySPWep();
-			}
-
+		case 8392:
+			handleCheatRuneDetection(CheatRune_M);
 			goto failed;
-		}
 		case 98324:
 		case 92324:
 		case 89324:
 		case 9324:
 		case 9892324:
 		case 9234:
-		case 934: {
-			if(cur_mr == 1) {
-				cur_mr = 2;
-				MakeCoolFx(player.pos);
-			}
-
-			if(cur_mx == 1) {
-				cur_mx = 2;
-				MakeCoolFx(player.pos);
-			}
-
-			if(cur_rf == 1) {
-				cur_rf = 2;
-				MakeCoolFx(player.pos);
-			}
-
-			if(cur_sm == 1)
-				cur_sm++;
-
+		case 934:
+			handleCheatRuneDetection(CheatRune_A);
 			goto failed;
-		}
 		case 3249:
 		case 2349:
 		case 323489:
 		case 23249:
 		case 3489:
 		case 32498:
-		case 349: {
-			if(cur_mx == 2) {
-				cur_mx = 3;
-				ApplySPMax();
-			}
-
+		case 349:
+			handleCheatRuneDetection(CheatRune_X);
 			goto failed;
-		}
-		case 26: {
-			if(cur_pnux == 1)
-				cur_pnux++;
-
-			if(cur_pnux == 3) {
-				cur_pnux++;
-				ApplyCurPNux();
-			}
-
+		case 26:
+			handleCheatRuneDetection(CheatRune_26);
 			goto failed;
-		}
 		case 9232187:
 		case 93187:
 		case 9234187:
@@ -877,61 +659,25 @@ void ARX_SPELLS_AnalyseSYMBOL() {
 		case 923187:
 		case 932187:
 		case 93217:
-		case 9317: {
-			if(cur_pom == 1)
-				cur_pom++;
-
-			if(cur_sos == 1)
-				cur_sos++;
-
+		case 9317:
+			handleCheatRuneDetection(CheatRune_O);
 			goto failed;
-		}
 		case 82313:
 		case 8343:
 		case 82343:
 		case 83413:
-		case 8313: {
-			if(cur_mr == 2) {
-				cur_mr = 3;
-				MakeCoolFx(player.pos);
-				ApplyCurMr();
-			}
-
-			if(cur_rf == 0)
-				cur_rf = 1;
-
+		case 8313:
+			handleCheatRuneDetection(CheatRune_R);
 			goto failed;
-		}
-		case 86: {
-			if(cur_rf == 2) {
-				cur_rf = 3;
-				MakeCoolFx(player.pos);
-				ApplySPRf();
-			}
-
+		case 86:
+			handleCheatRuneDetection(CheatRune_F);
 			goto failed;
-		}
-		case 626262: {
-			passwall++;
-
-			if(passwall == 3) {
-				passwall=0;
-				ApplyPasswall(); 
-			}
-		}
-		break;
-		case 828282: {
-			player.skin++;
-
-			if(player.skin == 4 && Random::getf() < 0.9f)
-				player.skin++;
-
-			if(player.skin > 5)
-				player.skin = 0;
-
-			ARX_EQUIPMENT_RecreatePlayerMesh();
+		case 626262:
+			handleCheatRuneDetection(CheatRune_Passwall);
+			break;
+		case 828282:
+			handleCheatRuneDetection(CheatRune_ChangeSkin);
 			goto failed;
-		}
 		default: {
 		failed:
 			;
@@ -986,6 +732,11 @@ bool ARX_SPELLS_AnalyseSPELL() {
 		return false;
 	}
 	
-	return ARX_SPELLS_Launch(spell, PlayerEntityHandle, flags);
+	return ARX_SPELLS_Launch(spell,
+	                         PlayerEntityHandle,
+	                         flags,
+	                         -1,
+	                         EntityHandle(),
+	                         -1);
 	
 }

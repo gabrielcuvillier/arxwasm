@@ -79,23 +79,12 @@ public:
 	Node(long _id, const Node * _parent, float _distance, float _remaining)
 		: id(_id), parent(_parent), cost(_distance + _remaining), distance(_distance) { }
 	
-	inline NodeId getId() const {
-		return id;
-	}
+	NodeId getId() const { return id; }
+	const Node * getParent() const { return parent; }
+	float getCost() const { return cost; }
+	float getDistance() const { return distance; }
 	
-	inline const Node * getParent() const {
-		return parent;
-	}
-	
-	inline float getCost() const {
-		return cost;
-	}
-	
-	inline float getDistance() const {
-		return distance;
-	}
-	
-	inline void newParent(const Node * _parent, float _distance) {
+	void newParent(const Node * _parent, float _distance) {
 		parent = _parent;
 		cost = cost - distance + _distance;
 		distance = _distance;
@@ -121,7 +110,7 @@ public:
 	 * Otherwise add a new node.
 	 * Assumes that remaining never changes for the same node id.
 	 */
-	inline void add(NodeId id, const Node * parent, float distance, float remaining) {
+	void add(NodeId id, const Node * parent, float distance, float remaining) {
 		
 		// Check if node is already in open list.
 		for(NodeList::iterator i = nodes.begin(); i != nodes.end(); ++i) {
@@ -354,13 +343,13 @@ bool PathFinder::wanderAround(NodeId from, float rad, Result & rlist, bool steal
 	
 	NodeId last = from;
 	
-	unsigned int step_c = Random::get(4, 9);
+	unsigned int step_c = Random::getu(4, 9);
 	for(unsigned int i = 0; i < step_c; i++) {
 		
 		NodeId next = from;
 		
 		// Select the next node.
-		unsigned int nb = Random::get(0, rad / 50);
+		unsigned int nb = Random::getu(0, rad / 50);
 		for(unsigned int j = 0; j < nb && map_d[next].nblinked; j++) {
 			for(int notfinished = 0; notfinished < 4; notfinished++) {
 				
@@ -425,7 +414,7 @@ bool PathFinder::lookFor(NodeId from, const Vec3f & pos, float radius, Result & 
 	
 	NodeId last = from;
 	
-	unsigned long step_c = Random::get(4, 9);
+	unsigned long step_c = Random::getu(4, 9);
 	for(unsigned long i = 0; i < step_c; i++) {
 		
 		Vec3f pos = map_d[to].pos + randomVec(-1.f, 1.f) * radius;

@@ -238,7 +238,7 @@ void CinematicGrid::FreeGrille() {
 }
 
 void CinematicGrid::AddQuadUVs(Vec2i depc, Vec2i tc, Vec2i bitmappos, Vec2i bitmapw, Texture2D * tex) {
-	int matIdx = AddMaterial(tex);
+	size_t matIdx = AddMaterial(tex);
 	m_mats[matIdx].bitmapdep = bitmappos;
 	m_mats[matIdx].bitmap = bitmapw;
 	m_mats[matIdx].nbvertexs = (tc.x + 1) * (tc.y + 1);
@@ -304,15 +304,12 @@ void CinematicGrid::ReajustUV() {
 
 		if(!tex)
 			return;
-
-		int w, h;
-
-		w = tex->getStoredSize().x;
-		h = tex->getStoredSize().y;
-
-		if((w != (int)mat->bitmap.x) || (h != (int)mat->bitmap.y)) {
-			float dx = (.999999f * (float)mat->bitmap.x) / ((float)w);
-			float dy = (.999999f * (float)mat->bitmap.y) / ((float)h);
+		
+		Vec2i size = tex->getStoredSize();
+		
+		if(size.x != mat->bitmap.x || size.y != mat->bitmap.y) {
+			float dx = (.999999f * mat->bitmap.x) / size.x;
+			float dy = (.999999f * mat->bitmap.y) / size.y;
 
 			int nb2 = mat->nbvertexs;
 
@@ -334,8 +331,8 @@ void CinematicGrid::GetIndNumCube(int cx, int cy, int * i1, int * i2, int * i3, 
 	*i4 = *i3 + 1;
 }
 
-int CinematicGrid::AddMaterial(Texture2D * tex) {
-	int matIdx = m_mats.size();
+size_t CinematicGrid::AddMaterial(Texture2D * tex) {
+	size_t matIdx = m_mats.size();
 	m_mats.resize(matIdx + 1);
 
 	int deb;
@@ -351,7 +348,7 @@ int CinematicGrid::AddMaterial(Texture2D * tex) {
 	return matIdx;
 }
 
-void CinematicGrid::AddPoly(int matIdx, int i0, int i1, int i2) {
+void CinematicGrid::AddPoly(size_t matIdx, int i0, int i1, int i2) {
 	
 	C_IND ind;
 	ind.i1 = checked_range_cast<unsigned short>(i0);

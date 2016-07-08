@@ -77,13 +77,18 @@ enum ControlAction {
 
 enum CinematicWidescreenMode {
 	CinematicLetterbox = 0,
-	CinematicWidescreen = 1,
+	CinematicHardEdges = 1,
 	CinematicFadeEdges = 2
+};
+
+enum UIScaleFilter {
+	UIFilterNearest = 0,
+	UIFilterBilinear = 1
 };
 
 struct ActionKey {
 	
-	ActionKey(InputKeyId key_0 = -1, InputKeyId key_1 = -1) {
+	explicit ActionKey(InputKeyId key_0 = -1, InputKeyId key_1 = -1) {
 		key[0] = key_0;
 		key[1] = key_1;
 	}
@@ -107,22 +112,32 @@ public:
 		bool fullscreen;
 		int levelOfDetail;
 		float fogDistance;
-		bool showCrosshair;
 		bool antialiasing;
 		bool vsync;
 		int maxAnisotropicFiltering;
 		bool colorkeyAlphaToCoverage;
 		bool colorkeyAntialiasing;
 		
-		bool limitSpeechWidth;
-		CinematicWidescreenMode cinematicWidescreenMode;
-		
-		bool hudScale;
-		
 		int bufferSize;
 		std::string bufferUpload;
 		
 	} video;
+	
+	// section 'interface'
+	struct {
+		
+		bool showCrosshair;
+		
+		bool limitSpeechWidth;
+		CinematicWidescreenMode cinematicWidescreenMode;
+		
+		float hudScale;
+		bool hudScaleInteger;
+		UIScaleFilter hudScaleFilter;
+		
+		Vec2i thumbnailSize;
+		
+	} interface;
 	
 	// section 'window'
 	struct {
@@ -130,6 +145,8 @@ public:
 		std::string framework;
 		
 		Vec2i size;
+		
+		bool minimizeOnFocusLost;
 		
 	} window;
 	
@@ -145,6 +162,7 @@ public:
 		float ambianceVolume;
 		
 		bool eax;
+		bool muteOnFocusLost;
 	
 	} audio;
 	
@@ -156,6 +174,8 @@ public:
 		bool mouseLookToggle;
 		bool autoDescription;
 		int mouseSensitivity;
+		int mouseAcceleration;
+		bool rawMouseInput;
 		bool borderTurning;
 		
 	} input;

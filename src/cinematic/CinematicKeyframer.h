@@ -51,7 +51,7 @@ static const int INTERP_NO = -1;
 static const int INTERP_BEZIER = 0;
 static const int INTERP_LINEAR = 1;
 
-struct C_KEY {
+struct CinematicKeyframe {
 	
 	int frame;
 	int numbitmap;
@@ -78,24 +78,23 @@ struct CinematicTrack {
 	float fps;
 	int nbkey;
 	int pause;
-	C_KEY * key;
+	CinematicKeyframe * key;
 };
 
 bool DeleteTrack();
 bool AllocTrack(int sf, int ef, float fps);
-bool AddKey(const C_KEY & key);
-bool AddKeyLoad(const C_KEY & key);
-bool GereTrack(Cinematic * c, float fpscurr, bool resized);
+bool AddKey(const CinematicKeyframe & key);
+bool AddKeyLoad(const CinematicKeyframe & key);
+void GereTrack(Cinematic * c, float fpscurr, bool resized, bool play);
 
 void PlayTrack(Cinematic * c);
 int GetStartFrame();
 int GetEndFrame();
 void SetCurrFrame(int frame);
-bool GereTrackNoPlay(Cinematic * c);
 float GetTrackFPS();
 
-C_KEY * GetKey(int f, int * num);
-C_KEY * SearchKey(int f, int * num);
+CinematicKeyframe * GetKey(int f, int * num);
+CinematicKeyframe * SearchKey(int f, int * num);
 
 float GetTimeKeyFramer();
 void UpDateAllKeyLight();

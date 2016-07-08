@@ -182,36 +182,29 @@ public:
 
 }
 
-EERIE_FRUSTRUM_PLANE efpPlaneNear;
+Plane efpPlaneNear;
 
 static std::vector<EERIEPOLY*> vPolyWater;
 static std::vector<EERIEPOLY*> vPolyLava;
 
-std::vector<PORTAL_ROOM_DRAW> RoomDraw;
-std::vector<long> RoomDrawList;
+static std::vector<PORTAL_ROOM_DRAW> RoomDraw;
+static std::vector<long> RoomDrawList;
 
 //*************************************************************************************
 //*************************************************************************************
-Vec2f getWaterFxUvOffset(const Vec3f & odtv, float power)
+Vec2f getWaterFxUvOffset(const Vec3f & odtv)
 {
-	power = power * 0.05f;
-	return Vec2f(std::sin(WATEREFFECT + odtv.x) * power,
-				 std::cos(WATEREFFECT + odtv.z) * power);
+	return Vec2f(std::sin(WATEREFFECT + odtv.x), std::cos(WATEREFFECT + odtv.z));
 }
 
 static void ApplyLavaGlowToVertex(const Vec3f & odtv,TexturedVertex * dtv, float power) {
-	float f;
-	long lr, lg, lb;
+	
 	power = 1.f - std::sin(WATEREFFECT + odtv.x + odtv.z) * 0.05f * power;
 	Color inColor = Color::fromRGBA(dtv->color);
-	f = inColor.r * power;
-	lr = clipByte(f);
-
-	f = inColor.g * power;
-	lg = clipByte(f);
-
-	f = inColor.b * power;
-	lb = clipByte(f);
+	
+	long lr = clipByte(inColor.r * power);
+	long lg = clipByte(inColor.g * power);
+	long lb = clipByte(inColor.b * power);
 
 	dtv->color = Color(lr, lg, lb, 255).toRGBA();
 }
@@ -222,7 +215,7 @@ static void ManageWater_VertexBuffer(EERIEPOLY * ep, const long to,
 	for(long k = 0; k < to; k++) {
 		ep->tv[k].uv = ep->v[k].uv;
 		
-		ep->tv[k].uv += getWaterFxUvOffset(ep->v[k].p, 0.35f);
+		ep->tv[k].uv += getWaterFxUvOffset(ep->v[k].p) * (0.35f * 0.05f);
 			
 		if(ep->type & POLY_FALL) {
 			ep->tv[k].uv.y -= (float)(tim) * (1.f/1000);
@@ -238,7 +231,7 @@ static void ManageLava_VertexBuffer(EERIEPOLY * ep, const long to,
 	for(long k = 0; k < to; k++) {
 		ep->tv[k].uv = ep->v[k].uv;
 		
-		ep->tv[k].uv += getWaterFxUvOffset(ep->v[k].p, 0.35f); //0.25f
+		ep->tv[k].uv += getWaterFxUvOffset(ep->v[k].p) * (0.35f * 0.05f); //0.25f
 		ApplyLavaGlowToVertex(ep->v[k].p, &ep->tv[k], 0.6f);
 			
 		if(ep->type & POLY_FALL) {
@@ -251,12 +244,12 @@ static void ManageLava_VertexBuffer(EERIEPOLY * ep, const long to,
 
 static void EERIERTPPoly2(EERIEPOLY & ep) {
 	
-	EE_RTP(ep.v[0].p, &ep.tv[0]);
-	EE_RTP(ep.v[1].p, &ep.tv[1]);
-	EE_RTP(ep.v[2].p, &ep.tv[2]);
+	EE_RTP(ep.v[0].p, ep.tv[0]);
+	EE_RTP(ep.v[1].p, ep.tv[1]);
+	EE_RTP(ep.v[2].p, ep.tv[2]);
 
 	if(ep.type & POLY_QUAD)
-		EE_RTP(ep.v[3].p, &ep.tv[3]);
+		EE_RTP(ep.v[3].p, ep.tv[3]);
 	else
 		ep.tv[3].p.z=1.f;
 }
@@ -266,7 +259,7 @@ bool IsSphereInFrustrum(const Vec3f & point, const EERIE_FRUSTRUM & frustrum, fl
 static bool FrustrumsClipSphere(const EERIE_FRUSTRUM_DATA & frustrums,
                                 const Sphere & sphere) {
 	
-	float dists = efpPlaneNear.getDist(sphere.origin);
+	float dists = distanceToPoint(efpPlaneNear, sphere.origin);
 
 	if(dists + sphere.radius > 0) {
 		for(long i = 0; i < frustrums.nb_frustrums; i++) {
@@ -518,46 +511,49 @@ static long ARX_PORTALS_GetRoomNumForPosition2(const Vec3f & pos, long flag,
 	return -1;
 }
 
-static long ARX_PORTALS_GetRoomNumForCamera(float * height) {
+static long ARX_PORTALS_GetRoomNumForCamera(float * height, const Vec3f & pos, const Vec3f & direction) {
 	
-	EERIEPOLY * ep; 
-	ep = CheckInPoly(ACTIVECAM->orgTrans.pos);
-
-	if(ep && ep->room > -1) {
-		if(height)
-			*height=ep->center.y;
-
-		return ep->room;
-	}
-
-	ep = GetMinPoly(ACTIVECAM->orgTrans.pos);
-
-	if(ep && ep->room > -1) {
-		if(height)
-			*height=ep->center.y;
-
-		return ep->room;
-	}
-
-	float dist=0.f;
-
-	while(dist<=20.f) {
+	{
+		EERIEPOLY * ep = CheckInPoly(pos);
 		
-		Vec3f tmpPos = ACTIVECAM->orgTrans.pos;
-		tmpPos += angleToVectorXZ_180offset(ACTIVECAM->angle.getPitch()) * dist;
-		
-		ep = CheckInPoly(tmpPos);
-
 		if(ep && ep->room > -1) {
 			if(height)
 				*height=ep->center.y;
-
+			
 			return ep->room;
 		}
-
+	}
+	
+	{
+		EERIEPOLY * ep = GetMinPoly(pos);
+		
+		if(ep && ep->room > -1) {
+			if(height)
+				*height=ep->center.y;
+			
+			return ep->room;
+		}
+	}
+	
+	float dist=0.f;
+	
+	while(dist<=20.f) {
+		
+		Vec3f tmpPos = pos;
+		tmpPos += direction * dist;
+		
+		EERIEPOLY * ep = CheckInPoly(tmpPos);
+		
+		if(ep && ep->room > -1) {
+			if(height)
+				*height=ep->center.y;
+			
+			return ep->room;
+		}
+		
 		dist += 5.f;
 	}
-
+	
 	return -1;
 }
 
@@ -568,12 +564,15 @@ long ARX_PORTALS_GetRoomNumForPosition(const Vec3f & pos,long flag) {
 	
 	long num;
 	float height;
-
-	if(flag & 1)
-		num=ARX_PORTALS_GetRoomNumForCamera(&height);
-	else
-		num=ARX_PORTALS_GetRoomNumForPosition2(pos,flag,&height);
-
+	
+	if(flag & 1) {
+		Vec3f cameraPos = ACTIVECAM->orgTrans.pos;
+		Vec3f direction = angleToVectorXZ_180offset(ACTIVECAM->angle.getPitch());
+		num = ARX_PORTALS_GetRoomNumForCamera(&height, cameraPos, direction);
+	} else {
+		num = ARX_PORTALS_GetRoomNumForPosition2(pos, flag, &height);
+	}
+	
 	if(num > -1) {
 		long nearest = -1;
 		float nearest_dist = 99999.f;
@@ -649,7 +648,6 @@ static void ARX_PORTALS_InitDrawnRooms() {
 
 	for(size_t i = 0; i < RoomDraw.size(); i++) {
 		RoomDraw[i].count=0;
-		RoomDraw[i].flags=0;
 		RoomDraw[i].frustrum.nb_frustrums=0;
 	}
 
@@ -667,10 +665,10 @@ static void ARX_PORTALS_InitDrawnRooms() {
 bool IsSphereInFrustrum(const Vec3f & point, const EERIE_FRUSTRUM & frustrum, float radius)
 {
 	float dists[4];
-	dists[0]=frustrum.plane[0].getDist(point);
-	dists[1]=frustrum.plane[1].getDist(point);
-	dists[2]=frustrum.plane[2].getDist(point);
-	dists[3]=frustrum.plane[3].getDist(point);
+	dists[0] = distanceToPoint(frustrum.plane[0], point);
+	dists[1] = distanceToPoint(frustrum.plane[1], point);
+	dists[2] = distanceToPoint(frustrum.plane[2], point);
+	dists[3] = distanceToPoint(frustrum.plane[3], point);
 
 	if (	(dists[0]+radius>0)
 		&&	(dists[1]+radius>0)
@@ -692,18 +690,10 @@ static bool FrustrumsClipPoly(const EERIE_FRUSTRUM_DATA & frustrums,
 	return true;
 }
 
-static void Frustrum_Set(EERIE_FRUSTRUM * fr, long plane,
-                         float a, float b, float c, float d) {
-	fr->plane[plane].a=a;
-	fr->plane[plane].b=b;
-	fr->plane[plane].c=c;
-	fr->plane[plane].d=d;
-}
-
 static void CreatePlane(EERIE_FRUSTRUM & frustrum, long numplane, const Vec3f & orgn,
                         const Vec3f & pt1, const Vec3f & pt2) {
 	
-	EERIE_FRUSTRUM_PLANE & plane = frustrum.plane[numplane];
+	Plane & plane = frustrum.plane[numplane];
 	
 	Vec3f A = pt1 - orgn;
 	Vec3f B = pt2 - orgn;
@@ -736,7 +726,7 @@ static void CreateFrustrum(EERIE_FRUSTRUM & frustrum, const Vec3f & pos,
 	}
 }
 
-static void CreateScreenFrustrum(EERIE_FRUSTRUM * frustrum) {
+static void CreateScreenFrustrum(EERIE_FRUSTRUM & frustrum) {
 	
 	glm::mat4x4 matProj;
 	GRenderer->GetProjectionMatrix(matProj);
@@ -745,51 +735,66 @@ static void CreateScreenFrustrum(EERIE_FRUSTRUM * frustrum) {
 	GRenderer->GetViewMatrix(matView);
 	
 	glm::mat4x4 matres = matProj * matView;
-
-	float a,b,c,d,n;
-	a=matres[0][3]-matres[0][0];
-	b=matres[1][3]-matres[1][0];
-	c=matres[2][3]-matres[2][0];
-	d=matres[3][3]-matres[3][0];
- b=-b;
-	n = 1.f / std::sqrt(a * a + b * b + c * c);
-
-	Frustrum_Set(frustrum,0,a*n,b*n,c*n,d*n);
-	a=matres[0][3]+matres[0][0];
-	b=matres[1][3]+matres[1][0];
-	c=matres[2][3]+matres[2][0];
-	d=matres[3][3]+matres[3][0];
- b=-b;
-	n = 1.f / std::sqrt(a * a + b * b + c * c);
-
-	Frustrum_Set(frustrum,1,a*n,b*n,c*n,d*n);
-	a=matres[0][3]-matres[0][1];
-	b=matres[1][3]-matres[1][1];
-	c=matres[2][3]-matres[2][1];
-	d=matres[3][3]-matres[3][1];
- b=-b;
-	n = 1.f / std::sqrt(a * a + b * b + c * c);
-
-	Frustrum_Set(frustrum,2,a*n,b*n,c*n,d*n);
-	a=matres[0][3]+matres[0][1];
-	b=matres[1][3]+matres[1][1];
-	c=matres[2][3]+matres[2][1];
-	d=matres[3][3]+matres[3][1];
- b=-b;
-	n = 1.f / std::sqrt(a * a + b * b + c * c);
-
-	Frustrum_Set(frustrum,3,a*n,b*n,c*n,d*n);
-
-	a=matres[0][3]+matres[0][2];
-	b=matres[1][3]+matres[1][2];
-	c=matres[2][3]+matres[2][2];
-	d=matres[3][3]+matres[3][2];
- b=-b;
-	n = 1.f / std::sqrt(a * a + b * b + c * c);
-	efpPlaneNear.a=a*n;
-	efpPlaneNear.b=b*n;
-	efpPlaneNear.c=c*n;
-	efpPlaneNear.d=d*n;
+	
+	{
+	Plane & plane = frustrum.plane[0];
+	
+	plane.a = matres[0][3] - matres[0][0];
+	plane.b = matres[1][3] - matres[1][0];
+	plane.c = matres[2][3] - matres[2][0];
+	plane.d = matres[3][3] - matres[3][0];
+	plane.b = -plane.b;
+	
+	normalizePlane(plane);
+	}
+	
+	{
+	Plane & plane = frustrum.plane[1];
+	
+	plane.a = matres[0][3] + matres[0][0];
+	plane.b = matres[1][3] + matres[1][0];
+	plane.c = matres[2][3] + matres[2][0];
+	plane.d = matres[3][3] + matres[3][0];
+	plane.b = -plane.b;
+	
+	normalizePlane(plane);
+	}
+	
+	{
+	Plane & plane = frustrum.plane[2];
+	
+	plane.a = matres[0][3] - matres[0][1];
+	plane.b = matres[1][3] - matres[1][1];
+	plane.c = matres[2][3] - matres[2][1];
+	plane.d = matres[3][3] - matres[3][1];
+	plane.b = -plane.b;
+	
+	normalizePlane(plane);
+	}
+	
+	{
+	Plane & plane = frustrum.plane[3];
+	
+	plane.a = matres[0][3] + matres[0][1];
+	plane.b = matres[1][3] + matres[1][1];
+	plane.c = matres[2][3] + matres[2][1];
+	plane.d = matres[3][3] + matres[3][1];
+	plane.b = -plane.b;
+	
+	normalizePlane(plane);
+	}
+	
+	{
+	Plane & plane = efpPlaneNear;
+	
+	plane.a = matres[0][3] + matres[0][2];
+	plane.b = matres[1][3] + matres[1][2];
+	plane.c = matres[2][3] + matres[2][2];
+	plane.d = matres[3][3] + matres[3][2];
+	plane.b = -plane.b;
+	
+	normalizePlane(plane);
+	}
 }
 
 void RoomDrawRelease() {
@@ -1049,8 +1054,11 @@ static void RenderLava() {
 	vPolyLava.clear();
 }
 
-static void ARX_PORTALS_Frustrum_RenderRoomTCullSoft(long room_num, const EERIE_FRUSTRUM_DATA & frustrums, long tim) {
-	
+static void ARX_PORTALS_Frustrum_RenderRoomTCullSoft(long room_num,
+                                                     const EERIE_FRUSTRUM_DATA & frustrums,
+                                                     long now,
+                                                     const Vec3f & camPos
+) {
 	ARX_PROFILE_FUNC();
 	
 	if(!RoomDraw[room_num].count)
@@ -1110,11 +1118,11 @@ static void ARX_PORTALS_Frustrum_RenderRoomTCullSoft(long room_num, const EERIE_
 			continue;
 		}
 
-		if(ep->v[0].rhw < -efpPlaneNear.getDist(ep->center)) {
+		if(ep->v[0].rhw < -distanceToPoint(efpPlaneNear, ep->center)) {
 			continue;
 		}
 
-		Vec3f nrm = ep->v[2].p - ACTIVECAM->orgTrans.pos;
+		Vec3f nrm = ep->v[2].p - camPos;
 		int to = (ep->type & POLY_QUAD) ? 4 : 3;
 
 		if(!(ep->type & POLY_DOUBLESIDED) && glm::dot(ep->norm , nrm) > 0.f) {
@@ -1181,10 +1189,10 @@ static void ARX_PORTALS_Frustrum_RenderRoomTCullSoft(long room_num, const EERIE_
 				}
 
 				if(ep->type & POLY_LAVA) {
-					ManageLava_VertexBuffer(ep, to, tim, pMyVertexCurr);
+					ManageLava_VertexBuffer(ep, to, now, pMyVertexCurr);
 					vPolyLava.push_back(ep);
 				} else if(ep->type & POLY_WATER) {
-					ManageWater_VertexBuffer(ep, to, tim, pMyVertexCurr);
+					ManageWater_VertexBuffer(ep, to, now, pMyVertexCurr);
 					vPolyWater.push_back(ep);
 				}
 			}
@@ -1354,8 +1362,9 @@ static void ARX_PORTALS_Frustrum_RenderRoom_TransparencyTSoftCull(long room_num)
 }
 
 static void ARX_PORTALS_Frustrum_ComputeRoom(size_t roomIndex,
-                                             const EERIE_FRUSTRUM & frustrum) {
-	
+                                             const EERIE_FRUSTRUM & frustrum,
+                                             const Vec3f & camPos, float camDepth
+) {
 	arx_assert(roomIndex < portals->rooms.size());
 	
 	if(RoomDraw[roomIndex].count == 0) {
@@ -1364,8 +1373,8 @@ static void ARX_PORTALS_Frustrum_ComputeRoom(size_t roomIndex,
 	
 	RoomFrustrumAdd(roomIndex, frustrum);
 	RoomDraw[roomIndex].count++;
-
-	float fClippZFar = ACTIVECAM->cdepth * (fZFogEnd*1.1f);
+	
+	float fClippZFar = camDepth * (fZFogEnd*1.1f);
 	
 	EERIE_ROOM_DATA & room = portals->rooms[roomIndex];
 	
@@ -1383,7 +1392,7 @@ static void ARX_PORTALS_Frustrum_ComputeRoom(size_t roomIndex,
 		unsigned char ucVisibilityFar=0;
 
 		for(size_t i=0; i<ARRAY_SIZE(epp.v); i++) {
-			float fDist0 = efpPlaneNear.getDist(epp.v[i].p);
+			float fDist0 = distanceToPoint(efpPlaneNear, epp.v[i].p);
 
 			if(fDist0 < 0.f)
 				ucVisibilityNear++;
@@ -1396,7 +1405,7 @@ static void ARX_PORTALS_Frustrum_ComputeRoom(size_t roomIndex,
 			continue;
 		}
 
-		Vec3f pos = epp.center - ACTIVECAM->orgTrans.pos;
+		Vec3f pos = epp.center - camPos;
 		float fRes = glm::dot(pos, epp.norm);
 
 		EERIERTPPoly2(epp);
@@ -1408,7 +1417,7 @@ static void ARX_PORTALS_Frustrum_ComputeRoom(size_t roomIndex,
 		bool Cull = !(fRes<0.f);
 		
 		EERIE_FRUSTRUM fd;
-		CreateFrustrum(fd, ACTIVECAM->orgTrans.pos, epp, Cull);
+		CreateFrustrum(fd, camPos, epp, Cull);
 
 		size_t roomToCompute = 0;
 		bool computeRoom = false;
@@ -1423,7 +1432,7 @@ static void ARX_PORTALS_Frustrum_ComputeRoom(size_t roomIndex,
 
 		if(computeRoom) {
 			po->useportal=1;
-			ARX_PORTALS_Frustrum_ComputeRoom(roomToCompute, fd);
+			ARX_PORTALS_Frustrum_ComputeRoom(roomToCompute, fd, camPos, camDepth);
 		}
 	}
 }
@@ -1433,17 +1442,20 @@ void ARX_SCENE_Update() {
 	
 	ARX_PROFILE_FUNC();
 	
-	unsigned long tim = (unsigned long)(arxtime);
-
-	WATEREFFECT+=0.0005f*framedelay;
-
-	long l = ACTIVECAM->cdepth * 0.42f;
+	unsigned long now = arxtime.now_ul();
+	
+	WATEREFFECT = (now % long(2 * glm::pi<float>() / 0.0005f)) * 0.0005f;
+	
+	const Vec3f camPos = ACTIVECAM->orgTrans.pos;
+	const float camDepth = ACTIVECAM->cdepth;
+	
+	long l = camDepth * 0.42f;
 	long clip3D = (l / (long)BKG_SIZX) + 1;
 	short radius = clip3D + 4;
 
 	// TODO copy-paste background tiles
-	int tilex = ACTIVECAM->orgTrans.pos.x * ACTIVEBKG->Xmul;
-	int tilez = ACTIVECAM->orgTrans.pos.z * ACTIVEBKG->Zmul;
+	int tilex = camPos.x * ACTIVEBKG->Xmul;
+	int tilez = camPos.z * ACTIVEBKG->Zmul;
 	tilex = glm::clamp(tilex, 0, ACTIVEBKG->Xsize - 1);
 	tilez = glm::clamp(tilez, 0, ACTIVEBKG->Zsize - 1);
 
@@ -1454,7 +1466,7 @@ void ARX_SCENE_Update() {
 
 	ACTIVEBKG->fastdata[tilex][tilez].treat = true;
 	TreatBackgroundDynlights();
-	PrecalcDynamicLighting(minx, minz, maxx, maxz);
+	PrecalcDynamicLighting(minx, minz, maxx, maxz, camPos, camDepth);
 
 	// Go for a growing-square-spirallike-render around the camera position
 	// (To maximize Z-Buffer efficiency)
@@ -1466,23 +1478,23 @@ void ARX_SCENE_Update() {
 
 	ResetTileLights();
 
-	long room_num = ARX_PORTALS_GetRoomNumForPosition(ACTIVECAM->orgTrans.pos, 1);
+	long room_num = ARX_PORTALS_GetRoomNumForPosition(camPos, 1);
 	if(room_num>-1) {
 
 		ARX_PORTALS_InitDrawnRooms();
 		size_t roomIndex = static_cast<size_t>(room_num);
 		EERIE_FRUSTRUM frustrum;
-		CreateScreenFrustrum(&frustrum);
-		ARX_PORTALS_Frustrum_ComputeRoom(roomIndex, frustrum);
+		CreateScreenFrustrum(frustrum);
+		ARX_PORTALS_Frustrum_ComputeRoom(roomIndex, frustrum, camPos, camDepth);
 
 		for(size_t i = 0; i < RoomDrawList.size(); i++) {
-			ARX_PORTALS_Frustrum_RenderRoomTCullSoft(RoomDrawList[i], RoomDraw[RoomDrawList[i]].frustrum, tim);
+			ARX_PORTALS_Frustrum_RenderRoomTCullSoft(RoomDrawList[i], RoomDraw[RoomDrawList[i]].frustrum, now, camPos);
 		}
 	} else {
 		RoomDrawRelease();
 	}
 
-	ARX_THROWN_OBJECT_Manage(checked_range_cast<unsigned long>(framedelay));
+	ARX_THROWN_OBJECT_Manage(g_framedelay);
 
 	UpdateInter();
 }

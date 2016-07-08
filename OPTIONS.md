@@ -5,7 +5,7 @@ This file describes additional build options that are recognized by the CMakeLis
 
 | Option                | Windows default                                        |
 |---------------------- | ------------------------------------------------------ |
-| `USER_DIR_PREFIXES`   | `%FOLDERID_SavedGames%`                                |
+| `USER_DIR_PREFIXES`   | ^1                                                     |
 | `USER_DIR`            | `Arx Libertatis`                                       |
 | `CONFIG_DIR_PREFIXES` |                                                        |
 | `CONFIG_DIR`          |                                                        |
@@ -23,7 +23,7 @@ This file describes additional build options that are recognized by the CMakeLis
 
 | Option                |  Linux / BSD / other default                           |
 |---------------------- | ------------------------------------------------------ |
-| `USER_DIR_PREFIXES`   | `${XDG_DATA_HOME:-$HOME/.local/share}`                 |
+| `USER_DIR_PREFIXES`   | `${XDG_DATA_HOME:-$HOME/.local/share}` ^2              |
 | `USER_DIR`            | `arx`                                                  |
 | `CONFIG_DIR_PREFIXES` | `${XDG_CONFIG_HOME:-$HOME/.config}`                    |
 | `CONFIG_DIR`          | `arx`                                                  |
@@ -32,10 +32,13 @@ This file describes additional build options that are recognized by the CMakeLis
 
 These pairs define prefixes and suffixes that are combined to form searched paths for the user, config and data directories respectively.
 
+1. Arx Libertatis uses the default `Saved Games` directory (FOLDERID_SavedGames) on Windows Vista and newer, and `My Documents\My Games` on Windows XP.
+2. This matches the [XDG Base Directory Specification](http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html).
+
 To avoid possible performance issues, there is `IGNORE_EXE_DIR` to list directories to *not* search for data files even if they contain the game executable. By default, this is only set for Linux: `/usr/bin:/usr/games:/usr/games/bin:/usr/local/bin:/usr/local/games:/usr/local/games/bin`
 To completely disable searching for data locations relative to the executable, set `RUNTIME_DATADIR` to an empty string.
 
-All the configuration options above can reference environment variables in operating-system specific shell syntax which will be expanded at run-time. For Windows `%FOLDERID_SavedGames%` is defined to the Windows saved games directory for the current user. For other systems arx will make sure that [XDG Base Directory Specification](http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html) variables are defined.
+All the configuration options above can reference environment variables in operating-system specific shell syntax which will be expanded at run-time.
 
 After environment variable expansion the variables are interpreted as colon-separated (Windows: semicolon-separated) lists of paths.
 
@@ -62,7 +65,8 @@ Arx Libertatis adjust the compiler flags to provide an optimal configuration for
 The following options can be used to customize where `make install` puts the various components. All of the following paths can either be absolute or relative to the `CMAKE_INSTALL_PREFIX`.
 
 * `CMAKE_INSTALL_DATAROOTDIR` (default: `share`): Where to install data files
-* `ICONDIR` (default: `${DATAROOTDIR}/pixmaps`): Where to install icons
+* `ICONDIR` (default: `${DATAROOTDIR}/pixmaps`): Where to install standalone icons
+* `ICONTHEMEDIR` (default: `${DATAROOTDIR}/icons/hicolor`): Where to install themable icon sets
 * `APPDIR` (default: `${DATAROOTDIR}/applications`): Where to install .desktop files
 * `CMAKE_INSTALL_INCLUDEDIR` (default: `include`): Where to install C include files
 * `CMAKE_INSTALL_MANDIR` (default: `${DATAROOTDIR}/man`): Where to install man pages
@@ -74,8 +78,10 @@ The following options can be used to customize where `make install` puts the var
 * `RUNTIME_DATADIR` (default: `.`): Paths relative to the game executable to search for data files
 * `SCRIPTDIR` (default: `${BINDIR}`): Where to install the data install script
 * `INSTALL_DATADIR` (default: `${DATAROOTDIR}/games/arx`): Where to install Arx Libertatis data files. This should be one of the directories found from DATA_DIR_PREFIXES + DATA_DIR combinations at runtime.
+* `INSTALL_BLENDER_PLUGINDIR` (default: `${DATAROOTDIR}/blender/scripts/addons/arx"`): Where to install the Arx Libertatis Blender plugin.
 
 * `INSTALL_SCRIPTS` (default: `ON`): Install the data install script. There is no data install script on Windows, so there this option does nothing.
+* `INSTALL_BLENDER_PLUGIN` (default: `ON`): Install the Arx Libertatis Blender plugin. Implies `BUILD_IO_LIBRARY`.
 
 ### Optional dependencies
 
@@ -92,3 +98,17 @@ By default, optional components will be automatically disabled if their dependen
 1. There is currently no other rendering backend, disabling this will make the build fail.
 2. There is currently no other audo backend, there will be no audio when disabling this. Additionally, builds without audio are not well tested and there may be other problems.
 3. Existing options can be unset by passing `-U<option>` to cmake.
+
+### Icons
+
+* `ICON_TYPE` (default: *platform specific*): Type(s) of icons to generate and install. Valid options are:
+ * `ico` Windows .ico files (linked into the appropriate executables) [default on Windows]
+ * `icns` Mac OS X .icns files (installed under `ICONDIR`) [default on Mac OS X]
+ * `iconset` Themable .png icon sets (installed in a `${size}x${size}/apps/${name}.png` hierarchy under `ICONTHEMEDIR`) [default on Linux and other systems]
+ * `png` Portable .png  icons (installed under `ICONDIR`)
+ * `overview` Icon size comparison montage (not installed)
+ * `all` Generate all possible icon types
+ * `none` Don't generate any icons
+
+* `DATA_FILES` (default: *not set*): Locations to search for pre-built data files. This is only useful when building git checkouts as release and development snaptshot tarballs already include those files in the source tree. See the *Git Build Dependencies* section in README.md.
+* `OPTIMIZE_ICONS` (default: ON): Optimize the compression of generated PNG files using OptiPNG. This is only useful when building git checkouts as release and development snaptshot tarballs already include pre-built images that this option doesn't apply to.

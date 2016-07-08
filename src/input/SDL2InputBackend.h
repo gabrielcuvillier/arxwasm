@@ -37,6 +37,7 @@ public:
 	bool update();
 	
 	// Mouse
+	bool setMouseMode(Mouse::Mode mode);
 	bool getAbsoluteMouseCoords(int & absX, int & absY) const;
 	void setAbsoluteMouseCoords(int absX, int absY);
 	void getRelativeMouseCoords(int & relX, int & relY, int & wheelDir) const;
@@ -55,6 +56,7 @@ private:
 	int wheel;
 	Vec2i cursorAbs;
 	Vec2i cursorRel;
+	Vec2i cursorRelAccum;
 	bool cursorInWindow;
 	bool keyStates[Keyboard::KeyCount];
 	bool buttonStates[Mouse::ButtonCount];
@@ -64,8 +66,6 @@ private:
 	int currentWheel;
 	size_t currentClickCount[Mouse::ButtonCount];
 	size_t currentUnclickCount[Mouse::ButtonCount];
-	
-	Vec2i lastCursorAbs;
 	
 };
 

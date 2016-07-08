@@ -53,9 +53,10 @@ CycleTextWidget::CycleTextWidget()
 CycleTextWidget::~CycleTextWidget() {
 	delete pLeftButton;
 	delete pRightButton;
-	BOOST_FOREACH(TextWidget * e, vText) {
-		delete e;
-	}
+	
+	{Widget * w; BOOST_FOREACH(w, vText) {
+		delete w;
+	}}
 }
 
 void CycleTextWidget::selectLast() {
@@ -164,10 +165,10 @@ bool CycleTextWidget::OnMouseClick() {
 	return false;
 }
 
-void CycleTextWidget::Update(int _iTime) {
+void CycleTextWidget::Update() {
 
-	pLeftButton->Update(_iTime);
-	pRightButton->Update(_iTime);
+	pLeftButton->Update();
+	pRightButton->Update();
 }
 
 void CycleTextWidget::Render() {

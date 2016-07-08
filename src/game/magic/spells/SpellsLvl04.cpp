@@ -21,6 +21,7 @@
 
 #include "animation/AnimationRender.h"
 #include "core/Application.h"
+#include "core/Core.h"
 #include "core/GameTime.h"
 #include "game/Damage.h"
 #include "game/Entity.h"
@@ -74,9 +75,9 @@ void BlessSpell::End() {
 	m_targets.clear();
 }
 
-void BlessSpell::Update(float timeDelta) {
+void BlessSpell::Update() {
 	
-	fRot += timeDelta * 0.25f;
+	fRot += g_framedelay * 0.25f;
 	
 	if(ValidIONum(m_target)) {
 		m_pos = entities[m_target]->pos;
@@ -142,7 +143,7 @@ void BlessSpell::Update(float timeDelta) {
 		pd->ov = m_pos - Vec3f(0.f, 20.f, 0.f);
 		pd->move = Vec3f(Random::getf(-3.f, 3.f), Random::getf(0.f, 0.5f), Random::getf(-3.f, 3.f));
 		pd->siz = 0.005f;
-		pd->tolive = Random::get(1000, 2000);
+		pd->tolive = Random::getu(1000, 2000);
 		pd->tc = tex_p1;
 		pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
 		pd->fparam = 0.0000001f;
@@ -262,9 +263,7 @@ void FireProtectionSpell::End()
 		ARX_HALO_SetToNative(entities[m_target]);
 }
 
-void FireProtectionSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void FireProtectionSpell::Update() {
 	
 	if(ValidIONum(m_target)) {
 		Entity *io = entities[m_target];
@@ -323,9 +322,7 @@ void ColdProtectionSpell::End()
 		ARX_HALO_SetToNative(entities[m_target]);
 }
 
-void ColdProtectionSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void ColdProtectionSpell::Update() {
 	
 	if(ValidIONum(m_target)) {
 		Entity *io = entities[m_target];
@@ -404,9 +401,9 @@ void CurseSpell::End() {
 	m_targets.clear();
 }
 
-void CurseSpell::Update(float timeDelta) {
+void CurseSpell::Update() {
 	
-	fRot += timeDelta * 0.25f;
+	fRot += g_framedelay * 0.25f;
 	
 	Vec3f target = Vec3f_ZERO;
 	if(ValidIONum(m_target)) {
@@ -436,7 +433,7 @@ void CurseSpell::Update(float timeDelta) {
 		pd->ov = m_pos;
 		pd->move = Vec3f(Random::getf(-2.f, 2.f), Random::getf(-20.f, -10.f), Random::getf(-2.f, 2.f));
 		pd->siz = 0.015f;
-		pd->tolive = Random::get(1000, 1600);
+		pd->tolive = Random::getu(1000, 1600);
 		pd->tc = tex_p1;
 		pd->special = ROTATING | MODULATE_ROTATION | DISSIPATING | SUBSTRACT | GRAVITY;
 		pd->fparam = 0.0000001f;

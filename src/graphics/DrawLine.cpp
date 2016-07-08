@@ -29,14 +29,15 @@
 #include "graphics/Vertex.h"
 #include "graphics/data/Mesh.h"
 
-void drawLine2D(float x0, float y0, float x1, float y1, float z, Color col) {
 
+void drawLine(const Vec2f & from, const Vec2f & to, float z, Color col) {
+	
 	TexturedVertex v[2];
-	v[0].p.x = x0;
-	v[0].p.y = y0;
+	v[0].p.x = from.x;
+	v[0].p.y = from.y;
 	v[0].p.z = v[1].p.z = z;
-	v[1].p.x = x1;
-	v[1].p.y = y1;
+	v[1].p.x = to.x;
+	v[1].p.y = to.y;
 	v[1].color = v[0].color = col.toRGBA();
 	v[1].rhw = v[0].rhw = 1.f;
 
@@ -92,9 +93,9 @@ void drawLineSphere(const Sphere & sphere, Color color) {
 	bool skip = false;
 
 	for(size_t i = 1; i < rings - 1; i++) {
-		float a = i * (PI / (rings - 1));
+		float a = i * (glm::pi<float>() / (rings - 1));
 		for(size_t j = 0; j <= sections; j++) {
-			float b = j * ((2 * PI) / sections);
+			float b = j * ((2 * glm::pi<float>()) / sections);
 
 			Vec3f pos;
 			pos.x = glm::cos(b) * glm::sin(a);
@@ -106,7 +107,7 @@ void drawLineSphere(const Sphere & sphere, Color color) {
 			
 			TexturedVertex out;
 			Vec3f temp = EE_RT(pos);
-			EE_P(&temp, &out);
+			EE_P(temp, out);
 
 			if(skip) {
 				skip = false;
@@ -154,12 +155,12 @@ void drawLine(const Vec3f & orgn, const Vec3f & dest, Color color1, Color color2
 	
 	TexturedVertex v[2];
 	
-	EE_RTP(orgn, &v[0]);
+	EE_RTP(orgn, v[0]);
 	if(v[0].p.z < 0.f) {
 		return;
 	}
 	
-	EE_RTP(dest, &v[1]);
+	EE_RTP(dest, v[1]);
 	if(v[1].p.z < 0.f) {
 		return;
 	}

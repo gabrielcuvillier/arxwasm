@@ -58,8 +58,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "math/Angle.h"
 #include "math/Random.h"
 #include "math/Vector.h"
-#include "platform/Flags.h"
 #include "scene/Light.h"
+#include "util/Flags.h"
 
 class Entity;
 class CSpellFx;
@@ -85,6 +85,7 @@ public:
 	
 	bool ExistAnyInstanceForThisCaster(SpellType typ, EntityHandle caster);
 	
+	SpellBase * getSpellByCaster(EntityHandle caster, SpellType type);
 	SpellBase * getSpellOnTarget(EntityHandle target, SpellType type);
 	
 	void replaceCaster(EntityHandle oldCaster, EntityHandle newCaster);
@@ -107,7 +108,7 @@ extern unsigned char ucFlick;
 SpellType GetSpellId(const std::string & spell);
 void TryToCastSpell(Entity * io, SpellType spellid, long level, EntityHandle target, SpellcastFlags flags, long duration);
 
-bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags = 0, long level = -1, EntityHandle target = EntityHandle(), long duration = -1);
+bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags, long level, EntityHandle target, long duration);
 void ARX_SPELLS_Update();
 
 void ARX_SPELLS_Fizzle(SpellBase * spell);

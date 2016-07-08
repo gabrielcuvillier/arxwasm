@@ -39,18 +39,41 @@ class THEA_HEADER(LittleEndianStructure):
         ("nb_key_frames", c_int32),
     ]
 
+class THEA_KEYFRAME_2014(LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ("num_frame",        c_int32),
+        ("flag_frame",       c_int32),
+        ("master_key_frame", c_int32), # bool
+        ("key_frame",        c_int32), # bool
+        ("key_move",         c_int32), # bool
+        ("key_orient",       c_int32), # bool
+        ("key_morph",        c_int32), # bool
+        ("time_frame",       c_int32),
+    ]
+
+
 class THEA_KEYFRAME_2015(LittleEndianStructure):
     _pack_ = 1
     _fields_ = [
         ("num_frame",        c_int32),
         ("flag_frame",       c_int32),
         ("info_frame",       c_char * 256), # SIZE_NAME
-        ("master_key_frame", c_int32),
-        ("key_frame",        c_int32),
-        ("key_move",         c_int32),
-        ("key_orient",       c_int32),
-        ("key_morph",        c_int32),
+        ("master_key_frame", c_int32), # bool
+        ("key_frame",        c_int32), # bool
+        ("key_move",         c_int32), # bool
+        ("key_orient",       c_int32), # bool
+        ("key_morph",        c_int32), # bool
         ("time_frame",       c_int32),
+    ]
+
+class THEA_MORPH(LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ("unknown1", c_int32),
+        ("unknown2", c_int32),
+        ("unknown3", c_int32),
+        ("unknown4", c_int32),
     ]
 
 class THEO_GROUPANIM(LittleEndianStructure):
@@ -74,6 +97,12 @@ class THEA_SAMPLE(LittleEndianStructure):
 import logging
 from ctypes import sizeof
 
+class SerializationException(Exception):
+    pass
+
+class UnexpectedValueException(SerializationException):
+    pass
+
 class TeaSerializer(object):
     def __init__(self):
         self.log = logging.getLogger('TeaSerializer')
@@ -82,21 +111,45 @@ class TeaSerializer(object):
         f = open(fileName, "rb")
         data = f.read()
         f.close()
-        self.log.info("Loaded %i bytes from file %s" % (len(data), fileName))
+        self.log.info("Read %i bytes from file %s" % (len(data), fileName))
         
         pos = 0
         
         header = THEA_HEADER.from_buffer_copy(data, pos)
         pos += sizeof(THEA_HEADER)
         
-        self.log.info("Identity: {0}; Version: {1}; Frames: {2}; Groups {3}; KeyFrames {4}".format(header.identity, header.version, header.nb_frames, header.nb_groups, header.nb_key_frames))
+        self.log.info("Header - Identity: {0}; Version: {1}; Frames: {2}; Groups {3}; KeyFrames {4}".format(header.identity, header.version, header.nb_frames, header.nb_groups, header.nb_key_frames))
         
         results = []
         for i in range(header.nb_key_frames):
             frame = {}
             #self.log.debug("Reading Keyframe {0}".format(i))
-            kf = THEA_KEYFRAME_2015.from_buffer_copy(data, pos)
-            pos += sizeof(THEA_KEYFRAME_2015)
+            if header.version == 2014:
+                kf = THEA_KEYFRAME_2014.from_buffer_copy(data, pos)
+                pos += sizeof(THEA_KEYFRAME_2014)
+            elif header.version == 2015:
+                kf = THEA_KEYFRAME_2015.from_buffer_copy(data, pos)
+                pos += sizeof(THEA_KEYFRAME_2015)
+
+                if kf.info_frame:
+                    self.log.info("Keyframe str: " + kf.info_frame.decode('iso-8859-1'))
+            else:
+                raise SerializationException("Unknown version: " + str(header.version))
+
+            if kf.flag_frame not in (-1, 9):
+                raise UnexpectedValueException("flag_frame = " + str(kf.flag_frame))
+
+            if kf.master_key_frame not in (0, 1):
+                raise UnexpectedValueException("master_key_frame = " + str(kf.master_key_frame))
+            if kf.key_frame not in (0, 1):
+                raise UnexpectedValueException("key_frame = " + str(kf.key_frame))
+            if kf.key_move not in (0, 1):
+                raise UnexpectedValueException("key_move = " + str(kf.key_move))
+            if kf.key_orient not in (0, 1):
+                raise UnexpectedValueException("key_orient = " + str(kf.key_orient))
+            if kf.key_morph not in (0, 1):
+                raise UnexpectedValueException("key_morph = " + str(kf.key_morph))
+
             frame['duration'] = kf.num_frame
             frame['flags'] = kf.flag_frame
             
@@ -117,7 +170,16 @@ class TeaSerializer(object):
             
             # Global Morph
             if kf.key_morph != 0:
-                pos += 16; # skip THEA_MORPH
+                morph = THEA_MORPH.from_buffer_copy(data, pos)
+                pos += sizeof(THEA_MORPH)
+
+                if morph.unknown1 != -1:
+                    raise UnexpectedValueException("unknown1 = " + str(morph.unknown1))
+                if morph.unknown2 != -1:
+                    raise UnexpectedValueException("unknown2 = " + str(morph.unknown2))
+
+                self.log.debug("Frame {0} Morph: {1} {2}".format(i, morph.unknown3, morph.unknown4))
+                #pos += 16; # skip THEA_MORPH
             
             # Now go for Group Rotations/Translations/scaling for each GROUP
             groupsList = THEO_GROUPANIM * header.nb_groups
@@ -138,5 +200,7 @@ class TeaSerializer(object):
             pos += 4 # skip num_sfx
             #self.log.debug("Pos: {0}".format(pos))
             results.append(frame)
-        
+
+        self.log.info("File loaded")
+
         return results

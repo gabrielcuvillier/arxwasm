@@ -27,7 +27,7 @@
 
 #include "io/resource/PakEntry.h"
 #include "io/resource/ResourcePath.h"
-#include "platform/Flags.h"
+#include "util/Flags.h"
 
 namespace fs { class path; }
 
@@ -62,7 +62,7 @@ public:
 	};
 	DECLARE_FLAGS(ReleaseType, ReleaseFlags)
 	
-	inline PakReader() : release(0) { }
+	PakReader() : release(0) { }
 	~PakReader();
 	
 	void removeFile(const res::path & name);
@@ -95,7 +95,7 @@ public:
 	
 	PakFileHandle * open(const res::path & name);
 	
-	inline ReleaseFlags getReleaseType() { return release; }
+	ReleaseFlags getReleaseType() { return release; }
 	
 private:
 	

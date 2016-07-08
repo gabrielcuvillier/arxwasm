@@ -26,9 +26,7 @@
 #include <cstring>
 #include <ctime>
 
-#include <boost/date_time/microsec_time_clock.hpp>
-#include <boost/date_time/time_duration.hpp>
-#include <boost/date_time/posix_time/ptime.hpp>
+#include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/range/size.hpp>
 
 #include "core/URLConstants.h"
@@ -61,20 +59,29 @@ CrashHandlerImpl::~CrashHandlerImpl() {
 
 void CrashHandlerImpl::processCrash(const std::string & sharedMemoryName) {
 	
-	m_SharedMemoryName = sharedMemoryName;
-	
-	// Create a shared memory object.
-	m_SharedMemory = bip::shared_memory_object(bip::open_only, m_SharedMemoryName.c_str(),
-	                                           bip::read_write);
-	
-	// Map the whole shared memory in this process
-	m_MemoryMappedRegion = bip::mapped_region(m_SharedMemory, bip::read_write);
-	
-	// Our SharedCrashInfo will be stored in this shared memory.
-	m_pCrashInfo = reinterpret_cast<CrashInfo *>(m_MemoryMappedRegion.get_address());
-	m_textLength = std::find(m_pCrashInfo->description, m_pCrashInfo->description
-	                         + boost::size(m_pCrashInfo->description), '\0')
-	               - m_pCrashInfo->description;
+	try {
+		
+		m_SharedMemoryName = sharedMemoryName;
+		
+		// Create a shared memory object.
+		m_SharedMemory = bip::shared_memory_object(bip::open_only, m_SharedMemoryName.c_str(),
+		                                           bip::read_write);
+		
+		// Map the whole shared memory in this process
+		m_MemoryMappedRegion = bip::mapped_region(m_SharedMemory, bip::read_write);
+		
+		// Our SharedCrashInfo will be stored in this shared memory.
+		m_pCrashInfo = reinterpret_cast<CrashInfo *>(m_MemoryMappedRegion.get_address());
+		if(m_pCrashInfo) {
+			m_textLength = std::find(m_pCrashInfo->description, m_pCrashInfo->description
+			                         + boost::size(m_pCrashInfo->description), '\0')
+			               - m_pCrashInfo->description;
+		}
+		
+	} catch(...) {
+		// Unexpected error
+		m_pCrashInfo = NULL;
+	}
 	
 	processCrash();
 	
@@ -90,16 +97,16 @@ void CrashHandlerImpl::processCrashRegisters() {
 		description << '\n';
 	}
 	if(m_pCrashInfo->hasAddress) {
-		description << "Instruction address: 0x" << std::hex << m_pCrashInfo->address << '\n';
+		description << " Instruction address: 0x" << std::hex << m_pCrashInfo->address << '\n';
 	}
 	if(m_pCrashInfo->hasMemory) {
-		description << "Memory accessed: 0x" << std::hex << m_pCrashInfo->memory << '\n';
+		description << " Memory accessed: 0x" << std::hex << m_pCrashInfo->memory << '\n';
 	}
 	if(m_pCrashInfo->hasStack) {
-		description << "Stack pointer: 0x" << std::hex << m_pCrashInfo->stack << '\n';
+		description << " Stack pointer: 0x" << std::hex << m_pCrashInfo->stack << '\n';
 	}
 	if(m_pCrashInfo->hasFrame) {
-		description << "Frame pointer: 0x" << std::hex << m_pCrashInfo->frame << '\n';
+		description << " Frame pointer: 0x" << std::hex << m_pCrashInfo->frame << '\n';
 	}
 	description << std::dec;
 	
@@ -249,7 +256,7 @@ void CrashHandlerImpl::processCrash() {
 		boost::posix_time::ptime timeout
 		 = boost::posix_time::microsec_clock::universal_time()
 		 + boost::posix_time::milliseconds(100);
-		if(m_pCrashInfo->reporterStarted.timed_wait(timeout)) {
+		if(m_pCrashInfo && m_pCrashInfo->reporterStarted.timed_wait(timeout)) {
 			break;
 		}
 	}
@@ -267,15 +274,24 @@ void CrashHandlerImpl::processCrash() {
 	// The crash reporter is not available or failed to start - provide our own dialog
 	{
 		std::ostringstream oss;
-		oss <<"Arx Libertatis crashed!\n\n";
-		oss << "Please install arxcrashreporter or manually report the crash to "
-		    << url::bug_report << "\n\n";
-		oss << "Include the files contained in the following directory in your report:\n";
-		oss << " " << m_crashReportDir;
+		oss << arx_name + " crashed!\n\n";
+		if(m_pCrashInfo) {
+			oss << "Please install arxcrashreporter or manually report the crash to "
+			    << url::bug_report << "\n\n";
+			oss << "Include the files contained in the following directory in your report:\n";
+			oss << " " << m_crashReportDir;
+		} else {
+			oss << "Additionally, we encountered an unexpected error while collecting"
+			       " crash information!\n\n";
+		}
 		std::cout << "\n\n" << oss.str() << '\n';
-		oss << "\n\nClick OK to open that directory now.";
-		platform::showErrorDialog(oss.str(), "Fatal Error - " + arx_version);
-		platform::launchDefaultProgram(m_crashReportDir.string());
+		if(m_pCrashInfo) {
+			oss << "\n\nClick OK to open that directory now.";
+		}
+		platform::showErrorDialog(oss.str(), "Fatal Error - " + arx_name);
+		if(m_pCrashInfo) {
+			platform::launchDefaultProgram(m_crashReportDir.string());
+		}
 	}
 	
 }
@@ -354,7 +370,7 @@ void CrashHandlerImpl::fillBasicCrashInfo() {
 	
 	std::string exe = platform::getExecutablePath().string();
 	util::storeStringTerminated(m_pCrashInfo->executablePath, exe);
-	util::storeStringTerminated(m_pCrashInfo->executableVersion, arx_version);
+	util::storeStringTerminated(m_pCrashInfo->executableVersion, arx_name + " " + arx_version);
 	
 	m_pCrashInfo->title[0] = '\0';
 	

@@ -61,8 +61,8 @@ void ARXMenu_Options_Audio_SetMasterVolume(int volume);
 void ARXMenu_Options_Audio_SetSfxVolume(int volume);
 void ARXMenu_Options_Audio_SetSpeechVolume(int volume);
 void ARXMenu_Options_Audio_SetAmbianceVolume(int volume);
-bool ARXMenu_Options_Audio_SetEAX(bool enabled);
 void ARXMenu_Options_Audio_ApplyGameVolumes();
+void ARXMenu_Options_Audio_SetMuted(bool mute);
 
 // Input options
 
@@ -71,7 +71,6 @@ void ARXMenu_Options_Control_SetMouseSensitivity(int sensitivity);
 
 // Resume game
 
-bool ARXMenu_CanResumeGame();
 void ARXMenu_ResumeGame();
 
 // New quest
@@ -82,14 +81,6 @@ void ARXMenu_NewQuest();
 
 void ARXMenu_LoadQuest(SavegameHandle num);
 void ARXMenu_SaveQuest(const std::string & name, SavegameHandle num = SavegameHandle());
-
-// Credits
-
-void ARXMenu_Credits();
-
-// Quit
-
-void ARXMenu_Quit();
 
 void ARXMenu_Private_Options_Video_SetResolution(bool fullscreen, int _iWidth, int _iHeight);
 

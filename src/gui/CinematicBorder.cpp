@@ -25,12 +25,11 @@
 #include "graphics/Renderer.h"
 #include "gui/Interface.h"
 
-float				CINEMA_DECAL=0.f;
-
 CinematicBorder cinematicBorder = CinematicBorder();
 
 CinematicBorder::CinematicBorder()
-	: m_active(false)
+	: CINEMA_DECAL(0)
+	, m_active(false)
 	, m_direction(0)
 	, m_startTime(0)
 {}
@@ -41,8 +40,8 @@ bool CinematicBorder::isActive()
 }
 
 float CinematicBorder::elapsedTime() {
-	float dwCurrTime = arxtime.get_updated();
-	return (dwCurrTime - m_startTime);
+	arxtime.update();
+	return arxtime.now_f() - m_startTime;
 }
 
 void CinematicBorder::reset() {
@@ -54,7 +53,8 @@ void CinematicBorder::set(bool status, bool smooth)
 {
 	if(status) {
 		m_active = true;//++;
-		m_startTime = arxtime.get_updated();
+		arxtime.update();
+		m_startTime = arxtime.now_f();
 	} else {
 		m_active = false;//--;
 		m_startTime = 0;
@@ -82,14 +82,14 @@ void CinematicBorder::set(bool status, bool smooth)
 void CinematicBorder::update() {
 	
 	if(m_direction == 1) {
-		CINEMA_DECAL += (float)Original_framedelay*( 1.0f / 10 );
+		CINEMA_DECAL += Original_framedelay * (1.0f/10);
 
 		if(CINEMA_DECAL > 100.f) {
 			CINEMA_DECAL = 100.f;
 			m_direction = 0;
 		}
 	} else if(m_direction == -1) {
-		CINEMA_DECAL -= (float)Original_framedelay*( 1.0f / 10 );
+		CINEMA_DECAL -= Original_framedelay * (1.0f/10);
 
 		if(CINEMA_DECAL < 0.f) {
 			CINEMA_DECAL = 0.f;
@@ -105,7 +105,7 @@ void CinematicBorder::render() {
 		rectz[0].left = rectz[1].left = 0;
 		rectz[0].right = rectz[1].right = g_size.width();
 		rectz[0].top = 0;
-		long lMulResult = checked_range_cast<long>(CINEMA_DECAL * g_sizeRatio.y);
+		s32 lMulResult = checked_range_cast<s32>(CINEMA_DECAL * g_sizeRatio.y);
 		rectz[0].bottom = lMulResult;
 		rectz[1].top = g_size.height() - lMulResult;
 		rectz[1].bottom = g_size.height();

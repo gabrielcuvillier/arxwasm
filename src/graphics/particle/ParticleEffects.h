@@ -56,7 +56,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "math/Types.h"
 #include "math/Vector.h"
 #include "math/Angle.h"
-#include "platform/Flags.h"
+#include "util/Flags.h"
 
 struct EERIEPOLY;
 struct EERIE_CAMERA;
@@ -66,26 +66,26 @@ class Entity;
 struct EERIE_3DOBJ;
 
 enum ParticlesTypeFlag {
-	FIRE_TO_SMOKE       = 0x00000001,
-	ROTATING            = 0x00000002,
-	FADE_IN_AND_OUT     = 0x00000004,
-	MODULATE_ROTATION   = 0x00000008,
-	DISSIPATING         = 0x00000010,
-	GRAVITY             = 0x00000020,
-	SUBSTRACT           = 0x00000040,
-	FIRE_TO_SMOKE2      = 0x00000080,
-	PARTICLE_SPARK2     = 0x00000100, //TODO unused
-	FOLLOW_SOURCE       = 0x00000200,
-	FOLLOW_SOURCE2      = 0x00000400,
-	DELAY_FOLLOW_SOURCE = 0x00000800,
-	NO_TRANS            = 0x00001000,
-	PARTICLE_ANIMATED   = 0x00002000,
-	PARTICLE_SPARK      = 0x00004000,
-	SPLAT_GROUND        = 0x00008000,
-	SPLAT_WATER         = 0x00010000,
-	PARTICLE_SUB2       = 0x00020000,
-	PARTICLE_GOLDRAIN   = 0x00040000,
-	PARTICLE_NOZBUFFER  = 0x80000000
+	FIRE_TO_SMOKE       = (1<<0),
+	ROTATING            = (1<<1),
+	FADE_IN_AND_OUT     = (1<<2),
+	MODULATE_ROTATION   = (1<<3),
+	DISSIPATING         = (1<<4),
+	GRAVITY             = (1<<5),
+	SUBSTRACT           = (1<<6),
+	FIRE_TO_SMOKE2      = (1<<7),  // TODO unused
+	PARTICLE_SPARK2     = (1<<8),  // TODO unused
+	FOLLOW_SOURCE       = (1<<9),  // TODO unused
+	FOLLOW_SOURCE2      = (1<<10), // TODO unused
+	DELAY_FOLLOW_SOURCE = (1<<11),
+	NO_TRANS            = (1<<12),
+	PARTICLE_ANIMATED   = (1<<13),
+	PARTICLE_SPARK      = (1<<14),
+	SPLAT_GROUND        = (1<<15),
+	SPLAT_WATER         = (1<<16),
+	PARTICLE_SUB2       = (1<<17),
+	PARTICLE_GOLDRAIN   = (1<<18),
+	PARTICLE_NOZBUFFER  = (1<<19)
 };
 
 DECLARE_FLAGS(ParticlesTypeFlag, ParticlesTypeFlags)
@@ -127,6 +127,30 @@ struct PARTICLE_DEF {
 	short sval;
 	char cval1;
 	char cval2;
+	
+	PARTICLE_DEF()
+		: exist(false)
+		, is2D(false)
+		, ov(Vec3f_ZERO)
+		, move(Vec3f_ZERO)
+		, scale(Vec3f_ZERO)
+		, oldpos(Vec3f_ZERO)
+		, siz(0.f)
+		, zdec(false)
+		, timcreation(0)
+		, tolive(0)
+		, delay(0)
+		, tc(NULL)
+		, rgb(Color3f::black)
+		, special(0)
+		, fparam(0.f)
+		, mask(0)
+		, source(NULL)
+		, sourceionum()
+		, sval(0)
+		, cval1(0)
+		, cval2(0)
+	{ }
 };
 
 //-----------------------------------------------------------------------------
@@ -164,7 +188,15 @@ void ARX_PARTICLES_Spawn_Blood(const Vec3f & pos, float dmgs, EntityHandle sourc
 void ARX_PARTICLES_Spawn_Blood2(const Vec3f & pos, float dmgs, Color col, Entity * io);
 void ARX_PARTICLES_Spawn_Lava_Burn(Vec3f pos, Entity * io = NULL);
 void ARX_PARTICLES_Add_Smoke(const Vec3f & pos, long flags, long amount, Color3f * rgb = NULL); // flag 1 = randomize pos
-void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, int count, long flags);
+
+enum SpawnSparkType {
+	SpawnSparkType_Default = 0,
+	SpawnSparkType_Failed = 1,
+	SpawnSparkType_Success = 2
+};
+
+void ARX_PARTICLES_Spawn_Spark(const Vec3f & pos, unsigned int count, SpawnSparkType type);
+
 void ARX_PARTICLES_Spawn_Splat(const Vec3f & pos, float dmgs, Color col);
 void ARX_PARTICLES_SpawnWaterSplash(const Vec3f & pos);
 

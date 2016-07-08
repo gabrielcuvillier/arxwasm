@@ -76,7 +76,9 @@ public:
 	void SetAntialiasing(bool enable);
 	void SetFillMode(FillMode mode);
 	
-	inline float getMaxAnisotropy() const { return m_maximumAnisotropy; }
+	float getMaxAnisotropy() const { return m_maximumAnisotropy; }
+	float getMaxSupportedAnisotropy() const { return m_maximumSupportedAnisotropy; }
+	void setMaxAnisotropy(float value);
 	
 	VertexBuffer<TexturedVertex> * createVertexBufferTL(size_t capacity, BufferUsage usage);
 	VertexBuffer<SMY_VERTEX> * createVertexBuffer(size_t capacity, BufferUsage usage);
@@ -89,14 +91,14 @@ public:
 	
 	bool isFogInEyeCoordinates();
 	
-	inline GLTextureStage * GetTextureStage(unsigned int textureStage) {
+	GLTextureStage * GetTextureStage(unsigned int textureStage) {
 		return reinterpret_cast<GLTextureStage *>(Renderer::GetTextureStage(textureStage));
 	}
 	
 	bool hasTextureNPOT() { return m_hasTextureNPOT; }
 
 	template <class Vertex>
-	inline void beforeDraw() { flushState(); selectTrasform<Vertex>(); }
+	void beforeDraw() { flushState(); selectTrasform<Vertex>(); }
 	
 private:
 	
@@ -123,6 +125,7 @@ private:
 	GLuint shader;
 	
 	float m_maximumAnisotropy;
+	float m_maximumSupportedAnisotropy;
 	
 	typedef boost::intrusive::list<GLTexture2D, boost::intrusive::constant_time_size<false> > TextureList;
 	TextureList textures;
@@ -136,7 +139,7 @@ private:
 };
 
 template <class Vertex>
-inline void OpenGLRenderer::selectTrasform() { enableTransform(); }
+void OpenGLRenderer::selectTrasform() { enableTransform(); }
 
 template <>
 inline void OpenGLRenderer::selectTrasform<TexturedVertex>() { disableTransform(); }

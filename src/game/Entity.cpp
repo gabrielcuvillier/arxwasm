@@ -228,7 +228,7 @@ Entity::~Entity() {
 	ReleaseScript(&script);
 	ReleaseScript(&over_script);
 	
-	for(long n = 0; n < MAX_ANIMS; n++) {
+	for(size_t n = 0; n < MAX_ANIMS; n++) {
 		if(anims[n]) {
 			EERIE_ANIMMANAGER_ReleaseHandle(anims[n]);
 			anims[n] = NULL;
@@ -256,6 +256,10 @@ Entity::~Entity() {
 			ACTIVECAM = &subj;
 		}
 		delete _camdata;
+	}
+	
+	if(SecondaryInventory && SecondaryInventory->io == this) {
+		SecondaryInventory = NULL;
 	}
 	
 	if(TSecondaryInventory && TSecondaryInventory->io == this) {

@@ -63,7 +63,7 @@ FOG_DEF fogs[MAX_FOG];
 void ARX_FOGS_Clear()
 {
 	for(size_t i = 0; i < MAX_FOG; i++) {
-		memset(&fogs[i], 0, sizeof(FOG_DEF));
+		fogs[i] = FOG_DEF();
 	}
 }
 
@@ -105,7 +105,7 @@ void ARX_FOGS_Render() {
 		if(!fog.exist)
 			continue;
 		
-		long count = std::max(1l, checked_range_cast<long>(framedelay / flDiv));
+		long count = std::max(1l, checked_range_cast<long>(g_framedelay / flDiv));
 		while(count--) {
 			
 			if(Random::getf(0.f, 2000.f) >= fog.frequency) {

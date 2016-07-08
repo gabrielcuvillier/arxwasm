@@ -58,7 +58,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "math/Vector.h"
 #include "math/Angle.h"
 
-#include "platform/Flags.h"
+#include "util/Flags.h"
 
 #include "Configure.h"
 
@@ -124,6 +124,15 @@ struct EERIEPOLY {
 	short			room;
 	short			misc;
 	unsigned short	uslInd[4];
+	
+	EERIEPOLY()
+		: type(0)
+		, tex(NULL)
+		, transval(0)
+		, area(0)
+		, room(0)
+		, misc(0)
+	{ }
 };
 
 #define IOPOLYVERT 3
@@ -287,7 +296,7 @@ struct EERIE_LINKED {
 
 struct EERIE_SELECTIONS {
 	std::string name;
-	std::vector<long> selected;
+	std::vector<size_t> selected;
 };
 
 struct EERIE_FASTACCESS
@@ -366,7 +375,7 @@ struct EERIE_3DOBJ
 	Vec3f pos;
 	Vec3f point0;
 	Anglef angle;
-	long origin;
+	size_t origin;
 	Vec3f * vertexlocal;
 	std::vector<EERIE_VERTEX> vertexlist;
 	std::vector<EERIE_VERTEX> vertexlist3;
@@ -440,8 +449,6 @@ struct EERIE_ROOM_DATA {
 	long * portals;
 	long nb_polys;
 	EP_DATA * epdata;
-	Vec3f center;
-	float radius;
 	unsigned short * indexBuffer;
 	VertexBuffer<SMY_VERTEX> * pVertexBuffer;
 	std::vector<TextureContainer *> ppTextureContainer;
@@ -451,7 +458,6 @@ struct EERIE_ROOM_DATA {
 		, portals()
 		, nb_polys()
 		, epdata()
-		, radius()
 		, indexBuffer()
 		, pVertexBuffer()
 	{}

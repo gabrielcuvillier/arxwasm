@@ -1,4 +1,8 @@
 
+# Note: In CMake before 3.0 set(var "" PARENT_SCOPE) *unsets* the variable in the
+# parent scope instead of setting it to the empty string.
+# This means if(var STREQUAL "") will be false since var is not defined and thus not expanded.
+
 function(check_compile RESULT FILE FLAG TYPE)
 	
 	string(REGEX REPLACE "[^a-zA-Z0-9_][^a-zA-Z0-9_]*" "-" cachevar "${TYPE}-${FLAG}")
@@ -42,11 +46,11 @@ function(check_compile RESULT FILE FLAG TYPE)
 	set(old_CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
 	set(old_CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
 	set(old_CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
-	if("${TYPE}" STREQUAL "linker flag")
+	if(TYPE STREQUAL "linker flag")
 		set(CMAKE_EXE_LINKER_FLAGS "${old_CMAKE_EXE_LINKER_FLAGS} ${FLAG}")
 		set(CMAKE_SHARED_LINKER_FLAGS "${old_CMAKE_SHARED_LINKER_FLAGS} ${FLAG}")
 		set(CMAKE_MODULE_LINKER_FLAGS "${old_CMAKE_MODULE_LINKER_FLAGS} ${FLAG}")
-	elseif("${TYPE}" STREQUAL "compiler flag")
+	elseif(TYPE STREQUAL "compiler flag")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
 	endif()
 	
@@ -110,15 +114,15 @@ macro(strip_warning_flags VAR)
 	string(REGEX REPLACE "(^| )\\-(W[^ ]*|pedantic)" "" ${VAR} "${${VAR}}")
 endmacro()
 
-set(BUILTIN_CHECK_DIR "${CMAKE_CURRENT_LIST_DIR}")
+set(BUILTIN_CHECK_DIR "${CMAKE_CURRENT_LIST_DIR}/check")
 
 function(check_builtin RESULT EXPR)
 	string(REGEX REPLACE "[^a-zA-Z0-9_][^a-zA-Z0-9_]*" "-" check "${EXPR}")
 	string(REGEX REPLACE "_*\\-_*" "-" check "${check}")
 	string(REGEX REPLACE "^[_\\-]+" "" check "${check}")
 	string(REGEX REPLACE "[_\\-]+$" "" check "${check}")
-	if(EXISTS "${BUILTIN_CHECK_DIR}/check-${check}.cpp")
-		set(compile_test_file "${BUILTIN_CHECK_DIR}/check-${check}.cpp")
+	if(EXISTS "${BUILTIN_CHECK_DIR}/${check}.cpp")
+		set(compile_test_file "${BUILTIN_CHECK_DIR}/${check}.cpp")
 		set(type "${EXPR}")
 	else()
 		set(compile_test_file "${CMAKE_CURRENT_BINARY_DIR}/check-builtin-${check}.cpp")
@@ -153,7 +157,7 @@ function(add_cxxflag FLAG)
 	
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RESULT}" PARENT_SCOPE)
 	
-	if("${RESULT}" STREQUAL "")
+	if(NOT DEFINED RESULT OR RESULT STREQUAL "")
 		set(FLAG_FOUND 0 PARENT_SCOPE)
 	else()
 		set(FLAG_FOUND 1 PARENT_SCOPE)
@@ -169,7 +173,7 @@ function(add_ldflag FLAG)
 	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${RESULT}" PARENT_SCOPE)
 	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${RESULT}" PARENT_SCOPE)
 	
-	if("${RESULT}" STREQUAL "")
+	if(NOT DEFINED RESULT OR RESULT STREQUAL "")
 		set(FLAG_FOUND 0 PARENT_SCOPE)
 	else()
 		set(FLAG_FOUND 1 PARENT_SCOPE)

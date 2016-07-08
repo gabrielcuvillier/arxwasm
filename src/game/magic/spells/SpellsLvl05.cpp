@@ -66,7 +66,7 @@ void RuneOfGuardingSpell::Launch()
 		light->fallstart = 400.f;
 		light->rgb = Color3f(1.0f, 0.2f, 0.2f);
 		light->pos = m_pos - Vec3f(0.f, 50.f, 0.f);
-		light->time_creation = (unsigned long)(arxtime);
+		light->creationTime = arxtime.now_ul();
 		light->duration = 200;
 	}
 }
@@ -76,9 +76,9 @@ void RuneOfGuardingSpell::End() {
 	endLightDelayed(m_light, 500);
 }
 
-void RuneOfGuardingSpell::Update(float timeDelta) {
+void RuneOfGuardingSpell::Update() {
 	
-	ulCurrentTime += timeDelta;
+	ulCurrentTime += g_framedelay;
 	
 	if(lightHandleIsValid(m_light)) {
 		EERIE_LIGHT * light = lightHandleGet(m_light);
@@ -88,7 +88,7 @@ void RuneOfGuardingSpell::Update(float timeDelta) {
 		light->fallend = 350.f;
 		light->fallstart = 150.f;
 		light->rgb = Color3f(1.0f, 0.2f, 0.2f);
-		light->time_creation = (unsigned long)(arxtime);
+		light->creationTime = arxtime.now_ul();
 		light->duration = 200;
 	}
 	
@@ -133,7 +133,7 @@ void RuneOfGuardingSpell::Update(float timeDelta) {
 		pd->ov = pos + Vec3f(Random::getf(-40.f, 40.f), 0.f, Random::getf(-40.f, 40.f));
 		pd->move = Vec3f(Random::getf(-0.8f, 0.8f), Random::getf(-4.f, 0.f), Random::getf(-0.8f, 0.8f));
 		pd->scale = Vec3f(-0.1f);
-		pd->tolive = Random::get(2600, 3200);
+		pd->tolive = Random::getu(2600, 3200);
 		pd->tc = tex_p2;
 		pd->siz = 0.3f;
 		pd->rgb = Color3f(.4f, .4f, .6f);
@@ -144,7 +144,7 @@ void RuneOfGuardingSpell::Update(float timeDelta) {
 	Sphere sphere = Sphere(m_pos, std::max(m_level * 15.f, 50.f));
 	if(CheckAnythingInSphere(sphere, m_caster, CAS_NO_SAME_GROUP | CAS_NO_BACKGROUND_COL | CAS_NO_ITEM_COL| CAS_NO_FIX_COL | CAS_NO_DEAD_COL)) {
 		ARX_BOOMS_Add(m_pos);
-		LaunchFireballBoom(m_pos, (float)m_level);
+		LaunchFireballBoom(m_pos, m_level);
 		DoSphericDamage(Sphere(m_pos, 30.f * m_level), 4.f * m_level, DAMAGE_AREA, DAMAGE_TYPE_FIRE | DAMAGE_TYPE_MAGICAL, m_caster);
 		ARX_SOUND_PlaySFX(SND_SPELL_RUNE_OF_GUARDING_END, &m_pos);
 		m_duration = 0;
@@ -210,9 +210,9 @@ void LevitateSpell::End()
 		player.levitate = false;
 }
 
-void LevitateSpell::Update(float timeDelta) {
+void LevitateSpell::Update() {
 	
-	ulCurrentTime += timeDelta;
+	ulCurrentTime += g_framedelay;
 	
 	Vec3f target;
 
@@ -229,17 +229,17 @@ void LevitateSpell::Update(float timeDelta) {
 	int dustParticles = 0;
 	
 	if(ulCurrentTime < 1000) {
-		coneScale = (float) ulCurrentTime / 1000.f;
+		coneScale = ulCurrentTime / 1000.f;
 		dustParticles = 3;
 	} else {
 		coneScale = 1.f;
 		dustParticles = 10;
 	}
 	
-	cone1.Update(timeDelta, m_pos, coneScale);
-	cone2.Update(timeDelta, m_pos, coneScale);
+	cone1.Update(g_framedelay, m_pos, coneScale);
+	cone2.Update(g_framedelay, m_pos, coneScale);
 	
-	m_stones.Update(timeDelta, m_pos);
+	m_stones.Update(g_framedelay, m_pos);
 	
 	for(int i = 0; i < dustParticles; i++) {
 		createDustParticle();
@@ -267,7 +267,7 @@ void LevitateSpell::createDustParticle() {
 	                 Random::getf(5.f, 10.f) * ((pd->ov.z - m_pos.z) / t));
 	pd->siz = Random::getf(30.f, 60.f);
 	pd->tolive = 3000;
-	pd->timcreation = -(long(arxtime) + 3000l); // TODO WTF
+	pd->timcreation = -(long(arxtime.now_ul()) + 3000l); // TODO WTF
 	pd->special = FIRE_TO_SMOKE | FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
 	pd->fparam = 0.0000001f;
 }
@@ -338,7 +338,7 @@ void CurePoisonSpell::Launch()
 		light->fallend   = 350.f;
 		light->rgb = Color3f(0.f, 1.f, 0.0f);
 		light->pos = m_pos + Vec3f(0.f, -50.f, 0.f);
-		light->time_creation = (unsigned long)(arxtime);
+		light->creationTime = arxtime.now_ul();
 		light->duration = 200;
 		light->extras = 0;
 	}
@@ -348,9 +348,9 @@ void CurePoisonSpell::End() {
 	
 }
 
-void CurePoisonSpell::Update(float timeDelta) {
+void CurePoisonSpell::Update() {
 	
-	m_currentTime += timeDelta;
+	m_currentTime += g_framedelay;
 	
 	m_pos = entities[m_target]->pos;
 	
@@ -379,7 +379,7 @@ void CurePoisonSpell::Update(float timeDelta) {
 	}
 
 	m_particles.SetPos(m_pos);
-	m_particles.Update(timeDelta);
+	m_particles.Update(g_framedelay);
 
 	if(!lightHandleIsValid(m_light))
 		m_light = GetFreeDynLight();
@@ -393,7 +393,7 @@ void CurePoisonSpell::Update(float timeDelta) {
 		light->rgb = Color3f(0.4f, 1.f, 0.4f);
 		light->pos = m_pos + Vec3f(0.f, -50.f, 0.f);
 		light->duration = 200;
-		light->time_creation = (unsigned long)(arxtime);
+		light->creationTime = arxtime.now_ul();
 		light->extras = 0;
 	}
 	
@@ -435,9 +435,7 @@ void RepelUndeadSpell::End() {
 	endLightDelayed(m_light, 500);
 }
 
-void RepelUndeadSpell::Update(float timeDelta) {
-	
-	ARX_UNUSED(timeDelta);
+void RepelUndeadSpell::Update() {
 	
 	Vec3f pos = entities[m_target]->pos;
 	
@@ -460,8 +458,9 @@ void RepelUndeadSpell::Update(float timeDelta) {
 	eObjAngle.setPitch(m_yaw);
 	eObjAngle.setYaw(0);
 	eObjAngle.setRoll(0);
-
-	float vv = 1.f + (std::sin(arxtime.get_updated() * ( 1.0f / 1000 ))); 
+	
+	arxtime.update();
+	float vv = 1.f + (std::sin(arxtime.now_f() * ( 1.0f / 1000 )));
 	vv *= ( 1.0f / 2 );
 	vv += 1.1f;
 	
@@ -482,7 +481,7 @@ void RepelUndeadSpell::Update(float timeDelta) {
 		pd->ov = m_pos + Vec3f(d.x, 0.f, d.y);
 		pd->move = Vec3f(Random::getf(-0.8f, 0.8f), Random::getf(-4.f, 0.f), Random::getf(-0.8f, 0.8f));
 		pd->scale = Vec3f(-0.1f);
-		pd->tolive = Random::get(2600, 3200);
+		pd->tolive = Random::getu(2600, 3200);
 		pd->tc = tex_p2;
 		pd->siz = 0.3f;
 		pd->rgb = Color3f(.4f, .4f, .6f);
@@ -501,7 +500,7 @@ void RepelUndeadSpell::Update(float timeDelta) {
 		light->rgb = Color3f(0.8f, 0.8f, 1.f);
 		light->pos = m_pos + Vec3f(0.f, -50.f, 0.f);
 		light->duration = 200;
-		light->time_creation = (unsigned long)(arxtime);
+		light->creationTime = arxtime.now_ul();
 	}
 	
 	if (m_target == PlayerEntityHandle)
@@ -558,8 +557,7 @@ void PoisonProjectileSpell::Launch()
 	
 	srcPos += angleToVectorXZ(afBeta) * 90.f;
 	
-	long level = std::max(long(m_level), 1l);
-	size_t uiNumber = std::min(5L, level);
+	size_t uiNumber = glm::clamp(static_cast<unsigned int>(m_level), 1u, 5u);
 	
 	for(size_t i = 0; i < uiNumber; i++) {
 		CPoisonProjectile * projectile = new CPoisonProjectile();
@@ -569,13 +567,13 @@ void PoisonProjectileSpell::Launch()
 	
 	m_duration = 8000ul;
 	
-	long lMax = 0;
+	unsigned long lMax = 0;
 
 	for(size_t i = 0; i < m_projectiles.size(); i++) {
 		CPoisonProjectile * projectile = m_projectiles[i];
 		
 		projectile->Create(srcPos, afBeta + Random::getf(-10.f, 10.f));
-		long lTime = m_duration + Random::get(0, 5000);
+		unsigned long lTime = m_duration + Random::getu(0, 5000);
 		projectile->SetDuration(lTime);
 		lMax = std::max(lMax, lTime);
 
@@ -589,7 +587,7 @@ void PoisonProjectileSpell::Launch()
 			light->fallstart		= 150.f;
 			light->rgb = Color3f::green;
 			light->pos = projectile->eSrc;
-			light->time_creation	= (unsigned long)(arxtime);
+			light->creationTime	= arxtime.now_ul();
 			light->duration		= 200;
 		}
 	}
@@ -609,12 +607,12 @@ void PoisonProjectileSpell::End() {
 	m_projectiles.clear();
 }
 
-void PoisonProjectileSpell::Update(float timeDelta) {
+void PoisonProjectileSpell::Update() {
 	
 	for(size_t i = 0; i < m_projectiles.size(); i++) {
 		CPoisonProjectile * projectile = m_projectiles[i];
 		
-		projectile->Update(timeDelta);
+		projectile->Update(g_framedelay);
 	}
 	
 	for(size_t i = 0; i < m_projectiles.size(); i++) {
@@ -630,21 +628,21 @@ void PoisonProjectileSpell::Update(float timeDelta) {
 			light->fallstart	= 150.f;
 			light->rgb = Color3f::green;
 			light->pos = projectile->eCurPos;
-			light->time_creation = (unsigned long)(arxtime);
+			light->creationTime = arxtime.now_ul();
 			light->duration	= 200;
 		}
 
 		AddPoisonFog(projectile->eCurPos, m_level + 7);
 
-		if(m_timcreation + 1600 < (unsigned long)(arxtime)) {
+		if(m_timcreation + 1600 < arxtime.now_ul()) {
 			
 			DamageParameters damage;
 			damage.pos = projectile->eCurPos;
 			damage.radius = 120.f;
 			float v = 4.f + m_level * ( 1.0f / 10 ) * 6.f ;
-			damage.damages = v * ( 1.0f / 1000 ) * framedelay;
+			damage.damages = v * ( 1.0f / 1000 ) * g_framedelay;
 			damage.area = DAMAGE_FULL;
-			damage.duration = static_cast<long>(framedelay);
+			damage.duration = static_cast<long>(g_framedelay);
 			damage.source = m_caster;
 			damage.flags = 0;
 			damage.type = DAMAGE_TYPE_MAGICAL | DAMAGE_TYPE_POISON;
@@ -661,7 +659,7 @@ void PoisonProjectileSpell::AddPoisonFog(const Vec3f & pos, float power) {
 	
 	arxtime.update();
 	
-	long count = std::max(1l, checked_range_cast<long>(framedelay / flDiv));
+	long count = std::max(1l, checked_range_cast<long>(g_framedelay / flDiv));
 	while(count--) {
 		
 		if(Random::getf(0.f, 2000.f) >= power) {
@@ -680,7 +678,7 @@ void PoisonProjectileSpell::AddPoisonFog(const Vec3f & pos, float power) {
 		pd->scale = Vec3f(8.f, 8.f, 10.f);
 		pd->move = Vec3f((speed - Random::getf()) * fval, (speed - speed * Random::getf()) * (1.f / 15),
 		                 (speed - Random::getf()) * fval);
-		pd->tolive = Random::get(4500, 9000);
+		pd->tolive = Random::getu(4500, 9000);
 		pd->tc = TC_smoke;
 		pd->siz = (80.f + Random::getf(0.f, 160.f)) * (1.f / 3);
 		pd->rgb = Color3f(Random::getf(0.f, 1.f/3), 1.f, Random::getf(0.f, 0.1f));

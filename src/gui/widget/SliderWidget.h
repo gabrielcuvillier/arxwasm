@@ -39,12 +39,16 @@ public:
 	
 	void Move(const Vec2f & offset);
 	bool OnMouseClick();
-	void Update(int time);
+	void Update();
 	void Render();
 	void RenderMouseOver();
 	void EmptyFunction();
 	
 	boost::function<void(int)> valueChanged;	// NOLINT
+	
+	virtual WidgetType type() const {
+		return WidgetType_Slider;
+	};
 	
 private:
 	ButtonWidget		*	pLeftButton;

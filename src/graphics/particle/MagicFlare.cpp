@@ -199,7 +199,7 @@ void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io, bool bookDraw
 		SetActiveCamera(&ka);
 		PrepareCamera(&ka, g_size);
 		flare.v.p += ka.orgTrans.pos;
-		EE_RTP(flare.tv.p, &flare.v);
+		EE_RTP(flare.tv.p, flare.v);
 		flare.v.p += ka.orgTrans.pos;
 
 		float vx = -(flare.pos.x - subj.center.x) * 0.2173913f;
@@ -375,13 +375,11 @@ void ARX_MAGICAL_FLARES_Update() {
 	if(shinum >= 10) {
 		shinum = 1;
 	}
-
-	long TICKS = long(arxtime) - FRAMETICKS;
-	FRAMETICKS = (unsigned long)(arxtime);
-	if(TICKS < 0) {
-		return;
-	}
-
+	
+	const unsigned long now = arxtime.now_ul();
+	const unsigned long TICKS = now - FRAMETICKS;
+	FRAMETICKS = now;
+	
 	bool key = !GInput->actionPressed(CONTROLS_CUST_MAGICMODE);
 
 	RenderMaterial mat;

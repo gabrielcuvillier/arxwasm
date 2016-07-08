@@ -20,10 +20,17 @@
 #include "audio/openal/OpenALBackend.h"
 
 #include <stddef.h>
+#include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <sstream>
 
+#if ARX_HAVE_SETENV || ARX_HAVE_UNSETENV
+#include <stdlib.h>
+#endif
+
+#include <boost/scope_exit.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/math/special_functions/fpclassify.hpp>
 
 #include "audio/openal/OpenALSource.h"
@@ -31,6 +38,7 @@
 #include "audio/AudioEnvironment.h"
 #include "audio/AudioGlobal.h"
 #include "audio/AudioSource.h"
+#include "core/Version.h"
 #include "gui/Credits.h"
 #include "io/log/Logger.h"
 #include "math/Vector.h"
@@ -96,11 +104,48 @@ public:
 } // anonymous namespace
 #endif
 
+static const char * const deviceNamePrefixOpenALSoft = "OpenAL Soft on ";
+
+const char * OpenALBackend::shortenDeviceName(const char * deviceName) {
+	
+	if(deviceName && boost::starts_with(deviceName, deviceNamePrefixOpenALSoft)) {
+		// TODO do this for the name displayed in the menu as well?
+		deviceName += std::strlen(deviceNamePrefixOpenALSoft);
+	}
+	
+	return deviceName;
+}
+
 aalError OpenALBackend::init(const char * requestedDeviceName) {
 	
 	if(device) {
 		return AAL_ERROR_INIT;
 	}
+	
+	#if ARX_PLATFORM != ARX_PLATFORM_WIN32 && ARX_HAVE_SETENV && ARX_HAVE_UNSETENV
+	/*
+	 * OpenAL Soft does not provide a way to pass through these properties, so use
+	 * environment variables.
+	 * Unfortunately it also always clears out PA_PROP_MEDIA_ROLE :(
+	 */
+	const char * oldClass = std::getenv("PULSE_PROP_application.icon_name");
+	if(!oldClass) {
+		setenv("PULSE_PROP_application.icon_name", arx_icon_name.c_str(), 1);
+	}
+	const char * oldName = std::getenv("PULSE_PROP_application.name");
+	if(!oldName) {
+		setenv("PULSE_PROP_application.name", arx_name.c_str(), 1);
+	}
+	BOOST_SCOPE_EXIT((oldClass)(oldName)) {
+		// Don't the properties of pulse child processes
+		if(!oldClass) {
+			unsetenv("PULSE_PROP_application.icon_name");
+		}
+		if(!oldName) {
+			unsetenv("PULSE_PROP_application.name");
+		}
+	} BOOST_SCOPE_EXIT_END
+	#endif
 	
 	// Clear error
 	ALenum error = alGetError();
@@ -108,6 +153,11 @@ aalError OpenALBackend::init(const char * requestedDeviceName) {
 	
 	// Create OpenAL interface
 	device = alcOpenDevice(requestedDeviceName);
+	if(!device && requestedDeviceName) {
+		std::string fullDeviceName = deviceNamePrefixOpenALSoft;
+		fullDeviceName += requestedDeviceName;
+		device = alcOpenDevice(fullDeviceName.c_str());
+	}
 	if(!device) {
 		ALenum error = alcGetError(NULL);
 		if(error != ALC_INVALID_VALUE) {
@@ -214,11 +264,12 @@ aalError OpenALBackend::init(const char * requestedDeviceName) {
 		 *  [1] http://icculus.org/alextreg/wiki/ALC_ENUMERATE_ALL_EXT
 		 */
 		deviceName = alcGetString(device, ALC_ALL_DEVICES_SPECIFIER);
-		if(!deviceName || *deviceName == '\0') {
-			deviceName = "(unknown)";
-		}
 	}
 	#endif
+	deviceName = shortenDeviceName(deviceName);
+	if(!deviceName || *deviceName == '\0') {
+		deviceName = "(unknown)";
+	}
 	LogInfo << " └─ Device: " << deviceName;
 	CrashHandler::setVariable("OpenAL device", deviceName);
 	
@@ -246,6 +297,7 @@ std::vector<std::string> OpenALBackend::getDevices() {
 	}
 	
 	while(devices && *devices) {
+		devices = shortenDeviceName(devices);
 		result.push_back(devices);
 		devices += result.back().length() + 1;
 	}

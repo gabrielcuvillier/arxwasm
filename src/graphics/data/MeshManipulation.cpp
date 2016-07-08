@@ -120,9 +120,9 @@ void EERIE_MESH_TWEAK_Skin(EERIE_3DOBJ * obj, const res::path & s1, const res::p
 	}
 }
 
-bool IsInSelection(const EERIE_3DOBJ * obj, long vert, ObjSelection tw) {
+bool IsInSelection(const EERIE_3DOBJ * obj, size_t vert, ObjSelection tw) {
 	
-	if(!obj || tw == ObjSelection() || vert < 0)
+	if(!obj || tw == ObjSelection())
 		return false;
 	
 	const EERIE_SELECTIONS & sel = obj->selections[tw.handleData()];
@@ -149,7 +149,7 @@ static long GetEquivalentVertex(const EERIE_3DOBJ * obj, const EERIE_VERTEX * ve
 	return -1;
 }
 
-static long ObjectAddVertex(EERIE_3DOBJ * obj, const EERIE_VERTEX * vert) {
+static size_t ObjectAddVertex(EERIE_3DOBJ * obj, const EERIE_VERTEX * vert) {
 	
 	for(size_t i = 0; i < obj->vertexlist.size(); i++) {
 		if(obj->vertexlist[i].v.x == vert->v.x
@@ -196,13 +196,10 @@ static long ObjectAddFace(EERIE_3DOBJ * obj, const EERIE_FACE * face, const EERI
 		}
 	}
 
-	long f0 = ObjectAddVertex(obj, &srcobj->vertexlist[face->vid[0]]);
-	long f1 = ObjectAddVertex(obj, &srcobj->vertexlist[face->vid[1]]);
-	long f2 = ObjectAddVertex(obj, &srcobj->vertexlist[face->vid[2]]);
-
-	if(f1 == -1 || f2 == -1 || f0 == -1)
-		return -1;
-
+	size_t f0 = ObjectAddVertex(obj, &srcobj->vertexlist[face->vid[0]]);
+	size_t f1 = ObjectAddVertex(obj, &srcobj->vertexlist[face->vid[1]]);
+	size_t f2 = ObjectAddVertex(obj, &srcobj->vertexlist[face->vid[2]]);
+	
 	obj->facelist.push_back(*face);
 
 	obj->facelist.back().vid[0] = (unsigned short)f0;
@@ -226,10 +223,7 @@ static long ObjectAddFace(EERIE_3DOBJ * obj, const EERIE_FACE * face, const EERI
 static void ObjectAddAction(EERIE_3DOBJ * obj, const std::string & name, long act,
                             long sfx, const EERIE_VERTEX * vert) {
 	
-	long newvert = ObjectAddVertex(obj, vert);
-
-	if(newvert < 0)
-		return;
+	size_t newvert = ObjectAddVertex(obj, vert);
 	
 	for(std::vector<EERIE_ACTIONLIST>::iterator i = obj->actionlist.begin();
 	    i != obj->actionlist.end(); ++i) {
@@ -263,7 +257,7 @@ long ObjectAddMap(EERIE_3DOBJ * obj, TextureContainer * tc) {
 	return obj->texturecontainer.size() - 1;
 }
 
-static void AddVertexToGroup(EERIE_3DOBJ * obj, long group, const EERIE_VERTEX * vert) {
+static void AddVertexToGroup(EERIE_3DOBJ * obj, size_t group, const EERIE_VERTEX * vert) {
 
 	for(size_t i = 0; i < obj->vertexlist.size(); i++) {
 		if(obj->vertexlist[i].v.x == vert->v.x
@@ -275,7 +269,7 @@ static void AddVertexToGroup(EERIE_3DOBJ * obj, long group, const EERIE_VERTEX *
 	}
 }
 
-void AddVertexIdxToGroup(EERIE_3DOBJ * obj, long group, long val) {
+void AddVertexIdxToGroup(EERIE_3DOBJ * obj, size_t group, size_t val) {
 	
 	for(size_t i = 0; i < obj->grouplist[group].indexes.size(); i++) {
 		if(obj->grouplist[group].indexes[i] == val) {
@@ -286,7 +280,7 @@ void AddVertexIdxToGroup(EERIE_3DOBJ * obj, long group, long val) {
 	obj->grouplist[group].indexes.push_back(val);
 }
 
-static void ObjectAddSelection(EERIE_3DOBJ * obj, long numsel, long vidx) {
+static void ObjectAddSelection(EERIE_3DOBJ * obj, size_t numsel, size_t vidx) {
 	
 	for(size_t i = 0; i < obj->selections[numsel].selected.size(); i++) {
 		if(obj->selections[numsel].selected[i] == vidx)
@@ -628,7 +622,7 @@ static EERIE_3DOBJ * CreateIntermediaryMesh(const EERIE_3DOBJ * obj1, const EERI
 	for(size_t i = 0; i < obj1->selections.size(); i++) {
 		
 		if(EERIE_OBJECT_GetSelection(work, obj1->selections[i].name) == ObjSelection()) {
-			long num = work->selections.size();
+			size_t num = work->selections.size();
 			work->selections.resize(num + 1);
 			work->selections[num].name = obj1->selections[i].name;
 
@@ -663,7 +657,7 @@ static EERIE_3DOBJ * CreateIntermediaryMesh(const EERIE_3DOBJ * obj1, const EERI
 
 	for(size_t i = 0; i < obj2->selections.size(); i++) {
 		if(EERIE_OBJECT_GetSelection(work, obj2->selections[i].name) == ObjSelection()) {
-			long num = work->selections.size();
+			size_t num = work->selections.size();
 			work->selections.resize(num + 1);
 			work->selections[num].name = obj2->selections[i].name;
 

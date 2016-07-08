@@ -172,9 +172,9 @@ SDL2InputBackend::SDL2InputBackend(SDL2Window * window) : m_window(window) {
 	
 	wheel = 0;
 	cursorAbs = Vec2i_ZERO;
-	lastCursorAbs = Vec2i_ZERO;
 	cursorInWindow = false;
 	cursorRel = Vec2i_ZERO;
+	cursorRelAccum = Vec2i_ZERO;
 	std::fill_n(keyStates, ARRAY_SIZE(keyStates), false);
 	std::fill_n(buttonStates, ARRAY_SIZE(buttonStates), false);
 	std::fill_n(clickCount, ARRAY_SIZE(clickCount), 0);
@@ -190,13 +190,24 @@ bool SDL2InputBackend::update() {
 	
 	wheel = 0;
 	
-	cursorRel = cursorAbs - lastCursorAbs;
-	lastCursorAbs = cursorAbs;
+	cursorRel = cursorRelAccum;
+	cursorRelAccum = Vec2i_ZERO;
 	
 	std::fill_n(clickCount, ARRAY_SIZE(clickCount), 0);
 	std::fill_n(unclickCount, ARRAY_SIZE(unclickCount), 0);
 	
 	return true;
+}
+
+bool SDL2InputBackend::setMouseMode(Mouse::Mode mode) {
+	
+	if(SDL_SetRelativeMouseMode(mode == Mouse::Relative ? SDL_TRUE : SDL_FALSE) == 0) {
+		return true;
+	} else {
+		LogWarning << "Could not enable relative mouse mode: " << SDL_GetError();
+		return false;
+	}
+	
 }
 
 bool SDL2InputBackend::getAbsoluteMouseCoords(int & absX, int & absY) const {
@@ -205,7 +216,7 @@ bool SDL2InputBackend::getAbsoluteMouseCoords(int & absX, int & absY) const {
 }
 
 void SDL2InputBackend::setAbsoluteMouseCoords(int absX, int absY) {
-	lastCursorAbs = cursorAbs = Vec2i(absX, absY);
+	cursorAbs = Vec2i(absX, absY);
 	SDL_WarpMouseInWindow(m_window->m_window, absX, absY);
 }
 
@@ -256,6 +267,7 @@ void SDL2InputBackend::onEvent(const SDL_Event & event) {
 		
 		case SDL_MOUSEMOTION: {
 			cursorAbs = Vec2i(event.motion.x, event.motion.y);
+			cursorRelAccum += Vec2i(event.motion.xrel, event.motion.yrel);
 			cursorInWindow = true;
 			break;
 		}

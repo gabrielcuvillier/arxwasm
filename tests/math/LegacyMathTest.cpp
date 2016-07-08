@@ -262,7 +262,7 @@ void LegacyMathTest::cameraRotationTest() {
 }
 
 // TODO copy-paste
-inline Vec2s inventorySizeFromTextureSize(Vec2i size) {
+Vec2s inventorySizeFromTextureSize(Vec2i size) {
 	return Vec2s(glm::clamp((size + Vec2i(31, 31)) / Vec2i(32, 32), Vec2i(1, 1), Vec2i(3, 3)));
 }
 
@@ -326,10 +326,29 @@ void LegacyMathTest::vectorRotateTest() {
 void LegacyMathTest::focalToFovTest() {
 	
 	for(float focal = 100; focal < 800; focal += 0.1f) {
-		float expected = focalToFovLegacy(focal);
+		float expected = glm::radians(focalToFovLegacy(focal));
 		float result = focalToFov(focal);
 		
 		std::string msg = "In: " + glm::to_string(focal) + " Expected: " + glm::to_string(expected) + ", Result: " + glm::to_string(result);
 		CPPUNIT_ASSERT_MESSAGE(msg, glm::epsilonEqual(expected, result, 2.f));
+	}
+}
+
+void LegacyMathTest::pointInerpolationTest() {
+	
+	for(int i = 0; i < 500; i++) {
+		Vec3f v0 = glm::linearRand(Vec3f(-10), Vec3f(10));
+		Vec3f v1 = glm::linearRand(Vec3f(-10), Vec3f(10));
+		Vec3f v2 = glm::linearRand(Vec3f(-10), Vec3f(10));
+		Vec3f v3 = glm::linearRand(Vec3f(-10), Vec3f(10));
+		
+		for(int u = 0; u < 1000; u++) {
+			float f = u / 1000.f;
+			
+			Vec3f res1 = interpolatePos(f, v0, v1, v2, v3);
+			Vec3f res2 = glm::catmullRom(v0, v1, v2, v3, f);
+			
+			CPPUNIT_ASSERT_EQUAL(res1, res2);
+		}
 	}
 }

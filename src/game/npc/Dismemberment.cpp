@@ -31,7 +31,6 @@
 #include "graphics/data/MeshManipulation.h"
 #include "physics/Box.h"
 #include "physics/CollisionShapes.h"
-#include "platform/Flags.h"
 #include "scene/GameSound.h"
 
 static bool IsNearSelection(EERIE_3DOBJ * obj, long vert, ObjSelection tw) {
@@ -98,7 +97,7 @@ static void ARX_NPC_SpawnMember(Entity * ioo, ObjSelection num) {
 	nouvo->vertexlist.resize(nvertex);
 	nouvo->vertexlist3.resize(nvertex);
 
-	long inpos = 0;
+	size_t inpos = 0;
 	long * equival = (long *)malloc(sizeof(long) * from->vertexlist.size());
 	if(!equival) {
 		delete nouvo;
@@ -280,7 +279,7 @@ static void ARX_NPC_SpawnMember(Entity * ioo, ObjSelection num) {
 	io->no_collide = ioo->index();
 	
 	io->gameFlags |= GFLAG_GOREEXPLODE;
-	io->animBlend.lastanimtime = (unsigned long)(arxtime);
+	io->animBlend.lastanimtime = arxtime.now_ul();
 	io->soundtime = 0;
 	io->soundcount = 0;
 

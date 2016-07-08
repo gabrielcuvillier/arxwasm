@@ -20,6 +20,7 @@
 #include "game/magic/spells/SpellsLvl10.h"
 
 #include "core/Application.h"
+#include "core/Core.h"
 #include "core/Config.h"
 #include "core/GameTime.h"
 #include "game/Damage.h"
@@ -39,7 +40,6 @@
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
 
-extern Rect g_size;
 
 MassLightningStrikeSpell::MassLightningStrikeSpell()
 	: m_pos(Vec3f_ZERO)
@@ -74,15 +74,15 @@ void MassLightningStrikeSpell::Launch()
 	}
 	m_pos += angleToVectorXZ(beta) * 500.f;
 	
-	long minDuration = long(500 * m_level);
-	long maxDuration = 0;
+	unsigned long minDuration = static_cast<unsigned long>(500 * m_level);
+	unsigned long maxDuration = 0;
 	
 	int number = glm::clamp(int(m_level), 1, 10);
-	float ft = 360.0f / (float)number;
+	float ft = 360.0f / number;
 	
 	for(int i = 0; i < number; i++) {
 		Vec3f target = m_pos + angleToVectorXZ(i * ft) * 500.0f;
-		long duration = minDuration + Random::get(0, 5000);
+		unsigned long duration = minDuration + Random::getu(0, 5000);
 		maxDuration = std::max(maxDuration, duration);
 		
 		CLightning * lightning = new CLightning();
@@ -129,7 +129,7 @@ void MassLightningStrikeSpell::End() {
 	pTab.clear();
 }
 
-void MassLightningStrikeSpell::Update(float timeDelta) {
+void MassLightningStrikeSpell::Update() {
 	
 	for(size_t i = 0; i < pTab.size(); i++) {
 		CLightning * lightning = pTab[i];
@@ -137,7 +137,7 @@ void MassLightningStrikeSpell::Update(float timeDelta) {
 		lightning->m_caster = m_caster;
 		lightning->m_level = m_level;
 		
-		lightning->Update(timeDelta);
+		lightning->Update(g_framedelay);
 	}
 	
 	for(size_t i = 0; i < pTab.size(); i++) {
@@ -173,6 +173,11 @@ void MassLightningStrikeSpell::Update(float timeDelta) {
 	}	
 }
 
+
+ControlTargetSpell::ControlTargetSpell()
+	: tex_mm(NULL)
+	, fTrail(0)
+{ }
 
 bool ControlTargetSpell::CanLaunch()
 {
@@ -289,9 +294,7 @@ void ControlTargetSpell::End() {
 	
 }
 
-void ControlTargetSpell::Update(float timeDelta) {
-	
-	ulCurrentTime += timeDelta;
+void ControlTargetSpell::Update() {
 	
 	GRenderer->SetCulling(CullNone);
 	GRenderer->SetRenderState(Renderer::DepthWrite, false);
@@ -306,9 +309,11 @@ void ControlTargetSpell::Update(float timeDelta) {
 
 	int n = BEZIERPrecision;
 	float delta = 1.0f / n;
-
-	float fOneOnDuration = 1.f / (float)(m_duration);
-	fTrail = (ulCurrentTime * fOneOnDuration) * 9 * (n + 2);
+	
+	float elapsed = arxtime.now_f() - m_timcreation;
+	float fOneOnDuration = 1.f / m_duration;
+	
+	fTrail = (elapsed * fOneOnDuration) * 9 * (n + 2);
 
 	Vec3f v;
 	
@@ -316,39 +321,19 @@ void ControlTargetSpell::Update(float timeDelta) {
 	Vec3f lastpos = pathways[0];
 	
 	for(int i = 0; i < 9; i++) {
-		int kp		= i;
-		int kpprec	= (i > 0) ? kp - 1 : kp ;
-		int kpsuiv	= kp + 1 ;
-		int kpsuivsuiv = (i < (9 - 2)) ? kpsuiv + 1 : kpsuiv;
-
+		
+		const Vec3f v1 = pathways[std::max(0, i - 1)];
+		const Vec3f v2 = pathways[i];
+		const Vec3f v3 = pathways[i + 1];
+		const Vec3f v4 = pathways[std::min(9, i + 2)];
+		
 		for(int toto = 1; toto < n; toto++) {
 			if(fTrail < i * n + toto)
 				break;
 
 			float t = toto * delta;
-
-			float t1 = t;
-			float t2 = t1 * t1 ;
-			float t3 = t2 * t1 ;
-			float f0 = 2.f * t3 - 3.f * t2 + 1.f ;
-			float f1 = -2.f * t3 + 3.f * t2 ;
-			float f2 = t3 - 2.f * t2 + t1 ;
-			float f3 = t3 - t2 ;
-
-			float val = pathways[kpsuiv].x;
-			float p0 = 0.5f * (val - pathways[kpprec].x) ;
-			float p1 = 0.5f * (pathways[kpsuivsuiv].x - pathways[kp].x) ;
-			v.x = f0 * pathways[kp].x + f1 * val + f2 * p0 + f3 * p1 ;
-
-			val = pathways[kpsuiv].y ;
-			p0 = 0.5f * (val - pathways[kpprec].y) ;
-			p1 = 0.5f * (pathways[kpsuivsuiv].y - pathways[kp].y) ;
-			v.y = f0 * pathways[kp].y + f1 * val + f2 * p0 + f3 * p1 ;
-
-			val = pathways[kpsuiv].z ;
-			p0 = 0.5f * (val - pathways[kpprec].z) ;
-			p1 = 0.5f * (pathways[kpsuivsuiv].z - pathways[kp].z) ;
-			v.z = f0 * pathways[kp].z + f1 * val + f2 * p0 + f3 * p1 ;
+			
+			v = glm::catmullRom(v1, v2, v3, v4, t);
 			
 			newpos = v;
 			
@@ -358,7 +343,7 @@ void ControlTargetSpell::Update(float timeDelta) {
 				if(pd) {
 					pd->ov = lastpos;
 					pd->siz = 5 * c;
-					pd->tolive = Random::get(10, 110);
+					pd->tolive = Random::getu(10, 110);
 					pd->tc = tex_mm;
 					pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
 					pd->fparam = 0.0000001f;
@@ -372,7 +357,7 @@ void ControlTargetSpell::Update(float timeDelta) {
 			if(pd) {
 				pd->ov = lastpos;
 				pd->siz = 5;
-				pd->tolive = Random::get(10, 110);
+				pd->tolive = Random::getu(10, 110);
 				pd->tc = tex_mm;
 				pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
 				pd->fparam = 0.0000001f;
@@ -382,8 +367,6 @@ void ControlTargetSpell::Update(float timeDelta) {
 	}
 }
 
-
-extern float GLOBAL_SLOWDOWN;
 
 FreezeTimeSpell::FreezeTimeSpell()
 	: m_slowdown(0.f)
@@ -439,7 +422,7 @@ void MassIncinerateSpell::Launch()
 		}
 		
 		tio->sfx_flag |= SFX_TYPE_YLSIDE_DEATH | SFX_TYPE_INCINERATE;
-		tio->sfx_time = (unsigned long)(arxtime);
+		tio->sfx_time = arxtime.now_ul();
 		nb_targets++;
 		m_targets.push_back(tio->index());
 	}
@@ -458,9 +441,7 @@ void MassIncinerateSpell::End()
 	ARX_SOUND_PlaySFX(SND_SPELL_INCINERATE_END);
 }
 
-void MassIncinerateSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void MassIncinerateSpell::Update() {
 	
 	if(ValidIONum(m_caster)) {
 		ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_caster]->pos);
@@ -492,14 +473,11 @@ void TeleportSpell::End()
 
 extern Vec3f lastteleport;
 
-void TeleportSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void TeleportSpell::Update() {
 	
-	const unsigned long tim = (unsigned long)(arxtime);
+	float elapsed = arxtime.now_f() - m_timcreation;
+	float TELEPORT = elapsed / m_duration;
 	
-	float TELEPORT = (float)(((float)tim-(float)m_timcreation)/(float)m_duration);
-
 	if(LASTTELEPORT < 0.5f && TELEPORT >= 0.5f) {
 		Vec3f pos = lastteleport;
 		lastteleport = player.pos;

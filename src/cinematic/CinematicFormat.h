@@ -68,7 +68,7 @@ struct CinematicLight_1_71 {
 	s32 prev; // ignored
 	s32 next; // ignored
 	
-	inline operator CinematicLight() {
+	operator CinematicLight() {
 		CinematicLight l;
 		l.pos = pos.toVec3();
 		l.fallin = fallin;
@@ -83,23 +83,28 @@ struct CinematicLight_1_71 {
 
 // TODO macros
 //fx
+const u32 CinematicFxMask = 0x000000ff;
 #define FX_FADEIN  1
 #define FX_FADEOUT 2
 #define FX_BLUR    3
 //prefx
+const u32 CinematicFxPreMask = 0x0000ff00;
 #define FX_DREAM   (1<<8)
 //post fx
+const u32 CinematicFxPostMask = 0x00ff0000;
 #define FX_FLASH   (1<<16)
 #define FX_APPEAR  (2<<16)
 #define FX_APPEAR2 (3<<16)
 //all time
+const u32 CinematicFxAllMask = 0xff000000;
 #define FX_LIGHT   (1<<24)
 
 struct C_KEY_1_75 {
 	s32 frame;
 	s32 numbitmap;
 	s32 fx; // associated fx
-	s16 typeinterp, force;
+	s16 typeinterp;
+	s16 force;
 	SavedVec3 pos;
 	f32 angz;
 	s32 color;
@@ -119,7 +124,8 @@ struct C_KEY_1_76 {
 	s32 frame;
 	s32 numbitmap;
 	s32 fx; // associated fx
-	s16 typeinterp, force;
+	s16 typeinterp;
+	s16 force;
 	SavedVec3 pos;
 	f32 angz;
 	s32 color;

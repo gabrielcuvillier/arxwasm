@@ -162,8 +162,8 @@ private:
 	float m_playerLastPosX;
 	float m_playerLastPosZ;
 	
-	/*const */float m_modX; // used everywhere, calculate it once
-	/*const */float m_modZ; // should and will be const
+	// should be const
+	Vec2f m_mod;
 	
 	std::vector<MapMarkerData> m_mapMarkers;
 	MiniMapData m_levels[MAX_MINIMAP_LEVELS];
@@ -189,8 +189,8 @@ private:
 	int mapMarkerGetID(const std::string &name);
 	
 	Vec2f computePlayerPos(float zoom, int showLevel);
-	void drawBackground(int showLevel, Rect boundaries, float startX, float startY, float zoom, float fadeBorder = 0.f, float decalX = 0.f, float decalY = 0.f, bool invColor = false, float alpha = 1.f);
-	void drawPlayer(float playerSize, Vec2f playerPos, bool alphaBlending = false);
+	void drawBackground(int showLevel, Rect boundaries, Vec2f start, float zoom, float fadeBorder = 0.f, Vec2f decal = Vec2f(0.f, 0.f), bool invColor = false, float alpha = 1.f);
+	void drawPlayer(float playerSize, Vec2f playerPos, bool alphaBlending);
 	void drawDetectedEntities(int showLevel, Vec2f start, float zoom);
 	
     std::vector<TexturedVertex> m_mapVertices;

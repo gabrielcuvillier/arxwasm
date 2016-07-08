@@ -24,32 +24,32 @@
 PanelWidget::PanelWidget()
 	: Widget()
 {
-	vElement.clear();
+	m_children.clear();
 	pRef = this;
 }
 
 PanelWidget::~PanelWidget()
 {
-	BOOST_FOREACH(Widget * widget, vElement) {
-		delete widget;
-	}
+	{Widget * w; BOOST_FOREACH(w, m_children) {
+		delete w;
+	}}
 }
 
 void PanelWidget::Move(const Vec2f & offset)
 {
 	m_rect.move(offset.x, offset.y);
 	
-	BOOST_FOREACH(Widget * widget, vElement) {
-		widget->Move(offset);
-	}
+	{Widget * w; BOOST_FOREACH(w, m_children) {
+		w->Move(offset);
+	}}
 }
 
 // patch on ajoute à droite en ligne
 void PanelWidget::AddElement(Widget* widget)
 {
-	vElement.push_back(widget);
+	m_children.push_back(widget);
 
-	if(vElement.size() == 1) {
+	if(m_children.size() == 1) {
 		m_rect = widget->m_rect;
 	} else {
 		m_rect.left = std::min(m_rect.left, widget->m_rect.left);
@@ -63,31 +63,31 @@ void PanelWidget::AddElement(Widget* widget)
 	widget->Move(Vec2f(0, ((m_rect.height() - widget->m_rect.bottom) / 2)));
 }
 
-void PanelWidget::Update(int _iTime)
+void PanelWidget::Update()
 {
 	m_rect.right = m_rect.left;
 	m_rect.bottom = m_rect.top;
-
-	BOOST_FOREACH(Widget * widget, vElement) {
-		widget->Update(_iTime);
-		m_rect.right = std::max(m_rect.right, widget->m_rect.right);
-		m_rect.bottom = std::max(m_rect.bottom, widget->m_rect.bottom);
-	}
+	
+	{Widget * w; BOOST_FOREACH(w, m_children) {
+		w->Update();
+		m_rect.right = std::max(m_rect.right, w->m_rect.right);
+		m_rect.bottom = std::max(m_rect.bottom, w->m_rect.bottom);
+	}}
 }
 
 void PanelWidget::Render() {
-
-	BOOST_FOREACH(Widget * widget, vElement) {
-		widget->Render();
-	}
+	
+	{Widget * w; BOOST_FOREACH(w, m_children) {
+		w->Render();
+	}}
 }
 
 Widget * PanelWidget::GetZoneWithID(MenuButton _iID)
 {
-	BOOST_FOREACH(Widget * widget, vElement) {
-		if(Widget * pZone = widget->GetZoneWithID(_iID))
+	{Widget * w; BOOST_FOREACH(w, m_children) {
+		if(Widget * pZone = w->GetZoneWithID(_iID))
 			return pZone;
-	}
+	}}
 	
 	return NULL;
 }
@@ -95,11 +95,11 @@ Widget * PanelWidget::GetZoneWithID(MenuButton _iID)
 Widget * PanelWidget::IsMouseOver(const Vec2f & mousePos) const {
 
 	if(m_rect.contains(mousePos)) {
-		BOOST_FOREACH(Widget * widget, vElement) {
-			if(widget->getCheck() && widget->m_rect.contains(mousePos)) {
-				return widget->pRef;
+		{Widget * w; BOOST_FOREACH(w, m_children) {
+			if(w->getCheck() && w->m_rect.contains(mousePos)) {
+				return w->pRef;
 			}
-		}
+		}}
 	}
 
 	return NULL;

@@ -308,27 +308,12 @@ void CPoisonProjectile::Render() {
 			
 			float t = toto * delta;
 			
-			float t2 = t * t ;
-			float t3 = t2 * t ;
-			float f0 = 2.f * t3 - 3.f * t2 + 1.f ;
-			float f1 = -2.f * t3 + 3.f * t2 ;
-			float f2 = t3 - 2.f * t2 + t ;
-			float f3 = t3 - t2 ;
+			const Vec3f prevPos = pathways[kpprec];
+			const Vec3f currentPos = pathways[i];
+			const Vec3f nextPos = pathways[kpsuiv];
+			const Vec3f next2Pos = pathways[kpsuivsuiv];
 			
-			float val = pathways[kpsuiv].x;
-			float p0 = 0.5f * (val - pathways[kpprec].x);
-			float p1 = 0.5f * (pathways[kpsuivsuiv].x - pathways[i].x);
-			lastpos.x = f0 * pathways[i].x + f1 * val + f2 * p0 + f3 * p1;
-			
-			val = pathways[kpsuiv].y;
-			p0 = 0.5f * (val - pathways[kpprec].y);
-			p1 = 0.5f * (pathways[kpsuivsuiv].y - pathways[i].y);
-			lastpos.y = f0 * pathways[i].y + f1 * val + f2 * p0 + f3 * p1;
-			
-			val = pathways[kpsuiv].z;
-			p0 = 0.5f * (val - pathways[kpprec].z);
-			p1 = 0.5f * (pathways[kpsuivsuiv].z - pathways[i].z);
-			lastpos.z = f0 * pathways[i].z + f1 * val + f2 * p0 + f3 * p1;
+			lastpos = glm::catmullRom(prevPos, currentPos, nextPos, next2Pos, t);
 		}
 	}
 	
