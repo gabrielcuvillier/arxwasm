@@ -1,4 +1,5 @@
 
+if(NOT NACL)
 include(Icons)
 
 set(ICON_BINARY_DIR "${CMAKE_BINARY_DIR}/data.generated/icons")
@@ -123,3 +124,4 @@ add_custom_target(data DEPENDS
 	arx-libertatis-icon
 	arx-libertatis-logo
 )
+endif()

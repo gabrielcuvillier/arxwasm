@@ -46,6 +46,8 @@
   #define GLEW_ARB_shader_objects 0
   #define GLEW_ARB_vertex_program 0
   #define GLEW_ARB_buffer_storage 0
+  #define GLEW_NVX_gpu_memory_info 0
+  #define GLEW_ATI_meminfo 0
 #endif
   
 static const char vertexShaderSource[] = "void main() {\n"

@@ -139,7 +139,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "io/log/Logger.h"
 
 #include "platform/Dialog.h"
-#include "platform/Flags.h"
 #include "platform/Platform.h"
 #include "platform/Process.h"
 #include "platform/ProgramOptions.h"
@@ -174,9 +173,8 @@ SavegameHandle LOADQUEST_SLOT = SavegameHandle(); // OH NO, ANOTHER GLOBAL! - TE
 extern long DeadTime;
 
 static const float CURRENT_BASE_FOCAL = 310.f;
-extern float BOW_FOCAL;
+static const float defaultCameraFocal = 350.f;
 
-extern float GLOBAL_SLOWDOWN;
 extern float LAST_FADEVALUE;
 
 extern Cinematic* ControlCinematique;
@@ -201,7 +199,7 @@ Vec3f LASTCAMPOS;
 Anglef LASTCAMANGLE;
 
 Vec3f PUSH_PLAYER_FORCE;
-static EERIE_BACKGROUND* DefaultBkg = NULL;
+static EERIE_BACKGROUND DefaultBkg;
 EERIE_CAMERA subj,bookcam,conversationcamera;
 
 // ArxGame constructor. Sets attributes for the app.
@@ -219,19 +217,19 @@ bool ArxGame::initialize()
 	
 	init = initConfig();
 	if(!init) {
-		LogCritical << "Failed to initialize the config subsystem.";
-		return false;
-	}
-	
-	init = initGameData();
-	if(!init) {
-		LogCritical << "Failed to initialize the game data.";
+		LogCritical << "Failed to initialize the config subsystem";
 		return false;
 	}
 	
 	init = initWindow();
 	if(!init) {
 		LogCritical << "Failed to initialize the windowing subsystem.";
+		return false;
+	}
+
+	init = initGameData();
+	if(!init) {
+		LogCritical << "Failed to initialize the game data.";
 		return false;
 	}
 	
@@ -865,9 +863,8 @@ bool ArxGame::initGame()
 	
 	LastLoadedScene.clear();
 	
-	DefaultBkg = new EERIE_BACKGROUND();
-    memset(DefaultBkg, 0, sizeof(EERIE_BACKGROUND));
-	ACTIVEBKG=DefaultBkg;
+	DefaultBkg = EERIE_BACKGROUND();
+	ACTIVEBKG=&DefaultBkg;
 	InitBkg(ACTIVEBKG,MAX_BKGX,MAX_BKGZ,BKG_SIZX,BKG_SIZZ);
 	
 	player.size.y = -player.baseHeight();
