@@ -55,7 +55,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/Color.h"
 #include "math/Types.h"
 #include "math/Quantizer.h"
-#include "platform/Flags.h"
+#include "util/Flags.h"
 #include "util/HandleType.h"
 
 struct EERIE_LIGHT;
@@ -106,7 +106,7 @@ struct EERIE_LIGHT {
 	float intensity;
 	Color3f rgb;
 	
-	EERIE_2D_BBOX m_screenRect;
+	Rectf m_screenRect;
 	
 	float m_flareFader;
 	Color3f ex_flicker;
@@ -116,8 +116,11 @@ struct EERIE_LIGHT {
 	float ex_speed;
 	float ex_flaresize;
 	LightHandle m_ignitionLightHandle;
-	unsigned long time_creation;
-	long duration; // will start to fade before the end of duration...
+	unsigned long creationTime;
+	
+	// will start to fade before the end of duration...
+	unsigned long duration;
+	
 	audio::SourceId sample;
 	math::Quantizer m_storedFlameTime;
 };
@@ -148,11 +151,11 @@ EERIE_LIGHT * lightHandleGet(LightHandle lightHandle);
 bool lightHandleIsValid(LightHandle num);
 LightHandle GetFreeDynLight();
 void lightHandleDestroy(LightHandle & handle);
-void endLightDelayed(LightHandle & handle, long delay);
+void endLightDelayed(LightHandle & handle, unsigned long delay);
 
 
 void ClearDynLights();
-void PrecalcDynamicLighting(long x0,long x1,long z0,long z1);
+void PrecalcDynamicLighting(long x0, long x1, long z0, long z1, const Vec3f & camPos, float camDepth);
 
 
 struct ShaderLight {

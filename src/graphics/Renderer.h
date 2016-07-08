@@ -23,10 +23,10 @@
 #include <stddef.h>
 #include <vector>
 
-#include "platform/Flags.h"
-#include "platform/Platform.h"
-#include "math/Types.h"
 #include "graphics/Color.h"
+#include "math/Types.h"
+#include "platform/Platform.h"
+#include "util/Flags.h"
 
 struct TexturedVertex;
 struct SMY_VERTEX;
@@ -355,7 +355,7 @@ public:
 	virtual void SetFillMode(FillMode mode) = 0;
 	
 	// Texturing
-	inline unsigned int GetTextureStageCount() const { return m_TextureStages.size(); }
+	unsigned int GetTextureStageCount() const { return m_TextureStages.size(); }
 	TextureStage * GetTextureStage(unsigned int textureStage);
 	const TextureStage * GetTextureStage(unsigned int textureStage) const;
 	void ResetTexture(unsigned int textureStage);
@@ -363,7 +363,8 @@ public:
 	void SetTexture(unsigned int textureStage, Texture * pTexture);
 	void SetTexture(unsigned int textureStage, TextureContainer * pTextureContainer);
 	
-	virtual float getMaxAnisotropy() const = 0;
+	virtual float getMaxSupportedAnisotropy() const = 0;
+	virtual void setMaxAnisotropy(float value) = 0;
 	
 	virtual VertexBuffer<TexturedVertex> * createVertexBufferTL(size_t capacity, BufferUsage usage) = 0;
 	virtual VertexBuffer<SMY_VERTEX> * createVertexBuffer(size_t capacity, BufferUsage usage) = 0;

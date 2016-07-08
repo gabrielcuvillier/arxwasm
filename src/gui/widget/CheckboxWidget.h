@@ -35,7 +35,7 @@ public:
 	
 	void Move(const Vec2f & offset);
 	bool OnMouseClick();
-	void Update(int time);
+	void Update();
 	
 	void renderCommon();
 	void Render();
@@ -45,6 +45,10 @@ public:
 	int					iOldState;
 	
 	boost::function<void(int)> stateChanged;	// NOLINT
+	
+	virtual WidgetType type() const {
+		return WidgetType_Checkbox;
+	};
 	
 private:
 	TextureContainer * m_textureOff;

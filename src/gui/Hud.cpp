@@ -19,6 +19,8 @@
 
 #include "gui/Hud.h"
 
+#include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <sstream>
 
@@ -57,8 +59,6 @@
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
 
-extern float GLOBAL_SLOWDOWN;
-extern float InventoryDir;
 extern bool WILLRETURNTOFREELOOK;
 
 bool bIsAiming = false;
@@ -140,19 +140,19 @@ void HitStrengthGauge::updateRect(const Rectf & parent) {
 
 void HitStrengthGauge::update() {
 	
-	if(AimTime == 0) {
+	if(player.m_aimTime == 0) {
 		m_intensity = 0.2f;
 	} else {
 		float j;
-		if(BOW_FOCAL) {
-			j=(float)(BOW_FOCAL)/710.f;
+		if(player.m_bowAimRatio > 0) {
+			j = player.m_bowAimRatio;
 		} else {
-			float at=float(arxtime)-(float)AimTime;
+			const unsigned long delta = arxtime.now_ul() - player.m_aimTime;
 			
 			//TODO global
-			bIsAiming = at > 0.f;
+			bIsAiming = delta > 0;
 			
-			at=at*(1.f+(1.f-GLOBAL_SLOWDOWN));
+			float at = delta * (1.f+(1.f-GLOBAL_SLOWDOWN));
 			float aim = static_cast<float>(player.Full_AimTime);
 			j=at/aim;
 		}
@@ -211,7 +211,7 @@ void BookIconGui::MakeBookFX() {
 		pd->ov = Vec3f(m_rect.topLeft() - Vec2f(s * 2, s * 2), z);
 		pd->move = Vec3f(s * -0.5f, s * -0.5f, 0.f);
 		pd->scale = Vec3f(s * 10, s * 10, 0.f);
-		pd->tolive = Random::get(1200, 1600);
+		pd->tolive = Random::getu(1200, 1600);
 		pd->tc = m_tex;
 		pd->rgb = Color3f(1.f - i * 0.1f, i * 0.1f, 0.5f - i * 0.1f);
 		pd->siz = m_rect.width() + s * 4.f;
@@ -287,7 +287,7 @@ void BackpackIconGui::update(const Rectf & parent) {
 
 void BackpackIconGui::updateInput() {
 	
-	static float flDelay=0;
+	static unsigned long flDelay = 0;
 	
 	// Check for backpack Icon
 	if(m_rect.contains(Vec2f(DANAEMouse))) {
@@ -310,10 +310,12 @@ void BackpackIconGui::updateInput() {
 			flDelay = 0;
 		} else if(eeMouseDown1() || flDelay) {
 			if(!flDelay) {
-				flDelay = arxtime.get_updated();
+				arxtime.update();
+				flDelay = arxtime.now_ul();
 				return;
 			} else {
-				if(arxtime.get_updated() - flDelay < 300) {
+				arxtime.update();
+				if(arxtime.now_ul() - flDelay < 300) {
 					return;
 				} else {
 					flDelay = 0;
@@ -546,7 +548,7 @@ bool CurrentTorchIconGui::isVisible() {
 
 void CurrentTorchIconGui::updateRect(const Rectf & parent) {
 	
-	float secondaryInventoryX = InventoryX + 110.f;
+	float secondaryInventoryX = g_secondaryInventoryHud.m_fadePosition + 110.f;
 	
 	m_rect = createChild(parent, Anchor_TopLeft, m_size * m_scale, Anchor_BottomLeft);
 	
@@ -620,7 +622,7 @@ void CurrentTorchIconGui::createFireParticle() {
 	pd->ov = Vec3f(pos, 0.0000001f);
 	pd->move = Vec3f(Random::getf(-1.5f, 1.5f), Random::getf(-6.f, -5.f), 0.f) * m_scale;
 	pd->scale = Vec3f(1.8f, 1.8f, 1.f);
-	pd->tolive = Random::get(500, 900);
+	pd->tolive = Random::getu(500, 900);
 	pd->tc = fire2;
 	pd->rgb = Color3f(1.f, .6f, .5f);
 	pd->siz = 14.f * m_scale;
@@ -689,8 +691,8 @@ void QuickSaveIconGui::hide() {
 
 void QuickSaveIconGui::update() {
 	if(m_remainingTime) {
-		if(m_remainingTime > unsigned(framedelay)) {
-			m_remainingTime -= unsigned(framedelay);
+		if(m_remainingTime > unsigned(g_framedelay)) {
+			m_remainingTime -= unsigned(g_framedelay);
 		} else {
 			m_remainingTime = 0;
 		}
@@ -704,7 +706,7 @@ void QuickSaveIconGui::draw() {
 	
 	// Flash the icon twice, starting at about 0.7 opacity
 	float step = 1.f - float(m_remainingTime) * (1.f / m_duration);
-	float alpha = std::min(1.f, 0.6f * (std::sin(step * (7.f / 2.f * PI)) + 1.f));
+	float alpha = std::min(1.f, 0.6f * (std::sin(step * (7.f / 2.f * glm::pi<float>())) + 1.f));
 	
 	TextureContainer * tex = TextureContainer::LoadUI("graph/interface/icons/menu_main_save");
 	arx_assert(tex);
@@ -786,7 +788,7 @@ void MemorizedRunesHud::draw() {
 			pos.x += 32 * m_scale;
 		}
 	}
-	if(float(arxtime) - player.SpellToMemorize.lTimeCreation > 30000) {
+	if(arxtime.now_f() - player.SpellToMemorize.lTimeCreation > 30000) {
 		player.SpellToMemorize.bSpell = false;
 	}
 }
@@ -812,7 +814,7 @@ void HealthGauge::updateRect(const Rectf & parent) {
 
 void HealthGauge::update() {
 	
-	m_amount = (float)player.lifePool.current/(float)player.Full_maxlife;
+	m_amount = player.lifePool.current / player.Full_maxlife;
 	
 	if(player.poison > 0.f) {
 		float val = std::min(player.poison, 0.2f) * 255.f * 5.f;
@@ -912,7 +914,7 @@ void MecanismIcon::update() {
 			m_nbToDraw++;
 		}
 	}
-	m_timeToDraw += static_cast<long>(framedelay);
+	m_timeToDraw += static_cast<long>(g_framedelay);
 	
 	m_rect = createChild(Rectf(g_size), Anchor_TopLeft, m_iconSize * m_scale, Anchor_TopLeft);
 }
@@ -945,7 +947,7 @@ void ScreenArrows::update() {
 		return;
 	}
 	
-	fArrowMove += .5f * framedelay;
+	fArrowMove += .5f * g_framedelay;
 	if(fArrowMove > 180.f) {
 		fArrowMove=0.f;
 	}
@@ -1046,8 +1048,8 @@ void PrecastSpellsGui::update() {
 		
 		float val = intensity;
 		
-		if(precastSlot.launch_time > 0 && (float(arxtime) >= precastSlot.launch_time)) {
-			float tt = (float(arxtime) - precastSlot.launch_time) * (1.0f/1000);
+		if(precastSlot.launch_time > 0 && (arxtime.now_f() >= precastSlot.launch_time)) {
+			float tt = (arxtime.now_f() - precastSlot.launch_time) * (1.0f/1000);
 			
 			if(tt > 1.f)
 				tt = 1.f;
@@ -1206,7 +1208,7 @@ void ActiveSpellsGui::ManageSpellIcon(SpellBase & spell, float intensity, bool f
 	bool flicker = true;
 	
 	if(spell.m_hasDuration) {
-		if(player.manaPool.current < 20 || spell.m_timcreation + spell.m_duration - float(arxtime) < 2000) {
+		if(player.manaPool.current < 20 || spell.m_timcreation + spell.m_duration - arxtime.now_f() < 2000) {
 			if(ucFlick&1)
 				flicker = false;
 		}
@@ -1309,8 +1311,6 @@ void DamagedEquipmentGui::draw() {
 }
 
 
-extern float CURRENT_PLAYER_COLOR;
-
 StealthGauge::StealthGauge()
 	: HudItem()
 	, m_texture(NULL)
@@ -1410,10 +1410,10 @@ void PlayerInterfaceFader::update() {
 			if(!(player.Interface & INTER_COMBATMODE) && player.doingmagic != 2 && !InInventoryPos(DANAEMouse)) {
 				bOk = false;
 				
-				float t=float(arxtime);
+				float t = arxtime.now_f();
 				
 				if(t-SLID_START > 10000.f) {
-					m_current += (float)Original_framedelay*( 1.0f / 10 );
+					m_current += Original_framedelay * (1.0f/10);
 					
 					if(m_current > 100.f)
 						m_current = 100.f;
@@ -1426,7 +1426,7 @@ void PlayerInterfaceFader::update() {
 		}
 		
 		if(bOk) {
-			m_current -= (float)Original_framedelay*( 1.0f / 10 );
+			m_current -= Original_framedelay * (1.0f/10);
 			
 			if(m_current < 0.f)
 				m_current = 0.f;
@@ -1436,7 +1436,7 @@ void PlayerInterfaceFader::update() {
 	}
 	
 	if(m_direction == 1) {
-		m_current += (float)Original_framedelay*( 1.0f / 10 );
+		m_current += Original_framedelay * (1.0f/10);
 		
 		if(m_current > 100.f) {
 			m_current = 100.f;
@@ -1444,7 +1444,7 @@ void PlayerInterfaceFader::update() {
 		}
 		lSLID_VALUE = m_current;
 	} else if(m_direction == -1) {
-		m_current -= (float)Original_framedelay*( 1.0f / 10 );
+		m_current -= Original_framedelay * (1.0f/10);
 		
 		if(m_current < 0.f) {
 			m_current = 0.f;
@@ -1455,12 +1455,20 @@ void PlayerInterfaceFader::update() {
 }
 
 static void setHudTextureState() {
-	GRenderer->GetTextureStage(0)->setMinFilter(TextureStage::FilterLinear);
-	GRenderer->GetTextureStage(0)->setMagFilter(TextureStage::FilterLinear);
+	TextureStage::FilterMode filter = TextureStage::FilterLinear;
+	if(config.interface.hudScaleFilter == UIFilterNearest) {
+		filter = TextureStage::FilterNearest;
+	}
+	GRenderer->GetTextureStage(0)->setMinFilter(filter);
+	GRenderer->GetTextureStage(0)->setMagFilter(filter);
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
 }
 
 void HudRoot::draw() {
+	
+	if(player.lifePool.current <= 0) {
+		return;
+	}
 	
 	const Vec2f mousePos = Vec2f(DANAEMouse);
 	
@@ -1486,7 +1494,7 @@ void HudRoot::draw() {
 	Vec2f anchorPos = g_playerInventoryHud.anchorPosition();
 	
 	Rectf spacer;
-	spacer.left = std::max(InventoryX + 160, healthGauge.rect().right);
+	spacer.left = std::max(g_secondaryInventoryHud.m_fadePosition + 160, healthGauge.rect().right);
 	spacer.bottom = anchorPos.y;
 	spacer.top = spacer.bottom - 30;
 	spacer.right = spacer.left + 20;
@@ -1622,10 +1630,21 @@ void HudRoot::draw() {
 }
 
 void HudRoot::recalcScale() {
-	if(config.video.hudScale)
-		setScale(minSizeRatio());
-	else
-		setScale(1);
+	
+	float maxScale = minSizeRatio();
+	float scale = glm::clamp(1.f, maxScale * config.interface.hudScale, maxScale);
+	
+	if(config.interface.hudScaleInteger && maxScale > 1.f) {
+		if(scale < 1.3f || maxScale < 1.5f) {
+			scale = 1.f;
+		} else if(scale < 1.75f || maxScale < 2.f) {
+			scale = 1.5f;
+		} else {
+			scale = std::floor(std::min(scale + 0.5f, maxScale));
+		}
+	}
+	
+	setScale(scale);
 }
 
 

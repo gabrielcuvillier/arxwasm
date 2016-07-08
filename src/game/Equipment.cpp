@@ -154,7 +154,7 @@ ItemType ARX_EQUIPMENT_GetObjectTypeFlag(const std::string & temp) {
 //! \brief Releases Equiped Id from player
 static void ARX_EQUIPMENT_Release(EntityHandle id) {
 	if(ValidIONum(id)) {
-		for(long i = 0; i < MAX_EQUIPED; i++) {
+		for(size_t i = 0; i < MAX_EQUIPED; i++) {
 			if(player.equiped[i] == id) {
 				player.equiped[i] = EntityHandle();
 			}
@@ -257,7 +257,7 @@ void ARX_EQUIPMENT_RecreatePlayerMesh() {
 	
 	Entity * target = entities.player();
 	
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i])) {
 			Entity *toequip = entities[player.equiped[i]];
 
@@ -294,7 +294,8 @@ void ARX_EQUIPMENT_RecreatePlayerMesh() {
 }
 
 void ARX_EQUIPMENT_UnEquipAllPlayer() {
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i])) {
 			ARX_EQUIPMENT_UnEquip(entities.player(), entities[player.equiped[i]]);
 		}
@@ -306,7 +307,7 @@ void ARX_EQUIPMENT_UnEquipAllPlayer() {
 bool ARX_EQUIPMENT_IsPlayerEquip(Entity * _pIO) {
 	arx_assert(entities.player());
 	
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i])) {
 			Entity * toequip = entities[player.equiped[i]];
 
@@ -331,7 +332,7 @@ void ARX_EQUIPMENT_UnEquip(Entity * target, Entity * tounequip, long flags)
 	if(target != entities.player())
 		return;
 
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i]) && entities[player.equiped[i]] == tounequip) {
 			EERIE_LINKEDOBJ_UnLinkObjectFromObject(target->obj, tounequip->obj);
 			ARX_EQUIPMENT_Release(player.equiped[i]);
@@ -362,7 +363,7 @@ void ARX_EQUIPMENT_AttachPlayerWeaponToHand() {
 	arx_assert(entities.player());
 	Entity * target = entities.player();
 	
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i])) {
 			Entity *toequip = entities[player.equiped[i]];
 
@@ -381,7 +382,7 @@ void ARX_EQUIPMENT_AttachPlayerWeaponToBack() {
 	arx_assert(entities.player());
 	Entity * target = entities.player();
 	
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i])) {
 			Entity *toequip = entities[player.equiped[i]];
 
@@ -618,8 +619,6 @@ float ARX_EQUIPMENT_ComputeDamages(Entity * io_source, Entity * io_target, float
 			// Push the player
 			PUSH_PLAYER_FORCE += ppos * -dmgs * Vec3f(1.0f / 11, 1.0f / 30, 1.0f / 11);
 			
-			ppos *= 60.f;
-			ppos += ACTIVECAM->orgTrans.pos;
 			ARX_DAMAGES_DamagePlayer(dmgs, 0, io_source->index());
 			ARX_DAMAGES_DamagePlayerEquipment(dmgs);
 			
@@ -753,9 +752,13 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 							}
 
 							if(paralyse > 0.f) {
-								float ptime = std::min(dmgs * 1000.f, paralyse);
-								ARX_SPELLS_Launch(SPELL_PARALYSE, weapon, SPELLCAST_FLAG_NOMANA | SPELLCAST_FLAG_NOCHECKCANCAST
-												  , 5, content, (long)(ptime));
+								long ptime = long(std::min(dmgs * 1000.f, paralyse));
+								ARX_SPELLS_Launch(SPELL_PARALYSE,
+								                  weapon,
+								                  SPELLCAST_FLAG_NOMANA | SPELLCAST_FLAG_NOCHECKCANCAST,
+								                  5,
+								                  content,
+								                  ptime);
 							}
 						}
 
@@ -796,9 +799,9 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 							ARX_PARTICLES_Spawn_Blood2(pos, dmgs, color, target);
 						} else {
 							if(target->ioflags & IO_ITEM)
-								ARX_PARTICLES_Spawn_Spark(pos, Random::get(0, 3), 0);
+								ARX_PARTICLES_Spawn_Spark(pos, Random::getu(0, 3), SpawnSparkType_Default);
 							else
-								ARX_PARTICLES_Spawn_Spark(pos, Random::get(0, 30), 0);
+								ARX_PARTICLES_Spawn_Spark(pos, Random::getu(0, 30), SpawnSparkType_Default);
 
 							ARX_NPC_SpawnAudibleSound(pos, io_source);
 
@@ -806,34 +809,34 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 								HIT_SPARK = 1;
 						}
 					} else if((target->ioflags & IO_NPC) && (dmgs <= 0.f || target->spark_n_blood == SP_SPARKING)) {
-						int nb;
+						unsigned int nb;
 
 						if(target->spark_n_blood == SP_SPARKING)
-							nb = Random::get(0, 3);
+							nb = Random::getu(0, 3);
 						else
 							nb = 30;
 
 						if(target->ioflags & IO_ITEM)
 							nb = 1;
 
-						ARX_PARTICLES_Spawn_Spark(pos, nb, 0);
+						ARX_PARTICLES_Spawn_Spark(pos, nb, SpawnSparkType_Default);
 						ARX_NPC_SpawnAudibleSound(pos, io_source);
 						target->spark_n_blood = SP_SPARKING;
 
 						if(!(target->ioflags & IO_NPC))
 							HIT_SPARK = 1;
 					} else if(dmgs <= 0.f && ((target->ioflags & IO_FIX) || (target->ioflags & IO_ITEM))) {
-						int nb;
+						unsigned int nb;
 
 						if(target->spark_n_blood == SP_SPARKING)
-							nb = Random::get(0, 3);
+							nb = Random::getu(0, 3);
 						else
 							nb = 30;
 
 						if(target->ioflags & IO_ITEM)
 							nb = 1;
 
-						ARX_PARTICLES_Spawn_Spark(pos, nb, 0);
+						ARX_PARTICLES_Spawn_Spark(pos, nb, SpawnSparkType_Default);
 						ARX_NPC_SpawnAudibleSound(pos, io_source);
 						target->spark_n_blood = SP_SPARKING;
 
@@ -885,7 +888,7 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 				}
 			}
 
-			ARX_PARTICLES_Spawn_Spark(sphere.origin, Random::get(0, 10), 0);
+			ARX_PARTICLES_Spawn_Spark(sphere.origin, Random::getu(0, 10), SpawnSparkType_Default);
 			ARX_NPC_SpawnAudibleSound(sphere.origin, io_source);
 		}
 	}
@@ -1110,7 +1113,7 @@ float getEquipmentBaseModifier(EquipmentModifierType modifier, bool getRelative)
 	
 	float sum = 0;
 	
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i])) {
 			Entity * toequip = entities[player.equiped[i]];
 			if(toequip && (toequip->ioflags & IO_ITEM) && toequip->_itemdata->equipitem) {
@@ -1192,7 +1195,7 @@ void ARX_EQUIPMENT_SetEquip(Entity * io, bool special,
 void ARX_EQUIPMENT_IdentifyAll() {
 	arx_assert(entities.player());
 	
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i])) {
 			Entity * toequip = entities[player.equiped[i]];
 			

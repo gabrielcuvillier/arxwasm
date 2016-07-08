@@ -232,6 +232,26 @@ bool SpellManager::ExistAnyInstanceForThisCaster(SpellType typ, EntityHandle cas
 	return false;
 }
 
+SpellBase *SpellManager::getSpellByCaster(EntityHandle caster, SpellType type) {
+	
+	if(caster == EntityHandle())
+		return NULL;
+	
+	for(size_t i = 0; i < MAX_SPELLS; i++) {
+		SpellBase * spell = m_spells[i];
+		if(!spell)
+			continue;
+		
+		if(spell->m_type != type)
+			continue;
+		
+		if(spell->m_caster == caster)
+			return spell;
+	}
+	
+	return NULL;
+}
+
 SpellBase * SpellManager::getSpellOnTarget(EntityHandle target, SpellType type)
 {
 	if(target == EntityHandle())
@@ -489,7 +509,7 @@ void ARX_SPELLS_ManageMagic() {
 
 	snip++;
 
-	if(   !(player.Current_Movement & PLAYER_CROUCH)
+	if(   !(player.m_currentMovement & PLAYER_CROUCH)
 	   && !BLOCK_PLAYER_CONTROLS
 	   && GInput->actionPressed(CONTROLS_CUST_MAGICMODE)
 	   && !player.m_paralysed
@@ -528,16 +548,16 @@ void ARX_SPELLS_ManageMagic() {
 					pos = MemoMouse;
 				}
 				
-				unsigned long time = (unsigned long)(arxtime);
+				unsigned long now = arxtime.now_ul();
 				
 				const unsigned long interval = 1000 / 60;
 				
 				if(ARX_FLARES_broken) {
 					g_LastFlarePosition = pos;
-					g_LastFlareTime = time - interval;
+					g_LastFlareTime = now - interval;
 				}
 				
-				if(time - g_LastFlareTime >= interval) {
+				if(now - g_LastFlareTime >= interval) {
 					
 					if(glm::distance(Vec2f(pos), Vec2f(g_LastFlarePosition)) > 14 * g_sizeRatio.y) {
 						FlareLine(g_LastFlarePosition, pos);
@@ -549,7 +569,7 @@ void ARX_SPELLS_ManageMagic() {
 					else
 						AddFlare(pos, 1.f, 3);
 					
-					g_LastFlareTime = time - std::min(time - g_LastFlareTime - interval, interval);
+					g_LastFlareTime = now - std::min(now - g_LastFlareTime - interval, interval);
 				}
 				
 				ARX_FLARES_broken=0;
@@ -687,8 +707,12 @@ void ARX_SPELLS_CancelSpellTarget() {
 
 void ARX_SPELLS_LaunchSpellTarget(Entity * io) {
 	if(io) {
-		ARX_SPELLS_Launch(t_spell.typ, PlayerEntityHandle, t_spell.flags, t_spell.level,
-		                  io->index(), t_spell.duration);
+		ARX_SPELLS_Launch(t_spell.typ,
+		                  PlayerEntityHandle,
+		                  t_spell.flags,
+		                  t_spell.level,
+		                  io->index(),
+		                  t_spell.duration);
 	}
 }
 
@@ -935,7 +959,7 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 		case SPELL_SLOW_DOWN:
 		case SPELL_CONFUSE:
 		{
-			LOOKING_FOR_SPELL_TARGET_TIME	= (unsigned long)(arxtime);
+			LOOKING_FOR_SPELL_TARGET_TIME	= arxtime.now_ul();
 			LOOKING_FOR_SPELL_TARGET		= 1;
 			t_spell.typ						= typ;
 			t_spell.flags					= flags;
@@ -946,7 +970,7 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 		}			
 		case SPELL_ENCHANT_WEAPON:		
 		{
-			LOOKING_FOR_SPELL_TARGET_TIME	= (unsigned long)(arxtime);
+			LOOKING_FOR_SPELL_TARGET_TIME	= arxtime.now_ul();
 			LOOKING_FOR_SPELL_TARGET		= 2;
 			t_spell.typ						= typ;
 			t_spell.flags					= flags;
@@ -984,7 +1008,7 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 
 			ARX_SOUND_PlaySpeech("player_follower_attack");
 
-			LOOKING_FOR_SPELL_TARGET_TIME	= (unsigned long)(arxtime);
+			LOOKING_FOR_SPELL_TARGET_TIME	= arxtime.now_ul();
 			LOOKING_FOR_SPELL_TARGET		= 1;
 			t_spell.typ						= typ;
 			t_spell.flags					= flags;
@@ -1042,7 +1066,7 @@ bool ARX_SPELLS_Launch(SpellType typ, EntityHandle source, SpellcastFlags flags,
 	spell->m_level = spellLevel;
 	spell->m_flags = flags;
 	spell->m_type = typ;
-	spell->m_timcreation = (unsigned long)(arxtime);
+	spell->m_timcreation = arxtime.now_ul();
 	spell->m_fManaCostPerSecond = 0.f;
 	spell->m_launchDuration = duration;
 
@@ -1086,7 +1110,7 @@ void ARX_SPELLS_Update() {
 	
 	ucFlick++;
 	
-	const unsigned long tim = (unsigned long)(arxtime);
+	const unsigned long now = arxtime.now_ul();
 	
 	for(size_t u = 0; u < MAX_SPELLS; u++) {
 		SpellBase * spell = spells[SpellHandle(u)];
@@ -1098,12 +1122,12 @@ void ARX_SPELLS_Update() {
 		}
 		
 		if(   spell->m_hasDuration
-		   && !CanPayMana(spell, spell->m_fManaCostPerSecond * framedelay * (1.f/1000), false)
+		   && !CanPayMana(spell, spell->m_fManaCostPerSecond * g_framedelay * (1.f/1000), false)
 		) {
 			ARX_SPELLS_Fizzle(spell);
 		}
 		
-		const long framediff = spell->m_timcreation + spell->m_duration - tim;
+		const long framediff = spell->m_timcreation + spell->m_duration - now;
 		
 		if(framediff < 0) {
 			SPELLEND_Notify(*spell);
@@ -1114,7 +1138,7 @@ void ARX_SPELLS_Update() {
 		}
 
 		if(spell) {
-			spell->Update(framedelay);
+			spell->Update();
 		}
 	}
 }
@@ -1162,7 +1186,13 @@ void TryToCastSpell(Entity * io, SpellType spellType, long level, EntityHandle t
 		||	(io->spellcast_data.spell_flags & SPELLCAST_FLAG_PRECAST))	
 	{
 		
-		ARX_SPELLS_Launch(io->spellcast_data.castingspell, io->index(), io->spellcast_data.spell_flags,io->spellcast_data.spell_level,io->spellcast_data.target,io->spellcast_data.duration);
+		ARX_SPELLS_Launch(io->spellcast_data.castingspell,
+		                  io->index(),
+		                  io->spellcast_data.spell_flags,
+		                  io->spellcast_data.spell_level,
+		                  io->spellcast_data.target,
+		                  io->spellcast_data.duration);
+		
 		io->spellcast_data.castingspell = SPELL_NONE;
 	}
 

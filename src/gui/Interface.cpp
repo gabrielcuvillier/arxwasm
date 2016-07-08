@@ -127,7 +127,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "window/RenderWindow.h"
 
-extern float MagicSightFader;
+
 extern float Original_framedelay;
 extern EERIE_3DOBJ *arrowobj;
 
@@ -155,8 +155,6 @@ extern long DeadTime;
 
 extern bool WILLRETURNTOFREELOOK;
 
-extern Vec2s DANAEMouse;
-
 extern bool SHOW_INGAME_MINIMAP;
 
 //-----------------------------------------------------------------------------
@@ -182,7 +180,6 @@ Vec2f				BOOKDEC = Vec2f(0.f, 0.f);
 
 bool				PLAYER_MOUSELOOK_ON = false;
 bool				TRUE_PLAYER_MOUSELOOK_ON = false;
-bool				LAST_PLAYER_MOUSELOOK_ON = false;
 static bool MEMO_PLAYER_MOUSELOOK_ON = false;
 
 bool				COMBINEGOLD = false;
@@ -446,7 +443,7 @@ void InventoryOpenClose(unsigned long t) {
 
 		if(WILLRETURNTOFREELOOK) {
 			TRUE_PLAYER_MOUSELOOK_ON = true;
-			SLID_START=float(arxtime);
+			SLID_START = arxtime.now_f();
 			WILLRETURNTOFREELOOK = false;
 		}
 	} else {
@@ -552,7 +549,7 @@ void ResetPlayerInterface() {
 	player.Interface |= INTER_LIFE_MANA;
 	g_hudRoot.playerInterfaceFader.resetSlid();
 	lSLID_VALUE = 0;
-	SLID_START=float(arxtime);
+	SLID_START = arxtime.now_f();
 }
 
 static void ReleaseInfosCombine() {
@@ -900,7 +897,7 @@ void ARX_INTERFACE_Combat_Mode(long i) {
 
 			if(config.input.mouseLookToggle) {
 				TRUE_PLAYER_MOUSELOOK_ON = true;
-				SLID_START=float(arxtime);
+				SLID_START = arxtime.now_f();
 			}
 		}
 
@@ -978,12 +975,10 @@ void ArxGame::managePlayerControls() {
 
 	float MoveDiv;
 	
-	Vec3f tm = Vec3f_ZERO;
-	
 	// Checks STEALTH Key Status.
 	if(GInput->actionPressed(CONTROLS_CUST_STEALTHMODE)) {
 		MoveDiv=0.02f;
-		player.Current_Movement|=PLAYER_MOVE_STEALTH;
+		player.m_currentMovement |= PLAYER_MOVE_STEALTH;
 	} else {
 		MoveDiv=0.0333333f;
 	}
@@ -1043,7 +1038,7 @@ void ArxGame::managePlayerControls() {
 				}
 
 				if(!npc) {
-					MagicSightFader+=framedelay*( 1.0f / 200 );
+					MagicSightFader+=g_framedelay*( 1.0f / 200 );
 
 					if(MagicSightFader > 1.f)
 						MagicSightFader = 1.f;
@@ -1071,10 +1066,12 @@ void ArxGame::managePlayerControls() {
 				right = true;
 			}
 		}
-
+		
+		Vec3f tm = Vec3f_ZERO;
+		
 		// Checks WALK_BACKWARD Key Status.
 		if(GInput->actionPressed(CONTROLS_CUST_WALKBACKWARD) && !NOMOREMOVES) {
-			CurrFightPos=3;
+			player.m_strikeDirection=3;
 			float multi = 1;
 
 			if(left || right) {
@@ -1089,17 +1086,18 @@ void ArxGame::managePlayerControls() {
 				tm.y -= std::sin(t) * multi;
 			}
 
-			player.Current_Movement|=PLAYER_MOVE_WALK_BACKWARD;
+			player.m_currentMovement |= PLAYER_MOVE_WALK_BACKWARD;
 
-			if (GInput->actionNowPressed(CONTROLS_CUST_WALKBACKWARD) )
+			if(GInput->actionNowPressed(CONTROLS_CUST_WALKBACKWARD)) {
 				MOVE_PRECEDENCE=PLAYER_MOVE_WALK_BACKWARD;
-		}
-		else if(MOVE_PRECEDENCE == PLAYER_MOVE_WALK_BACKWARD)
+			}
+		} else if(MOVE_PRECEDENCE == PLAYER_MOVE_WALK_BACKWARD) {
 			MOVE_PRECEDENCE = 0;
+		}
 
 		// Checks WALK_FORWARD Key Status.
 		if(GInput->actionPressed(CONTROLS_CUST_WALKFORWARD) && !NOMOREMOVES) {
-			CurrFightPos=2;
+			player.m_strikeDirection=2;
 			float multi = 1;
 
 			if(left || right) {
@@ -1114,41 +1112,44 @@ void ArxGame::managePlayerControls() {
 				tm.y += std::sin(t) * multi;
 			}
 
-			player.Current_Movement|=PLAYER_MOVE_WALK_FORWARD;
+			player.m_currentMovement |= PLAYER_MOVE_WALK_FORWARD;
 
-			if(GInput->actionNowPressed(CONTROLS_CUST_WALKFORWARD))
+			if(GInput->actionNowPressed(CONTROLS_CUST_WALKFORWARD)) {
 				MOVE_PRECEDENCE=PLAYER_MOVE_WALK_FORWARD;
-		}
-		else if(MOVE_PRECEDENCE == PLAYER_MOVE_WALK_FORWARD)
+			}
+		} else if(MOVE_PRECEDENCE == PLAYER_MOVE_WALK_FORWARD) {
 			MOVE_PRECEDENCE = 0;
+		}
 
 		// Checks STRAFE_LEFT Key Status.
 		if(left && !NOMOREMOVES) {
-			CurrFightPos=0;
+			player.m_strikeDirection=0;
 			float multi = 6.f * FD * MoveDiv;
 			tm += angleToVectorXZ(player.angle.getPitch() + 90.f) * multi;
 			
-			player.Current_Movement|=PLAYER_MOVE_STRAFE_LEFT;
+			player.m_currentMovement |= PLAYER_MOVE_STRAFE_LEFT;
 
-			if (GInput->actionNowPressed(CONTROLS_CUST_STRAFELEFT) )
+			if(GInput->actionNowPressed(CONTROLS_CUST_STRAFELEFT)) {
 				MOVE_PRECEDENCE=PLAYER_MOVE_STRAFE_LEFT;
-		}
-		else if(MOVE_PRECEDENCE == PLAYER_MOVE_STRAFE_LEFT)
+			}
+		} else if(MOVE_PRECEDENCE == PLAYER_MOVE_STRAFE_LEFT) {
 			MOVE_PRECEDENCE = 0;
+		}
 
 		// Checks STRAFE_RIGHT Key Status.
 		if(right && !NOMOREMOVES) {
-			CurrFightPos=1;
+			player.m_strikeDirection=1;
 			float multi = 6.f * FD * MoveDiv;
 			tm += angleToVectorXZ(player.angle.getPitch() - 90.f) * multi;
 			
-			player.Current_Movement|=PLAYER_MOVE_STRAFE_RIGHT;
+			player.m_currentMovement |= PLAYER_MOVE_STRAFE_RIGHT;
 
-			if(GInput->actionNowPressed(CONTROLS_CUST_STRAFERIGHT))
+			if(GInput->actionNowPressed(CONTROLS_CUST_STRAFERIGHT)) {
 				MOVE_PRECEDENCE=PLAYER_MOVE_STRAFE_RIGHT;
-		}
-		else if(MOVE_PRECEDENCE == PLAYER_MOVE_STRAFE_RIGHT)
+			}
+		} else if(MOVE_PRECEDENCE == PLAYER_MOVE_STRAFE_RIGHT) {
 			MOVE_PRECEDENCE = 0;
+		}
 
 		g_moveto = player.pos + tm;
 	}
@@ -1159,7 +1160,7 @@ void ArxGame::managePlayerControls() {
 	}
 
 	if(GInput->actionPressed(CONTROLS_CUST_CROUCH) || bGCroucheToggle) {
-		player.Current_Movement |= PLAYER_CROUCH;
+		player.m_currentMovement |= PLAYER_CROUCH;
 	}
 
 	if(GInput->actionNowPressed(CONTROLS_CUST_UNEQUIPWEAPON)) {
@@ -1170,21 +1171,21 @@ void ArxGame::managePlayerControls() {
 	if(!(player.Interface & INTER_COMBATMODE)) {
 		// Checks LEAN_LEFT Key Status.
 		if(GInput->actionPressed(CONTROLS_CUST_LEANLEFT))
-			player.Current_Movement |= PLAYER_LEAN_LEFT;
+			player.m_currentMovement |= PLAYER_LEAN_LEFT;
 
 		// Checks LEAN_RIGHT Key Status.
 		if(GInput->actionPressed(CONTROLS_CUST_LEANRIGHT))
-			player.Current_Movement |= PLAYER_LEAN_RIGHT;
+			player.m_currentMovement |= PLAYER_LEAN_RIGHT;
 	}
 	
 	// Checks JUMP Key Status.
 	if(player.jumpphase == NotJumping && GInput->actionNowPressed(CONTROLS_CUST_JUMP)) {
-		REQUEST_JUMP = (unsigned long)(arxtime);
+		REQUEST_JUMP = arxtime.now_ul();
 	}
 	
 	// MAGIC
 	if(GInput->actionPressed(CONTROLS_CUST_MAGICMODE)) {
-		if(!(player.Current_Movement & PLAYER_CROUCH) && !BLOCK_PLAYER_CONTROLS && ARXmenu.currentmode == AMCM_OFF) {
+		if(!(player.m_currentMovement & PLAYER_CROUCH) && !BLOCK_PLAYER_CONTROLS && ARXmenu.currentmode == AMCM_OFF) {
 			if(!ARX_SOUND_IsPlaying(SND_MAGIC_AMBIENT))
 				ARX_SOUND_PlaySFX(SND_MAGIC_AMBIENT, NULL, 1.0F, ARX_SOUND_PLAY_LOOPED);
 		}
@@ -1331,7 +1332,7 @@ void ArxGame::managePlayerControls() {
 				MEMO_PLAYER_MOUSELOOK_ON=TRUE_PLAYER_MOUSELOOK_ON;
 				SPECIAL_DRAW_WEAPON=1;
 				TRUE_PLAYER_MOUSELOOK_ON = true;
-				SLID_START=float(arxtime);
+				SLID_START = arxtime.now_f();
 				ARX_INTERFACE_Combat_Mode(2);
 			}
 		}
@@ -1349,7 +1350,7 @@ void ArxGame::managePlayerControls() {
 				if(GInput->actionPressed(CONTROLS_CUST_FREELOOK)) {
 					if(!TRUE_PLAYER_MOUSELOOK_ON) {
 						TRUE_PLAYER_MOUSELOOK_ON = true;
-						SLID_START=float(arxtime);
+						SLID_START = arxtime.now_f();
 					}
 				} else {
 					TRUE_PLAYER_MOUSELOOK_ON = false;
@@ -1359,7 +1360,7 @@ void ArxGame::managePlayerControls() {
 					if(!TRUE_PLAYER_MOUSELOOK_ON) {
 						ARX_INTERFACE_BookClose();
 						TRUE_PLAYER_MOUSELOOK_ON = true;
-						SLID_START=float(arxtime);
+						SLID_START = arxtime.now_f();
 					} else {
 						TRUE_PLAYER_MOUSELOOK_ON = false;
 
@@ -1404,9 +1405,9 @@ void ArxGame::managePlayerControls() {
 	   && config.input.autoReadyWeapon
 	) {
 		if(eeMouseDown1()) {
-			COMBAT_MODE_ON_START_TIME = (unsigned long)(arxtime);
+			COMBAT_MODE_ON_START_TIME = arxtime.now_ul();
 		} else {
-			if(float(arxtime) - COMBAT_MODE_ON_START_TIME > 10) {
+			if(arxtime.now_f() - COMBAT_MODE_ON_START_TIME > 10) {
 				ARX_INTERFACE_Combat_Mode(1);
 			}
 		}
@@ -1456,7 +1457,7 @@ void ArxGame::managePlayerControls() {
 
 				if(config.input.mouseLookToggle) {
 					TRUE_PLAYER_MOUSELOOK_ON = true;
-					SLID_START=float(arxtime);
+					SLID_START = arxtime.now_f();
 				}
 			}
 		}
@@ -1473,7 +1474,7 @@ void ArxGame::managePlayerControls() {
 
 				if(config.input.mouseLookToggle) {
 					TRUE_PLAYER_MOUSELOOK_ON = true;
-					SLID_START=float(arxtime);
+					SLID_START = arxtime.now_f();
 				}
 			}
 		} else {
@@ -1509,7 +1510,7 @@ void ARX_INTERFACE_Reset()
 	g_hudRoot.playerInterfaceFader.resetSlid();
 	BLOCK_PLAYER_CONTROLS = false;
 	cinematicBorder.reset();
-	CINEMA_DECAL=0;
+	cinematicBorder.CINEMA_DECAL = 0;
 	g_hudRoot.quickSaveIconGui.hide();
 }
 
@@ -1546,7 +1547,7 @@ void ArxGame::manageKeyMouse() {
 		}
 
 		if(pIO && g_cursorOverBook) {
-			for(long i = 0; i < MAX_EQUIPED; i++) {
+			for(size_t i = 0; i < MAX_EQUIPED; i++) {
 				if(ValidIONum(player.equiped[i]) && entities[player.equiped[i]] == pIO) {
 					FlyingOverIO = pIO;
 				}
@@ -1651,14 +1652,16 @@ void ArxGame::manageKeyMouse() {
 	// Checks For MouseGrabbing/Restoration after Grab
 	bool bRestoreCoordMouse=true;
 
-	if(PLAYER_MOUSELOOK_ON && !LAST_PLAYER_MOUSELOOK_ON) {
+	static bool LAST_PLAYER_MOUSELOOK_ON = false;
+	bool mouselook = PLAYER_MOUSELOOK_ON && !BLOCK_PLAYER_CONTROLS;
+	if(mouselook && !LAST_PLAYER_MOUSELOOK_ON) {
 		
 		MemoMouse = DANAEMouse;
-		EERIEMouseGrab = true;
+		GInput->setMouseMode(Mouse::Relative);
 		
-	} else if(!PLAYER_MOUSELOOK_ON && LAST_PLAYER_MOUSELOOK_ON) {
+	} else if(!mouselook && LAST_PLAYER_MOUSELOOK_ON) {
 		
-		EERIEMouseGrab = false;
+		GInput->setMouseMode(Mouse::Absolute);
 		DANAEMouse = MemoMouse;
 		
 		if(mainApp->getWindow()->isFullScreen()) {
@@ -1668,10 +1671,19 @@ void ArxGame::manageKeyMouse() {
 		bRestoreCoordMouse=false;
 	}
 	
-	LAST_PLAYER_MOUSELOOK_ON=PLAYER_MOUSELOOK_ON;
+	LAST_PLAYER_MOUSELOOK_ON = mouselook;
 	PLAYER_ROTATION=0;
 
-	Vec2s mouseDiff = GInput->getMousePosRel();
+	Vec2f mouseDiff = Vec2f(GInput->getMousePosRel());
+	
+	if(config.input.mouseAcceleration > 0) {
+		Vec2f speed = mouseDiff / g_framedelay;
+		Vec2f sign(speed.x < 0 ? -1.f : 1.f, speed.y < 0 ? -1.f : 1.f);
+		float exponent = 1.f + config.input.mouseAcceleration * 0.05f;
+		speed.x = (std::pow(speed.x * sign.x + 1.f, exponent) - 1.f) * sign.x;
+		speed.y = (std::pow(speed.y * sign.y + 1.f, exponent) - 1.f) * sign.y;
+		mouseDiff = speed * g_framedelay;
+	}
 	
 	ARX_Menu_Manage();
 	
@@ -1685,108 +1697,148 @@ void ArxGame::manageKeyMouse() {
 
 		bool bKeySpecialMove=false;
 		
-		static Vec2i pushTime[2] = {Vec2i_ZERO, Vec2i_ZERO};
+		struct PushTime {
+			unsigned long turnLeft;
+			unsigned long turnRight;
+			unsigned long lookUp;
+			unsigned long lookDown;
+		};
+		
+		static PushTime pushTime = {0, 0, 0, 0};
 		
 		if(!GInput->actionPressed(CONTROLS_CUST_STRAFE)) {
-			float fTime = arxtime.get_updated();
-			int	iTime = checked_range_cast<int>(fTime);
+			arxtime.update();
+			const unsigned long now = arxtime.now_ul();
 
 			if(GInput->actionPressed(CONTROLS_CUST_TURNLEFT)) {
-				if(!pushTime[0].x)
-					pushTime[0].x = iTime;
+				if(!pushTime.turnLeft)
+					pushTime.turnLeft = now;
 
 				bKeySpecialMove = true;
 			}
 			else
-				pushTime[0].x = 0;
+				pushTime.turnLeft = 0;
 
 			if(GInput->actionPressed(CONTROLS_CUST_TURNRIGHT)) {
-				if(!pushTime[1].x)
-					pushTime[1].x = iTime;
+				if(!pushTime.turnRight)
+					pushTime.turnRight = now;
 
 				bKeySpecialMove = true;
 			}
 			else
-				pushTime[1].x = 0;
+				pushTime.turnRight = 0;
 		}
 
 		if(USE_PLAYERCOLLISIONS) {
-			float fTime = arxtime.get_updated();
-			int iTime = checked_range_cast<int>(fTime);
+			arxtime.update();
+			const unsigned long now = arxtime.now_ul();
 
 			if(GInput->actionPressed(CONTROLS_CUST_LOOKUP)) {
-				if(!pushTime[0].y)
-					pushTime[0].y = iTime;
+				if(!pushTime.lookUp)
+					pushTime.lookUp = now;
 
 				bKeySpecialMove = true;
 			}
 			else
-				pushTime[0].y = 0;
+				pushTime.lookUp = 0;
 
 			if(GInput->actionPressed(CONTROLS_CUST_LOOKDOWN)) {
-				if(!pushTime[1].y)
-					pushTime[1].y = iTime;
+				if(!pushTime.lookDown)
+					pushTime.lookDown = now;
 
 				bKeySpecialMove = true;
 			}
 			else
-				pushTime[1].y = 0;
+				pushTime.lookDown = 0;
 		}
 
 		if(bKeySpecialMove) {
-			if(pushTime[0].x || pushTime[1].x) {
-				if(pushTime[0].x < pushTime[1].x)
-					mouseDiff.x = 10;
+			if(pushTime.turnLeft || pushTime.turnRight) {
+				if(pushTime.turnLeft < pushTime.turnRight)
+					mouseDiff.x = 10.f;
 				else
-					mouseDiff.x = -10;
+					mouseDiff.x = -10.f;
 			} else {
-				mouseDiff.x = 0;
+				mouseDiff.x = 0.f;
 			}
 
-			if(pushTime[0].y || pushTime[1].y) {
-				if(pushTime[0].y < pushTime[1].y)
-					mouseDiff.y = 10;
+			if(pushTime.lookUp || pushTime.lookDown) {
+				if(pushTime.lookUp < pushTime.lookDown)
+					mouseDiff.y = 10.f;
 				else
-					mouseDiff.y = -10;
+					mouseDiff.y = -10.f;
 			} else {
-				mouseDiff.y = 0;
+				mouseDiff.y = 0.f;
 			}
-		} else {
+		} else if(config.input.borderTurning) {
+			
 			// Turn the player if the curser is close to the edges
-			if(config.input.borderTurning && bRenderInCursorMode && GInput->isMouseInWindow()) {
+			
+			bool dragging = GInput->getMouseButtonRepeat(Mouse::Button_0);
+			
+			static bool mouseInBorder = false;
+			static unsigned long mouseInBorderTime = 0;
+			
+			if(!bRenderInCursorMode || (!dragging && !GInput->isMouseInWindow())) {
+				mouseInBorder = false;
+			} else {
 				
-				static const int borderSize = 10;
+				int borderSize = 10;
+				unsigned long borderDelay = 100;
+				if(!dragging && !mainApp->getWindow()->isFullScreen()) {
+					borderSize = 50;
+					borderDelay = 200;
+				}
 				
 				int distLeft = DANAEMouse.x - g_size.left;
 				int distRight = g_size.right - DANAEMouse.x;
 				int distTop = DANAEMouse.y - g_size.top;
 				int distBottom = g_size.bottom - DANAEMouse.y;
 				
-				mouseDiff = Vec2s_ZERO;
+				if(g_secondaryInventoryHud.containsPos(DANAEMouse)
+				   || g_playerInventoryHud.containsPos(DANAEMouse)
+				   || (!dragging && distBottom < g_size.height() / 4 && distRight <= borderSize)
+				   || (!dragging && distTop <= 4 * borderSize && distRight <= 4 * borderSize)) {
+					borderSize = 2;
+					borderDelay = 600;
+				}
+				
+				mouseDiff = Vec2f_ZERO;
 				
 				if(distLeft < borderSize) {
 					float speed = 1.f - float(distLeft) / float(borderSize);
-					mouseDiff.x -= speed * framedelay;
-					bKeySpecialMove = true;
+					mouseDiff.x -= speed * g_framedelay;
 				}
 				
 				if(distRight < borderSize) {
 					float speed = 1.f - float(distRight) / float(borderSize);
-					mouseDiff.x += speed * framedelay;
-					bKeySpecialMove = true;
+					mouseDiff.x += speed * g_framedelay;
 				}
 				
 				if(distTop < borderSize) {
 					float speed = 1.f - float(distTop) / float(borderSize);
-					mouseDiff.y -= speed * framedelay;
-					bKeySpecialMove = true;
+					mouseDiff.y -= speed * g_framedelay;
 				}
 				
 				if(distBottom < borderSize) {
 					float speed = 1.f - float(distBottom) / float(borderSize);
-					mouseDiff.y += speed * framedelay;
+					mouseDiff.y += speed * g_framedelay;
+				}
+				
+				if(distLeft >= 3 * borderSize && distRight >= 3 * borderSize
+				   && distTop >= 3 * borderSize && distBottom >= 3 * borderSize) {
+					mouseInBorder = false;
+				} else if(!mouseInBorder) {
+					mouseInBorderTime = arxtime.now_ul();
+					mouseInBorder = true;
+				}
+				
+				if(borderDelay > 0 && arxtime.now_ul() - mouseInBorderTime < borderDelay) {
+					mouseDiff = Vec2f_ZERO;
+				} else {
 					bKeySpecialMove = true;
 				}
+				
 			}
 		}
 
@@ -1807,7 +1859,7 @@ void ArxGame::manageKeyMouse() {
 		mouseSensitivity *= (float)g_size.width() * ( 1.0f / 640 );
 		mouseSensitivity *= (1.0f / 5);
 		
-		Vec2f rotation = Vec2f(mouseDiff) * mouseSensitivity;
+		Vec2f rotation = mouseDiff * mouseSensitivity;
 		
 		if(config.input.invertMouse)
 			rotation.y *= -1.f;
@@ -1844,7 +1896,7 @@ void ArxGame::manageKeyMouse() {
 					entities.player()->animBlend.lastanimtime = 0;
 
 				if(rotation.x != 0.f)
-					player.Current_Movement|=PLAYER_ROTATE;
+					player.m_currentMovement |= PLAYER_ROTATE;
 
 				PLAYER_ROTATION = rotation.x;
 
@@ -1853,7 +1905,12 @@ void ArxGame::manageKeyMouse() {
 			}
 		}
 	}
+	
+	manageEntityDescription();
+}
 
+void ArxGame::manageEntityDescription() {
+	
 	if(   !BLOCK_PLAYER_CONTROLS
 	   && !(player.Interface & INTER_COMBATMODE)
 	   && !DRAGINTER
@@ -1933,8 +1990,8 @@ void ArxGame::manageEditorControls() {
 			dragThreshold = Vec2s_ZERO;
 		} else {
 			dragThreshold += GInput->getMousePosRel();
-			if((abs(DANAEMouse.x - STARTDRAG.x) > 2 && abs(DANAEMouse.y - STARTDRAG.y) > 2)
-			   || (abs(dragThreshold.x) > 2 || abs(dragThreshold.y) > 2)) {
+			if((std::abs(DANAEMouse.x - STARTDRAG.x) > 2 && std::abs(DANAEMouse.y - STARTDRAG.y) > 2)
+			   || (std::abs(dragThreshold.x) > 2 || std::abs(dragThreshold.y) > 2)) {
 				DRAGGING = true;
 			}
 		}
@@ -2092,11 +2149,13 @@ void ArxGame::manageEditorControls() {
 						io->velocity = Vec3f_ZERO;
 						io->stopped = 1;
 						
-						float y_ratio=(float)((float)DANAEMouse.y-(float)g_size.center().y)/(float)g_size.height()*2;
-						float x_ratio=-(float)((float)DANAEMouse.x-(float)g_size.center().x)/(float)g_size.center().x;
+						Vec2f centerOffset = Vec2f(DANAEMouse) - Vec2f(g_size.center());
+						Vec2f ratio;
+						ratio.y = centerOffset.y / g_size.height() * 2;
+						ratio.x = -centerOffset.x / g_size.center().x;
 						
-						Vec3f viewvector = angleToVector(player.angle + Anglef(0.f, x_ratio * 30.f, 0.f));
-						viewvector.y += y_ratio;
+						Vec3f viewvector = angleToVector(player.angle + Anglef(0.f, ratio.x * 30.f, 0.f));
+						viewvector.y += ratio.y;
 						
 						io->soundtime=0;
 						io->soundcount=0;
@@ -2148,7 +2207,7 @@ void ArxGame::manageEditorControls() {
 					   && light->exist
 					   && !fartherThan(light->pos, player.pos, fMaxdist)
 					   && !(light->extras & EXTRAS_NO_IGNIT)
-					   && light->m_screenRect.toRect().contains(Vec2f(DANAEMouse))
+					   && light->m_screenRect.contains(Vec2f(DANAEMouse))
 					   && (COMBINE->ioflags & IO_ITEM)
 					) {
 						if((COMBINE == player.torch) || (COMBINE->_itemdata->LightValue == 1)) {
@@ -2194,7 +2253,7 @@ void ArxGame::manageEditorControls() {
 				   && light->exist
 				   && !fartherThan(light->pos, player.pos, fMaxdist)
 				   && !(light->extras & EXTRAS_NO_IGNIT)
-				   && light->m_screenRect.toRect().contains(Vec2f(DANAEMouse))
+				   && light->m_screenRect.contains(Vec2f(DANAEMouse))
 				) {
 					SpecialCursor = CURSOR_INTERACTION_ON;
 				}

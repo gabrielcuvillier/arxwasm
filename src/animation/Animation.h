@@ -59,10 +59,9 @@ class Entity;
 struct EERIE_FRAME
 {
 	long		num_frame;
-	long		flag;
-	int			master_key_frame;
-	short		f_translate; //int
-	short		f_rotate; //int
+	bool  stepSound;
+	bool  f_translate;
+	bool  f_rotate;
 	float		time;
 	Vec3f	translate;
 	glm::quat	quat;
@@ -80,12 +79,20 @@ struct EERIE_GROUP
 struct EERIE_ANIM
 {
 	long		anim_time;
-	unsigned long	flag;
 	long		nb_groups;
 	long		nb_key_frames;
 	EERIE_FRAME *	frames;
 	EERIE_GROUP  *  groups;
 	unsigned char *	voidgroups;
+	
+	EERIE_ANIM()
+		: anim_time(0)
+		, nb_groups(0)
+		, nb_key_frames(0)
+		, frames(NULL)
+		, groups(NULL)
+		, voidgroups(NULL)
+	{ }
 };
 
 struct ANIM_HANDLE {
@@ -100,14 +107,14 @@ struct ANIM_HANDLE {
 
 // Animation playing flags
 enum AnimUseTypeFlag {
-	EA_LOOP			= 1,	// Must be looped at end (indefinitely...)
-	EA_REVERSE		= 2,	// Is played reversed (from end to start)
-	EA_PAUSED		= 4,	// Is paused
-	EA_ANIMEND		= 8,	// Has just finished
-	EA_STATICANIM	= 16,	// Is a static Anim (no movement offset returned).
-	EA_STOPEND		= 32,	// Must Be Stopped at end.
-	EA_FORCEPLAY	= 64,	// User controlled... MUST be played...
-	EA_EXCONTROL	= 128	// ctime externally set, no update.
+	EA_LOOP       = (1<<0),	// Must be looped at end (indefinitely...)
+	EA_REVERSE    = (1<<1),	// Is played reversed (from end to start)
+	EA_PAUSED     = (1<<2),	// Is paused
+	EA_ANIMEND    = (1<<3),	// Has just finished
+	EA_STATICANIM = (1<<4),	// Is a static Anim (no movement offset returned).
+	EA_STOPEND    = (1<<5),	// Must Be Stopped at end.
+	EA_FORCEPLAY  = (1<<6),	// User controlled... MUST be played...
+	EA_EXCONTROL  = (1<<7)	// ctime externally set, no update.
 };
 DECLARE_FLAGS(AnimUseTypeFlag, AnimUseType)
 DECLARE_FLAGS_OPERATORS(AnimUseType)
@@ -123,8 +130,8 @@ struct AnimLayer {
 		, flags(0)
 		, nextflags(0)
 		, lastframe(-1)
-		, pour(0.f)
-		, fr(0)
+		, currentInterpolation(0.f)
+		, currentFrame(0)
 	{}
 
 	ANIM_HANDLE * next_anim;
@@ -135,8 +142,8 @@ struct AnimLayer {
 	AnimUseType flags;
 	AnimUseType nextflags;
 	long lastframe;
-	float pour;
-	long fr;
+	float currentInterpolation;
+	long currentFrame;
 };
 
 /*!

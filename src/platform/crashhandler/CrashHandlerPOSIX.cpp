@@ -165,7 +165,7 @@ static fs::path getCoreDumpFile() {
 	}
 	
 	
-	bool hasPID;
+	bool hasPID = false;
 	std::ostringstream oss;
 	size_t start = 0;
 	while(start < pattern.length()) {
@@ -306,7 +306,7 @@ bool CrashHandlerPOSIX::initialize() {
 	m_pCrashInfo->coreDumpFile[0] = '\0';
 	fs::path core = getCoreDumpFile();
 	if(!core.empty() && core.string().length() < size_t(boost::size(m_pCrashInfo->coreDumpFile))) {
-		std::strcpy(m_pCrashInfo->coreDumpFile, core.string().c_str());
+		util::storeStringTerminated(m_pCrashInfo->coreDumpFile, core.string());
 		#if ARX_HAVE_SETRLIMIT
 		struct rlimit core_limit;
 		core_limit.rlim_cur = RLIM_INFINITY;
@@ -449,6 +449,15 @@ void CrashHandlerPOSIX::handleCrash(int signal, void * info, void * context) {
 		m_pCrashInfo->hasAddress = true;
 		m_pCrashInfo->stack = ctx->uc_mcontext.gregs[REG_RSP];
 		m_pCrashInfo->hasStack = true;
+		#elif ARX_ARCH == ARX_ARCH_ARM
+		m_pCrashInfo->address =  ctx->uc_mcontext.arm_pc;
+		m_pCrashInfo->hasAddress = true;
+		m_pCrashInfo->stack =  ctx->uc_mcontext.arm_sp;
+		m_pCrashInfo->hasStack = true;
+		m_pCrashInfo->frame = ctx->uc_mcontext.arm_fp;
+		m_pCrashInfo->hasFrame = true;
+		#else
+		ARX_UNUSED(ctx);
 		#endif
 	}
 	#else

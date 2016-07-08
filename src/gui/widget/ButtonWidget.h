@@ -37,11 +37,15 @@ public:
 	void SetPos(Vec2f pos);
 	void AddText(const std::string & label);
 	bool OnMouseClick();
-	void Update(int time);
+	void Update();
 	void Render();
 	void RenderMouseOver();
 	
 	boost::function<void()> clicked;
+	
+	virtual WidgetType type() const {
+		return WidgetType_Button;
+	};
 	
 private:
 	Vec2f m_pos;

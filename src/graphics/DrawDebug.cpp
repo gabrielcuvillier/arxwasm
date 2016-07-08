@@ -105,12 +105,9 @@ void drawDebugCycleViews() {
 	}
 }
 
-static void drawDebugBoundingBox(const EERIE_2D_BBOX & box, Color color = Color::white) {
+static void drawDebugBoundingBox(const Rectf & box, Color color = Color::white) {
 	if(box.valid()) {
-		drawLine2D(box.min.x, box.min.y, box.max.x, box.min.y, 0.01f, color);
-		drawLine2D(box.max.x, box.min.y, box.max.x, box.max.y, 0.01f, color);
-		drawLine2D(box.max.x, box.max.y, box.min.x, box.max.y, 0.01f, color);
-		drawLine2D(box.min.x, box.max.y, box.min.x, box.min.y, 0.01f, color);
+		drawLineRectangle(box, 0.01f, color);
 	}
 }
 
@@ -129,7 +126,7 @@ static void drawDebugLights() {
 		}
 		
 		TexturedVertex center;
-		EE_RTP(light->pos, &center);
+		EE_RTP(light->pos, center);
 		
 		const Rect mouseTestRect(
 		center.p.x - 20,
@@ -483,7 +480,7 @@ static void drawDebugEntities() {
 		}
 		
 		if(visible) {
-			drawDebugBoundingBox(entity->bbox2D, Color::blue);
+			drawDebugBoundingBox(entity->bbox2D.toRect(), Color::blue);
 		}
 		
 		if(closerThan(entity->pos, player.pos, DebugTextMaxDistance)) {
@@ -717,7 +714,7 @@ static void drawDebugMaterials() {
 				TexturedVertex tv;
 				tv.p = EE_RT(ep->v[i].p);
 				valid = valid && (tv.p.z > 0.000001f);
-				EE_P(&tv.p, &tv);
+				EE_P(tv.p, tv);
 				bvalid = bvalid || (tv.p.x >= g_size.left && tv.p.x < g_size.right
 				                 && tv.p.y >= g_size.top && tv.p.y < g_size.bottom);
 				p[i] = tv.p;
@@ -751,13 +748,13 @@ static void drawDebugMaterials() {
 		
 		GRenderer->SetRenderState(Renderer::DepthTest, false);
 		
-		drawLine2D(pp[0], pp[1], 0.1f, Color::magenta);
-		drawLine2D(pp[2], pp[0], 0.1f, Color::magenta);
+		drawLine(pp[0], pp[1], 0.1f, Color::magenta);
+		drawLine(pp[2], pp[0], 0.1f, Color::magenta);
 		if(count == 4) {
-			drawLine2D(pp[2], pp[3], 0.1f, Color::magenta);
-			drawLine2D(pp[3], pp[1], 0.1f, Color::magenta);
+			drawLine(pp[2], pp[3], 0.1f, Color::magenta);
+			drawLine(pp[3], pp[1], 0.1f, Color::magenta);
 		} else {
-			drawLine2D(pp[1], pp[2], 0.1f, Color::magenta);
+			drawLine(pp[1], pp[2], 0.1f, Color::magenta);
 		}
 		
 		Vec2f c = Vec2f(0.f);
@@ -852,7 +849,7 @@ struct DebugRay {
 std::vector<DebugRay> debugRays;
 
 void debug::drawRay(Vec3f start, Vec3f dir, Color color, float duration) {
-	DebugRay ray = DebugRay(start, dir, color, float(arxtime) + duration * 1000);
+	DebugRay ray = DebugRay(start, dir, color, arxtime.now_f() + duration * 1000);
 	debugRays.push_back(ray);
 }
 
@@ -862,10 +859,10 @@ static void updateAndRenderDebugDrawables() {
 		drawLine(ray.start, ray.dir, ray.color);
 	}
 	
-	float currentTime = float(arxtime);
+	float now = arxtime.now_f();
 	
 	for(size_t i = 0; i < debugRays.size(); i++) {
-		if(debugRays[i].expiration < currentTime) {
+		if(debugRays[i].expiration < now) {
 			std::swap(debugRays[i], debugRays.back());
 			debugRays.pop_back();
 			i--;

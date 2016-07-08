@@ -41,49 +41,51 @@
 #include "graphics/data/TextureContainer.h"
 #include "graphics/particle/ParticleEffects.h"
 
-extern Rect g_size;
 
 long passwall = 0;
 long cur_mx=0;
-long cur_pnux=0;
+static long cur_pnux = 0;
 long cur_pom=0;
 long cur_rf=0;
 long cur_mr=0;
-long cur_sm=0;
-long cur_bh=0;
+static long cur_sm = 0;
+static long cur_bh = 0;
 
 long sp_arm=0;
-long cur_arm=0;
-long cur_sos=0;
+static long cur_arm = 0;
+static long cur_sos = 0;
 
 long cur_mega=0;
-unsigned long sp_max_start = 0;
+static unsigned long sp_max_start = 0;
 long sp_wep=0;
 short uw_mode=0;
 
-short uw_mode_pos=0;
+static short uw_mode_pos = 0;
 
 long sp_max = 0;
 
-float sp_max_y[64];
-Color sp_max_col[64];
-std::string sp_max_ch;
+static float sp_max_y[64];
+static Color sp_max_col[64];
+static std::string sp_max_ch;
 
-void Manage_sp_max() {
+void CheatDrawText() {
+	
+	if(!sp_max_start)
+		return;
+	
+	float elapsed = arxtime.now_f() - sp_max_start;
 
-	float v = float(arxtime) - sp_max_start;
-
-	if(sp_max_start != 0 && v < 20000) {
-		float modi = (20000 - v) * ( 1.0f / 2000 ) * ( 1.0f / 10 );
+	if(sp_max_start != 0 && elapsed < 20000) {
+		float modi = (20000 - elapsed) * ( 1.0f / 2000 ) * ( 1.0f / 10 );
 		float sizX = 16;
 		
 		Vec2f p = Vec2f(g_size.center());
-		p.x -= (float)sp_max_ch.length() * ( 1.0f / 2 ) * sizX;
+		p.x -= sp_max_ch.length() * ( 1.0f / 2 ) * sizX;
 		
 		for(size_t i = 0; i < sp_max_ch.length(); i++) {
-			Vec2f d = p + Vec2f(sizX * (float)i, sp_max_y[i]);
+			Vec2f d = p + Vec2f(sizX * i, sp_max_y[i]);
 			
-			sp_max_y[i] = std::sin(d.x + (float)float(arxtime) * ( 1.0f / 100 )) * 30.f * modi;
+			sp_max_y[i] = std::sin(d.x + arxtime.now_f() * ( 1.0f / 100 )) * 30.f * modi;
 			std::string tex(1, sp_max_ch[i]);
 
 			UNICODE_ARXDrawTextCenter(hFontInBook, d + Vec2f(-1,-1), tex, Color::none);
@@ -91,6 +93,12 @@ void Manage_sp_max() {
 			UNICODE_ARXDrawTextCenter(hFontInBook, d, tex, sp_max_col[i]);
 		}
 	}
+}
+
+static void DisplayCheatText(const char * text) {
+	sp_max_ch = text;
+	arxtime.update();
+	sp_max_start = arxtime.now_ul();
 }
 
 static void MakeSpCol() {
@@ -168,21 +176,19 @@ void CheatDetectionReset() {
 
 
 long BH_MODE = 0;
-void EERIE_OBJECT_SetBHMode()
+static void EERIE_OBJECT_SetBHMode()
 {
-	if (BH_MODE)
+	if(BH_MODE) {
 		BH_MODE=0;
-	else
-	{
+	} else {
 		BH_MODE=1;
 		MakeCoolFx(player.pos);
 		MakeSpCol();
-		sp_max_ch = "!!!_Super-Deformed_!!!";
-		sp_max_start = arxtime.get_updated_ul();
-			}
+		DisplayCheatText("!!!_Super-Deformed_!!!");
+	}
 }
 
-void ApplySPWep() {
+static void ApplySPWep() {
 
 	if(!sp_wep) {
 
@@ -201,22 +207,20 @@ void ApplySPWep() {
 			giveToPlayer(ioo);
 
 			MakeSpCol();
-			sp_max_ch = "!!!_Grosbillite_!!!";
-			sp_max_start = arxtime.get_updated_ul();
+			DisplayCheatText("!!!_Grosbillite_!!!");
 		}
 	}
 }
 
 
 
-void ApplyCurSOS() {
+static void ApplyCurSOS() {
 	MakeSpCol();
 	g_miniMap.reveal();
-	sp_max_ch = "!!!_Temple of Elemental Lavis_!!!";
-	sp_max_start = arxtime.get_updated_ul();
+	DisplayCheatText("!!!_Temple of Elemental Lavis_!!!");
 }
 
-void ApplySPBow() {
+static void ApplySPBow() {
 
 	ARX_SPSound();
 
@@ -233,12 +237,11 @@ void ApplySPBow() {
 		giveToPlayer(ioo);
 
 		MakeSpCol();
-		sp_max_ch = "!!!_Bow to Samy & Anne_!!!";
-		sp_max_start = arxtime.get_updated_ul();
+		DisplayCheatText("!!!_Bow to Samy & Anne_!!!");
 	}
 }
 
-void ApplySPArm() {
+static void ApplySPArm() {
 	ARX_SPSound();
 
 	res::path cls;
@@ -254,7 +257,6 @@ void ApplySPArm() {
 		break;
 		default:
 			return;
-		break;
 	}
 
 	Entity * ioo = AddItem(cls);
@@ -269,48 +271,44 @@ void ApplySPArm() {
 		giveToPlayer(ioo);
 
 		MakeSpCol();
-		sp_max_ch = "!! Toi aussi cherches les Cheats !!";
+		
+		const char * text = "!! Toi aussi cherches les Cheats !!";
 
 		switch (sp_arm)
 		{
 		case 0:
-			sp_max_ch = "------ZoliChapo------";
+			text = "------ZoliChapo------";
 		break;
 		case 1:
-			sp_max_ch = "-----TiteBottine-----";
+			text = "-----TiteBottine-----";
 		break;
 		case 2:
-			sp_max_ch = "-----Roooo-La-La-----";
+			text = "-----Roooo-La-La-----";
 		break;
 		default:
 			return;
-		break;
 		}
-		
-		sp_max_start = arxtime.get_updated_ul();
+		DisplayCheatText(text);
 	}
 
 	sp_arm++;
 }
 
-long SPECIAL_PNUX;
-void ApplyCurPNux() {
+static void ApplyCurPNux() {
 
 	MakeSpCol();
-	sp_max_ch = "! PhilNux & Gluonne !";
+	DisplayCheatText("! PhilNux & Gluonne !");
 
-	SPECIAL_PNUX = (SPECIAL_PNUX + 1) % 3;
+	player.m_cheatPnuxActive = (player.m_cheatPnuxActive + 1) % 3;
 
 	// TODO-RENDERING: Create a post-processing effect for that cheat... see original source...
 
 	cur_pnux=0;
-	sp_max_start = arxtime.get_updated_ul();
 }
 
-void ApplyPasswall() {
+static void ApplyPasswall() {
 	MakeSpCol();
-	sp_max_ch = "!!! PassWall !!!";
-	sp_max_start = arxtime.get_updated_ul();
+	DisplayCheatText("!!! PassWall !!!");
 
 	if(USE_PLAYERCOLLISIONS)
 		USE_PLAYERCOLLISIONS = false;
@@ -318,35 +316,32 @@ void ApplyPasswall() {
 		USE_PLAYERCOLLISIONS = true;
 }
 
-void ApplySPRf() {
+static void ApplySPRf() {
 	if(cur_rf == 3) {
 		MakeSpCol();
-		sp_max_ch = "!!! RaFMode !!!";
-		sp_max_start = arxtime.get_updated_ul();
+		DisplayCheatText("!!! RaFMode !!!");
 	}
 }
 
-void ApplyCurMr() {
+static void ApplyCurMr() {
 	if(cur_mr == 3) {
 		MakeSpCol();
-		sp_max_ch = "!!! Marianna !!!";
-		sp_max_start = arxtime.get_updated_ul();
+		DisplayCheatText("!!! Marianna !!!");
 	}
 }
 
-void ApplySPuw() {
+static void ApplySPuw() {
 	uw_mode_pos=0;
 	uw_mode=~uw_mode;
 	ARX_SOUND_PlayCinematic("menestrel_uw2", true);
 	MakeCoolFx(player.pos);
 	if(uw_mode) {
 		MakeSpCol();
-		sp_max_ch = "~-__-~~-__.U.W.__-~~-__-~";
-		sp_max_start = arxtime.get_updated_ul();
+		DisplayCheatText("~-__-~~-__.U.W.__-~~-__-~");
 	}
 }
 
-void ApplySPMax() {
+static void ApplySPMax() {
 
 	MakeCoolFx(player.pos);
 	sp_max=~sp_max;
@@ -354,8 +349,7 @@ void ApplySPMax() {
 	if (sp_max)
 	{
 		MakeSpCol();
-		sp_max_ch = "!!!_FaNt0mAc1e_!!!";
-		sp_max_start = arxtime.get_updated_ul();
+		DisplayCheatText("!!!_FaNt0mAc1e_!!!");
 
 			player.skin=4;
 
@@ -400,10 +394,193 @@ void CheckMr() {
 			size *= g_sizeRatio;
 			
 			Rectf rect = Rectf(pos, size.x, size.y);
+			Color3f color = Color3f::gray(0.5f + PULSATE * (1.0f/10));
 			
-			EERIEDrawBitmap(rect, 0.0001f, Mr_tc, Color3f::gray(0.5f + PULSATE * (1.0f/10)).to<u8>());
+			EERIEDrawBitmap(rect, 0.0001f, Mr_tc, color.to<u8>());
 		} else {
 			Mr_tc = TextureContainer::LoadUI("graph/particles/(fx)_mr");
+		}
+	}
+}
+
+
+void handleCheatRuneDetection(CheatRune rune) {
+	switch(rune) {
+		case CheatRune_KAOM: {
+			if(cur_arm >= 0 && (cur_arm & 1)){
+				cur_arm++;
+
+				if(cur_arm > 20)
+					ApplySPArm();
+			}
+			else
+				cur_arm=-1;
+			
+			break;
+		}
+		case CheatRune_MEGA: {
+			if(cur_arm >= 0 && !(cur_arm & 1))
+				cur_arm++;
+			else
+				cur_arm=-1;
+			
+			break;
+		}
+		case CheatRune_U: {
+			if(uw_mode_pos == 0)
+				uw_mode_pos++;
+			
+			break;
+		}
+		case CheatRune_W: {
+			if(uw_mode_pos == 1)
+				ApplySPuw();
+			
+			break;
+		}
+		case CheatRune_S: {
+			if(cur_sm == 0)
+				cur_sm++;
+
+			if(cur_bh == 0)
+				cur_bh++;
+
+			if(cur_bh == 2)
+				cur_bh++;
+
+			if(cur_sos == 0)
+				cur_sos++;
+
+			if(cur_sos == 2) {
+				cur_sos = 0;
+				ApplyCurSOS();
+			}
+			break;
+		}
+		case CheatRune_P: {
+			if(cur_pom == 0)
+				cur_pom++;
+
+			if(cur_pnux == 0)
+				cur_pnux++;
+
+			if(cur_pnux == 2)
+				cur_pnux++;
+
+			if(cur_bh == 1)
+				cur_bh++;
+
+			if(cur_bh == 3) {
+				cur_bh = 0;
+				EERIE_OBJECT_SetBHMode();
+			}
+			break;
+		}
+		case CheatRune_M: {
+			if(cur_sm == 2) {
+				cur_sm++;
+				ApplySPBow();
+			}
+
+			if(cur_mx == 0)
+				cur_mx = 1;
+
+			if(cur_mr == 0)
+				cur_mr = 1;
+
+			if(cur_pom == 2) {
+				cur_pom++;
+				ApplySPWep();
+			}
+			break;
+		}
+		case CheatRune_A: {
+			if(cur_mr == 1) {
+				cur_mr = 2;
+				MakeCoolFx(player.pos);
+			}
+
+			if(cur_mx == 1) {
+				cur_mx = 2;
+				MakeCoolFx(player.pos);
+			}
+
+			if(cur_rf == 1) {
+				cur_rf = 2;
+				MakeCoolFx(player.pos);
+			}
+
+			if(cur_sm == 1)
+				cur_sm++;
+			
+			break;
+		}
+		case CheatRune_X: {
+			if(cur_mx == 2) {
+				cur_mx = 3;
+				ApplySPMax();
+			}
+			break;
+		}
+		case CheatRune_26: {
+			if(cur_pnux == 1)
+				cur_pnux++;
+
+			if(cur_pnux == 3) {
+				cur_pnux++;
+				ApplyCurPNux();
+			}
+			break;
+		}
+		case CheatRune_O: {
+			if(cur_pom == 1)
+				cur_pom++;
+
+			if(cur_sos == 1)
+				cur_sos++;
+			
+			break;
+		}
+		case CheatRune_R: {
+			if(cur_mr == 2) {
+				cur_mr = 3;
+				MakeCoolFx(player.pos);
+				ApplyCurMr();
+			}
+
+			if(cur_rf == 0)
+				cur_rf = 1;
+			
+			break;
+		}
+		case CheatRune_F: {
+			if(cur_rf == 2) {
+				cur_rf = 3;
+				MakeCoolFx(player.pos);
+				ApplySPRf();
+			}
+			break;
+		}
+		case CheatRune_Passwall: {
+			passwall++;
+
+			if(passwall == 3) {
+				passwall=0;
+				ApplyPasswall();
+			}
+			break;
+		}
+		case CheatRune_ChangeSkin: {
+			player.skin++;
+
+			if(player.skin == 4 && Random::getf() < 0.9f)
+				player.skin++;
+
+			if(player.skin > 5)
+				player.skin = 0;
+
+			ARX_EQUIPMENT_RecreatePlayerMesh();
+			break;
 		}
 	}
 }

@@ -105,7 +105,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "physics/Collisions.h"
 #include "physics/Physics.h"
 
-#include "platform/Flags.h"
 #include "platform/Platform.h"
 #include "platform/profiler/Profiler.h"
 
@@ -759,7 +758,7 @@ bool ARX_NPC_SetStat(Entity& io, const std::string & statname, float value) {
 	} else if(statname == "tohit") {
 		io._npcdata->tohit = value < 0 ? 0 : value;
 	} else if(statname == "aimtime") {
-		io._npcdata->aimtime = value < 0 ? 0 : value;
+		io._npcdata->aimtime = value < 0 ? 0 : static_cast<unsigned int>(value);
 	} else if(statname == "life") {
 		io._npcdata->lifePool.max = io._npcdata->lifePool.current = value < 0 ? 0.0000001f : value;
 	} else if(statname == "mana") {
@@ -775,39 +774,6 @@ bool ARX_NPC_SetStat(Entity& io, const std::string & statname, float value) {
 	}
 	
 	return true;
-}
-
-extern Material CUR_COLLISION_MATERIAL;
-static Entity * PHYSICS_CURIO = NULL;
-
-void ARX_TEMPORARY_TrySound(float volume) {
-	
-	if(PHYSICS_CURIO) {
-		if(PHYSICS_CURIO->ioflags & IO_BODY_CHUNK)
-			return;
-
-		unsigned long at = (unsigned long)(arxtime);
-
-		if(at > PHYSICS_CURIO->soundtime) {
-
-			PHYSICS_CURIO->soundcount++;
-
-			if(PHYSICS_CURIO->soundcount < 5) {
-				long material;
-				if(EEIsUnderWater(PHYSICS_CURIO->pos))
-					material = MATERIAL_WATER;
-				else if(PHYSICS_CURIO->material)
-					material = PHYSICS_CURIO->material;
-				else
-					material = MATERIAL_STONE;
-
-				if(volume > 1.f)
-					volume = 1.f;
-
-				PHYSICS_CURIO->soundtime = at + (ARX_SOUND_PlayCollision(material, CUR_COLLISION_MATERIAL, volume, 1.f, PHYSICS_CURIO->pos, PHYSICS_CURIO) >> 4) + 50;
-			}
-		}
-	}
 }
 
 /*!
@@ -857,7 +823,7 @@ void ARX_NPC_ChangeMoveMode(Entity * io, MoveMode MOVEMODE) {
 static void ARX_NPC_ManagePoison(Entity * io) {
 	
 	float cp = io->_npcdata->poisonned;
-	cp *= ( 1.0f / 2 ) * framedelay * ( 1.0f / 1000 ) * ( 1.0f / 2 );
+	cp *= ( 1.0f / 2 ) * g_framedelay * ( 1.0f / 1000 ) * ( 1.0f / 2 );
 	float faster = 10.f - io->_npcdata->poisonned;
 
 	if(faster < 0.f)
@@ -957,7 +923,7 @@ void ARX_PHYSICS_Apply() {
 
 		if(   (io->ioflags & IO_ITEM)
 		   && (io->gameFlags & GFLAG_GOREEXPLODE)
-		   && float(arxtime) - io->animBlend.lastanimtime > 300
+		   && arxtime.now_f() - io->animBlend.lastanimtime > 300
 		   && io->obj
 		   && !io->obj->vertexlist.empty()
 		) {
@@ -987,7 +953,7 @@ void ARX_PHYSICS_Apply() {
 
 			if(io->ioflags & IO_NPC) {
 				const float LAVA_DAMAGE = 10.f;
-				float dmg = LAVA_DAMAGE * framedelay * (1.f/100);
+				float dmg = LAVA_DAMAGE * g_framedelay * (1.f/100);
 				ARX_DAMAGES_DamageNPC(io, dmg, EntityHandle(), false, NULL);
 			}
 		}
@@ -996,24 +962,24 @@ void ARX_PHYSICS_Apply() {
 		
 		if(io->obj && io->obj->pbox) {
 			io->gameFlags &= ~GFLAG_NOCOMPUTATION;
-
-			if(io->obj->pbox->active == 1) {
-				PHYSICS_CURIO = io;
-
-				ARX_PHYSICS_BOX_ApplyModel(io->obj->pbox, (float)framedelay, io->rubber, treatio[i].num);
+			
+			PHYSICS_BOX_DATA * pbox = io->obj->pbox;
+			
+			if(pbox->active == 1) {
+				ARX_PHYSICS_BOX_ApplyModel(pbox, g_framedelay, io->rubber, io);
 				
 				if(io->soundcount > 12) {
 					io->soundtime = 0;
 					io->soundcount = 0;
-					for(long k = 0; k < io->obj->pbox->nb_physvert; k++) {
-						io->obj->pbox->vert[k].velocity = Vec3f_ZERO;
+					for(long k = 0; k < pbox->nb_physvert; k++) {
+						pbox->vert[k].velocity = Vec3f_ZERO;
 					}
-					io->obj->pbox->active = 2;
-					io->obj->pbox->stopcount = 0;
+					pbox->active = 2;
+					pbox->stopcount = 0;
 				}
 				
 				io->requestRoomUpdate = true;
-				io->pos = io->obj->pbox->vert[0].pos;
+				io->pos = pbox->vert[0].pos;
 				
 				continue;
 			}
@@ -1045,8 +1011,8 @@ void ARX_PHYSICS_Apply() {
 
 		if(io->ioflags & IO_NPC) {
 			ARX_PROFILE(IO_NPC);
-			if(io->_npcdata->climb_count != 0.f && framedelay > 0) {
-				io->_npcdata->climb_count -= MAX_ALLOWED_PER_SECOND * (float)framedelay * ( 1.0f / 1000 );
+			if(io->_npcdata->climb_count != 0.f && g_framedelay > 0) {
+				io->_npcdata->climb_count -= MAX_ALLOWED_PER_SECOND * g_framedelay * ( 1.0f / 1000 );
 
 				if(io->_npcdata->climb_count < 0)
 					io->_npcdata->climb_count = 0.f;
@@ -1114,7 +1080,7 @@ void FaceTarget2(Entity * io)
 	if(tt == 0)
 		return;
 
-	float rot = 0.33f * framedelay; 
+	float rot = 0.33f * g_framedelay; 
 
 	if(glm::abs(tt) < rot)
 		rot = glm::abs(tt);
@@ -1166,7 +1132,7 @@ void StareAtTarget(Entity * io)
 	if(io->target.x - tv.x == 0 && io->target.z - tv.z == 0)
 		return;
 
-	float rot = 0.27f * framedelay;
+	float rot = 0.27f * g_framedelay;
 	float alpha = MAKEANGLE(io->angle.getPitch());
 	float beta = -io->head_rot; 
 	float pouet = MAKEANGLE(180.f + glm::degrees(getAngle(io->target.x, io->target.z, tv.x, tv.z)));
@@ -1256,9 +1222,6 @@ bool IsDeadNPC(Entity * io) {
 	return (io->_npcdata->lifePool.current <= 0 || io->mainevent == "dead");
 }
 
-
-extern float STRIKE_AIMTIME;
-
 /*!
  * \brief Checks if Player is currently striking.
  * \return
@@ -1274,7 +1237,7 @@ static bool IsPlayerStriking() {
 	switch(weapontype) {
 	case WEAPON_BARE:
 		for(long j = 0; j < 4; j++) {
-			if(STRIKE_AIMTIME > 300 && layer1.cur_anim == io->anims[ANIM_BARE_STRIKE_LEFT_CYCLE+j*3])
+			if(player.m_strikeAimRatio > 300 && layer1.cur_anim == io->anims[ANIM_BARE_STRIKE_LEFT_CYCLE+j*3])
 				return true;
 
 			if(layer1.cur_anim == io->anims[ANIM_BARE_STRIKE_LEFT+j*3])
@@ -1283,7 +1246,7 @@ static bool IsPlayerStriking() {
 		break;
 	case WEAPON_DAGGER:
 		for(long j = 0; j < 4; j++) {
-			if(STRIKE_AIMTIME > 300 && layer1.cur_anim == io->anims[ANIM_DAGGER_STRIKE_LEFT_CYCLE+j*3])
+			if(player.m_strikeAimRatio > 300 && layer1.cur_anim == io->anims[ANIM_DAGGER_STRIKE_LEFT_CYCLE+j*3])
 				return true;
 
 			if(layer1.cur_anim == io->anims[ANIM_DAGGER_STRIKE_LEFT+j*3])
@@ -1292,7 +1255,7 @@ static bool IsPlayerStriking() {
 		break;
 	case WEAPON_1H:
 		for(long j = 0; j < 4; j++) {
-			if(STRIKE_AIMTIME > 300 && layer1.cur_anim == io->anims[ANIM_1H_STRIKE_LEFT_CYCLE+j*3])
+			if(player.m_strikeAimRatio > 300 && layer1.cur_anim == io->anims[ANIM_1H_STRIKE_LEFT_CYCLE+j*3])
 				return true;
 
 			if(layer1.cur_anim == io->anims[ANIM_1H_STRIKE_LEFT+j*3])
@@ -1301,7 +1264,7 @@ static bool IsPlayerStriking() {
 		break;
 	case WEAPON_2H:
 		for(long j = 0; j < 4; j++) {
-			if(STRIKE_AIMTIME > 300 && layer1.cur_anim == io->anims[ANIM_2H_STRIKE_LEFT_CYCLE+j*3])
+			if(player.m_strikeAimRatio > 300 && layer1.cur_anim == io->anims[ANIM_2H_STRIKE_LEFT_CYCLE+j*3])
 				return true;
 
 			if(layer1.cur_anim == io->anims[ANIM_2H_STRIKE_LEFT+j*3])
@@ -1536,7 +1499,7 @@ static const int STRIKE_DISTANCE = 220;
  */
 static void ARX_NPC_Manage_Anims(Entity * io, float TOLERANCE) {
 	
-	io->_npcdata->strike_time += (short)framedelay;
+	io->_npcdata->strike_time += (short)g_framedelay;
 	
 	AnimLayer & layer0 = io->animlayer[0];
 	AnimLayer & layer1 = io->animlayer[1];
@@ -1642,7 +1605,7 @@ static void ARX_NPC_Manage_Anims(Entity * io, float TOLERANCE) {
 		if(isCurrentAnimation(io, 1, ANIM_BARE_WAIT)
 			 && (io->_npcdata->behavior & BEHAVIOUR_FIGHT)
 			 && tdist < square(STRIKE_DISTANCE) && io->_npcdata->strike_time > 0) {
-			size_t j = Random::get(0, 3); // Choose a random attack move
+			size_t j = Random::getu(0, 3); // Choose a random attack move
 			changeAnimation(io, 1, AnimationNumber(ANIM_BARE_STRIKE_LEFT_START + j * 3));
 		}
 		
@@ -1656,12 +1619,12 @@ static void ARX_NPC_Manage_Anims(Entity * io, float TOLERANCE) {
 				
 				io->ioflags &= ~IO_HIT;
 				changeAnimation(io, 1, cycle, EA_LOOP);
-				io->_npcdata->aiming_start = long(arxtime);
+				io->_npcdata->aiming_start = arxtime.now_ul();
 				
 			} else if(isCurrentAnimation(io, 1, cycle)) {
 				
-				float elapsed = float(arxtime) - float(io->_npcdata->aiming_start);
-				float aimtime = io->_npcdata->aimtime;
+				unsigned long elapsed = arxtime.now_ul() - io->_npcdata->aiming_start;
+				unsigned int aimtime = io->_npcdata->aimtime;
 				if((elapsed > aimtime || (elapsed > aimtime * 0.5f && Random::getf() > 0.9f))
 				    && tdist < square(STRIKE_DISTANCE)) {
 					changeAnimation(io, 1, strike);
@@ -1744,7 +1707,7 @@ static void ARX_NPC_Manage_Anims(Entity * io, float TOLERANCE) {
 			
 			if(isCurrentAnimation(io, 1, ready) && (io->_npcdata->behavior & BEHAVIOUR_FIGHT)
 				 && tdist < square(STRIKE_DISTANCE) && io->_npcdata->strike_time > 0) {
-				size_t j = Random::get(0, 3); // Choose a random attack move
+				size_t j = Random::getu(0, 3); // Choose a random attack move
 				changeAnimation(io, 1, AnimationNumber(ANIM_1H_STRIKE_LEFT_START + j * 3 + wtype));
 			}
 			
@@ -1757,12 +1720,12 @@ static void ARX_NPC_Manage_Anims(Entity * io, float TOLERANCE) {
 				if(isCurrentAnimation(io, 1, start) && (layer1.flags & EA_ANIMEND)) {
 					
 					changeAnimation(io, 1, cycle, EA_LOOP);
-					io->_npcdata->aiming_start = long(arxtime);
+					io->_npcdata->aiming_start = arxtime.now_ul();
 					
 				} else if(isCurrentAnimation(io, 1, cycle)) {
 					
-					float elapsed = float(arxtime) - float(io->_npcdata->aiming_start);
-					float aimtime = io->_npcdata->aimtime;
+					unsigned long elapsed = arxtime.now_ul() - io->_npcdata->aiming_start;
+					unsigned int aimtime = io->_npcdata->aimtime;
 					if((elapsed > aimtime || (elapsed > aimtime * 0.5f && Random::getf() > 0.9f))
 					   && tdist < square(STRIKE_DISTANCE)) {
 						changeAnimation(io, 1, strike);
@@ -1889,11 +1852,11 @@ static void ComputeTolerance(Entity * io, EntityHandle targ, float * dst) {
 
 		// if target is a marker set to a minimal tolerance
 		if(entities[targ]->ioflags & IO_MARKER)
-			TOLERANCE = 21.f + (float)io->_npcdata->moveproblem * ( 1.0f / 10 );
+			TOLERANCE = 21.f + io->_npcdata->moveproblem * ( 1.0f / 10 );
 	}
 
 	// Tolerance is modified by current moveproblem status
-	TOLERANCE += (float)io->_npcdata->moveproblem * ( 1.0f / 10 );
+	TOLERANCE += io->_npcdata->moveproblem * ( 1.0f / 10 );
 	// Now fill our return value with TOLERANCE
 	*dst = TOLERANCE;
 }
@@ -1978,7 +1941,7 @@ static void ManageNPCMovement(Entity * io)
 			if(!io->_npcdata->pathfind.pathwait) {
 				if(io->_npcdata->pathfind.flags & PATHFIND_NO_UPDATE) {
 					io->_npcdata->reachedtarget = 1;
-					io->_npcdata->reachedtime = (unsigned long)(arxtime);//treat warning C4244 conversion from 'float' to 'unsigned long'
+					io->_npcdata->reachedtime = arxtime.now_ul();
 
 					if(io->targetinfo != io->index())
 						SendIOScriptEvent(io, SM_REACHEDTARGET);
@@ -2076,7 +2039,7 @@ static void ManageNPCMovement(Entity * io)
 
 				for(long n = 0; n < 4; n++) {
 					float t = 1.5f - (float)n * ( 1.0f / 5 );
-					extraRotation->group_rotate[n].setPitch(extraRotation->group_rotate[n].getPitch() + io->_npcdata->look_around_inc * framedelay * t);
+					extraRotation->group_rotate[n].setPitch(extraRotation->group_rotate[n].getPitch() + io->_npcdata->look_around_inc * g_framedelay * t);
 				}
 
 				if(extraRotation->group_rotate[0].getPitch() > 30)
@@ -2226,7 +2189,7 @@ static void ManageNPCMovement(Entity * io)
 			} else if(layer0.cur_anim == alist[ANIM_WALK] || layer0.cur_anim == alist[ANIM_RUN]
 			          || layer0.cur_anim == alist[ANIM_WALK_SNEAK]) {
 				layer0.flags &= ~EA_LOOP;
-				if(io->_npcdata->reachedtime + 500 < float(arxtime)) {
+				if(io->_npcdata->reachedtime + 500 < arxtime.now_f()) {
 					changeAnimation(io, ANIM_DEFAULT, EA_LOOP, startAtBeginning);
 				}
 			}
@@ -2298,7 +2261,7 @@ static void ManageNPCMovement(Entity * io)
 	if(io->forcedmove == Vec3f_ZERO) {
 		ForcedMove = Vec3f_ZERO;
 	} else {
-		float dd = std::min(1.f, (float)framedelay * (1.0f / 6) / glm::length(io->forcedmove));
+		float dd = std::min(1.f, g_framedelay * (1.0f / 6) / glm::length(io->forcedmove));
 		ForcedMove = io->forcedmove * dd;
 	}
 
@@ -2319,7 +2282,7 @@ static void ManageNPCMovement(Entity * io)
 		float anything = CheckAnythingInCylinder(phys.cyl, io, CFLAG_JUST_TEST | CFLAG_NPC);
 
 		if(anything >= 0)
-			io->physics.targetpos.y = io->pos.y + (float)framedelay * 1.5f + ForcedMove.y;
+			io->physics.targetpos.y = io->pos.y + g_framedelay * 1.5f + ForcedMove.y;
 		else
 			io->physics.targetpos.y = io->pos.y + ForcedMove.y;
 
@@ -2430,7 +2393,7 @@ static void ManageNPCMovement(Entity * io)
 				   && (io->_npcdata->behavior & BEHAVIOUR_FIGHT)
 				   && layer0.cur_anim != alist[ANIM_RUN]
 				) {
-					float fCalc = io->_npcdata->walk_start_time + framedelay ;
+					float fCalc = io->_npcdata->walk_start_time + g_framedelay ;
 
 					io->_npcdata->walk_start_time = checked_range_cast<short>(fCalc);
 
@@ -2518,7 +2481,7 @@ static void ManageNPCMovement(Entity * io)
 						if(!io->_npcdata->reachedtarget) {
 							EntityHandle num = io->index();
 							io->_npcdata->reachedtarget = 1;
-							io->_npcdata->reachedtime = (unsigned long)(arxtime);
+							io->_npcdata->reachedtime = arxtime.now_ul();
 
 							if(io->targetinfo != num) {
 								SendIOScriptEvent(io, SM_REACHEDTARGET, "fake");
@@ -2541,7 +2504,7 @@ static void ManageNPCMovement(Entity * io)
 					EVENT_SENDER = NULL;
 
 				io->_npcdata->reachedtarget = 1;
-				io->_npcdata->reachedtime = (unsigned long)(arxtime);//treat warning C4244 conversion from 'float' to 'unsigned long'
+				io->_npcdata->reachedtime = arxtime.now_ul();
 
 				if(io->animlayer[1].flags & EA_ANIMEND)
 					io->animlayer[1].cur_anim = NULL;
@@ -2604,7 +2567,6 @@ static float AngularDifference(float a1, float a2) {
 	return ret;
 
 }
-extern float CURRENT_PLAYER_COLOR;
 
 /*!
  * \brief ARX_NPC_GetFirstNPCInSight
@@ -2654,7 +2616,8 @@ Entity * ARX_NPC_GetFirstNPCInSight(Entity * ioo)
 		Vec3f orgn, dest;
 
 		float ab = MAKEANGLE(ioo->angle.getPitch());
-
+		
+		{
 		long grp = ioo->obj->fastaccess.head_group_origin;
 
 		if(grp < 0) {
@@ -2662,20 +2625,23 @@ Entity * ARX_NPC_GetFirstNPCInSight(Entity * ioo)
 			
 			if(ioo == entities.player())
 				orgn.y = player.pos.y + 90.f;
+		} else {
+			orgn = ioo->obj->vertexlist3[grp].v;
 		}
-		else
-			orgn = GetVertexPos(ioo, ioo->obj->fastaccess.head_group_origin);
-
-		grp = io->obj->fastaccess.head_group_origin;
+		}
+		
+		{
+		long grp = io->obj->fastaccess.head_group_origin;
 
 		if(grp < 0) {
 			dest = io->pos + Vec3f(0.f, -90.f, 0.f);
 			
 			if(io == entities.player())
 				dest.y = player.pos.y + 90.f;
+		} else {
+			dest = io->obj->vertexlist3[grp].v;
 		}
-		else
-			dest = GetVertexPos(io, io->obj->fastaccess.head_group_origin);
+		}
 
 
 		float aa = getAngle(orgn.x, orgn.z, dest.x, dest.z);
@@ -2714,7 +2680,6 @@ Entity * ARX_NPC_GetFirstNPCInSight(Entity * ioo)
 
 	return found_io;
 }
-extern float CURRENT_PLAYER_COLOR;
 
 /*!
  * \brief Checks if a NPC is dead to prevent further Layers Animation
@@ -2945,7 +2910,7 @@ void ManageIgnition(Entity * io) {
 	} else if(io->obj && io->obj->fastaccess.fire != ActionPoint() && io->ignition > 0.f) {
 		
 		io->ignition = 25.f;
-		io->durability -= framedelay * ( 1.0f / 10000 );
+		io->durability -= g_framedelay * ( 1.0f / 10000 );
 		
 		if(io->durability <= 0.f) {
 			ARX_SOUND_PlaySFX(SND_TORCH_END, &io->pos);
@@ -2958,10 +2923,10 @@ void ManageIgnition(Entity * io) {
 			createFireParticles(pos, 2, 2);
 		}
 	} else {
-		io->ignition -= framedelay * 0.01f;
+		io->ignition -= g_framedelay * 0.01f;
 		
 		if(addParticles && io->obj && !io->obj->facelist.empty()) {
-			float p = io->ignition * framedelay * 0.001f * io->obj->facelist.size() * 0.001f * 2.f;
+			float p = io->ignition * g_framedelay * 0.001f * io->obj->facelist.size() * 0.001f * 2.f;
 			int positions = std::min(int(std::ceil(p)), 10);
 			
 			createObjFireParticles(io->obj, positions, 6, 180);

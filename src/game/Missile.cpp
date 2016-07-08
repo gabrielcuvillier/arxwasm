@@ -61,7 +61,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "math/Random.h"
 #include "math/Vector.h"
 
-#include "platform/Flags.h"
 #include "platform/profiler/Profiler.h"
 
 #include "scene/Light.h"
@@ -142,7 +141,7 @@ void ARX_MISSILES_Spawn(Entity * io, ARX_SPELLS_MISSILE_TYPE type, const Vec3f &
 
 	dist = 1.0F / fdist(startpos, targetpos);
 	missiles[i].velocity = (targetpos - startpos) * dist;
-	missiles[i].lastupdate = missiles[i].timecreation = (unsigned long)(arxtime);
+	missiles[i].lastupdate = missiles[i].timecreation = arxtime.now_ul();
 
 	switch (type)
 	{
@@ -179,20 +178,20 @@ void ARX_MISSILES_Update() {
 	
 	TextureContainer * tc = TC_fire; 
 
-	unsigned long tim = (unsigned long)(arxtime);
+	unsigned long now = arxtime.now_ul();
 
 	for(unsigned long i(0); i < MAX_MISSILES; i++) {
 		if(missiles[i].type == MISSILE_NONE)
 			continue;
 
-		long framediff = missiles[i].timecreation + missiles[i].tolive - tim;
+		long framediff = missiles[i].timecreation + missiles[i].tolive - now;
 
 		if(framediff < 0) {
 			ARX_MISSILES_Kill(i);
 			continue;
 		}
 
-		long framediff3 = tim - missiles[i].timecreation;
+		long framediff3 = now - missiles[i].timecreation;
 
 		switch(missiles[i].type) {
 			case MISSILE_NONE:
@@ -272,7 +271,7 @@ void ARX_MISSILES_Update() {
 					pd->ov = pos;
 					pd->move = missiles[i].velocity;
 					pd->move += Vec3f(3.f, 4.f, 3.f) + Vec3f(-6.f, -12.f, -6.f) * randomVec3f();
-					pd->tolive = Random::get(500, 1000);
+					pd->tolive = Random::getu(500, 1000);
 					pd->tc = tc;
 					pd->siz = 12.f * float(missiles[i].tolive - framediff3) * (1.f / 4000);
 					pd->scale = randomVec(15.f, 20.f);
@@ -285,6 +284,6 @@ void ARX_MISSILES_Update() {
 			}
 		}
 
-		missiles[i].lastupdate = tim;
+		missiles[i].lastupdate = now;
 	}
 }

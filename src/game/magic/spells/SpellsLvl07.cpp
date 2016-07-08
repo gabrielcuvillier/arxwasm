@@ -21,6 +21,7 @@
 
 #include <glm/gtc/random.hpp>
 
+#include "animation/AnimationRender.h"
 #include "core/Application.h"
 #include "core/Config.h"
 #include "core/Core.h"
@@ -99,7 +100,7 @@ void FlyingEyeSpell::Launch()
 		pd->ov = eyeball.pos + randomVec(-5.f, 5.f);
 		pd->move = randomVec(-2.f, 2.f);
 		pd->siz = 28.f;
-		pd->tolive = Random::get(2000, 6000);
+		pd->tolive = Random::getu(2000, 6000);
 		pd->scale = Vec3f(12.f);
 		pd->tc = tc4;
 		pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
@@ -108,7 +109,7 @@ void FlyingEyeSpell::Launch()
 	}
 	
 	TRUE_PLAYER_MOUSELOOK_ON = true;
-	SLID_START = float(arxtime);
+	SLID_START = arxtime.now_f();
 	bOldLookToggle = config.input.mouseLookToggle;
 	config.input.mouseLookToggle = true;
 }
@@ -132,7 +133,7 @@ void FlyingEyeSpell::End()
 		pd->ov = eyeball.pos + randomVec(-5.f, 5.f);
 		pd->move = randomVec(-2.f, 2.f);
 		pd->siz = 28.f;
-		pd->tolive = Random::get(2000, 6000);
+		pd->tolive = Random::getu(2000, 6000);
 		pd->scale = Vec3f(12.f);
 		pd->tc = tc4;
 		pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
@@ -146,13 +147,11 @@ void FlyingEyeSpell::End()
 	lightHandleDestroy(special[1]);
 }
 
-void FlyingEyeSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void FlyingEyeSpell::Update() {
 	
-	const unsigned long tim = (unsigned long)(arxtime);
+	const unsigned long now = arxtime.now_ul();
 	
-	const long framediff3 = tim - m_lastupdate;
+	const long framediff3 = now - m_lastupdate;
 	
 	eyeball.floating = std::sin(m_lastupdate-m_timcreation * 0.001f);
 	eyeball.floating *= 10.f;
@@ -165,7 +164,7 @@ void FlyingEyeSpell::Update(float timeDelta)
 		eyeball.exist = 2;
 	}
 	
-	m_lastupdate=tim;
+	m_lastupdate=now;
 	
 	Entity * io = entities.player();
 	EERIE_3DOBJ * eobj = io->obj;
@@ -204,7 +203,7 @@ void FlyingEyeSpell::Update(float timeDelta)
 				pd->ov = actionPointPosition(eobj, id) + randomVec(-1.f, 1.f);
 				pd->move = Vec3f(0.1f, 0.f, 0.1f) + Vec3f(-0.2f, -2.2f, -0.2f) * randomVec3f();
 				pd->siz = 5.f;
-				pd->tolive = Random::get(1500, 3500);
+				pd->tolive = Random::getu(1500, 3500);
 				pd->scale = Vec3f(0.2f);
 				pd->tc = TC_smoke;
 				pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
@@ -359,10 +358,10 @@ void FireFieldSpell::End()
 	ARX_SOUND_PlaySFX(SND_SPELL_FIRE_FIELD_END);
 }
 
-void FireFieldSpell::Update(float timeDelta) {
+void FireFieldSpell::Update() {
 	
-	pPSStream.Update(timeDelta);
-	pPSStream1.Update(timeDelta);
+	pPSStream.Update(g_framedelay);
+	pPSStream1.Update(g_framedelay);
 	
 	
 	if(!lightHandleIsValid(m_light))
@@ -385,7 +384,7 @@ void FireFieldSpell::Update(float timeDelta) {
 		pPSStream.Render();
 		pPSStream1.Render();
 		
-		float fDiff = timeDelta / 8.f;
+		float fDiff = g_framedelay / 8.f;
 		int nTime = checked_range_cast<int>(fDiff);
 		
 		for(long nn=0;nn<=nTime+1;nn++) {
@@ -395,13 +394,13 @@ void FireFieldSpell::Update(float timeDelta) {
 				break;
 			}
 			
-			float t = Random::getf() * (PI * 2.f) - PI;
+			float t = Random::getf() * (glm::pi<float>() * 2.f) - glm::pi<float>();
 			float ts = std::sin(t);
 			float tc = std::cos(t);
 			pd->ov = m_pos + Vec3f(120.f * ts, 15.f * ts, 120.f * tc) * randomVec();
 			pd->move = Vec3f(2.f, 1.f, 2.f) + Vec3f(-4.f, -8.f, -4.f) * randomVec3f();
 			pd->siz = 7.f;
-			pd->tolive = Random::get(500, 1500);
+			pd->tolive = Random::getu(500, 1500);
 			pd->tc = fire2;
 			pd->special = ROTATING | MODULATE_ROTATION | FIRE_TO_SMOKE;
 			pd->fparam = Random::getf(-0.1f, 0.1f);
@@ -413,7 +412,7 @@ void FireFieldSpell::Update(float timeDelta) {
 			}
 			
 			*pd2 = *pd;
-			pd2->delay = Random::get(60, 210);
+			pd2->delay = Random::getu(60, 210);
 		}
 		
 	}
@@ -522,9 +521,7 @@ void IceFieldSpell::End() {
 	ARX_SOUND_PlaySFX(SND_SPELL_ICE_FIELD_END);
 }
 
-void IceFieldSpell::Update(float timeDelta) {
-	
-	ARX_UNUSED(timeDelta);
+void IceFieldSpell::Update() {
 	
 	if(!lightHandleIsValid(m_light))
 		m_light = GetFreeDynLight();
@@ -595,7 +592,7 @@ void IceFieldSpell::Update(float timeDelta) {
 				pd->ov = tPos[i] + randomVec(-5.f, 5.f);
 				pd->move = randomVec(-2.f, 2.f);
 				pd->siz = 20.f;
-				pd->tolive = Random::get(2000, 6000);
+				pd->tolive = Random::getu(2000, 6000);
 				pd->tc = tex_p2;
 				pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
 				pd->fparam = 0.0000001f;
@@ -609,7 +606,7 @@ void IceFieldSpell::Update(float timeDelta) {
 				pd->ov = tPos[i] + randomVec(-5.f, 5.f) + Vec3f(0.f, 50.f, 0.f);
 				pd->move = Vec3f(0.f, Random::getf(-2.f, 2.f), 0.f);
 				pd->siz = 0.5f;
-				pd->tolive = Random::get(2000, 6000);
+				pd->tolive = Random::getu(2000, 6000);
 				pd->tc = tex_p1;
 				pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
 				pd->fparam = 0.0000001f;
@@ -666,7 +663,7 @@ static Vec3f GetChestPos(EntityHandle num) {
 	}
 }
 
-void LightningStrikeSpell::Update(float timeDelta) {
+void LightningStrikeSpell::Update() {
 	
 	float fBeta = 0.f;
 	float falpha = 0.f;
@@ -702,7 +699,7 @@ void LightningStrikeSpell::Update(float timeDelta) {
 	m_lightning.m_caster = m_caster;
 	m_lightning.m_level = m_level;
 	
-	m_lightning.Update(timeDelta);
+	m_lightning.Update(g_framedelay);
 	m_lightning.Render();
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_caster]->pos);
@@ -731,15 +728,15 @@ void ConfuseSpell::Launch() {
 	const char tex[] = "graph/obj3d/interactive/fix_inter/fx_papivolle/fx_papivolle.tea";
 	ANIM_HANDLE * anim_papii = EERIE_ANIMMANAGER_Load(tex);
 	
-	ANIM_Set(au, anim_papii);
+	AnimLayer & au = animlayer[0];
 	au.next_anim = NULL;
 	au.cur_anim = anim_papii;
 	au.ctime = 0;
 	au.flags = EA_LOOP;
 	au.nextflags = 0;
 	au.lastframe = 0;
-	au.pour = 0;
-	au.fr = 0;
+	au.currentInterpolation = 0;
+	au.currentFrame = 0;
 	au.altidx_cur = 0;
 	au.altidx_next = 0;
 	
@@ -752,9 +749,7 @@ void ConfuseSpell::End() {
 	endLightDelayed(m_light, 500);
 }
 
-void ConfuseSpell::Update(float timeDelta) {
-	
-	ARX_UNUSED(timeDelta);
+void ConfuseSpell::Update() {
 	
 	Vec3f pos = entities[m_target]->pos;
 	if(m_target != PlayerEntityHandle) {
@@ -774,8 +769,13 @@ void ConfuseSpell::Update(float timeDelta) {
 	mat.setBlendType(RenderMaterial::Additive);
 	mat.setTexture(tex_trail);
 	
-	Anglef stiteangle = Anglef(0.f, -glm::degrees(arxtime.get_updated() * ( 1.0f / 500 )), 0.f);
-	Draw3DObject(spapi, stiteangle, eCurPos, Vec3f_ONE, Color3f::white, mat);
+	arxtime.update();
+	Anglef stiteangle = Anglef(0.f, -glm::degrees(arxtime.now_f() * ( 1.0f / 500 )), 0.f);
+	
+	{
+		EERIEDrawAnimQuatUpdate(spapi, animlayer, stiteangle, eCurPos, g_framedelay, NULL, false);
+		EERIEDrawAnimQuatRender(spapi, eCurPos, NULL, 0.f);
+	}
 	
 	for(int i = 0; i < 6; i++) {
 		
@@ -789,7 +789,7 @@ void ConfuseSpell::Update(float timeDelta) {
 		
 		pd->move = Vec3f(0.f, Random::getf(1.f, 4.f), 0.f);
 		pd->siz = 0.25f;
-		pd->tolive = Random::get(2300, 3300);
+		pd->tolive = Random::getu(2300, 3300);
 		pd->tc = tex_p1;
 		pd->special = PARTICLE_GOLDRAIN | FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION
 					  | DISSIPATING;

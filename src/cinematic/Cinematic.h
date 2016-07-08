@@ -53,7 +53,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "math/Vector.h"
 #include "platform/Alignment.h"
 
-struct C_KEY;
+struct CinematicKeyframe;
 struct CinematicGrid;
 class CinematicBitmap;
 
@@ -67,8 +67,8 @@ public:
 	Color3f color;
 	float intensity;
 	float intensiternd;
-	C_KEY * prev;
-	C_KEY * next;
+	CinematicKeyframe * prev;
+	CinematicKeyframe * next;
 	
 	CinematicLight()
 		: pos(Vec3f_ZERO)
@@ -95,15 +95,15 @@ class Cinematic {
 public:
 	Vec3f pos;
 	float angz;
-	Vec3f possuiv; // in the case of a non-fade interpolation
-	float angzsuiv;
+	Vec3f m_nextPos; // in the case of a non-fade interpolation
+	float m_nextAngz;
 	int numbitmap;
-	int numbitmapsuiv;
+	int m_nextNumbitmap;
 	float a;
 	int fx;
-	int m_fxsuiv;
+	int m_nextFx;
 	bool changekey;
-	C_KEY * key;
+	CinematicKeyframe * key;
 	bool projectload;
 	short ti;
 	short force;
@@ -119,9 +119,9 @@ public:
 	Vec3f posgrille;
 	float angzgrille;
 	CinematicFadeOut fadegrille;
-	Vec3f posgrillesuiv;
-	float angzgrillesuiv;
-	CinematicFadeOut fadegrillesuiv;
+	Vec3f m_nextPosgrille;
+	float m_nextAngzgrille;
+	CinematicFadeOut m_nextFadegrille;
 	float speedtrack;
 	float flTime;
 	std::vector<CinematicBitmap*>	m_bitmaps;
@@ -129,17 +129,19 @@ public:
 	CinematicFadeOut fadeprev;
 	CinematicFadeOut fadenext;
 	
-	Cinematic(int, int);
+	Vec2i cinRenderSize;
+	
+	explicit Cinematic(Vec2i size);
 	~Cinematic();
-
+	
 	void InitDeviceObjects();
 	void OneTimeSceneReInit();
 	void Render(float framediff);
 	void New();
 	void DeleteDeviceObjects();
-
+	
 	void DeleteAllBitmap();
-
+	
 private:
 	EERIE_CAMERA	m_camera;
 public:
@@ -148,7 +150,7 @@ public:
 };
 
 void DrawGrille(CinematicBitmap * bitmap, Color col, int fx, CinematicLight * light,
-                Vec3f * posgrillesuiv, float angzgrillesuiv, const CinematicFadeOut & fade);
+                const Vec3f & pos, float angle, const CinematicFadeOut & fade);
 
 ARX_USE_ALIGNED_ALLOCATOR(Cinematic) // for m_camera
 

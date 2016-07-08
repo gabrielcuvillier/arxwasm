@@ -99,9 +99,9 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 
 extern bool GLOBAL_MAGIC_MODE;
-float FORCE_TIME_RESTORE = 0;
+unsigned long FORCE_TIME_RESTORE = 0;
 extern Vec3f WILL_RESTORE_PLAYER_POSITION;
-extern long WILL_RESTORE_PLAYER_POSITION_FLAG;
+extern bool WILL_RESTORE_PLAYER_POSITION_FLAG;
 extern bool GMOD_RESET;
 
 extern bool PLAYER_POSITION_RESET;
@@ -125,7 +125,7 @@ static Entity * ARX_CHANGELEVEL_Pop_IO(const std::string & idString, EntityInsta
 
 static fs::path CURRENT_GAME_FILE;
 
-static float ARX_CHANGELEVEL_DesiredTime = 0;
+static unsigned long ARX_CHANGELEVEL_DesiredTime = 0;
 static long CONVERT_CREATED = 0;
 long DONT_WANT_PLAYER_INZONE = 0;
 static SaveBlock * g_currentSavedGame = NULL;
@@ -195,7 +195,7 @@ static long GetIOAnimIdx2(const Entity * io, ANIM_HANDLE * anim) {
 		return -1;
 	}
 	
-	for(long i = 0; i < MAX_ANIMS; i++) {
+	for(size_t i = 0; i < MAX_ANIMS; i++) {
 		if(io->anims[i] == anim) {
 			return i;
 		}
@@ -299,7 +299,8 @@ void ARX_CHANGELEVEL_Change(const std::string & level, const std::string & targe
 	progressBarSetTotal(238);
 	progressBarReset();
 	
-	ARX_CHANGELEVEL_DesiredTime = arxtime.get_updated();
+	arxtime.update();
+	ARX_CHANGELEVEL_DesiredTime = arxtime.now_ul();
 		
 	long num = GetLevelNumByName("level" + level);
 
@@ -352,7 +353,7 @@ void ARX_CHANGELEVEL_Change(const std::string & level, const std::string & targe
 		g_moveto = player.pos = pos + player.baseOffset();
 		PLAYER_POSITION_RESET = false;
 		WILL_RESTORE_PLAYER_POSITION = g_moveto;
-		WILL_RESTORE_PLAYER_POSITION_FLAG = 1;
+		WILL_RESTORE_PLAYER_POSITION_FLAG = true;
 	}
 	
 	CURRENTLEVEL = num;
@@ -410,7 +411,7 @@ static bool IsPlayerEquipedWith(Entity * io) {
 		return true;
 	}
 	
-	for(long i = 0; i < MAX_EQUIPED; i++) {
+	for(size_t i = 0; i < MAX_EQUIPED; i++) {
 		if(ValidIONum(player.equiped[i]) && player.equiped[i] == num) {
 			return true;
 		}
@@ -428,7 +429,8 @@ static bool ARX_CHANGELEVEL_Push_Index(long num) {
 	asi.version       = ARX_GAMESAVE_VERSION;
 	asi.nb_inter      = 0;
 	asi.nb_paths      = nbARXpaths;
-	asi.time          = arxtime.get_updated_ul();
+	arxtime.update();
+	asi.time          = arxtime.now_ul();
 	asi.nb_lights     = 0;
 	asi.gmods_stacked = GLOBAL_MODS();
 	asi.gmods_stacked.zclip = 6400.f;
@@ -648,7 +650,7 @@ static long ARX_CHANGELEVEL_Push_Player(long level) {
 	asp->Attribute_Mind = player.m_attribute.mind;
 	asp->Attribute_Strength = player.m_attribute.strength;
 	asp->Critical_Hit = player.m_misc.criticalHit;
-	asp->Current_Movement = player.Current_Movement;
+	asp->Current_Movement = player.m_currentMovement;
 	asp->damages = player.m_misc.damages;
 	asp->doingmagic = player.doingmagic;
 	asp->Interface = player.Interface;
@@ -660,10 +662,10 @@ static long ARX_CHANGELEVEL_Push_Player(long level) {
 	asp->TELEPORT_TO_ANGLE = TELEPORT_TO_ANGLE;
 	asp->CHANGE_LEVEL_ICON = CHANGE_LEVEL_ICON;
 	asp->bag = player.bag;
-	storeIdString(asp->equipsecondaryIO, player.equipsecondaryIO);
-	storeIdString(asp->equipshieldIO, player.equipshieldIO);
-	storeIdString(asp->leftIO, player.leftIO);
-	storeIdString(asp->rightIO, player.rightIO);
+	storeIdString(asp->equipsecondaryIO, NULL);
+	storeIdString(asp->equipshieldIO, NULL);
+	storeIdString(asp->leftIO, NULL);
+	storeIdString(asp->rightIO, NULL);
 	storeIdString(asp->curtorch, player.torch);
 	
 	for(size_t i = 0; i < SAVED_MAX_PRECAST; i++) {
@@ -689,7 +691,7 @@ static long ARX_CHANGELEVEL_Push_Player(long level) {
 	asp->invisibility = entities.player()->invisibility;
 
 	asp->jumpphase = player.jumpphase;
-	asp->jumpstarttime = player.jumpstarttime;
+	asp->jumpstarttime = static_cast<u32>(player.jumpstarttime); // TODO save/load time
 	asp->Last_Movement = player.Last_Movement;
 	asp->level = player.level;
 	
@@ -760,8 +762,7 @@ static long ARX_CHANGELEVEL_Push_Player(long level) {
 	
 	asp->LAST_VALID_POS = LastValidPlayerPos;
 	
-	for (int i = 0; i < MAX_ANIMS; i++)
-	{
+	for(size_t i = 0; i < MAX_ANIMS; i++) {
 		memset(&asp->anims[i], 0, 256);
 
 		if (entities.player()->anims[i] != NULL)
@@ -770,7 +771,7 @@ static long ARX_CHANGELEVEL_Push_Player(long level) {
 		}
 	}
 
-	for(long k = 0; k < MAX_EQUIPED; k++) {
+	for(size_t k = 0; k < MAX_EQUIPED; k++) {
 		if(ValidIONum(player.equiped[k]))
 			storeIdString(asp->equiped[k], entities[player.equiped[k]]);
 		else
@@ -995,8 +996,7 @@ static long ARX_CHANGELEVEL_Push_IO(const Entity * io, long level) {
 	memset(&ais.linked_data, 0, sizeof(IO_LINKED_DATA)*MAX_LINKED_SAVE);
 
 	// Save Animations
-	for (long i = 0; i < MAX_ANIMS; i++)
-	{
+	for(size_t i = 0; i < MAX_ANIMS; i++) {
 		memset(&ais.anims[i], 0, 256);
 
 		if (io->anims[i] != NULL)
@@ -1006,24 +1006,23 @@ static long ARX_CHANGELEVEL_Push_IO(const Entity * io, long level) {
 	}
 
 	// Save Linked Objects
-	if (io->obj)
-	{
+	if(io->obj) {
 		ais.nb_linked = 0;
 
-		for (size_t n = 0; n < io->obj->linked.size(); n++)
-		{
-			if (GetObjIOSource(io->obj->linked[n].obj))
+		for(size_t n = 0; n < io->obj->linked.size(); n++) {
+			if(GetObjIOSource(io->obj->linked[n].obj)) {
 				ais.nb_linked++;
+			}
 		}
 
-		if ((size_t)ais.nb_linked > MAX_LINKED_SAVE) ais.nb_linked = MAX_LINKED_SAVE;
+		if((size_t)ais.nb_linked > MAX_LINKED_SAVE) {
+			ais.nb_linked = MAX_LINKED_SAVE;
+		}
 
 		long count = 0;
 
-		for (size_t n = 0; n < io->obj->linked.size(); n++)
-		{
-			if (GetObjIOSource(io->obj->linked[n].obj))
-			{
+		for(size_t n = 0; n < io->obj->linked.size(); n++) {
+			if(GetObjIOSource(io->obj->linked[n].obj)) {
 				ais.linked_data[count].lgroup = io->obj->linked[count].lgroup.handleData();
 				ais.linked_data[count].lidx = io->obj->linked[count].lidx.handleData();
 				ais.linked_data[count].lidx2 = io->obj->linked[count].lidx2.handleData();
@@ -1035,27 +1034,25 @@ static long ARX_CHANGELEVEL_Push_IO(const Entity * io, long level) {
 	}
 
 
-	if (io->tweakerinfo)
-	{
-		ais.system_flags	= SYSTEM_FLAG_TWEAKER_INFO;
+	if(io->tweakerinfo) {
+		ais.system_flags = SYSTEM_FLAG_TWEAKER_INFO;
+	} else {
+		ais.system_flags = 0;
 	}
-	else ais.system_flags = 0;
 
-	if (io->inventory)
-	{
+	if(io->inventory) {
 		ais.system_flags |= SYSTEM_FLAG_INVENTORY;
 	}
 
-	if (type == TYPE_ITEM)
-	{
-		if (io->_itemdata->equipitem)
-		{
+	if(type == TYPE_ITEM) {
+		if(io->_itemdata->equipitem) {
 			ais.system_flags |= SYSTEM_FLAG_EQUIPITEMDATA;
 		}
 	}
 
-	if (io->usepath)
+	if(io->usepath) {
 		ais.system_flags |= SYSTEM_FLAG_USEPATH;
+	}
 
 	ais.physics = io->physics;
 	ais.spellcast_data = io->spellcast_data;
@@ -1114,32 +1111,32 @@ static long ARX_CHANGELEVEL_Push_IO(const Entity * io, long level) {
 	memcpy(dat, &ais, sizeof(ARX_CHANGELEVEL_IO_SAVE));
 	pos += sizeof(ARX_CHANGELEVEL_IO_SAVE);
 
-	long timm = (unsigned long)(arxtime); //treat warning C4244 conversion from 'float' to 'unsigned long''
+	const unsigned long timm = arxtime.now_ul();
 
-	for (int i = 0; i < MAX_TIMER_SCRIPT; i++)
-	{
-		if (scr_timer[i].exist)
-		{
-			if (scr_timer[i].io == io)
-			{
+	for(int i = 0; i < MAX_TIMER_SCRIPT; i++) {
+		SCR_TIMER & timer = scr_timer[i];
+		if(timer.exist) {
+			if(timer.io == io) {
 				ARX_CHANGELEVEL_TIMERS_SAVE * ats = (ARX_CHANGELEVEL_TIMERS_SAVE *)(dat + pos);
 				memset(ats, 0, sizeof(ARX_CHANGELEVEL_TIMERS_SAVE));
-				ats->longinfo = scr_timer[i].longinfo;
-				ats->msecs = scr_timer[i].msecs;
-				util::storeString(ats->name, scr_timer[i].name.c_str());
-				ats->pos = scr_timer[i].pos;
+				ats->longinfo = timer.longinfo;
+				ats->msecs = timer.msecs;
+				util::storeString(ats->name, timer.name.c_str());
+				ats->pos = timer.pos;
 
-				if (scr_timer[i].es == &io->script)
+				if (timer.es == &io->script)
 					ats->script = 0;
-				else	ats->script = 1;
+				else
+					ats->script = 1;
 
-				ats->tim = (scr_timer[i].tim + scr_timer[i].msecs) - timm;
+				ats->tim = (timer.tim + timer.msecs) - timm;
 
-				if (ats->tim < 0) ats->tim = 0;
+				if(ats->tim < 0)
+					ats->tim = 0;
 
 				//else ats->tim=-ats->tim;
-				ats->times = scr_timer[i].times;
-				ats->flags = scr_timer[i].flags;
+				ats->times = timer.times;
+				ats->flags = timer.flags;
 				pos += sizeof(ARX_CHANGELEVEL_TIMERS_SAVE);
 			}
 		}
@@ -1292,7 +1289,7 @@ static long ARX_CHANGELEVEL_Push_IO(const Entity * io, long level) {
 			as = (ARX_CHANGELEVEL_NPC_IO_SAVE *)(dat + pos);
 			memset(as, 0, sizeof(ARX_CHANGELEVEL_NPC_IO_SAVE));
 			as->absorb = io->_npcdata->absorb;
-			as->aimtime = io->_npcdata->aimtime;
+			as->aimtime = static_cast<f32>(io->_npcdata->aimtime);
 			as->armor_class = io->_npcdata->armor_class;
 			as->behavior = io->_npcdata->behavior;
 			as->behavior_param = io->_npcdata->behavior_param;
@@ -1347,7 +1344,7 @@ static long ARX_CHANGELEVEL_Push_IO(const Entity * io, long level) {
 			as->resist_fire = io->_npcdata->resist_fire;
 			as->strike_time = io->_npcdata->strike_time;
 			as->walk_start_time = io->_npcdata->walk_start_time;
-			as->aiming_start = io->_npcdata->aiming_start;
+			as->aiming_start = static_cast<s32>(io->_npcdata->aiming_start); // TODO save/load time
 			as->npcflags = io->_npcdata->npcflags;
 			as->pathfind = IO_PATHFIND();
 
@@ -1647,7 +1644,7 @@ static long ARX_CHANGELEVEL_Pop_Player() {
 	player.m_attribute.mind = asp->Attribute_Mind;
 	player.m_attribute.strength = asp->Attribute_Strength;
 	player.m_misc.criticalHit = asp->Critical_Hit;
-	player.Current_Movement = PlayerMovement::load(asp->Current_Movement); // TODO save/load flags
+	player.m_currentMovement = PlayerMovement::load(asp->Current_Movement); // TODO save/load flags
 	player.m_misc.damages = asp->damages;
 	player.doingmagic = asp->doingmagic;
 	player.playerflags = PlayerFlags::load(asp->playerflags); // TODO save/load flags
@@ -1684,7 +1681,7 @@ static long ARX_CHANGELEVEL_Pop_Player() {
 	entities.player()->invisibility = asp->invisibility;
 	player.inzone = ARX_PATH_GetAddressByName(boost::to_lower_copy(util::loadString(asp->inzone)));
 	player.jumpphase = JumpPhase(asp->jumpphase); // TODO save/load enum
-	player.jumpstarttime = asp->jumpstarttime;
+	player.jumpstarttime = static_cast<unsigned long>(asp->jumpstarttime); // TODO save/load time
 	player.Last_Movement = PlayerMovement::load(asp->Last_Movement); // TODO save/load flags
 	
 	player.level = checked_range_cast<short>(asp->level);
@@ -1735,7 +1732,7 @@ static long ARX_CHANGELEVEL_Pop_Player() {
 	entities.player()->pos = player.basePosition();
 	
 	WILL_RESTORE_PLAYER_POSITION = asp->pos.toVec3();
-	WILL_RESTORE_PLAYER_POSITION_FLAG = 1;
+	WILL_RESTORE_PLAYER_POSITION_FLAG = true;
 	
 	player.m_misc.resistMagic = checked_range_cast<unsigned char>(asp->resist_magic);
 	player.m_misc.resistPoison = checked_range_cast<unsigned char>(asp->resist_poison);
@@ -1829,10 +1826,6 @@ static long ARX_CHANGELEVEL_Pop_Player() {
 	LoadLevelScreen();
 	
 	// Restoring Player equipment...
-	player.equipsecondaryIO = ConvertToValidIO(asp->equipsecondaryIO);
-	player.equipshieldIO = ConvertToValidIO(asp->equipshieldIO);
-	player.leftIO = ConvertToValidIO(asp->leftIO);
-	player.rightIO = ConvertToValidIO(asp->rightIO);
 	player.torch = ConvertToValidIO(asp->curtorch);
 	progressBarAdvance();
 	LoadLevelScreen();
@@ -2054,7 +2047,7 @@ static Entity * ARX_CHANGELEVEL_Pop_IO(const std::string & idString, EntityInsta
 		io->weaponmaterial = boost::to_lower_copy(util::loadString(ais->weaponmaterial));
 		io->strikespeech = script::loadUnlocalized(boost::to_lower_copy(util::loadString(ais->strikespeech)));
 		
-		for(long i = 0; i < MAX_ANIMS; i++) {
+		for(size_t i = 0; i < MAX_ANIMS; i++) {
 			
 			if(io->anims[i] != NULL) {
 				ReleaseAnimFromIO(io, i);
@@ -2148,12 +2141,9 @@ static Entity * ARX_CHANGELEVEL_Pop_IO(const std::string & idString, EntityInsta
 			scr_timer[num].pos = ats->pos;
 			// TODO if the script has changed since the last save, this position may be invalid
 			
-			float tt = ARX_CHANGELEVEL_DesiredTime + ats->tim;
-			if(tt < 0) {
-				scr_timer[num].tim = 0;
-			} else {
-				scr_timer[num].tim = checked_range_cast<unsigned long>(tt);
-			}
+			const unsigned long tim = checked_range_cast<unsigned long>(ats->tim);
+			const unsigned long tt = ARX_CHANGELEVEL_DesiredTime + tim;
+			scr_timer[num].tim = tt;
 			
 			scr_timer[num].times = ats->times;
 		}
@@ -2178,7 +2168,7 @@ static Entity * ARX_CHANGELEVEL_Pop_IO(const std::string & idString, EntityInsta
 				pos += sizeof(ARX_CHANGELEVEL_NPC_IO_SAVE);
 				
 				io->_npcdata->absorb = as->absorb;
-				io->_npcdata->aimtime = as->aimtime;
+				io->_npcdata->aimtime = static_cast<unsigned int>(as->aimtime);
 				io->_npcdata->armor_class = as->armor_class;
 				io->_npcdata->behavior = Behaviour::load(as->behavior); // TODO save/load flags
 				io->_npcdata->behavior_param = as->behavior_param;
@@ -2224,7 +2214,7 @@ static Entity * ARX_CHANGELEVEL_Pop_IO(const std::string & idString, EntityInsta
 				io->_npcdata->resist_fire = as->resist_fire;
 				io->_npcdata->strike_time = as->strike_time;
 				io->_npcdata->walk_start_time = as->walk_start_time;
-				io->_npcdata->aiming_start = as->aiming_start;
+				io->_npcdata->aiming_start = static_cast<unsigned long>(as->aiming_start); // TODO save/load time
 				io->_npcdata->npcflags = NPCFlags::load(as->npcflags); // TODO save/load flags
 				io->_npcdata->fDetect = as->fDetect;
 				io->_npcdata->cuts = DismembermentFlags::load(as->cuts); // TODO save/load flags
@@ -2374,7 +2364,7 @@ static void ARX_CHANGELEVEL_PopAllIO(ARX_CHANGELEVEL_INDEX * asi) {
 	
 	float increment = 0;
 	if(asi->nb_inter > 0) {
-		increment = (60.f / (float)asi->nb_inter);
+		increment = 60.f / asi->nb_inter;
 	} else {
 		progressBarAdvance(60);
 		LoadLevelScreen();
@@ -2810,7 +2800,8 @@ bool ARX_CHANGELEVEL_Save(const std::string & name, const fs::path & savefile) {
 	pld.level = CURRENTLEVEL;
 	util::storeString(pld.name, name.c_str());
 	pld.version = ARX_GAMESAVE_VERSION;
-	pld.time = arxtime.get_updated_ul();
+	arxtime.update();
+	pld.time = static_cast<u32>(arxtime.now_ul()); // TODO save/load time
 	
 	const char * dat = reinterpret_cast<const char *>(&pld);
 	g_currentSavedGame->save("pld", dat, sizeof(ARX_CHANGELEVEL_PLAYER_LEVEL_DATA));
@@ -2893,12 +2884,12 @@ long ARX_CHANGELEVEL_Load(const fs::path & savefile) {
 		progressBarAdvance(2.f);
 		LoadLevelScreen(pld.level);
 		
-		float fPldTime = static_cast<float>(pld.time);
+		const unsigned long fPldTime = static_cast<unsigned long>(pld.time); // TODO save/load time
 		DanaeClearLevel();
 		progressBarAdvance(2.f);
 		LoadLevelScreen(pld.level);
 		CURRENTLEVEL = pld.level;
-		ARX_CHANGELEVEL_DesiredTime	=	fPldTime;
+		ARX_CHANGELEVEL_DesiredTime = fPldTime;
 		ARX_CHANGELEVEL_PopLevel(pld.level, false);
 		arxtime.force_time_restore(fPldTime);
 		TIME_INIT = false;
@@ -2930,7 +2921,7 @@ long ARX_CHANGELEVEL_GetInfo(const fs::path & savefile, std::string & name, floa
 		name = util::loadString(pld.name);
 		version = pld.version;
 		level = pld.level;
-		time = (pld.time / 1000);
+		time = (pld.time / 1000); // TODO is this correct ?
 		return 1;
 	} else {
 		name = "Invalid Save...";

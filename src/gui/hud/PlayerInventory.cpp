@@ -71,12 +71,7 @@ bool PlayerInventoryHud::updateInput() {
 	bool bQuitCombine = true;
 	
 	if(g_currentInventoryBag > 0) {
-		const Rect mouseTestRect(
-		pos.x,
-		pos.y,
-		pos.x + (32 * m_scale),
-		pos.y + (32 * m_scale)
-		);
+		const Rect mouseTestRect(Vec2i(pos), int(32 * m_scale), int(32 * m_scale));
 		
 		if(mouseTestRect.contains(Vec2i(DANAEMouse)))
 			bQuitCombine = false;
@@ -87,12 +82,7 @@ bool PlayerInventoryHud::updateInput() {
 
 		pos.y += checked_range_cast<int>(fRatio);
 		
-		const Rect mouseTestRect(
-		pos.x,
-		pos.y,
-		pos.x + (32 * m_scale),
-		pos.y + (32 * m_scale)
-		);
+		const Rect mouseTestRect(Vec2i(pos), int(32 * m_scale), int(32 * m_scale));
 		
 		if(mouseTestRect.contains(Vec2i(DANAEMouse)))
 			bQuitCombine = false;
@@ -176,7 +166,7 @@ void PlayerInventoryHud::CalculateInventoryCoordinates() {
 //-----------------------------------------------------------------------------
 void PlayerInventoryHud::ARX_INTERFACE_DrawInventory(size_t bag, Vec2i i)
 {
-	fDecPulse += framedelay * 0.5f;
+	fDecPulse += g_framedelay * 0.5f;
 	
 	Vec2f anchorPos = anchorPosition();
 	
@@ -345,21 +335,16 @@ void PlayerInventoryHud::previousBag() {
 
 PlayerInventoryHud g_playerInventoryHud;
 
-extern Vec2s DANAEMouse;
-
-extern Rect g_size;
-
-
 bool PlayerInventoryHud::InPlayerInventoryBag(const Vec2s & pos) {
 	if(pos.x >= 0 && pos.y >= 0) {
 		Vec2s t;
 		t.x = pos.x / (32 * m_scale);
-		t.y = pos.y / (32 * m_scale);
+		t.y = (pos.y + 5 * m_scale) / (32 * m_scale);
 
 		if(   t.x >= 0
 		   && (size_t)t.x <= INVENTORY_X
 		   && t.y >= 0
-		   && (size_t)t.y < INVENTORY_Y
+		   && (size_t)t.y <= INVENTORY_Y
 		) {
 			return true;
 		}
@@ -422,8 +407,8 @@ Entity * PlayerInventoryHud::getObj(const Vec2s & pos) {
 		long ty = pos.y - iPos.y; //-2
 
 		if(tx >= 0 && ty >= 0) {
-			tx = checked_range_cast<long>(tx / (32 * m_scale));
-			ty = checked_range_cast<long>(ty / (32 * m_scale));
+			tx = checked_range_cast<long>((tx - 6 * m_scale) / (32 * m_scale));
+			ty = checked_range_cast<long>((ty - 5 * m_scale) / (32 * m_scale));
 
 			if((tx >= 0) && ((size_t)tx < INVENTORY_X) && (ty >= 0) && ((size_t)ty < INVENTORY_Y)) {
 				Entity *result = inventory[g_currentInventoryBag][tx][ty].io;
@@ -446,8 +431,8 @@ Entity * PlayerInventoryHud::getObj(const Vec2s & pos) {
 			long tx = pos.x - iPos.x;
 			long ty = pos.y - iPos.y - iY;
 
-			tx = checked_range_cast<long>(tx / (32 * m_scale));
-			ty = checked_range_cast<long>(ty / (32 * m_scale));
+			tx = checked_range_cast<long>((tx - 6 * m_scale) / (32 * m_scale));
+			ty = checked_range_cast<long>((ty - 5 * m_scale) / (32 * m_scale));
 
 			if(tx >= 0 && (size_t)tx < INVENTORY_X && ty >= 0 && (size_t)ty < INVENTORY_Y) {
 				Entity *result = inventory[bag][tx][ty].io;
@@ -483,18 +468,13 @@ void PlayerInventoryHud::dropEntity() {
 	int bag = 0;
 	
 	Vec2f anchorPos = g_playerInventoryHud.anchorPosition();
-	
-	float fCenterX	= anchorPos.x;
-	float fSizY		= anchorPos.y;
-	
-	short iPosX = checked_range_cast<short>(fCenterX);
-	short iPosY = checked_range_cast<short>(fSizY);
+	Vec2s iPos = Vec2s(anchorPos);
 	
 	Vec2s t = Vec2s_ZERO;
 	
 	if(player.Interface & INTER_INVENTORY) {
-		t.x = DANAEMouse.x - iPosX;
-		t.y = DANAEMouse.y - iPosY;
+		t.x = DANAEMouse.x - iPos.x;
+		t.y = DANAEMouse.y - iPos.y;
 		t.x = t.x / (32 * m_scale); 
 		t.y = t.y / (32 * m_scale); 
 		
@@ -514,8 +494,8 @@ void PlayerInventoryHud::dropEntity() {
 		arx_assert(0 < player.bag);
 		
 		for(int i = 0; i < player.bag; i++) {
-			t.x = DANAEMouse.x - iPosX;
-			t.y = DANAEMouse.y - iPosY - iY; 
+			t.x = DANAEMouse.x - iPos.x;
+			t.y = DANAEMouse.y - iPos.y - iY;
 			
 			if((t.x >= 0) && (t.y >= 0)) {
 				t.x = t.x / (32 * m_scale); 
@@ -543,47 +523,47 @@ void PlayerInventoryHud::dropEntity() {
 		return;
 	}
 	
-	for(long j = 0; j < s.y; j++)
-		for(long i = 0; i < s.x; i++) {
-			Entity * ioo = inventory[bag][t.x+i][t.y+j].io;
+	for(long y = 0; y < s.y; y++)
+	for(long x = 0; x < s.x; x++) {
+		Entity * ioo = inventory[bag][t.x + x][t.y + y].io;
+		
+		if(!ioo)
+			continue;
+		
+		ARX_INVENTORY_IdentifyIO(ioo);
+		
+		if(   ioo->_itemdata->playerstacksize > 1
+		&& IsSameObject(DRAGINTER, ioo)
+		&& ioo->_itemdata->count < ioo->_itemdata->playerstacksize
+		) {
+			ioo->_itemdata->count += DRAGINTER->_itemdata->count;
 			
-			if(!ioo)
-				continue;
-			
-			ARX_INVENTORY_IdentifyIO(ioo);
-			
-			if(   ioo->_itemdata->playerstacksize > 1
-			&& IsSameObject(DRAGINTER, ioo)
-			&& ioo->_itemdata->count < ioo->_itemdata->playerstacksize
-			) {
-				ioo->_itemdata->count += DRAGINTER->_itemdata->count;
-				
-				if(ioo->_itemdata->count > ioo->_itemdata->playerstacksize) {
-					DRAGINTER->_itemdata->count = ioo->_itemdata->count - ioo->_itemdata->playerstacksize;
-					ioo->_itemdata->count = ioo->_itemdata->playerstacksize;
-				} else {
-					DRAGINTER->_itemdata->count = 0;
-				}
-				
-				ioo->scale = 1.f;
-				ARX_INVENTORY_Declare_InventoryIn(DRAGINTER);
-				
-				if(!DRAGINTER->_itemdata->count) {
-					DRAGINTER->destroy();
-				}
-				
-				ARX_SOUND_PlayInterface(SND_INVSTD);
-				return;
+			if(ioo->_itemdata->count > ioo->_itemdata->playerstacksize) {
+				DRAGINTER->_itemdata->count = ioo->_itemdata->count - ioo->_itemdata->playerstacksize;
+				ioo->_itemdata->count = ioo->_itemdata->playerstacksize;
+			} else {
+				DRAGINTER->_itemdata->count = 0;
 			}
 			
+			ioo->scale = 1.f;
+			ARX_INVENTORY_Declare_InventoryIn(DRAGINTER);
+			
+			if(!DRAGINTER->_itemdata->count) {
+				DRAGINTER->destroy();
+			}
+			
+			ARX_SOUND_PlayInterface(SND_INVSTD);
 			return;
 		}
+		
+		return;
+	}
 	
-	for(long j = 0; j < s.y; j++) {
-		for(long i = 0; i < s.x; i++) {
-			inventory[bag][t.x+i][t.y+j].io = DRAGINTER;
-			inventory[bag][t.x+i][t.y+j].show = false;
-		}
+	for(long y = 0; y < s.y; y++) {
+	for(long x = 0; x < s.x; x++) {
+		inventory[bag][t.x + x][t.y + y].io = DRAGINTER;
+		inventory[bag][t.x + x][t.y + y].show = false;
+	}
 	}
 	
 	inventory[bag][t.x][t.y].show = true;
@@ -618,11 +598,12 @@ void PlayerInventoryHud::dragEntity(Entity * io, const Vec2s &pos) {
 					RemoveFromAllInventories(ioo);
 					sInventory = 1;
 					
-					float fX = (pos.x - iPos.x) / (32 * m_scale);
-					float fY = (pos.y - iPos.y) / (32 * m_scale);
+					Vec2f f;
+					f.x = (pos.x - iPos.x) / (32 * m_scale);
+					f.y = (pos.y - iPos.y) / (32 * m_scale);
 					
-					sInventoryPos.x = checked_range_cast<short>(fX);
-					sInventoryPos.y = checked_range_cast<short>(fY);
+					sInventoryPos.x = checked_range_cast<short>(f.x);
+					sInventoryPos.y = checked_range_cast<short>(f.y);
 					
 					SendInitScriptEvent(ioo);
 					ARX_INVENTORY_IdentifyIO(ioo);
@@ -645,11 +626,12 @@ void PlayerInventoryHud::dragEntity(Entity * io, const Vec2s &pos) {
 			slot.show = true;
 			sInventory = 1;
 			
-			float fX = (pos.x - iPos.x) / (32 * m_scale);
-			float fY = (pos.y - iPos.y) / (32 * m_scale);
+			Vec2f f;
+			f.x = (pos.x - iPos.x) / (32 * m_scale);
+			f.y = (pos.y - iPos.y) / (32 * m_scale);
 			
-			sInventoryPos.x = checked_range_cast<short>(fX);
-			sInventoryPos.y = checked_range_cast<short>(fY);
+			sInventoryPos.x = checked_range_cast<short>(f.x);
+			sInventoryPos.y = checked_range_cast<short>(f.y);
 		}
 	}
 	

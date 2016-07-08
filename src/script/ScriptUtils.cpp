@@ -26,7 +26,7 @@
 
 namespace script {
 
-static inline bool isWhitespace(char c) {
+static bool isWhitespace(char c) {
 	return (((unsigned char)c) <= 32 || c == '(' || c == ')');
 }
 
@@ -470,6 +470,8 @@ size_t initSuppressions() {
 	
 	suppress("goblin_base_0009", 1455, "setevent"); // unsupported event: combine
 	suppress("goblin_base_0009", 3864, "playanim"); // used -e flag without command
+	
+	suppress("goblin_base_0027", 8463, "wrong]"); // space instead of _ in localisation key
 	
 	suppress("goblin_base_0034", 771, "detach"); // object mug_full_0003 already destroyed
 	

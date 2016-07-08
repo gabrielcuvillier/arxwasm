@@ -61,6 +61,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "gui/Menu.h"
 #include "gui/Text.h"
 #include "gui/MenuWidgets.h"
+#include "gui/menu/MenuFader.h"
 
 #include "graphics/Draw.h"
 #include "graphics/data/TextureContainer.h"
@@ -76,11 +77,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "scene/GameSound.h"
 
 #include "util/Unicode.h"
-
-// TODO extern globals
-extern bool bFadeInOut;
-extern bool bFade;
-extern int iFadeAction;
 
 namespace credits {
 
@@ -106,7 +102,8 @@ class Credits {
 public:
 	
 	Credits()
-		: m_scrollPosition(0.f)
+		: m_background(NULL)
+		, m_scrollPosition(0.f)
 		, m_lastUpdateTime(0.f)
 		, m_firstVisibleLine(0)
 		, m_lineHeight(-1)
@@ -189,7 +186,7 @@ bool Credits::load() {
 	m_text += "\n\n\n" + arx_copyright;
 	
 	if(!m_libraries.empty()) {
-		m_text += "\n\n\n" "~This build uses the following tools and libraries:\n\n";
+		m_text += "\n\n\n" "~This build was made using the following tools and libraries:\n\n";
 		Libraries::const_iterator compiler = m_libraries.find("compiler");
 		if(compiler != m_libraries.end()) {
 			m_text += "Compiler: ";
@@ -451,9 +448,7 @@ void Credits::render() {
 		LogError << "Could not initialize credits";
 		reset();
 		ARXmenu.currentmode = AMCM_MAIN;
-		iFadeAction = -1;
-		bFadeInOut = false;
-		bFade = true;
+		MenuFader_start(true, false, -1);
 	}
 	
 	// Draw the background
@@ -464,8 +459,9 @@ void Credits::render() {
 	}
 	
 	// Use time passed between frame to create scroll effect
-	float time = arxtime.get_updated(false);
-	float dtime = time - m_lastUpdateTime;
+	arxtime.update(false);
+	float now = arxtime.now_f();
+	float elapsed = now - m_lastUpdateTime;
 	
 	static float lastKeyPressTime = 0.f;
 	static float lastUserScrollTime = 0.f;
@@ -477,41 +473,41 @@ void Credits::render() {
 	// Process user input
 	float userScroll = 20.f * GInput->getMouseWheelDir();
 	if(GInput->isKeyPressed(Keyboard::Key_UpArrow)) {
-		userScroll += 0.2f * dtime;
+		userScroll += 0.2f * elapsed;
 	}
 	if(GInput->isKeyPressedNowPressed(Keyboard::Key_PageUp)) {
 		userScroll += 150.f;
-		lastKeyPressTime = time;
+		lastKeyPressTime = now;
 	} else if(GInput->isKeyPressed(Keyboard::Key_PageUp)) {
-		if(time - lastKeyPressTime > keyRepeatDelay) {
-			userScroll += 0.5f * dtime;
+		if(now - lastKeyPressTime > keyRepeatDelay) {
+			userScroll += 0.5f * elapsed;
 		}
 	}
 	if(GInput->isKeyPressedNowPressed(Keyboard::Key_PageDown)) {
 		userScroll -= 150.f;
-		lastKeyPressTime = time;
+		lastKeyPressTime = now;
 	} else if(GInput->isKeyPressed(Keyboard::Key_PageDown)) {
-		if(time - lastKeyPressTime > keyRepeatDelay) {
-			userScroll -= 0.5f * dtime;
+		if(now - lastKeyPressTime > keyRepeatDelay) {
+			userScroll -= 0.5f * elapsed;
 		}
 	}
 	if(GInput->isKeyPressed(Keyboard::Key_DownArrow)) {
-		userScroll -= 0.2f * dtime;
+		userScroll -= 0.2f * elapsed;
 	}
 	m_scrollPosition += g_sizeRatio.y * userScroll;
 	
 	// If the user wants to scroll up, also change the automatic scroll direction …
 	if(userScroll > 0.f) {
-		lastUserScrollTime = time;
+		lastUserScrollTime = now;
 		scrollDirection = -1.f;
 	}
 	// … but restore normal scrolling after a short delay.
-	if(time - lastUserScrollTime > autoScrollDelay) {
+	if(now - lastUserScrollTime > autoScrollDelay) {
 		scrollDirection = 1.f;
 	}
 	
-	m_scrollPosition -= 0.03f * g_sizeRatio.y * dtime * scrollDirection;
-	m_lastUpdateTime = time;
+	m_scrollPosition -= 0.03f * g_sizeRatio.y * elapsed * scrollDirection;
+	m_lastUpdateTime = now;
 	
 	// Don't scroll past the credits start
 	m_scrollPosition = std::min(0.f, m_scrollPosition);
@@ -547,26 +543,22 @@ void Credits::render() {
 	
 	if(m_firstVisibleLine >= m_lines.size() && iFadeAction != AMCM_MAIN) {
 		
-		bFadeInOut = true;
-		bFade = true;
-		iFadeAction = AMCM_MAIN;
-		
+		MenuFader_start(true, true, AMCM_MAIN);
 		ARX_MENU_LaunchAmb(AMB_MENU);
 	}
 
-	if(ProcessFadeInOut(bFadeInOut,0.1f) && iFadeAction == AMCM_MAIN) {
+	if(ProcessFadeInOut(bFadeInOut) && iFadeAction == AMCM_MAIN) {
 		reset();
 		ARXmenu.currentmode = AMCM_MAIN;
-		iFadeAction = -1;
-		bFadeInOut = false;
-		bFade = true;
+		MenuFader_start(true, false, -1);
 	}
 	
 }
 
 void Credits::reset() {
 	LogDebug("Reset credits");
-	m_lastUpdateTime = arxtime.get_updated(false);
+	arxtime.update(false);
+	m_lastUpdateTime = arxtime.now_f();
 	m_scrollPosition = 0;
 	m_firstVisibleLine = 0;
 	m_lineHeight = -1;

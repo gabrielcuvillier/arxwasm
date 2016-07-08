@@ -22,6 +22,7 @@
 #include <boost/foreach.hpp>
 
 #include "core/Application.h"
+#include "core/Core.h"
 #include "core/GameTime.h"
 
 #include "game/Damage.h"
@@ -67,21 +68,11 @@ void MagicSightSpell::End()
 	ARX_SOUND_PlaySFX(SND_SPELL_VISION_START, &entities[m_caster]->pos);
 }
 
-static const float DEC_FOCAL = 50.0f;
-static const float IMPROVED_FOCAL = 320.0f;
-
-extern EERIE_CAMERA subj;
-
-void MagicSightSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void MagicSightSpell::Update() {
 	
 	if(m_caster == PlayerEntityHandle) {
 		Vec3f pos = ARX_PLAYER_FrontPos();
 		ARX_SOUND_RefreshPosition(m_snd_loop, pos);
-		
-		if(subj.focal > IMPROVED_FOCAL)
-			subj.focal -= DEC_FOCAL;
 	}	
 }
 
@@ -209,7 +200,7 @@ void MagicMissileSpell::Launch() {
 		m_hand_pos = actionPointPosition(caster->obj, group);
 	}
 	
-	Vec3f aePos;
+	Vec3f startPos;
 	float afAlpha, afBeta;
 	if(m_caster == PlayerEntityHandle) {
 		afBeta = player.angle.getPitch();
@@ -218,13 +209,13 @@ void MagicMissileSpell::Launch() {
 		Vec3f vector = angleToVector(Anglef(afAlpha, afBeta, 0.f)) * 60.f;
 		
 		if(m_hand_group != ActionPoint()) {
-			aePos = m_hand_pos;
+			startPos = m_hand_pos;
 		} else {
-			aePos = player.pos;
-			aePos += angleToVectorXZ(afBeta);
+			startPos = player.pos;
+			startPos += angleToVectorXZ(afBeta);
 		}
 		
-		aePos += vector;
+		startPos += vector;
 		
 	} else {
 		afAlpha = 0;
@@ -233,12 +224,12 @@ void MagicMissileSpell::Launch() {
 		Vec3f vector = angleToVector(Anglef(afAlpha, afBeta, 0.f)) * 60.f;
 		
 		if(m_hand_group != ActionPoint()) {
-			aePos = m_hand_pos;
+			startPos = m_hand_pos;
 		} else {
-			aePos = entities[m_caster]->pos;
+			startPos = entities[m_caster]->pos;
 		}
 		
-		aePos += vector;
+		startPos += vector;
 		
 		Entity * io = entities[m_caster];
 		
@@ -283,7 +274,7 @@ void MagicMissileSpell::Launch() {
 			angles.setPitch(angles.getPitch() + Random::getf(-6.0f, 6.0f));
 		}
 		
-		missile->Create(aePos, angles);
+		missile->Create(startPos, angles);
 		
 		long lTime = m_duration + Random::get(-1000, 1000);
 		
@@ -307,7 +298,7 @@ void MagicMissileSpell::Launch() {
 				el->rgb = Color3f(0.f, 0.f, 1.f);
 			}
 			
-			el->pos	 = missile->eSrc;
+			el->pos = startPos;
 			el->duration = 300;
 		}
 	}
@@ -323,7 +314,7 @@ void MagicMissileSpell::End() {
 	pTab.clear();
 }
 
-void MagicMissileSpell::Update(float timeDelta) {
+void MagicMissileSpell::Update() {
 	
 	
 	for(size_t i = 0; i < pTab.size(); i++) {
@@ -362,7 +353,7 @@ void MagicMissileSpell::Update(float timeDelta) {
 	}
 	
 	for(size_t i = 0 ; i < pTab.size() ; i++) {
-		pTab[i]->Update(timeDelta);
+		pTab[i]->Update(g_framedelay);
 	}
 	
 	{ // CheckAllDestroyed
@@ -387,7 +378,7 @@ void MagicMissileSpell::Update(float timeDelta) {
 			EERIE_LIGHT * el	= lightHandleGet(pMM->lLightId);
 			el->intensity		= 0.7f + 2.3f * pMM->lightIntensityFactor;
 			el->pos = pMM->eCurPos;
-			el->time_creation	= (unsigned long)(arxtime);
+			el->creationTime	= arxtime.now_ul();
 		}
 	}
 }
@@ -502,10 +493,10 @@ void IgnitSpell::End() {
 	m_lights.clear();
 }
 
-void IgnitSpell::Update(float timeDelta)
+void IgnitSpell::Update()
 {
 	if(m_elapsed < m_duration) {
-		float a = (((float)m_elapsed)) / ((float)m_duration);
+		float a = float(m_elapsed) / float(m_duration);
 		
 		if(a >= 1.f)
 			a = 1.f;
@@ -529,7 +520,7 @@ void IgnitSpell::Update(float timeDelta)
 	}
 	
 	if(!arxtime.is_paused())
-		m_elapsed += timeDelta;
+		m_elapsed += g_framedelay;
 }
 
 void DouseSpell::Launch()
@@ -620,8 +611,8 @@ void DouseSpell::End() {
 	}
 }
 
-void DouseSpell::Update(float timeDelta) {
-	ARX_UNUSED(timeDelta);
+void DouseSpell::Update() {
+	
 }
 
 void ActivatePortalSpell::Launch()

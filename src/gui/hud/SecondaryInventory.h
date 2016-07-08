@@ -26,7 +26,6 @@
 class Entity;
 class TextureContainer;
 
-extern float InventoryX;
 
 class SecondaryInventoryPickAllHudIcon : public HudIconBase {
 private:
@@ -78,6 +77,15 @@ public:
 	void close();
 	
 	void updateFader();
+	
+	enum Fade {
+		Fade_left = -1,
+		Fade_stable = 0,
+		Fade_right = 1
+	};
+	
+	Fade m_fadeDirection;
+	float m_fadePosition;
 };
 
 extern SecondaryInventoryHud g_secondaryInventoryHud;

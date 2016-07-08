@@ -72,7 +72,7 @@ public:
 	void Render();
 	void drawDebug();
 	
-	Widget * GetTouch(bool keyTouched, int keyId, InputKeyId* pInputKeyId = NULL, bool _bValidateTest = false);
+	TextWidget *GetTouch(bool keyTouched, int keyId, InputKeyId* pInputKeyId, bool _bValidateTest);
 	void ReInitActionKey();
 	
 	Vec2f m_pos;
@@ -87,17 +87,17 @@ protected:
 	Vec2f m_size;
 	
 private:
+	void updateTextRect(TextWidget * widget);
 	void UpdateText();
-	
-	bool					bFrameOdd;
 	
 	Widget		*	m_selected;
 	bool					bEdit;
 	
 	bool				bMouseAttack;
 	
-	static const int m_textCursorFlashDuration = 300;
-	float m_textCursorCurrentTime;
+	static const int m_blinkDuration = 300;
+	float m_blinkTime;
+	bool m_blink;
 };
 
 class CWindowMenu {
@@ -127,7 +127,7 @@ private:
 
 struct TexturedVertex;
 
-
+extern float ARXDiffTimeMenu;
 
 void MenuReInitAll();
 
@@ -135,7 +135,7 @@ void Menu2_Open();
 bool Menu2_Render();
 void Menu2_Close();
 
-bool ProcessFadeInOut(bool _bFadeIn, float _fspeed);
+
 
 void ARX_MENU_Clicked_QUIT();
 

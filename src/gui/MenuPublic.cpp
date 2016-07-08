@@ -63,6 +63,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "gui/Interface.h"
 #include "gui/Menu.h"
 #include "gui/MenuWidgets.h"
+#include "gui/menu/MenuFader.h"
 
 #include "graphics/Math.h"
 #include "graphics/Renderer.h"
@@ -84,15 +85,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 extern bool bQuickGenFirstClick;
 
-extern Rect g_size;
-
 extern SavegameHandle LOADQUEST_SLOT;
-
-extern bool REFUSE_GAME_RETURN;
-
-extern bool bFade;
-extern bool	bFadeInOut;
-extern int iFadeAction;
 
 void ARXMenu_Private_Options_Video_SetResolution(bool fullscreen, int _iWidth, int _iHeight) {
 	
@@ -149,7 +142,10 @@ void ARXMenu_Options_Video_SetDetailsQuality(int _iQuality) {
 void ARXMenu_Options_Audio_SetMasterVolume(int _iVolume) {
 	_iVolume = glm::clamp(_iVolume, 0, 10);
 	
-	float fVolume = ((float)_iVolume) * 0.1f;
+	float fVolume = _iVolume * 0.1f;
+	if(config.audio.muteOnFocusLost && !mainApp->getWindow()->hasFocus()) {
+		fVolume = 0.f;
+	}
 	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerMenu, fVolume);
 	config.audio.volume = _iVolume;
 }
@@ -157,7 +153,7 @@ void ARXMenu_Options_Audio_SetMasterVolume(int _iVolume) {
 void ARXMenu_Options_Audio_SetSfxVolume(int _iVolume) {
 	_iVolume = glm::clamp(_iVolume, 0, 10);
 	
-	float fVolume = ((float)_iVolume) * 0.1f;
+	float fVolume = _iVolume * 0.1f;
 	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerMenuSample, fVolume);
 	config.audio.sfxVolume = _iVolume;
 }
@@ -165,7 +161,7 @@ void ARXMenu_Options_Audio_SetSfxVolume(int _iVolume) {
 void ARXMenu_Options_Audio_SetSpeechVolume(int _iVolume) {
 	_iVolume = glm::clamp(_iVolume, 0, 10);
 	
-	float fVolume = ((float)_iVolume) * 0.1f;
+	float fVolume = _iVolume * 0.1f;
 	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerMenuSpeech, fVolume);
 	config.audio.speechVolume = _iVolume;
 }
@@ -173,28 +169,28 @@ void ARXMenu_Options_Audio_SetSpeechVolume(int _iVolume) {
 void ARXMenu_Options_Audio_SetAmbianceVolume(int _iVolume) {
 	_iVolume = glm::clamp(_iVolume, 0, 10);
 	
-	float fVolume = ((float)_iVolume) * 0.1f;
+	float fVolume = _iVolume * 0.1f;
 	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerMenuAmbiance, fVolume);
 	config.audio.ambianceVolume = _iVolume;
 }
 
 void ARXMenu_Options_Audio_ApplyGameVolumes() {
 	ARX_SOUND_MixerSwitch(ARX_SOUND_MixerMenu, ARX_SOUND_MixerGame);
-	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerGame, config.audio.volume * 0.1f);
+	float volume = config.audio.volume * 0.1f;
+	if(config.audio.muteOnFocusLost && !mainApp->getWindow()->hasFocus()) {
+		volume = 0.f;
+	}
+	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerGame, volume);
 	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerGameSample, config.audio.sfxVolume * 0.1f);
 	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerGameSpeech, config.audio.speechVolume * 0.1f);
 	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerGameAmbiance, config.audio.ambianceVolume * 0.1f);
 }
 
-bool ARXMenu_Options_Audio_SetEAX(bool _bEnable) {
-	
-	config.audio.eax = _bEnable;
-	
-	ARX_SOUND_SetReverb(config.audio.eax);
-	
-	return config.audio.eax;
+void ARXMenu_Options_Audio_SetMuted(bool mute) {
+	float volume = mute ? 0.f : config.audio.volume * 0.1f;
+	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerMenu, volume);
+	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerGame, volume);
 }
-
 
 void ARXMenu_Options_Audio_SetDevice(std::string device) {
 	
@@ -238,10 +234,6 @@ void ARXMenu_Options_Control_SetMouseSensitivity(int sensitivity) {
 	GInput->setMouseSensitivity(config.input.mouseSensitivity);
 }
 
-bool ARXMenu_CanResumeGame() {
-	return !REFUSE_GAME_RETURN;
-}
-
 void ARXMenu_ResumeGame() {
 	ARX_Menu_Resources_Release();
 	arxtime.resume();
@@ -249,9 +241,7 @@ void ARXMenu_ResumeGame() {
 }
 
 void ARXMenu_NewQuest() {
-	bFadeInOut = true;	//fade out
-	bFade = true;			//active le fade
-	iFadeAction = AMCM_NEWQUEST;	//action a la fin du fade
+	MenuFader_start(true, true, AMCM_NEWQUEST);
 	bQuickGenFirstClick = true;
 	player.gold = 0;
 	ARX_PLAYER_MakeFreshHero();
@@ -262,7 +252,7 @@ void ARXMenu_LoadQuest(SavegameHandle num) {
 	LOADQUEST_SLOT = num;
 
 	ARX_SOUND_PlayMenu(SND_MENU_CLICK);
-	REFUSE_GAME_RETURN = false;
+	g_canResumeGame = true;
 	ARX_MENU_Clicked_QUIT();
 }
 
@@ -273,16 +263,4 @@ void ARXMenu_SaveQuest(const std::string & name, SavegameHandle num) {
 	savegames.save(name, num.handleData(), savegame_thumbnail);
 	
 	ARX_SOUND_MixerResume(ARX_SOUND_MixerMenu);
-}
-
-void ARXMenu_Credits() {
-	bFadeInOut = true;	//fade out
-	bFade = true;			//active le fade
-	iFadeAction = AMCM_CREDITS;	//action a la fin du fade
-}
-
-void ARXMenu_Quit() {
-	bFadeInOut = true;		//fade out
-	bFade = true;				//active le fade
-	iFadeAction = AMCM_OFF;	//action a la fin du fade
 }

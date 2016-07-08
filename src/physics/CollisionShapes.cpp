@@ -73,7 +73,7 @@ void EERIE_COLLISION_Cylinder_Create(Entity * io)
 	float d = 0.f;
 	float height = 0.f;
 	for(size_t i = 0; i < obj->vertexlist.size(); i++) {
-		if(i != (size_t)obj->origin && glm::abs(io->physics.cyl.origin.y - obj->vertexlist[i].v.y) < 20.f) {
+		if(i != obj->origin && glm::abs(io->physics.cyl.origin.y - obj->vertexlist[i].v.y) < 20.f) {
 			d = std::max(d, glm::distance(io->physics.cyl.origin, obj->vertexlist[i].v));
 		}
 		height = std::max(height, io->physics.cyl.origin.y - obj->vertexlist[i].v.y);
@@ -151,7 +151,7 @@ static long GetFirstChildGroup(EERIE_3DOBJ * obj, size_t group) {
 	return -1;
 }
 
-static bool IsExclusiveGroupMember(EERIE_3DOBJ * obj, long idx, long group) {
+static bool IsExclusiveGroupMember(EERIE_3DOBJ * obj, size_t idx, size_t group) {
 	
 	for(size_t i = group + 1; i < obj->grouplist.size(); i++) {
 		for(size_t j = 0; j < obj->grouplist[i].indexes.size(); j++) {
@@ -165,7 +165,7 @@ static bool IsExclusiveGroupMember(EERIE_3DOBJ * obj, long idx, long group) {
 }
 
 static float GetSphereRadiusForGroup(EERIE_3DOBJ * obj, const Vec3f & center, const Vec3f & dirvect,
-                                     long group, float maxi) {
+                                     size_t group, float maxi) {
 	
 	float curradius = 0.f;
 	float maxf = 0.f;
@@ -215,7 +215,7 @@ static float GetSphereRadiusForGroup(EERIE_3DOBJ * obj, const Vec3f & center, co
 	return curradius;
 }
 
-static long AddVertexToVertexList(EERIE_3DOBJ * obj, Vec3f * center, long group) {
+static long AddVertexToVertexList(EERIE_3DOBJ * obj, Vec3f * center, size_t group) {
 	
 	if(obj->vertexlist.empty())
 		return -1;

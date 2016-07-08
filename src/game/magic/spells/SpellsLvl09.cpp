@@ -22,6 +22,7 @@
 #include <boost/foreach.hpp>
 
 #include "core/Application.h"
+#include "core/Core.h"
 #include "core/Config.h"
 #include "core/GameTime.h"
 #include "game/Damage.h"
@@ -149,18 +150,20 @@ void SummonCreatureSpell::End() {
 	m_summonedEntity = EntityHandle();
 }
 
-void SummonCreatureSpell::Update(float timeDelta) {
+void SummonCreatureSpell::Update() {
 	
 	if(arxtime.is_paused())
 		return;
 	
-	if(float(arxtime) - (float)m_timcreation <= 4000) {
+	float elapsed = arxtime.now_f() - m_timcreation;
+	
+	if(elapsed <= 4000) {
 		if(Random::getf() > 0.7f) {
 			Vec3f pos = m_fissure.m_eSrc;
 			MakeCoolFx(pos);
 		}
 		
-		m_fissure.Update(timeDelta);
+		m_fissure.Update(g_framedelay);
 		m_fissure.Render();
 		
 		m_requestSummon = true;
@@ -310,8 +313,8 @@ void FakeSummonSpell::End()
 	lightHandleDestroy(m_light);
 }
 
-void FakeSummonSpell::Update(float timeDelta)
-{
+void FakeSummonSpell::Update() {
+	
 	if(!arxtime.is_paused()) {
 		if(Random::getf() > 0.7f) {
 			Vec3f pos = m_fissure.m_eSrc;
@@ -319,10 +322,15 @@ void FakeSummonSpell::Update(float timeDelta)
 		}
 	}
 	
-	m_fissure.Update(timeDelta);
+	m_fissure.Update(g_framedelay);
 	m_fissure.Render();
 }
 
+
+NegateMagicSpell::NegateMagicSpell()
+	: tex_p2(NULL)
+	, tex_sol(NULL)
+{ }
 
 void NegateMagicSpell::Launch()
 {
@@ -348,8 +356,8 @@ void NegateMagicSpell::End() {
 	
 }
 
-void NegateMagicSpell::Update(float timeDelta)
-{
+void NegateMagicSpell::Update() {
+	
 	LaunchAntiMagicField();
 	
 	if(m_target == PlayerEntityHandle) {
@@ -357,9 +365,6 @@ void NegateMagicSpell::Update(float timeDelta)
 	} else {
 		m_pos = entities[m_target]->pos;
 	}
-	
-	ulCurrentTime += timeDelta;
-	
 	
 	Vec3f stitepos = m_pos - Vec3f(0.f, 10.f, 0.f);
 	
@@ -381,7 +386,7 @@ void NegateMagicSpell::Update(float timeDelta)
 			pd->ov = stitepos + Vec3f(Random::getf(-150.f, 150.f), 0.f, Random::getf(-150.f, 150.f));
 			pd->move = Vec3f(0.f, Random::getf(-3.f, 0.f), 0.f);
 			pd->siz = 0.3f;
-			pd->tolive = Random::get(2000, 4000);
+			pd->tolive = Random::getu(2000, 4000);
 			pd->tc = tex_p2;
 			pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING
 			              | SUBSTRACT;
@@ -389,15 +394,22 @@ void NegateMagicSpell::Update(float timeDelta)
 		}
 	}
 	
-	Anglef stiteangle(0.f, -(float) ulCurrentTime * 0.02f, 0.f);
+	float now = arxtime.now_f();
+	
+	Anglef stiteangle(0.f, -now * 0.02f, 0.f);
+	float scalediff = std::sin(now * 0.004f);
+	
+	{
 	Color3f stitecolor = Color3f::gray(.4f);
-	float scalediff = std::sin(ulCurrentTime * 0.004f);
 	Vec3f stitescale = Vec3f(3.f + 0.5f * scalediff);
 	Draw3DObject(ssol, stiteangle, stitepos, stitescale, stitecolor, mat);
+	}
 	
-	stitecolor = Color3f(.5f, 0.f, .5f);
-	stitescale = Vec3f(3.1f + 0.2f * scalediff);
+	{
+	Color3f stitecolor = Color3f(.5f, 0.f, .5f);
+	Vec3f stitescale = Vec3f(3.1f + 0.2f * scalediff);
 	Draw3DObject(ssol, stiteangle, stitepos, stitescale, stitecolor, mat);
+	}
 }
 
 void NegateMagicSpell::LaunchAntiMagicField() {
@@ -449,7 +461,7 @@ void IncinerateSpell::Launch()
 	m_duration = 20000;
 	
 	tio->sfx_flag |= SFX_TYPE_YLSIDE_DEATH | SFX_TYPE_INCINERATE;
-	tio->sfx_time = (unsigned long)(arxtime);
+	tio->sfx_time = arxtime.now_ul();
 	
 	m_targets.push_back(m_target);
 }
@@ -461,9 +473,7 @@ void IncinerateSpell::End()
 	ARX_SOUND_PlaySFX(SND_SPELL_INCINERATE_END);
 }
 
-void IncinerateSpell::Update(float timeDelta)
-{
-	ARX_UNUSED(timeDelta);
+void IncinerateSpell::Update() {
 	
 	if(ValidIONum(m_target)) {
 		ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_target]->pos);

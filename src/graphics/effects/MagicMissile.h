@@ -55,13 +55,12 @@ public:
 	
 	void SetTTL(unsigned long);
 	
-	void Create(const Vec3f &, const Anglef &);
+	void Create(const Vec3f & startPos, const Anglef &);
 	void Update(float timeDelta);
 	void Render();
 	
 	bool bExplo;
 	bool bMove;
-	Vec3f eSrc;
 	Vec3f eCurPos;
 	
 	float lightIntensityFactor;
@@ -77,7 +76,6 @@ private:
 	int iLength;
 	int	iBezierPrecision;
 	float fTrail;
-	float fOneOnBezierPrecision;
 	Vec3f pathways[6];
 	audio::SourceId snd_loop;
 };

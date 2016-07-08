@@ -47,39 +47,49 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #ifndef ARX_GAME_PLAYER_H
 #define ARX_GAME_PLAYER_H
 
+#include <stddef.h>
 #include <string>
 #include <vector>
 
 #include "game/Entity.h"
 #include "game/Spells.h"
 #include "game/GameTypes.h"
-#include "math/Types.h"
-#include "platform/Flags.h"
 #include "gui/book/Necklace.h"
+#include "math/Types.h"
+#include "util/Flags.h"
 
 struct EERIE_3DOBJ;
 class TextureContainer;
 
-static const int MAX_EQUIPED = 12;
+static const size_t MAX_EQUIPED = 12;
 
 struct ARX_INTERFACE_MEMORIZE_SPELL {
 	bool bSpell;
 	unsigned long lTimeCreation;
 	Rune iSpellSymbols[6];
+	
+	ARX_INTERFACE_MEMORIZE_SPELL()
+		: bSpell(false)
+		, lTimeCreation(0)
+	{
+		for(size_t i = 0; i < ARRAY_SIZE(iSpellSymbols); i++) {
+			iSpellSymbols[i] = RUNE_NONE;
+		}
+	}
 };
 
 enum PlayerInterfaceFlag
 {
-	INTER_MAP          = 0x00000001,
-	INTER_INVENTORY    = 0x00000002,
-	INTER_INVENTORYALL = 0x00000004,
-	INTER_MINIBOOK     = 0x00000008,
-	INTER_MINIBACK     = 0x00000010,
-	INTER_LIFE_MANA    = 0x00000020,
-	INTER_COMBATMODE   = 0x00000040,
-	INTER_NOTE         = 0x00000080,
-	INTER_STEAL        = 0x00000100,
-	INTER_NO_STRIKE    = 0x00000200
+	INTER_MAP          = (1<<0),
+	INTER_INVENTORY    = (1<<1),
+	INTER_INVENTORYALL = (1<<2),
+	INTER_MINIBOOK     = (1<<3),
+	INTER_MINIBACK     = (1<<4),
+	INTER_LIFE_MANA    = (1<<5),
+	INTER_COMBATMODE   = (1<<6),
+	INTER_NOTE         = (1<<7),
+	INTER_STEAL        = (1<<8),
+	INTER_NO_STRIKE    = (1<<9)
 };
 DECLARE_FLAGS(PlayerInterfaceFlag, PlayerInterfaceFlags)
 DECLARE_FLAGS_OPERATORS(PlayerInterfaceFlags)
@@ -139,6 +149,91 @@ enum JumpPhase {
 	JumpEnd = 5
 };
 
+struct PlayerAttribute {
+	float strength;
+	float dexterity;
+	float constitution;
+	float mind;
+	
+	PlayerAttribute()
+		: strength(0)
+		, dexterity(0)
+		, constitution(0)
+		, mind(0)
+	{}
+	
+	void add(const PlayerAttribute & other) {
+		strength += other.strength;
+		dexterity += other.dexterity;
+		constitution += other.constitution;
+		mind += other.mind;
+	}
+};
+
+struct PlayerSkill {
+	float stealth;
+	float mecanism;
+	float intuition;
+	
+	float etheralLink;
+	float objectKnowledge;
+	float casting;
+	
+	float projectile;
+	float closeCombat;
+	float defense;
+	
+	PlayerSkill()
+		: stealth(0)
+		, mecanism(0)
+		, intuition(0)
+		, etheralLink(0)
+		, objectKnowledge(0)
+		, casting(0)
+		, projectile(0)
+		, closeCombat(0)
+		, defense(0)
+	{}
+	
+	void add(const PlayerSkill & other) {
+		stealth += other.stealth;
+		mecanism += other.mecanism;
+		intuition += other.intuition;
+		
+		etheralLink += other.etheralLink;
+		objectKnowledge += other.objectKnowledge;
+		casting += other.casting;
+		
+		projectile += other.projectile;
+		closeCombat += other.closeCombat;
+		defense += other.defense;
+	}
+};
+
+struct PlayerMisc {
+	float armorClass;
+	float resistMagic;
+	float resistPoison;
+	float criticalHit;
+	float damages;
+	
+	PlayerMisc()
+		: armorClass(0)
+		, resistMagic(0)
+		, resistPoison(0)
+		, criticalHit(0)
+		, damages(0)
+	{}
+	
+	void add(const PlayerMisc & other) {
+		armorClass += other.armorClass;
+		resistMagic += other.resistMagic;
+		resistPoison += other.resistPoison;
+		criticalHit += other.criticalHit;
+		damages += other.damages;
+	}
+};
+
 struct ARXCHARACTER {
 	
 	Vec3f pos;
@@ -146,7 +241,10 @@ struct ARXCHARACTER {
 	IO_PHYSICS physics;
 	
 	AnimLayer bookAnimation[MAX_ANIM_LAYERS];
-
+	
+	long m_strikeDirection;
+	long m_weaponBlocked;
+	
 	// Jump Sub-data
 	unsigned long jumpstarttime;
 	float jumplastposition;
@@ -169,104 +267,14 @@ struct ARXCHARACTER {
 	short doingmagic;
 	PlayerInterfaceFlags Interface;
 	
-	PlayerMovement Current_Movement;
+	PlayerMovement m_currentMovement;
 	PlayerMovement Last_Movement;
 	bool onfirmground;
-	
-	Entity * rightIO;
-	Entity * leftIO;
-	Entity * equipsecondaryIO;
-	Entity * equipshieldIO;
 	
 	Color3f m_torchColor;
 	Entity * torch;
 	
 	EntityHandle equiped[MAX_EQUIPED]; 
-	
-	struct PlayerAttribute {
-		float strength;
-		float dexterity;
-		float constitution;
-		float mind;
-		
-		PlayerAttribute()
-			: strength(0)
-			, dexterity(0)
-			, constitution(0)
-			, mind(0)
-		{}
-		
-		void add(const PlayerAttribute & other) {
-			strength += other.strength;
-			dexterity += other.dexterity;
-			constitution += other.constitution;
-			mind += other.mind;
-		}
-	};
-	
-	struct PlayerSkill {
-		float stealth;
-		float mecanism;
-		float intuition;
-		
-		float etheralLink;
-		float objectKnowledge;
-		float casting;
-		
-		float projectile;
-		float closeCombat;
-		float defense;
-		
-		PlayerSkill()
-			: stealth(0)
-			, mecanism(0)
-			, intuition(0)
-			, etheralLink(0)
-			, objectKnowledge(0)
-			, casting(0)
-			, projectile(0)
-			, closeCombat(0)
-			, defense(0)
-		{}
-		
-		void add(const PlayerSkill & other) {
-			stealth += other.stealth;
-			mecanism += other.mecanism;
-			intuition += other.intuition;
-			
-			etheralLink += other.etheralLink;
-			objectKnowledge += other.objectKnowledge;
-			casting += other.casting;
-			
-			projectile += other.projectile;
-			closeCombat += other.closeCombat;
-			defense += other.defense;
-		}
-	};
-	
-	struct PlayerMisc {
-		float armorClass;
-		float resistMagic;
-		float resistPoison;
-		float criticalHit;
-		float damages;
-		
-		PlayerMisc()
-			: armorClass(0)
-			, resistMagic(0)
-			, resistPoison(0)
-			, criticalHit(0)
-			, damages(0)
-		{}
-		
-		void add(const PlayerMisc & other) {
-			armorClass += other.armorClass;
-			resistMagic += other.resistMagic;
-			resistPoison += other.resistPoison;
-			criticalHit += other.criticalHit;
-			damages += other.damages;
-		}
-	};
 	
 	// Modifier Values (Items, curses, etc...)
 	PlayerAttribute m_attributeMod;
@@ -278,7 +286,11 @@ struct ARXCHARACTER {
 	PlayerSkill m_skillFull;
 	PlayerMisc m_miscFull;
 	
+	float m_bowAimRatio;
+	
+	float m_strikeAimRatio;
 	long Full_AimTime;
+	
 	float Full_life;
 	float Full_maxlife;
 	float Full_maxmana;
@@ -289,6 +301,8 @@ struct ARXCHARACTER {
 	PlayerMisc m_misc;
 	
 	long AimTime;
+	
+	unsigned long m_aimTime;
 	
 	ResourcePool lifePool;
 	ResourcePool manaPool;
@@ -321,6 +335,54 @@ struct ARXCHARACTER {
 	float TRAP_DETECT;
 	float TRAP_SECRET;
 	
+	s8 m_cheatSkinButtonClickCount;
+	char m_cheatQuickGenButtonClickCount;
+	long m_cheatPnuxActive;
+	
+	ARXCHARACTER()
+		: m_strikeDirection(0)
+		, m_weaponBlocked(0)
+		, jumpstarttime(0u)
+		, jumplastposition(0.f)
+		, jumpphase(NotJumping)
+		, climbing(false)
+		, m_paralysed(false)
+		, levitate(false)
+		, m_telekinesis(false)
+		, m_improve(false)
+		, inzone(NULL)
+		, falling(false)
+		, doingmagic(0)
+		, onfirmground(false)
+		, torch(NULL)
+		, m_bowAimRatio(0.f)
+		, m_strikeAimRatio(0.f)
+		, Full_AimTime(0)
+		, Full_life(0)
+		, Full_maxlife(0)
+		, Full_maxmana(0)
+		, AimTime(0)
+		, m_aimTime(0)
+		, Attribute_Redistribute(0)
+		, Skill_Redistribute(0)
+		, level(0)
+		, xp(0)
+		, skin(0)
+		, poison(0)
+		, hunger(0)
+		, gold(0)
+		, bag(0)
+		, TRAP_DETECT(0)
+		, TRAP_SECRET(0)
+		, m_cheatSkinButtonClickCount(0)
+		, m_cheatQuickGenButtonClickCount(0)
+		, m_cheatPnuxActive(0)
+	{
+		for(size_t i = 0; i < ARRAY_SIZE(heads); i++) {
+			heads[i] = NULL;
+		}
+	}
+	
 	static float baseRadius() { return 52.f; }
 	static float baseHeight() { return -170.f; }
 	static float crouchHeight() { return -120.f; }
@@ -337,6 +399,8 @@ struct ARXCHARACTER {
 	}
 	
 };
+
+extern float CURRENT_PLAYER_COLOR;
 
 struct KEYRING_SLOT {
 	char slot[64];

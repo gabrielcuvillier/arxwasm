@@ -48,7 +48,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #define ARX_PHYSICS_ANCHORS_H
 
 #include "math/Vector.h"
-#include "platform/Flags.h"
+#include "util/Flags.h"
 
 struct EERIE_BACKGROUND;
 struct Cylinder;
@@ -66,6 +66,15 @@ struct ANCHOR_DATA {
 	long * linked;
 	float radius;
 	float height;
+	
+	ANCHOR_DATA()
+		: pos(Vec3f_ZERO)
+		, nblinked(0)
+		, flags(0)
+		, linked(NULL)
+		, radius(0)
+		, height(0)
+	{ }
 };
 
 /*!

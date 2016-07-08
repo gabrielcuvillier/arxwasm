@@ -20,6 +20,7 @@
 #include "game/magic/spells/SpellsLvl06.h"
 
 #include "core/Application.h"
+#include "core/Core.h"
 #include "core/GameTime.h"
 #include "game/Damage.h"
 #include "game/Entity.h"
@@ -53,10 +54,9 @@ void RiseDeadSpell::GetTargetAndBeta(Vec3f & target, float & beta)
 }
 
 RiseDeadSpell::RiseDeadSpell()
-	: m_entity()
-{
-	
-}
+	: m_creationFailed(false)
+	, m_entity()
+{ }
 
 bool RiseDeadSpell::CanLaunch()
 {
@@ -112,7 +112,7 @@ void RiseDeadSpell::Launch()
 		light->rgb = Color3f::black;
 		light->pos = target - Vec3f(0.f, 100.f, 0.f);
 		light->duration = 200;
-		light->time_creation = (unsigned long)(arxtime);
+		light->creationTime = arxtime.now_ul();
 	}
 	
 	m_duration = m_fissure.GetDuration();
@@ -151,7 +151,7 @@ void RiseDeadSpell::End()
 	endLightDelayed(m_light, 500);
 }
 
-void RiseDeadSpell::Update(float timeDelta) {
+void RiseDeadSpell::Update() {
 	
 	if(m_creationFailed) {
 		m_light = LightHandle();
@@ -160,7 +160,7 @@ void RiseDeadSpell::Update(float timeDelta) {
 	
 	m_duration+=200;
 	
-	m_fissure.Update(timeDelta);
+	m_fissure.Update(g_framedelay);
 	m_fissure.Render();
 	
 	if(lightHandleIsValid(m_light)) {
@@ -171,7 +171,7 @@ void RiseDeadSpell::Update(float timeDelta) {
 		light->fallstart = 400.f;
 		light->rgb = Color3f(0.8f, 0.2f, 0.2f);
 		light->duration=800;
-		light->time_creation = (unsigned long)(arxtime);
+		light->creationTime = arxtime.now_ul();
 	}
 	
 	unsigned long tim = m_fissure.ulCurrentTime;
@@ -272,7 +272,7 @@ CreateFieldSpell::CreateFieldSpell()
 
 void CreateFieldSpell::Launch()
 {
-	unsigned long start = (unsigned long)(arxtime);
+	unsigned long start = arxtime.now_ul();
 	if(m_flags & SPELLCAST_FLAG_RESTORE) {
 		start -= std::min(start, 4000ul);
 	}
@@ -351,7 +351,7 @@ void CreateFieldSpell::End() {
 	}
 }
 
-void CreateFieldSpell::Update(float timeDelta) {
+void CreateFieldSpell::Update() {
 	
 		if(ValidIONum(m_entity)) {
 			Entity * io = entities[m_entity];
@@ -363,7 +363,7 @@ void CreateFieldSpell::Update(float timeDelta) {
 				m_duration=0;
 			}
 		
-			m_field.Update(timeDelta);
+			m_field.Update(g_framedelay);
 			m_field.Render();
 		}
 }
@@ -435,9 +435,8 @@ void SlowDownSpell::End() {
 	m_targets.clear();
 }
 
-void SlowDownSpell::Update(float timeDelta) {
+void SlowDownSpell::Update() {
 	
-	ARX_UNUSED(timeDelta);
 }
 
 Vec3f SlowDownSpell::getPosition() {

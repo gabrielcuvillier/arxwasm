@@ -109,7 +109,6 @@ static void PlayerBookDrawRune(Rune rune) {
 }
 
 
-long LastRune = -1;
 
 void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 {
@@ -154,16 +153,17 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 		if(player.hasRune((Rune)i)) {
 			
 			TransformInfo t1(pos, glm::toQuat(toRotationMatrix(angle)));
-			DrawEERIEInter(gui::necklace.lacet, t1, NULL);
+			DrawEERIEInter(gui::necklace.lacet, t1, NULL, false, 0.f);
 			
 			if(rune->angle.getPitch() != 0.f) {
 				if(rune->angle.getPitch() > 300.f)
 					rune->angle.setPitch(300.f);
 				
-				angle.setPitch(std::sin(arxtime.get_updated() * (1.0f / 200)) * rune->angle.getPitch() * (1.0f / 40));
+				arxtime.update();
+				angle.setPitch(std::sin(arxtime.now_f() * (1.0f / 200)) * rune->angle.getPitch() * (1.0f / 40));
 			}
 			
-			rune->angle.setPitch(rune->angle.getPitch() - framedelay * 0.2f);
+			rune->angle.setPitch(rune->angle.getPitch() - g_framedelay * 0.2f);
 			
 			if(rune->angle.getPitch() < 0.f)
 				rune->angle.setPitch(0.f);
@@ -173,10 +173,9 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 			
 			// Now draw the rune
 			TransformInfo t2(pos, glm::toQuat(toRotationMatrix(angle)));
-			DrawEERIEInter(rune, t2, NULL);
+			DrawEERIEInter(rune, t2, NULL, false, 0.f);
 			
-			EERIE_2D_BBOX runeBox;
-			UpdateBbox2d(*rune, runeBox);
+			Rectf runeBox = UpdateBbox2d(*rune).toRect();
 			
 			PopAllTriangleList();
 			
@@ -187,19 +186,12 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 				tmpPos.y++;
 			}
 			
-			const Rect runeMouseTestRect(
-			runeBox.min.x,
-			runeBox.min.y,
-			runeBox.max.x,
-			runeBox.max.y
-			);
-			
 			// Checks for Mouse floating over a rune...
-			if(runeMouseTestRect.contains(Vec2i(mousePos))) {
+			if(runeBox.contains(mousePos)) {
 				long r=0;
 				
 				for(size_t j = 0; j < rune->facelist.size(); j++) {
-					float n = PtIn2DPolyProj(rune, &rune->facelist[j], mousePos.x, mousePos.y);
+					float n = PtIn2DPolyProj(rune->vertexlist, &rune->facelist[j], mousePos.x, mousePos.y);
 					
 					if(n!=0.f) {
 						r=1;
@@ -212,9 +204,9 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 					GRenderer->SetBlendFunc(BlendOne, BlendOne);
 					
 					TransformInfo t(pos, glm::toQuat(toRotationMatrix(angle)));
-					DrawEERIEInter(rune, t, NULL);
+					DrawEERIEInter(rune, t, NULL, false, 0.f);
 					
-					rune->angle.setPitch(rune->angle.getPitch() + framedelay*2.f);
+					rune->angle.setPitch(rune->angle.getPitch() + g_framedelay*2.f);
 					
 					PopAllTriangleList();
 					
@@ -222,20 +214,15 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 					
 					SpecialCursor=CURSOR_INTERACTION_ON;
 					
-					if(eeMouseDown1())
-						if((size_t)LastRune != i) {
-							PlayerBookDrawRune((Rune)i);
-						}
-						
-						LastRune=i;
+					if(eeMouseDown1()) {
+						PlayerBookDrawRune((Rune)i);
+					}
 				}
 			}
 		}
 	}
 	
 	GRenderer->SetCulling(CullCCW);
-	
-	LastRune=-1;
 	
 	*light = tl;
 	

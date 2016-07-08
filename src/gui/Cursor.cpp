@@ -20,6 +20,7 @@
 #include "gui/Cursor.h"
 
 #include <iomanip>
+#include <sstream>
 
 #include "core/Core.h"
 #include "core/Application.h"
@@ -55,8 +56,6 @@
 #include "gui/Menu.h"
 #include "gui/hud/SecondaryInventory.h"
 
-extern Rect g_size;
-extern Vec2s DANAEMouse;
 
 extern float STARTED_ANGLE;
 long SPECIAL_DRAGINTER_RENDER=0;
@@ -96,10 +95,11 @@ void cursorTexturesInit() {
 	arx_assert(cursorRedist);
 	arx_assert(cursorCrossHair);
 	
-	for(long i = 0; i < 8; i++) {
-		char temp[256];
-		sprintf(temp,"graph/interface/cursors/cursor%02ld", i);
-		scursor[i] = TextureContainer::LoadUI(temp);
+	std::ostringstream oss;
+	for(size_t i = 0; i < 8; i++) {
+		oss.str(std::string());
+		oss << "graph/interface/cursors/cursor" << std::setfill('0') << std::setw(2) << i;
+		scursor[i] = TextureContainer::LoadUI(oss.str());
 		arx_assert(scursor[i]);
 	}
 	
@@ -325,7 +325,8 @@ static bool SelectSpellTargetCursorRender() {
 	if(   !SPECIAL_DRAGINTER_RENDER
 	   && LOOKING_FOR_SPELL_TARGET
 	) {
-		if(float(arxtime) > LOOKING_FOR_SPELL_TARGET_TIME + 7000) {
+		float elapsed = arxtime.now_f() - LOOKING_FOR_SPELL_TARGET_TIME;
+		if(elapsed > 7000) {
 			ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE, &player.pos);
 			ARX_SPELLS_CancelSpellTarget();
 		}
@@ -444,7 +445,7 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 	
 	if(!SPECIAL_DRAGINTER_RENDER) {
 		if(FlyingOverIO || DRAGINTER) {
-			fHighLightAng += framedelay * 0.5f;
+			fHighLightAng += g_framedelay * 0.5f;
 			
 			if(fHighLightAng > 90.f)
 				fHighLightAng = 90.f;
@@ -586,7 +587,7 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 			
 			SpecialCursor = 0;
 		} else {
-			if(   !(player.Current_Movement & PLAYER_CROUCH)
+			if(   !(player.m_currentMovement & PLAYER_CROUCH)
 			   && !BLOCK_PLAYER_CONTROLS
 			   && GInput->actionPressed(CONTROLS_CUST_MAGICMODE)
 			   && ARXmenu.currentmode == AMCM_OFF
@@ -680,7 +681,7 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 			return;
 		
 		if(   TRUE_PLAYER_MOUSELOOK_ON
-		   && config.video.showCrosshair
+		   && config.interface.showCrosshair
 		   && !(player.Interface & (INTER_COMBATMODE | INTER_NOTE | INTER_MAP))) {
 			
 			cursorAnimatedHand.reset();

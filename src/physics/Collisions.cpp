@@ -279,17 +279,14 @@ bool IsCollidingIO(Entity * io,Entity * ioo) {
 	   && ioo->obj
 	) {
 		if(ioo->ioflags & IO_NPC) {
-			float old = ioo->physics.cyl.radius;
-			ioo->physics.cyl.radius += 25.f;
-
+			Cylinder cyl = ioo->physics.cyl;
+			cyl.radius += 25.f;
+			
 			for(size_t j = 0; j < io->obj->vertexlist3.size(); j++) {
-				if(PointInCylinder(ioo->physics.cyl, io->obj->vertexlist3[j].v)) {
-					ioo->physics.cyl.radius = old;
+				if(PointInCylinder(cyl, io->obj->vertexlist3[j].v)) {
 					return true;
 				}
 			}
-
-			ioo->physics.cyl.radius = old;
 		}
 	}
 	
@@ -637,9 +634,10 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 						anything = std::min(anything, io_cyl.origin.y + io_cyl.height);
 
 						if(!(flags & CFLAG_JUST_TEST) && ioo) {
-							if(float(arxtime) > io->collide_door_time + 500) {
+							float elapsed = arxtime.now_f() - io->collide_door_time;
+							if(elapsed > 500) {
 								EVENT_SENDER = ioo;
-								io->collide_door_time = (unsigned long)(arxtime); 	
+								io->collide_door_time = arxtime.now_ul(); 	
 
 								if(CollidedFromBack(io, ioo))
 									SendIOScriptEvent(io, SM_COLLIDE_NPC, "back");
@@ -647,7 +645,7 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 									SendIOScriptEvent(io, SM_COLLIDE_NPC);
 
 								EVENT_SENDER = io;
-								io->collide_door_time = (unsigned long)(arxtime); 
+								io->collide_door_time = arxtime.now_ul(); 
 
 								if(CollidedFromBack(ioo, io))
 									SendIOScriptEvent(ioo, SM_COLLIDE_NPC, "back");
@@ -713,20 +711,21 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 								if(SphereInCylinder(cyl, sp)) {
 									if(!(flags & CFLAG_JUST_TEST) && ioo) {
 										if(io->gameFlags & GFLAG_DOOR) {
-											if(float(arxtime) > io->collide_door_time + 500) {
+											float elapsed = arxtime.now_f() - io->collide_door_time;
+											if(elapsed > 500) {
 												EVENT_SENDER = ioo;
-												io->collide_door_time = (unsigned long)(arxtime); 	
+												io->collide_door_time = arxtime.now_ul(); 	
 												SendIOScriptEvent(io, SM_COLLIDE_DOOR);
 
 												EVENT_SENDER = io;
-												io->collide_door_time = (unsigned long)(arxtime); 	
+												io->collide_door_time = arxtime.now_ul(); 	
 												SendIOScriptEvent(ioo, SM_COLLIDE_DOOR);
 											}
 										}
 
 										if(io->ioflags & IO_FIELD) {
 											EVENT_SENDER = NULL;
-											io->collide_door_time = (unsigned long)(arxtime); 	
+											io->collide_door_time = arxtime.now_ul(); 	
 											SendIOScriptEvent(ioo, SM_COLLIDE_FIELD);
 										}
 
@@ -766,26 +765,27 @@ float CheckAnythingInCylinder(const Cylinder & cyl, Entity * ioo, long flags) {
 								step = 6;
 
 							for(size_t ii = 1; ii < nbv; ii += step) {
-								if(ii != (size_t)io->obj->origin) {
+								if(ii != io->obj->origin) {
 									sp.origin = vlist[ii].v;
 									
 									if(SphereInCylinder(cyl, sp)) {
 										if(!(flags & CFLAG_JUST_TEST) && ioo) {
 											if(io->gameFlags & GFLAG_DOOR) {
-												if(float(arxtime) > io->collide_door_time + 500) {
+												float elapsed = arxtime.now_f() - io->collide_door_time;
+												if(elapsed > 500) {
 													EVENT_SENDER = ioo;
-													io->collide_door_time = (unsigned long)(arxtime); 	
+													io->collide_door_time = arxtime.now_ul(); 	
 													SendIOScriptEvent(io, SM_COLLIDE_DOOR);
 
 													EVENT_SENDER = io;
-													io->collide_door_time = (unsigned long)(arxtime); 	
+													io->collide_door_time = arxtime.now_ul(); 	
 													SendIOScriptEvent(ioo, SM_COLLIDE_DOOR);
 												}
 											}
 
 										if(io->ioflags & IO_FIELD) {
 											EVENT_SENDER = NULL;
-											io->collide_door_time = (unsigned long)(arxtime);
+											io->collide_door_time = arxtime.now_ul();
 											SendIOScriptEvent(ioo, SM_COLLIDE_FIELD);
 										}
 					
@@ -861,14 +861,14 @@ bool CheckEverythingInSphere(const Sphere & sphere, EntityHandle source, EntityH
 		} else {
 			if(treatio[i].show != 1
 			   || treatio[i].io == NULL
-			   || treatio[i].num == source
-			   || InExceptionList(treatio[i].num)
+			   || treatio[i].io->index() == source
+			   || InExceptionList(treatio[i].io->index())
 			) {
 				continue;
 			}
 
 			io = treatio[i].io;
-			ret_idx = treatio[i].num;
+			ret_idx = treatio[i].io->index();
 		}
 
 		if(!(io->ioflags & IO_NPC) && (io->ioflags & IO_NO_COLLISIONS))
@@ -1049,7 +1049,7 @@ bool CheckAnythingInSphere(const Sphere & sphere, EntityHandle source, CASFlags 
 
 	for(long i = 0; i < TREATZONE_CUR; i++) {
 		
-		if(treatio[i].show != 1 || !treatio[i].io || treatio[i].num == source)
+		if(treatio[i].show != 1 || !treatio[i].io || treatio[i].io->index() == source)
 			continue;
 
 		Entity * io = treatio[i].io;
@@ -1069,7 +1069,7 @@ bool CheckAnythingInSphere(const Sphere & sphere, EntityHandle source, CASFlags 
 		if((io->ioflags & IO_ITEM) && (flags & CAS_NO_ITEM_COL))
 			continue;
 
-		if(treatio[i].num != PlayerEntityHandle && source != PlayerEntityHandle && validsource && HaveCommonGroup(io,entities[source]))
+		if(treatio[i].io->index() != PlayerEntityHandle && source != PlayerEntityHandle && validsource && HaveCommonGroup(io,entities[source]))
 			continue;
 
 		if(io->gameFlags & GFLAG_PLATFORM) {
@@ -1105,7 +1105,7 @@ bool CheckAnythingInSphere(const Sphere & sphere, EntityHandle source, CASFlags 
 
 						if(PointIn2DPolyXZ(&ep, sphere.origin.x, sphere.origin.z)) {
 							if(num)
-								*num=treatio[i].num;
+								*num=treatio[i].io->index();
 
 							return true;
 						}
@@ -1122,7 +1122,7 @@ bool CheckAnythingInSphere(const Sphere & sphere, EntityHandle source, CASFlags 
 				for(size_t ii = 0; ii < io->obj->grouplist.size(); ii++) {
 					if(closerThan(vlist[io->obj->grouplist[ii].origin].v, sphere.origin, sr40)) {
 						if(num)
-							*num = treatio[i].num;
+							*num = treatio[i].io->index();
 
 						return true;
 					}
@@ -1139,7 +1139,7 @@ bool CheckAnythingInSphere(const Sphere & sphere, EntityHandle source, CASFlags 
 				if(closerThan(vlist[io->obj->facelist[ii].vid[0]].v, sphere.origin, sr30)
 				   || closerThan(vlist[io->obj->facelist[ii].vid[1]].v, sphere.origin, sr30)) {
 					if(num)
-						*num = treatio[i].num;
+						*num = treatio[i].io->index();
 
 					return true;
 				}
@@ -1182,8 +1182,7 @@ bool CheckIOInSphere(const Sphere & sphere, const Entity & entity, bool ignoreNo
 					ii--;
 				}
 			}
-
-			long count=0;
+			
 			long step;
 			long nbv = entity.obj->vertexlist.size();
 
@@ -1197,7 +1196,9 @@ bool CheckIOInSphere(const Sphere & sphere, const Entity & entity, bool ignoreNo
 				step = 6;
 			else
 				step = 7;
-
+			
+			long count=0;
+			
 			for(size_t ii = 0; ii < vlist.size(); ii += step) {
 				if(closerThan(vlist[ii].v, sphere.origin, sr30)) {
 					count++;
@@ -1242,12 +1243,14 @@ float MAX_ALLOWED_PER_SECOND=12.f;
 // Checks if a position is valid, Modify it for height if necessary
 // Returns true or false
 
+// TODO copy-paste AttemptValidCylinderPos
 bool AttemptValidCylinderPos(Cylinder & cyl, Entity * io, CollisionFlags flags) {
 	
 	float anything = CheckAnythingInCylinder(cyl, io, flags); 
 
-	if((flags & CFLAG_LEVITATE) && anything == 0.f)
+	if((flags & CFLAG_LEVITATE) && anything == 0.f) {
 		return true;
+	}
 
 	// Falling Cylinder but valid pos !
 	if(anything >= 0.f) {
@@ -1325,7 +1328,7 @@ bool AttemptValidCylinderPos(Cylinder & cyl, Entity * io, CollisionFlags flags) 
 				}
 
 				float dist = std::max(glm::length(vector2D), 1.f);
-				float pente = glm::abs(anything) / dist * ( 1.0f / 2 ); 
+				float pente = glm::abs(anything) / dist * ( 1.0f / 2 );
 				io->_npcdata->climb_count += pente;
 
 				if(io->_npcdata->climb_count > MAX_ALLOWED_PER_SECOND) {
@@ -1383,15 +1386,7 @@ bool AttemptValidCylinderPos(Cylinder & cyl, Entity * io, CollisionFlags flags) 
 	return true;
 }
 
-//----------------------------------------------------------------------------------------------
-//flags & 1 levitate
-//flags & 2 no inter col
-//flags & 4 special
-//flags & 8	easier sliding.
-//flags & 16 climbing !!!
-//flags & 32 Just Test !!!
-//flags & 64 NPC mode
-//----------------------------------------------------------------------------------------------
+// TODO copy-paste Move_Cylinder
 bool ARX_COLLISION_Move_Cylinder(IO_PHYSICS * ip, Entity * io, float MOVE_CYLINDER_STEP, CollisionFlags flags)
 {
 //	HERMESPerf script(HPERF_PHYSICS);
@@ -1687,8 +1682,8 @@ void ANCHOR_BLOCK_Clear() {
 		return;
 
 	for(long k = 0; k < eb->nbanchors; k++) {
-		ANCHOR_DATA * ad = &eb->anchors[k];
-		ad->flags &= ~ANCHOR_FLAG_BLOCKED;
+		ANCHOR_DATA & ad = eb->anchors[k];
+		ad.flags &= ~ANCHOR_FLAG_BLOCKED;
 	}
 }
 
@@ -1697,12 +1692,12 @@ void ANCHOR_BLOCK_By_IO(Entity * io, long status) {
 	EERIE_BACKGROUND * eb = ACTIVEBKG;
 
 	for(long k = 0; k < eb->nbanchors; k++) {
-		ANCHOR_DATA * ad = &eb->anchors[k];
+		ANCHOR_DATA & ad = eb->anchors[k];
 
-		if(fartherThan(ad->pos, io->pos, 600.f))
+		if(fartherThan(ad.pos, io->pos, 600.f))
 			continue;
 
-		if(closerThan(Vec2f(io->pos.x, io->pos.z), Vec2f(ad->pos.x, ad->pos.z), 440.f)) {
+		if(closerThan(Vec2f(io->pos.x, io->pos.z), Vec2f(ad.pos.x, ad.pos.z), 440.f)) {
 			
 			EERIEPOLY ep;
 			ep.type = 0;
@@ -1726,11 +1721,11 @@ void ANCHOR_BLOCK_By_IO(Entity * io, long status) {
 					ep.v[kk].p.z = (ep.v[kk].p.z - cz) * 3.5f + cz;
 				}
 
-				if(PointIn2DPolyXZ(&ep, ad->pos.x, ad->pos.z)) {
+				if(PointIn2DPolyXZ(&ep, ad.pos.x, ad.pos.z)) {
 					if(status)
-						ad->flags |= ANCHOR_FLAG_BLOCKED;
+						ad.flags |= ANCHOR_FLAG_BLOCKED;
 					else
-						ad->flags &= ~ANCHOR_FLAG_BLOCKED;
+						ad.flags &= ~ANCHOR_FLAG_BLOCKED;
 				}
 			}
 		}

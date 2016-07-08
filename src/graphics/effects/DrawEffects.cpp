@@ -67,8 +67,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "scene/Light.h"
 #include "scene/Interactive.h"
 
-// Some external defs needing to be cleaned...
-extern Rect g_size;
 
 extern TextureContainer * Boom;
 
@@ -81,9 +79,9 @@ static void AddToShadowBatch(TexturedVertex * _pVertex1, TexturedVertex * _pVert
                              TexturedVertex * _pVertex3) {
 	
 	TexturedVertex pPointAdd[3];
-	EE_P(&_pVertex1->p, &pPointAdd[0]);
-	EE_P(&_pVertex2->p, &pPointAdd[1]);
-	EE_P(&_pVertex3->p, &pPointAdd[2]);
+	EE_P(_pVertex1->p, pPointAdd[0]);
+	EE_P(_pVertex2->p, pPointAdd[1]);
+	EE_P(_pVertex3->p, pPointAdd[2]);
 	pPointAdd[0].color = _pVertex1->color;
 	pPointAdd[0].uv = _pVertex1->uv;
 	pPointAdd[1].color = _pVertex2->color;
@@ -239,7 +237,6 @@ static void IncrementPolyWithNormalOutput(EERIEPOLY * _pPoly, TexturedVertex * _
 	}
 }
 
-extern float framedelay;
 void ARXDRAW_DrawPolyBoom() {
 	
 	ARX_PROFILE_FUNC();
@@ -247,25 +244,25 @@ void ARXDRAW_DrawPolyBoom() {
 	TexturedVertex ltv[4];
 
 	GRenderer->SetFogColor(Color::none); // TODO: not handled by RenderMaterial
-	unsigned long tim = (unsigned long)(arxtime);
+	unsigned long now = arxtime.now_ul();
 	
 	for(size_t i = 0; i < polyboom.size(); i++) {
 		
 		POLYBOOM & pb = polyboom[i];
 		
 		if(pb.type & 128) {
-			if(pb.timecreation - framedelay > 0) {
-				float fCalc = pb.timecreation - framedelay;
+			if(pb.timecreation - g_framedelay > 0) {
+				float fCalc = pb.timecreation - g_framedelay;
 				pb.timecreation = checked_range_cast<unsigned long>(fCalc);
 			}
 
-			if(pb.timecreation - framedelay > 0) {
-				float fCalc =  pb.timecreation - framedelay;
+			if(pb.timecreation - g_framedelay > 0) {
+				float fCalc =  pb.timecreation - g_framedelay;
 				pb.timecreation = checked_range_cast<unsigned long>(fCalc);
 			}
 		}
 
-		float t = (float)pb.timecreation + (float)pb.tolive - (float)tim;
+		float t = (float)pb.timecreation + (float)pb.tolive - (float)now;
 
 		if(t <= 0) {
 			std::swap(polyboom[i], polyboom.back());
@@ -285,7 +282,7 @@ void ARXDRAW_DrawPolyBoom() {
 
 		POLYBOOM & pb = *itr;
 		
-		float t = (float)pb.timecreation + (float)pb.tolive - (float)tim;
+		float t = (float)pb.timecreation + (float)pb.tolive - (float)now;
 		
 		long typp = pb.type;
 		typp &= ~128;

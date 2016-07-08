@@ -166,41 +166,39 @@ void ARX_SCRIPT_SetMainEvent(Entity * io, const std::string & newevent) {
 //*************************************************************************************
 //*************************************************************************************
 void ARX_SCRIPT_ResetObject(Entity * io, bool init) {
+	
 	if(!io)
 		return;
 	
 	// Now go for Script INIT/RESET depending on Mode
-		EntityHandle num = io->index();
-		
-		if(entities[num] && entities[num]->script.data) {
-			entities[num]->script.allowevents = 0;
-
-			if(init)
-				ScriptEvent::send(&entities[num]->script, SM_INIT, "", entities[num], "");
-
-			if(entities[num])
-				ARX_SCRIPT_SetMainEvent(entities[num], "main");
-		}
-
-		// Do the same for Local Script
-		if(entities[num] && entities[num]->over_script.data) {
-			entities[num]->over_script.allowevents = 0;
-
-			if(init)
-				ScriptEvent::send(&entities[num]->over_script, SM_INIT, "", entities[num], "");
-		}
-
-		// Sends InitEnd Event
-		if(init) {
-			if(entities[num] && entities[num]->script.data)
-				ScriptEvent::send(&entities[num]->script, SM_INITEND, "", entities[num], "");
-
-			if(entities[num] && entities[num]->over_script.data)
-				ScriptEvent::send(&entities[num]->over_script, SM_INITEND, "", entities[num], "");
-		}
-
+	EntityHandle num = io->index();
+	
+	if(entities[num] && entities[num]->script.data) {
+		entities[num]->script.allowevents = 0;
+		if(init)
+			ScriptEvent::send(&entities[num]->script, SM_INIT, "", entities[num], "");
 		if(entities[num])
-			entities[num]->gameFlags &= ~GFLAG_NEEDINIT;
+			ARX_SCRIPT_SetMainEvent(entities[num], "main");
+	}
+	
+	// Do the same for Local Script
+	if(entities[num] && entities[num]->over_script.data) {
+		entities[num]->over_script.allowevents = 0;
+		if(init)
+			ScriptEvent::send(&entities[num]->over_script, SM_INIT, "", entities[num], "");
+	}
+	
+	// Sends InitEnd Event
+	if(init) {
+		if(entities[num] && entities[num]->script.data)
+			ScriptEvent::send(&entities[num]->script, SM_INITEND, "", entities[num], "");
+		if(entities[num] && entities[num]->over_script.data)
+			ScriptEvent::send(&entities[num]->over_script, SM_INITEND, "", entities[num], "");
+	}
+	
+	if(entities[num])
+		entities[num]->gameFlags &= ~GFLAG_NEEDINIT;
+	
 }
 
 void ARX_SCRIPT_Reset(Entity * io, bool init) {
@@ -388,7 +386,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 				if(!entity || entity->script.timers[0] == 0) {
 					*lcontent = 0;
 				} else {
-					*lcontent = long((unsigned long)(arxtime) - es->timers[0]);
+					*lcontent = long(arxtime.now_ul() - es->timers[0]);
 				}
 				return TYPE_LONG;
 			}
@@ -397,7 +395,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 				if(!entity || entity->script.timers[1] == 0) {
 					*lcontent = 0;
 				} else {
-					*lcontent = long((unsigned long)(arxtime) - es->timers[1]);
+					*lcontent = long(arxtime.now_ul() - es->timers[1]);
 				}
 				return TYPE_LONG;
 			}
@@ -406,7 +404,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 				if(!entity || entity->script.timers[2] == 0) {
 					*lcontent = 0;
 				} else {
-					*lcontent = long((unsigned long)(arxtime) - es->timers[2]);
+					*lcontent = long(arxtime.now_ul() - es->timers[2]);
 				}
 				return TYPE_LONG;
 			}
@@ -415,7 +413,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 				if(!entity || entity->script.timers[3] == 0) {
 					*lcontent = 0;
 				} else {
-					*lcontent = long((unsigned long)(arxtime) - es->timers[3]);
+					*lcontent = long(arxtime.now_ul() - es->timers[3]);
 				}
 				return TYPE_LONG;
 			}
@@ -431,22 +429,22 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 			}
 			
 			if(name == "^gamedays") {
-				*lcontent = static_cast<long>(float(arxtime) / 86400000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 86400000);
 				return TYPE_LONG;
 			}
 			
 			if(name == "^gamehours") {
-				*lcontent = static_cast<long>(float(arxtime) / 3600000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 3600000);
 				return TYPE_LONG;
 			}
 			
 			if(name == "^gameminutes") {
-				*lcontent = static_cast<long>(float(arxtime) / 60000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 60000);
 				return TYPE_LONG;
 			}
 			
 			if(name == "^gameseconds") {
-				*lcontent = static_cast<long>(float(arxtime) / 1000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 1000);
 				return TYPE_LONG;
 			}
 			
@@ -465,27 +463,27 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 			}
 			
 			if(name == "^arxdays") {
-				*lcontent = static_cast<long>(float(arxtime) / 7200000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 7200000);
 				return TYPE_LONG;
 			}
 			
 			if(name == "^arxhours") {
-				*lcontent = static_cast<long>(float(arxtime) / 600000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 600000);
 				return TYPE_LONG;
 			}
 			
 			if(name == "^arxminutes") {
-				*lcontent = static_cast<long>(float(arxtime) / 10000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 10000);
 				return TYPE_LONG;
 			}
 			
 			if(name == "^arxseconds") {
-				*lcontent = static_cast<long>(float(arxtime) / 1000) * 6;
+				*lcontent = static_cast<long>(arxtime.now_f() / 1000) * 6;
 				return TYPE_LONG;
 			}
 			
 			if(name == "^arxtime_hours") {
-				*lcontent = static_cast<long>(float(arxtime) / 600000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 600000);
 				while(*lcontent > 12) {
 					*lcontent -= 12;
 				}
@@ -493,7 +491,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 			}
 			
 			if(name == "^arxtime_minutes") {
-				*lcontent = static_cast<long>(float(arxtime) / 10000);
+				*lcontent = static_cast<long>(arxtime.now_f() / 10000);
 				while(*lcontent > 60) {
 					*lcontent -= 60;
 				}
@@ -501,7 +499,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 			}
 			
 			if(name == "^arxtime_seconds") {
-				*lcontent = static_cast<long>(float(arxtime) * 6 / 1000);
+				*lcontent = static_cast<long>(arxtime.now_f() * 6 / 1000);
 				while(*lcontent > 60) {
 					*lcontent -= 60;
 				}
@@ -911,7 +909,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 						*lcontent = 1;
 						return TYPE_LONG;
 					}
-					for(long i = 0; i < MAX_EQUIPED; i++) {
+					for(size_t i = 0; i < MAX_EQUIPED; i++) {
 						if(ValidIONum(player.equiped[i]) && player.equiped[i] == t) {
 							*lcontent = 2;
 							return TYPE_LONG;
@@ -1838,7 +1836,7 @@ void ARX_SCRIPT_Timer_Check() {
 			continue;
 		}
 		
-		unsigned long now = static_cast<unsigned long>(arxtime);
+		unsigned long now = arxtime.now_ul();
 		unsigned long fire_time = st->tim + st->msecs;
 		if(fire_time > now) {
 			// Timer not ready to fire yet

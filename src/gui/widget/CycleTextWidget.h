@@ -43,13 +43,17 @@ public:
 	
 	void Move(const Vec2f & offset);
 	bool OnMouseClick();
-	void Update(int time);
+	void Update();
 	void Render();
 	void RenderMouseOver();
 	void EmptyFunction();
 	virtual void setEnabled(bool enable);
 	
 	boost::function<void(int, const std::string &)> valueChanged;
+	
+	virtual WidgetType type() const {
+		return WidgetType_CycleText;
+	};
 	
 private:
 	ButtonWidget		*	pLeftButton;

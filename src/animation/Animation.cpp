@@ -181,7 +181,7 @@ static void ReleaseAnim(EERIE_ANIM * ea) {
 
 	free(ea->groups);
 	free(ea->voidgroups);
-	free(ea);
+	delete ea;
 }
 
 void EERIE_ANIMMANAGER_PurgeUnused() {
@@ -242,17 +242,16 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 	LogDebug("Loading animation file " << file);
 
 	size_t pos = 0;
-
-	EERIE_ANIM * eerie = allocStructZero<EERIE_ANIM>();
-
+	
 	const THEA_HEADER * th = reinterpret_cast<const THEA_HEADER *>(adr + pos);
 	if(th->version < 2014) {
 		LogError << "Invalid TEA Version " << th->version << " in " << file;
-		free(eerie);
 		return NULL;
 	}
 	pos += sizeof(THEA_HEADER);
-
+	
+	EERIE_ANIM * eerie = new EERIE_ANIM();
+	
 	LogDebug("TEA header size: " << sizeof(THEA_HEADER));
 	LogDebug("Identity " << th->identity);
 	LogDebug("Version - " << th->version << "  Frames " << th->nb_frames
@@ -278,9 +277,9 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 			tkf2015 = reinterpret_cast<const THEA_KEYFRAME_2015 *>(adr + pos);
 			pos += sizeof(THEA_KEYFRAME_2015);
 		} else {
-			LogDebug(" Old keyframe version THEA_KEYFRAME:" << sizeof(THEA_KEYFRAME));
-			const THEA_KEYFRAME * tkf = reinterpret_cast<const THEA_KEYFRAME *>(adr + pos);
-			pos += sizeof(THEA_KEYFRAME);
+			LogDebug(" Old keyframe version THEA_KEYFRAME_2014:" << sizeof(THEA_KEYFRAME_2014));
+			const THEA_KEYFRAME_2014 * tkf = reinterpret_cast<const THEA_KEYFRAME_2014 *>(adr + pos);
+			pos += sizeof(THEA_KEYFRAME_2014);
 			memset(&kf2015, 0, sizeof(THEA_KEYFRAME_2015));
 			kf2015.num_frame = tkf->num_frame;
 			kf2015.flag_frame = tkf->flag_frame;
@@ -293,21 +292,20 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 			tkf2015 = &kf2015;
 		}
 
-		eerie->frames[i].master_key_frame = tkf2015->master_key_frame;
 		eerie->frames[i].num_frame = tkf2015->num_frame;
 
-		long lKeyOrient = tkf2015->key_orient;
-		long lKeyMove = tkf2015->key_move;
-		eerie->frames[i].f_rotate = checked_range_cast<short>(lKeyOrient);
-		eerie->frames[i].f_translate = checked_range_cast<short>(lKeyMove);
+		eerie->frames[i].f_rotate = (tkf2015->key_orient != 0);
+		eerie->frames[i].f_translate = (tkf2015->key_move != 0);
 
 		s32 time_frame = tkf2015->num_frame * 1000;
 		eerie->frames[i].time = time_frame * (1.f/24);
 		eerie->anim_time += time_frame;
-		eerie->frames[i].flag = tkf2015->flag_frame;
+		
+		arx_assert(tkf2015->flag_frame == -1 || tkf2015->flag_frame == 9);
+		eerie->frames[i].stepSound = (tkf2015->flag_frame == 9);
 
 		LogDebug(" pos " << pos << " - NumFr " << eerie->frames[i].num_frame
-				 << " MKF " << tkf2015->master_key_frame << " THEA_KEYFRAME " << sizeof(THEA_KEYFRAME)
+				 << " MKF " << tkf2015->master_key_frame << " THEA_KEYFRAME " << sizeof(THEA_KEYFRAME_2014)
 				 << " TIME " << (float)(eerie->frames[i].time / 1000.f) << "s -Move " << tkf2015->key_move
 				 << " Orient " << tkf2015->key_orient << " Morph " << tkf2015->key_morph);
 
@@ -438,10 +436,7 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 		for(long j = 0; j < eerie->nb_key_frames; j++) {
 			long pos = i + (j * eerie->nb_groups);
 
-			if((eerie->groups[pos].quat.x != 0.f)
-			   || (eerie->groups[pos].quat.y != 0.f)
-			   || (eerie->groups[pos].quat.z != 0.f)
-			   || (eerie->groups[pos].quat.w != 1.f)
+			if(   eerie->groups[pos].quat != glm::quat()
 			   || eerie->groups[pos].translate != Vec3f_ZERO
 			   || eerie->groups[pos].zoom != Vec3f_ZERO) {
 				voidd = false;
@@ -466,9 +461,9 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 
 
 
-static bool EERIE_ANIMMANAGER_AddAltAnim(ANIM_HANDLE * ah, const res::path & path) {
+static bool EERIE_ANIMMANAGER_AddAltAnim(ANIM_HANDLE & ah, const res::path & path) {
 	
-	if(!ah || ah->path.empty()) {
+	if(ah.path.empty()) {
 		return false;
 	}
 	
@@ -484,9 +479,9 @@ static bool EERIE_ANIMMANAGER_AddAltAnim(ANIM_HANDLE * ah, const res::path & pat
 		return false;
 	}
 	
-	ah->alt_nb++;
-	ah->anims = (EERIE_ANIM **)realloc(ah->anims, sizeof(EERIE_ANIM *) * ah->alt_nb);
-	ah->anims[ah->alt_nb - 1] = temp;
+	ah.alt_nb++;
+	ah.anims = (EERIE_ANIM **)realloc(ah.anims, sizeof(EERIE_ANIM *) * ah.alt_nb);
+	ah.anims[ah.alt_nb - 1] = temp;
 	
 	return true;
 }
@@ -510,8 +505,9 @@ ANIM_HANDLE * EERIE_ANIMMANAGER_Load_NoWarning(const res::path & path) {
 	}
 	
 	for(size_t i = 0; i < MAX_ANIMATIONS; i++) {
+		ANIM_HANDLE & animSlot = animations[i];
 		
-		if(!animations[i].path.empty()) {
+		if(!animSlot.path.empty()) {
 			continue;
 		}
 		
@@ -521,27 +517,27 @@ ANIM_HANDLE * EERIE_ANIMMANAGER_Load_NoWarning(const res::path & path) {
 			return NULL;
 		}
 		
-		animations[i].anims = (EERIE_ANIM **)malloc(sizeof(EERIE_ANIM *));
-		animations[i].anims[0] = TheaToEerie(adr, FileSize, path);
-		animations[i].alt_nb = 1;
+		animSlot.anims = (EERIE_ANIM **)malloc(sizeof(EERIE_ANIM *));
+		animSlot.anims[0] = TheaToEerie(adr, FileSize, path);
+		animSlot.alt_nb = 1;
 		
 		free(adr);
 		
-		if(!animations[i].anims[0]) {
+		if(!animSlot.anims[0]) {
 			return NULL;
 		}
 		
-		animations[i].path = path;
-		animations[i].locks = 1;
+		animSlot.path = path;
+		animSlot.locks = 1;
 		
 		int pathcount = 2;
 		res::path altpath;
 		do {
 			altpath = res::path(path);
 			altpath.append_basename(boost::lexical_cast<std::string>(pathcount++));
-		} while(EERIE_ANIMMANAGER_AddAltAnim(&animations[i], altpath));
+		} while(EERIE_ANIMMANAGER_AddAltAnim(animSlot, altpath));
 		
-		return &animations[i];
+		return &animSlot;
 	}
 	
 	return NULL;
@@ -605,13 +601,13 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 		) {
 				if(!layer.next_anim) {
 					long t = animTime;
-					layer.ctime= layer.ctime % t;
+					layer.ctime = layer.ctime % t;
 	
 					if(io)
-						FinishAnim(io,layer.cur_anim);
+						FinishAnim(io, layer.cur_anim);
 				} else {
 					if(io) {
-						FinishAnim(io,layer.cur_anim);
+						FinishAnim(io, layer.cur_anim);
 						
 						if(io->animBlend.lastanimtime != 0)
 							AcquireLastAnim(io);
@@ -619,30 +615,30 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 							io->animBlend.lastanimtime = 1;
 					}
 					
-					layer.cur_anim=layer.next_anim;
-					layer.altidx_cur=ANIM_GetAltIdx(layer.next_anim,layer.altidx_cur);
-					layer.next_anim=NULL;
+					layer.cur_anim = layer.next_anim;
+					layer.altidx_cur = ANIM_GetAltIdx(layer.next_anim, layer.altidx_cur);
+					layer.next_anim = NULL;
 					ResetAnim(layer);
 					layer.ctime = lost;
-					layer.flags=layer.nextflags;
-					layer.flags&=~EA_ANIMEND;
+					layer.flags = layer.nextflags;
+					layer.flags &= ~EA_ANIMEND;
 				}
 		} else {
 			if(io && layer.next_anim) {
-					FinishAnim(io,layer.cur_anim);
+					FinishAnim(io, layer.cur_anim);
 					
-					if (io->animBlend.lastanimtime!=0)
+					if (io->animBlend.lastanimtime != 0)
 						AcquireLastAnim(io);
 					else
-						io->animBlend.lastanimtime=1;
+						io->animBlend.lastanimtime = 1;
 					
-					layer.cur_anim=layer.next_anim;
-					layer.altidx_cur=ANIM_GetAltIdx(layer.next_anim,layer.altidx_cur);
-					layer.next_anim=NULL;
+					layer.cur_anim = layer.next_anim;
+					layer.altidx_cur = ANIM_GetAltIdx(layer.next_anim, layer.altidx_cur);
+					layer.next_anim = NULL;
 					ResetAnim(layer);
 					layer.ctime = lost;
-					layer.flags=layer.nextflags;
-					layer.flags&=~EA_ANIMEND;
+					layer.flags = layer.nextflags;
+					layer.flags &= ~EA_ANIMEND;
 			} else {
 				layer.flags |= EA_ANIMEND;
 				layer.ctime = layer.cur_anim->anims[layer.altidx_cur]->anim_time;
@@ -662,8 +658,8 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 	
 	EERIE_ANIM * anim = layer.cur_anim->anims[layer.altidx_cur];
 	
-	layer.fr = anim->nb_key_frames - 2;
-	layer.pour = 1.f;
+	layer.currentFrame = anim->nb_key_frames - 2;
+	layer.currentInterpolation = 1.f;
 	
 	for(long i = 1; i < anim->nb_key_frames; i++) {
 		long tcf = (long)anim->frames[i - 1].time;
@@ -675,7 +671,7 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 		if((tim < tnf && tim >= tcf) || (i == anim->nb_key_frames - 1 && tim == tnf)) {
 			long fr = i - 1;
 			tim -= tcf;
-			float pour = (float)((float)tim/((float)tnf-(float)tcf));
+			float pour = float(tim) / float(tnf - tcf);
 			
 			// Frame Sound Management
 			if(!(layer.flags & EA_ANIMEND) && time
@@ -694,25 +690,25 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 
 			// Frame Flags Management
 			if(!(layer.flags & EA_ANIMEND) && time
-			   && (anim->frames[fr].flag > 0)
+			   && (anim->frames[fr].stepSound)
 			   && (layer.lastframe != fr)) {
 				
 				if(io && io != entities.player()) {
 					if(layer.lastframe < fr && layer.lastframe != -1) {
 						for(long n = layer.lastframe + 1; n <= fr; n++) {
-							if(anim->frames[n].flag == 9)
+							if(anim->frames[n].stepSound)
 								ARX_NPC_NeedStepSound(io, io->pos);
 						}
 					}
-					else if(anim->frames[fr].flag == 9)
+					else if(anim->frames[fr].stepSound)
 						ARX_NPC_NeedStepSound(io, io->pos);
 				}
 			}
 			
 			// Memorize this frame as lastframe.
 			layer.lastframe = fr;
-			layer.fr = fr;
-			layer.pour = pour;
+			layer.currentFrame = fr;
+			layer.currentInterpolation = pour;
 			break;
 		}
 	}
@@ -729,24 +725,24 @@ void ResetAnim(AnimLayer & layer) {
 	layer.flags&=~EA_FORCEPLAY;
 }
 
-static void EERIE_ANIMMANAGER_Clear(long i) {
+static void EERIE_ANIMMANAGER_Clear(ANIM_HANDLE & slot) {
 	
-	for(long k = 0; k < animations[i].alt_nb; k++) {
-		ReleaseAnim(animations[i].anims[k]);
-		animations[i].anims[k] = NULL;
+	for(long k = 0; k < slot.alt_nb; k++) {
+		ReleaseAnim(slot.anims[k]);
+		slot.anims[k] = NULL;
 	}
 	
-	free(animations[i].anims);
-	animations[i].anims = NULL;
+	free(slot.anims);
+	slot.anims = NULL;
 	
-	animations[i].path.clear();
+	slot.path.clear();
 }
 
 void EERIE_ANIMMANAGER_ClearAll() {
 	
-	for(size_t i = 0; i < MAX_ANIMATIONS; i++) {
-		if(!animations[i].path.empty()) {
-			EERIE_ANIMMANAGER_Clear(i);
+	BOOST_FOREACH(ANIM_HANDLE & slot, animations) {
+		if(!slot.path.empty()) {
+			EERIE_ANIMMANAGER_Clear(slot);
 		}
 	}
 }

@@ -32,6 +32,31 @@ static const EntityHandle PlayerEntityHandle = EntityHandle(0);
 struct ResourcePool {
 	float current;
 	float max;
+	
+	ResourcePool()
+		: current(0.f)
+		, max(0.f)
+	{ }
+};
+
+enum Material {
+	MATERIAL_NONE,
+	MATERIAL_WEAPON,
+	MATERIAL_FLESH,
+	MATERIAL_METAL,
+	MATERIAL_GLASS,
+	MATERIAL_CLOTH,
+	MATERIAL_WOOD,
+	MATERIAL_EARTH,
+	MATERIAL_WATER,
+	MATERIAL_ICE,
+	MATERIAL_GRAVEL,
+	MATERIAL_STONE,
+	MATERIAL_FOOT_LARGE,
+	MATERIAL_FOOT_BARE,
+	MATERIAL_FOOT_SHOE,
+	MATERIAL_FOOT_METAL,
+	MATERIAL_FOOT_STEALTH
 };
 
 #endif // ARX_GAME_GAMETYPES_H

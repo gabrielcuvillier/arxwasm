@@ -79,10 +79,14 @@ public:
 	
 	// Mouse
 	
+	void setMouseMode(Mouse::Mode mode);
+	
 	const Vec2s & getMousePosAbs() const { return iMouseA; }
 	const Vec2s & getMousePosRel() const { return iMouseR; }
 	bool isMouseInWindow() const { return mouseInWindow; }
 	void setMousePosAbs(const Vec2s & mousePos);
+	
+	void setRawMouseInput(bool enabled);
 	
 	void setMouseSensitivity(int sensitivity);
 	int getMouseSensitivity() const { return iSensibility; }
@@ -108,12 +112,17 @@ public:
 	
 private:
 	
+	void centerMouse();
+	
 	class InputBackend * backend;
 	
 	// Mouse
 	
+	bool m_useRawMouseInput;
+	Mouse::Mode m_mouseMode;
 	Vec2s iMouseR;
 	Vec2s iMouseA;
+	Vec2s m_lastMousePosition;
 	bool  mouseInWindow;
 	
 	int   iSensibility;

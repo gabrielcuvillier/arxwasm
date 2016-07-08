@@ -52,7 +52,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <string>
 #include <vector>
 
-#include "platform/Flags.h"
+#include "util/Flags.h"
 
 class PakFile;
 class Entity;
@@ -141,10 +141,20 @@ struct SCR_TIMER {
 	Entity * io;
 	EERIE_SCRIPT * es;
 	
-	inline SCR_TIMER() : name(), exist(0), flags(0), times(0),
-	                     msecs(0), pos(0), longinfo(0), tim(0), io(NULL), es(NULL) { }
+	SCR_TIMER()
+		: name()
+		, exist(0)
+		, flags(0)
+		, times(0)
+		, msecs(0)
+		, pos(0)
+		, longinfo(0)
+		, tim(0)
+		, io(NULL)
+		, es(NULL)
+	{ }
 	
-	inline void reset() {
+	void reset() {
 		name.clear();
 		exist = 0;
 		flags = 0;

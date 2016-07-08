@@ -37,9 +37,7 @@
 #include <QByteArray>
 
 // Boost
-#include <boost/date_time/microsec_time_clock.hpp>
-#include <boost/date_time/time_duration.hpp>
-#include <boost/date_time/posix_time/ptime.hpp>
+#include <boost/date_time/posix_time/posix_time_types.hpp>
 
 #include "Configure.h"
 
@@ -68,31 +66,41 @@ ErrorReport::ErrorReport(const QString& sharedMemoryName)
 #endif
 }
 
-bool ErrorReport::Initialize()
-{	
-	// Create a shared memory object.
-	m_SharedMemory = boost::interprocess::shared_memory_object(boost::interprocess::open_only, m_SharedMemoryName.toStdString().c_str(), boost::interprocess::read_write);
-
-	// Map the whole shared memory in this process
-	m_MemoryMappedRegion = boost::interprocess::mapped_region(m_SharedMemory, boost::interprocess::read_write);
-
-	// Our SharedCrashInfo will be stored in this shared memory.
-	m_pCrashInfo = (CrashInfo*)m_MemoryMappedRegion.get_address();
-
-	if(m_MemoryMappedRegion.get_size() != sizeof(CrashInfo))
-	{
+bool ErrorReport::Initialize() {
+	
+	try {
+		
+		// Create a shared memory object.
+		m_SharedMemory = boost::interprocess::shared_memory_object(boost::interprocess::open_only, m_SharedMemoryName.toStdString().c_str(), boost::interprocess::read_write);
+		
+		// Map the whole shared memory in this process
+		m_MemoryMappedRegion = boost::interprocess::mapped_region(m_SharedMemory, boost::interprocess::read_write);
+		
+		// Our SharedCrashInfo will be stored in this shared memory.
+		m_pCrashInfo = (CrashInfo*)m_MemoryMappedRegion.get_address();
+		
+	} catch(...) {
+		m_pCrashInfo = NULL;
+		m_DetailedError = "We encountered an unexpected error while collecting crash information!";
+		return false;
+	}
+	
+	if(!m_pCrashInfo || m_MemoryMappedRegion.get_size() != sizeof(CrashInfo)) {
 		m_DetailedError = "The size of the memory mapped region does not match the size of the CrashInfo structure.";
 		return false;
 	}
 	
 	m_pCrashInfo->reporterStarted.post();
-
+	
 	return true;
 }
 
-bool ErrorReport::getCrashInfo() {
+void ErrorReport::getCrashInfo() {
 	
 	m_ReportDescription = util::loadString(m_pCrashInfo->description).c_str();
+	if(m_ReportDescription.isEmpty()) {
+		m_ReportDescription = "Could not collect crash information!";
+	}
 	
 	if(m_pCrashInfo->crashId != 0) {
 		m_ReportUniqueID = QString("[%1]").arg(QString::number(m_pCrashInfo->crashId, 16).toUpper());
@@ -110,7 +118,6 @@ bool ErrorReport::getCrashInfo() {
 		AddFile(util::loadString(m_pCrashInfo->attachedFiles[i]));
 	}
 	
-	return true;
 }
 
 bool ErrorReport::GenerateReport(ErrorReport::IProgressNotifier* pProgressNotifier)
@@ -130,7 +137,7 @@ bool ErrorReport::GenerateReport(ErrorReport::IProgressNotifier* pProgressNotifi
 	pProgressNotifier->taskStepEnded();
 	if(!bInit)
 	{
-		pProgressNotifier->setError("Could not generate the crash dump.");
+		pProgressNotifier->setError("Could not prepare the crash report.");
 		pProgressNotifier->setDetailedError(m_DetailedError);
 		return false;
 	}
@@ -149,15 +156,9 @@ bool ErrorReport::GenerateReport(ErrorReport::IProgressNotifier* pProgressNotifi
 	
 	// Generate minidump
 	pProgressNotifier->taskStepStarted("Retrieving crash information");
-	bool bCrashInfo = getCrashInfo();
+	getCrashInfo();
 	pProgressNotifier->taskStepEnded();
-	if(!bCrashInfo)
-	{
-		pProgressNotifier->setError("Could not retrieve crash information.");
-		pProgressNotifier->setDetailedError(m_DetailedError);
-		return false;
-	}
-
+	
 	return true;
 }
 
@@ -172,7 +173,7 @@ bool ErrorReport::SendReport(ErrorReport::IProgressNotifier* pProgressNotifier)
 
 	pProgressNotifier->taskStarted("Sending crash report", 3 + nbFilesToSend);
 	
-	std::string userAgent = "Arx Libertatis Crash Reporter (" + arx_version + ")";
+	std::string userAgent = arx_name + " Crash Reporter " + arx_version;
 	TBG::Server server("https://bugs.arx-libertatis.org", userAgent);
 	
 	// Login to TBG server
@@ -290,10 +291,12 @@ bool ErrorReport::SendReport(ErrorReport::IProgressNotifier* pProgressNotifier)
 }
 
 void ErrorReport::ReleaseApplicationLock() {
-	// Kill the original, busy-waiting process.
-	platform::killProcess(m_pCrashInfo->processorProcessId);
-	m_pCrashInfo->exitLock.post();
-	platform::killProcess(m_pCrashInfo->processId);
+	if(m_pCrashInfo) {
+		// Kill the original, busy-waiting process.
+		platform::killProcess(m_pCrashInfo->processorProcessId);
+		m_pCrashInfo->exitLock.post();
+		platform::killProcess(m_pCrashInfo->processId);
+	}
 }
 
 void ErrorReport::AddFile(const fs::path& fileName)

@@ -57,6 +57,10 @@ TextWidget::TextWidget(MenuButton id, Font* font, const std::string& text, Vec2f
 	pRef=this;
 
 	bSelected = false;
+	
+	m_isKeybind = false;
+	m_keybindAction = CONTROLS_CUST_JUMP;
+	m_keybindIndex = 0;
 }
 
 TextWidget::~TextWidget()
@@ -73,8 +77,7 @@ void TextWidget::SetText(const std::string & _pText)
 	m_rect.bottom = textSize.y + m_rect.top + 1;
 }
 
-void TextWidget::Update(int _iDTime) {
-	(void)_iDTime;
+void TextWidget::Update() {
 }
 
 // TODO remove this
@@ -313,8 +316,6 @@ void TextWidget::Render() {
 }
 
 extern MenuCursor * pMenuCursor;
-extern TextureContainer *pTextureLoad;
-extern TextureContainer *pTextureLoadRender;
 
 void TextWidget::RenderMouseOver() {
 
@@ -332,25 +333,25 @@ void TextWidget::RenderMouseOver() {
 		case BUTTON_MENUEDITQUEST_SAVEINFO: {
 			
 			if(m_savegame == SavegameHandle()) {
-				pTextureLoadRender = NULL;
+				g_thumbnailCursor.clear();
 				break;
 			}
 			
 			const res::path & image = savegames[m_savegame.handleData()].thumbnail;
 			if(!image.empty()) {
 				TextureContainer * t = TextureContainer::LoadUI(image, TextureContainer::NoColorKey);
-				if(t != pTextureLoad) {
-					delete pTextureLoad;
-					pTextureLoad = t;
+				if(t != g_thumbnailCursor.m_loadTexture) {
+					delete g_thumbnailCursor.m_loadTexture;
+					g_thumbnailCursor.m_loadTexture = t;
 				}
-				pTextureLoadRender = pTextureLoad;
+				g_thumbnailCursor.m_renderTexture = g_thumbnailCursor.m_loadTexture;
 			}
 			
 			break;
 		}
 		
 		default: {
-			pTextureLoadRender = NULL;
+			g_thumbnailCursor.clear();
 			break;
 		}
 	}

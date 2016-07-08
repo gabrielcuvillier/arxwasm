@@ -99,6 +99,9 @@ void GLTexture2D::Upload() {
 
 	if(hasMipmaps()) {
 		glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+		if(renderer->getMaxAnisotropy() > 1.f) {
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, renderer->getMaxAnisotropy());
+		}
 	} else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	}
@@ -116,9 +119,6 @@ void GLTexture2D::Upload() {
 		             GL_UNSIGNED_BYTE, mImage.GetData());
 	}
 	
-	if(renderer->getMaxAnisotropy() >= 1.f) {
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, renderer->getMaxAnisotropy());
-	}
 }
 
 void GLTexture2D::Destroy() {
@@ -192,6 +192,16 @@ void GLTexture2D::apply(GLTextureStage * stage) {
 		magFilter = stage->magFilter;
 		arx_assert(magFilter != TextureStage::FilterNone);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, arxToGlFilter[0][magFilter]);
+	}
+	
+}
+
+void GLTexture2D::updateMaxAnisotropy() {
+	
+	if(hasMipmaps()) {
+		glBindTexture(GL_TEXTURE_2D, tex);
+		renderer->GetTextureStage(0)->current = this;
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, renderer->getMaxAnisotropy());
 	}
 	
 }

@@ -62,17 +62,15 @@ static std::vector<path> getSearchPaths(const char * input) {
 		boost::char_separator<char> sep(platform::env_list_seperators);
 		tokenizer tokens(decoded, sep);
 		std::copy(tokens.begin(), tokens.end(), std::back_inserter(result));
-	} else {
-		result.push_back(".");
 	}
 	
 	return result;
 };
 
 static path findUserPath(const char * name, const path & force,
-                         const char * registry, const char * prefix,
-                         const char * suffix, const path & fallback,
-                         bool create) {
+                         const char * registry, platform::SystemPathId systemPathId,
+                         const char * prefix, const char * suffix,
+                         const path & fallback, bool create) {
 	
 	// Prefer command-line options
 	if(!force.empty()) {
@@ -106,26 +104,28 @@ static path findUserPath(const char * name, const path & force,
 	path to_create;
 	std::vector<path> prefixes = getSearchPaths(prefix);
 	std::vector<path> suffixes = getSearchPaths(suffix);
-	if(prefix || suffix) {
-		bool create_exists = false;
-		BOOST_FOREACH(const path & prefix, prefixes) {
-			BOOST_FOREACH(const path & suffix, suffixes) {
-				
-				path dir = canonical(prefix / suffix);
-				
-				if(is_directory(dir)) {
-					LogDebug("got " << name << " dir from search: " << prefix
-					         << " + " << suffix << " = " << dir);
-					return dir;
-				} else {
-					LogDebug("ignoring " << name << " dir from search: " << prefix
-					         << " + " << suffix << " = " << dir);
-				}
-				
-				if(to_create.empty() || (!create_exists && is_directory(prefix))) {
-					to_create = dir;
-					create_exists = is_directory(prefix);
-				}
+	if(!suffixes.empty()) {
+		std::vector<path> paths = platform::getSystemPaths(systemPathId);
+		prefixes.insert(prefixes.end(), paths.begin(), paths.end());
+	}
+	bool create_exists = false;
+	BOOST_FOREACH(const path & prefix, prefixes) {
+		BOOST_FOREACH(const path & suffix, suffixes) {
+			
+			path dir = canonical(prefix / suffix);
+			
+			if(is_directory(dir)) {
+				LogDebug("got " << name << " dir from search: " << prefix
+				         << " + " << suffix << " = " << dir);
+				return dir;
+			} else {
+				LogDebug("ignoring " << name << " dir from search: " << prefix
+				         << " + " << suffix << " = " << dir);
+			}
+			
+			if(to_create.empty() || (!create_exists && is_directory(prefix))) {
+				to_create = dir;
+				create_exists = is_directory(prefix);
 			}
 		}
 	}
@@ -265,17 +265,15 @@ std::vector<path> SystemPaths::getSearchPaths(bool filter) const {
 	// Search standard locations
 	std::vector<path> prefixes = fs::getSearchPaths(data_dir_prefixes);
 	std::vector<path> suffixes = fs::getSearchPaths(data_dir);
-	if(data_dir_prefixes || data_dir) {
-		BOOST_FOREACH(const path & prefix, prefixes) {
-			BOOST_FOREACH(const path & suffix, suffixes) {
-				path dir = canonical(prefix / suffix);
-				if(addSearchRoot(result, dir, filter)) {
-					LogDebug("got data dir from search: " << prefix
-					         << " + " << suffix << " = " << dir);
-				} else {
-					LogDebug("ignoring data dir from search: " << prefix
-					         << " + " << suffix << " = " << dir);
-				}
+	BOOST_FOREACH(const path & prefix, prefixes) {
+		BOOST_FOREACH(const path & suffix, suffixes) {
+			path dir = canonical(prefix / suffix);
+			if(addSearchRoot(result, dir, filter)) {
+				LogDebug("got data dir from search: " << prefix
+				         << " + " << suffix << " = " << dir);
+			} else {
+				LogDebug("ignoring data dir from search: " << prefix
+				         << " + " << suffix << " = " << dir);
 			}
 		}
 	}
@@ -321,20 +319,20 @@ ExitStatus SystemPaths::init() {
 	return init(cmdLineInitParams);
 }
 
-ExitStatus SystemPaths::init(const InitParams& initParams) {
-
-	user = findUserPath("user", initParams.forceUser, "UserDir",
+ExitStatus SystemPaths::init(const InitParams & initParams) {
+	
+	user = findUserPath("user", initParams.forceUser, "UserDir", platform::UserDirPrefixes,
 	                    user_dir_prefixes, user_dir, current_path(), !initParams.displaySearchDirs);
-
-	config = findUserPath("config", initParams.forceConfig, "ConfigDir",
+	
+	config = findUserPath("config", initParams.forceConfig, "ConfigDir", platform::NoPath,
 	                      config_dir_prefixes, config_dir, user, !initParams.displaySearchDirs);
-
+	
 	addData_ = initParams.dataDirs;
-
+	
 	findData_ = initParams.findData;
 	
 	data = getSearchPaths(true);
-
+	
 	if(initParams.displaySearchDirs) {
 		fs::paths.list(std::cout, 
 		               " - --user-dir (-u) command-line parameter\n",
@@ -372,6 +370,7 @@ SystemPaths::SystemPaths()
 {}
 
 static void listDirectoriesFor(std::ostream & os, const std::string & regKey,
+                               platform::SystemPathId systemPathId,
                                const char * prefixVar = NULL,
                                const char * suffixVar = NULL) {
 	
@@ -390,15 +389,24 @@ static void listDirectoriesFor(std::ostream & os, const std::string & regKey,
 	
 	std::vector<path> prefixes = getSearchPaths(prefixVar);
 	std::vector<path> suffixes = getSearchPaths(suffixVar);
-	if(prefixVar || suffixVar) {
+	std::vector<path> paths;
+	if(suffixVar) {
+		paths = platform::getSystemPaths(systemPathId);
+		prefixes.insert(prefixes.end(), paths.begin(), paths.end());
+	}
+	if((prefixVar || !paths.empty()) && suffixVar) {
 		
 		os << " - ";
 		if(prefixVar) {
 			os << '"' << prefixVar << '"';
 		}
-		if(prefixVar && suffixVar) {
-			os << " / ";
+		if(prefixVar && !paths.empty()) {
+			os << " and ";
 		}
+		if(!paths.empty()) {
+			os << " system paths";
+		}
+		os << " / ";
 		if(suffixVar) {
 			os << '"' << suffixVar << '"';
 		}
@@ -427,7 +435,7 @@ void SystemPaths::list(std::ostream & os, const std::string & forceUser,
 	if(!forceUser.empty()) {
 		os << forceUser;
 	}
-	listDirectoriesFor(os, "UserDir", user_dir_prefixes, user_dir);
+	listDirectoriesFor(os, "UserDir", platform::UserDirPrefixes, user_dir_prefixes, user_dir);
 	os << " - Current working directory\n";
 	os << "selected: ";
 	if(user.empty()) {
@@ -440,7 +448,7 @@ void SystemPaths::list(std::ostream & os, const std::string & forceUser,
 	if(!forceConfig.empty()) {
 		os << forceConfig;
 	}
-	listDirectoriesFor(os, std::string(), config_dir_prefixes, config_dir);
+	listDirectoriesFor(os, "ConfigDir", platform::NoPath, config_dir_prefixes, config_dir);
 	os << " - The selected user directory\n";
 	os << "selected: ";
 	if(config.empty()) {
@@ -457,7 +465,7 @@ void SystemPaths::list(std::ostream & os, const std::string & forceUser,
 	std::string exevar = getSearchPathVar(platform::getExecutablePath());
 	os << " - Paths specifed in \"" << exevar << "\"\n";
 	os << " - The directory containing the game executable\n";
-	listDirectoriesFor(os, "DataDir", data_dir_prefixes, data_dir);
+	listDirectoriesFor(os, "DataDir", platform::NoPath, data_dir_prefixes, data_dir);
 	os << "For all of these (except those specified via --data-dir),\n";
 	os << "the \"data\" subdirectory or file will also be searched.\n";
 	os << "selected:";

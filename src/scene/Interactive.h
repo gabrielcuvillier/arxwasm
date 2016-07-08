@@ -54,7 +54,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "game/EntityId.h"
 #include "graphics/data/MeshManipulation.h"
 #include "math/Vector.h"
-#include "platform/Flags.h"
+#include "util/Flags.h"
 
 struct EERIE_3DOBJ;
 
@@ -126,7 +126,7 @@ long GetNumberInterWithOutScriptLoad();
 
 void UnlinkAllLinkedObjects();
 EntityHandle IsCollidingAnyInter(const Vec3f & pos, const Vec3f & size);
-Entity * GetFirstInterAtPos(const Vec2s & pos, long flag = 0, Vec3f * _pRef = NULL, Entity ** _pTable = NULL, int * _pnNbInTable = NULL);
+Entity * GetFirstInterAtPos(const Vec2s & pos, long flag = 0, Vec3f * _pRef = NULL, Entity ** _pTable = NULL, size_t * _pnNbInTable = NULL);
 
 /*!
  * Adds an Interactive Object to the Scene
@@ -158,7 +158,6 @@ long  ARX_INTERACTIVE_GetPrice(Entity * io, Entity * shop);
 void IO_UnlinkAllLinkedObjects(Entity * io);
 
 struct TREATZONE_IO {
-	EntityHandle num;
 	Entity * io;
 	EntityFlags ioflags;
 	long show;
@@ -182,6 +181,6 @@ void ResetVVPos(Entity * io);
 
 void UpdateGoldObject(Entity * io);
 
-bool ARX_INTERACTIVE_CheckFULLCollision(PHYSICS_BOX_DATA * obj, EntityHandle source);
+bool ARX_INTERACTIVE_CheckFULLCollision(PHYSICS_BOX_DATA * obj, Entity *io_source);
 
 #endif // ARX_SCENE_INTERACTIVE_H

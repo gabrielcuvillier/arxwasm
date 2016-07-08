@@ -37,9 +37,6 @@
 #include "scene/Interactive.h"
 
 
-float InventoryDir = 0; // 0 stable, 1 to right, -1 to left
-float InventoryX = -60.f;
-
 SecondaryInventoryHud g_secondaryInventoryHud;
 
 
@@ -106,7 +103,7 @@ void SecondaryInventoryCloseHudIcon::updateInput() {
 			
 			if(io) {
 				ARX_SOUND_PlayInterface(SND_BACKPACK, Random::getf(0.9f, 1.1f));
-				InventoryDir=-1;
+				g_secondaryInventoryHud.m_fadeDirection = SecondaryInventoryHud::Fade_left;
 				SendIOScriptEvent(io,SM_INVENTORY2_CLOSE);
 				TSecondaryInventory=SecondaryInventory;
 				SecondaryInventory=NULL;
@@ -129,6 +126,9 @@ void SecondaryInventoryHud::init() {
 	
 	m_pickAllButton.init();
 	m_closeButton.init();
+	
+	m_fadeDirection = Fade_stable;
+	m_fadePosition = -60.f;
 }
 
 static Entity * getSecondaryOrStealInvEntity() {
@@ -148,10 +148,10 @@ void SecondaryInventoryHud::update() {
 		float maxDist = player.m_telekinesis ? 900.f : 350.f;
 		
 		if(dist > maxDist) {
-			if(InventoryDir != -1) {
+			if(m_fadeDirection != Fade_left) {
 				ARX_SOUND_PlayInterface(SND_BACKPACK, Random::getf(0.9f, 1.1f));
 				
-				InventoryDir=-1;
+				m_fadeDirection = Fade_left;
 				SendIOScriptEvent(io,SM_INVENTORY2_CLOSE);
 				TSecondaryInventory=SecondaryInventory;
 				SecondaryInventory=NULL;
@@ -161,8 +161,8 @@ void SecondaryInventoryHud::update() {
 				}
 			}
 		}
-	} else if(InventoryDir != -1) {
-		InventoryDir = -1;
+	} else if(m_fadeDirection != Fade_left) {
+		m_fadeDirection = Fade_left;
 	}
 	
 	
@@ -170,7 +170,7 @@ void SecondaryInventoryHud::update() {
 		// Pick All/Close Secondary Inventory
 		if(TSecondaryInventory) {
 			//These have to be calculated on each frame (to make them move).
-			Rectf parent = Rectf(Vec2f(InventoryX, 0), m_defaultBackground->m_size.x * m_scale, m_defaultBackground->m_size.y * m_scale);
+			Rectf parent = Rectf(Vec2f(m_fadePosition, 0), m_defaultBackground->m_size.x * m_scale, m_defaultBackground->m_size.y * m_scale);
 			
 			m_pickAllButton.setScale(m_scale);
 			m_closeButton.setScale(m_scale);
@@ -187,7 +187,7 @@ void SecondaryInventoryHud::draw() {
 	if(!inventory)
 		return;
 	
-	bool _bSteal = (bool)((player.Interface & INTER_STEAL) != 0);
+	bool _bSteal = (player.Interface & INTER_STEAL) != 0;
 	
 	arx_assert(m_defaultBackground);
 	ingame_inventory = m_defaultBackground;
@@ -199,7 +199,7 @@ void SecondaryInventoryHud::draw() {
 			ingame_inventory = tc;
 	}
 	
-	Rectf rect = Rectf(Vec2f(InventoryX * m_scale, 0.f), m_size.x * m_scale, m_size.y * m_scale);
+	Rectf rect = Rectf(Vec2f(m_fadePosition * m_scale, 0.f), m_size.x * m_scale, m_size.y * m_scale);
 	EERIEDrawBitmap(rect, 0.001f, ingame_inventory, Color::white);
 	
 	for(long y = 0; y < inventory->m_size.y; y++) {
@@ -227,7 +227,7 @@ void SecondaryInventoryHud::draw() {
 				UpdateGoldObject(io);
 				
 				Vec2f p = Vec2f(
-				(InventoryX * m_scale) + (float)x*(32 * m_scale) + (2 * m_scale),
+				(m_fadePosition * m_scale) + (float)x*(32 * m_scale) + (2 * m_scale),
 				(float)y*(32 * m_scale) + (13 * m_scale)
 				);
 				
@@ -296,7 +296,7 @@ void SecondaryInventoryHud::updateInputButtons() {
 bool SecondaryInventoryHud::containsPos(const Vec2s & pos) {
 	if(SecondaryInventory != NULL) {
 		Vec2s t;
-		t.x = pos.x + checked_range_cast<short>(InventoryX) - (2 * m_scale);
+		t.x = pos.x + checked_range_cast<short>(m_fadePosition) - (2 * m_scale);
 		t.y = pos.y - (13 * m_scale);
 		t.x = t.x / (32 * m_scale);
 		t.y = t.y / (32 * m_scale);
@@ -318,7 +318,7 @@ extern long HERO_OR_SECONDARY;
 Entity * SecondaryInventoryHud::getObj(const Vec2s & pos) {
 	
 	if(SecondaryInventory != NULL) {
-		short tx = pos.x + checked_range_cast<short>(InventoryX) - (2 * m_scale);
+		short tx = pos.x + checked_range_cast<short>(m_fadePosition) - (2 * m_scale);
 		short ty = pos.y - (13 * m_scale);
 
 		if(tx >= 0 && ty >= 0) {
@@ -395,7 +395,7 @@ void SecondaryInventoryHud::dropEntity() {
 		}
 		
 		Vec2s t = Vec2s_ZERO;
-		t.x = DANAEMouse.x + static_cast<short>(InventoryX) - (2 * m_scale);
+		t.x = DANAEMouse.x + static_cast<short>(m_fadePosition) - (2 * m_scale);
 		t.y = DANAEMouse.y - (13 * m_scale);
 		t.x = t.x / (32 * m_scale);
 		t.y = t.y / (32 * m_scale);
@@ -524,12 +524,12 @@ bool SecondaryInventoryHud::dragEntity(Entity * io, const Vec2s & pos) {
 					Set_DragInter(ioo);
 					sInventory = 2;
 					
+					Vec2f calc;
+					calc.x = (pos.x + m_fadePosition - (2 * m_scale)) / (32 * m_scale);
+					calc.y = (pos.y - (13 * m_scale)) / (32 * m_scale);
 					
-					float fCalcX = (pos.x + InventoryX - (2 * m_scale)) / (32 * m_scale);
-					float fCalcY = (pos.y - (13 * m_scale)) / (32 * m_scale);
-					
-					sInventoryPos.x = checked_range_cast<short>(fCalcX);
-					sInventoryPos.y = checked_range_cast<short>(fCalcY);
+					sInventoryPos.x = checked_range_cast<short>(calc.x);
+					sInventoryPos.y = checked_range_cast<short>(calc.y);
 					
 					//ARX_INVENTORY_Object_Out(SecondaryInventory->io, ioo);
 					
@@ -550,7 +550,7 @@ bool SecondaryInventoryHud::dragEntity(Entity * io, const Vec2s & pos) {
 			slot.show = true;
 			sInventory = 2;
 			
-			float fCalcX = (pos.x + InventoryX - (2 * m_scale)) / (32 * m_scale);
+			float fCalcX = (pos.x + m_fadePosition - (2 * m_scale)) / (32 * m_scale);
 			float fCalcY = (pos.y - (13 * m_scale)) / (32 * m_scale);
 			
 			sInventoryPos.x = checked_range_cast<short>(fCalcX);
@@ -558,7 +558,10 @@ bool SecondaryInventoryHud::dragEntity(Entity * io, const Vec2s & pos) {
 		}
 	}
 	
-	return false;
+	Set_DragInter(io);
+	RemoveFromAllInventories(io);
+	ARX_INVENTORY_IdentifyIO(io);
+	return true;
 }
 
 void SecondaryInventoryHud::close() {
@@ -571,7 +574,7 @@ void SecondaryInventoryHud::close() {
 		io = ioSteal;
 	
 	if(io) {
-		InventoryDir = -1;
+		m_fadeDirection = Fade_left;
 		SendIOScriptEvent(io, SM_INVENTORY2_CLOSE);
 		TSecondaryInventory = SecondaryInventory;
 		SecondaryInventory = NULL;
@@ -580,18 +583,18 @@ void SecondaryInventoryHud::close() {
 
 void SecondaryInventoryHud::updateFader() {
 	
-	if(InventoryDir != 0) {
-		if((player.Interface & INTER_COMBATMODE) || player.doingmagic >= 2 || InventoryDir == -1) {
-			if(InventoryX > -160)
-				InventoryX -= (framedelay * ( 1.0f / 3 )) * m_scale;
+	if(m_fadeDirection != Fade_stable) {
+		if((player.Interface & INTER_COMBATMODE) || player.doingmagic >= 2 || m_fadeDirection == Fade_left) {
+			if(m_fadePosition > -160)
+				m_fadePosition -= (g_framedelay * ( 1.0f / 3 )) * m_scale;
 		} else {
-			if(InventoryX < 0)
-				InventoryX += InventoryDir * (framedelay * ( 1.0f / 3 )) * m_scale;
+			if(m_fadePosition < 0)
+				m_fadePosition += m_fadeDirection * (g_framedelay * ( 1.0f / 3 )) * m_scale;
 		}
 		
-		if(InventoryX <= -160) {
-			InventoryX = -160;
-			InventoryDir = 0;
+		if(m_fadePosition <= -160) {
+			m_fadePosition = -160;
+			m_fadeDirection = Fade_stable;
 			
 			if(player.Interface & INTER_STEAL || ioSteal) {
 				SendIOScriptEvent(ioSteal, SM_STEAL, "off");
@@ -601,10 +604,10 @@ void SecondaryInventoryHud::updateFader() {
 			
 			SecondaryInventory = NULL;
 			TSecondaryInventory = NULL;
-			InventoryDir = 0;
-		} else if(InventoryX >= 0) {
-			InventoryX = 0;
-			InventoryDir = 0;
+			m_fadeDirection = Fade_stable;
+		} else if(m_fadePosition >= 0) {
+			m_fadePosition = 0;
+			m_fadeDirection = Fade_stable;
 		}
 	}
 }

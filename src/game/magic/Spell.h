@@ -26,8 +26,8 @@
 
 #include "graphics/effects/SpellEffects.h"
 #include "platform/Alignment.h"
-#include "platform/Flags.h"
 #include "scene/Light.h"
+#include "util/Flags.h"
 
 class TextureContainer;
 
@@ -143,8 +143,8 @@ public:
 	virtual void End() {
 		
 	}
-	virtual void Update(float timeDelta) {
-		ARX_UNUSED(timeDelta);
+	
+	virtual void Update() {
 	}
 	
 	virtual Vec3f getPosition();

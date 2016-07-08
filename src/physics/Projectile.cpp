@@ -21,8 +21,7 @@
 
 #include <string>
 
-#include "platform/Flags.h"
-
+#include "core/Core.h"
 #include "core/GameTime.h"
 
 #include "game/Equipment.h"
@@ -37,43 +36,19 @@
 
 #include "animation/AnimationRender.h"
 
-#include "physics/Collisions.h"
-
 #include "graphics/Renderer.h"
 #include "graphics/data/TextureContainer.h"
 #include "graphics/particle/ParticleEffects.h"
 #include "graphics/effects/Trail.h"
 
+#include "physics/Collisions.h"
 
-extern float framedelay;
+#include "util/Flags.h"
 
-enum ThrownObjectFlag {
-	ATO_EXIST      = (1<<0),
-	ATO_MOVING     = (1<<1),
-	ATO_UNDERWATER = (1<<2),
-	ATO_FIERY      = (1<<3)
-};
-DECLARE_FLAGS(ThrownObjectFlag, ThrownObjectFlags)
-DECLARE_FLAGS_OPERATORS(ThrownObjectFlags)
-
-struct ARX_THROWN_OBJECT {
-	ThrownObjectFlags flags;
-	Vec3f vector;
-	glm::quat quat;
-	Vec3f initial_position;
-	float velocity;
-	Vec3f position;
-	float damages;
-	EERIE_3DOBJ * obj;
-	EntityHandle source;
-	unsigned long creation_time;
-	float poisonous;
-	Trail * pRuban;
-};
 
 const size_t MAX_THROWN_OBJECTS = 100;
 
-ARX_THROWN_OBJECT Thrown[MAX_THROWN_OBJECTS];
+Projectile g_projectiles[MAX_THROWN_OBJECTS];
 
 static bool IsPointInField(const Vec3f & pos) {
 
@@ -100,9 +75,9 @@ static bool IsPointInField(const Vec3f & pos) {
 
 static void ARX_THROWN_OBJECT_Kill(long num) {
 	if(num >= 0 && size_t(num) < MAX_THROWN_OBJECTS) {
-		Thrown[num].flags = 0;
-		delete Thrown[num].pRuban;
-		Thrown[num].pRuban = NULL;
+		g_projectiles[num].flags = 0;
+		delete g_projectiles[num].m_trail;
+		g_projectiles[num].m_trail = NULL;
 	}
 }
 
@@ -114,14 +89,14 @@ void ARX_THROWN_OBJECT_KillAll() {
 
 static long ARX_THROWN_OBJECT_GetFree() {
 	
-	unsigned long latest_time = (unsigned long)(arxtime);
+	unsigned long latest_time = arxtime.now_ul();
 	long latest_obj = -1;
 
 	for(size_t i = 0; i < MAX_THROWN_OBJECTS; i++) {
-		if(Thrown[i].flags & ATO_EXIST) {
-			if(Thrown[i].creation_time < latest_time) {
+		if(g_projectiles[i].flags & ATO_EXIST) {
+			if(g_projectiles[i].creation_time < latest_time) {
 				latest_obj = i;
-				latest_time = Thrown[i].creation_time;
+				latest_time = g_projectiles[i].creation_time;
 			}
 		} else {
 			return i;
@@ -147,24 +122,24 @@ void ARX_THROWN_OBJECT_Throw(EntityHandle source, const Vec3f & position, const 
 	if(num < 0)
 		return;
 		
-	ARX_THROWN_OBJECT *thrownObj = &Thrown[num];
+	Projectile & projectile = g_projectiles[num];
 	
-	thrownObj->damages = damages;
-	thrownObj->position = position;
-	thrownObj->initial_position = position;
-	thrownObj->vector = vect;
-	thrownObj->quat = quat;
-	thrownObj->source = source;
-	thrownObj->obj = arrowobj;
-	thrownObj->velocity = velocity;
-	thrownObj->poisonous = poison;
+	projectile.damages = damages;
+	projectile.position = position;
+	projectile.initial_position = position;
+	projectile.vector = vect;
+	projectile.quat = quat;
+	projectile.source = source;
+	projectile.obj = arrowobj;
+	projectile.velocity = velocity;
+	projectile.poisonous = poison;
 	
-	thrownObj->pRuban = new ArrowTrail();
-	thrownObj->pRuban->SetNextPosition(thrownObj->position);
-	thrownObj->pRuban->Update(framedelay);
+	projectile.m_trail = new ArrowTrail();
+	projectile.m_trail->SetNextPosition(projectile.position);
+	projectile.m_trail->Update(g_framedelay);
 	
-	thrownObj->creation_time = (unsigned long)(arxtime);
-	thrownObj->flags |= ATO_EXIST | ATO_MOVING;
+	projectile.creation_time = arxtime.now_ul();
+	projectile.flags |= ATO_EXIST | ATO_MOVING;
 	
 	if(source == PlayerEntityHandle
 	   && ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])
@@ -172,11 +147,11 @@ void ARX_THROWN_OBJECT_Throw(EntityHandle source, const Vec3f & position, const 
 		Entity * tio = entities[player.equiped[EQUIP_SLOT_WEAPON]];
 		
 		if(tio->ioflags & IO_FIERY)
-			thrownObj->flags |= ATO_FIERY;
+			projectile.flags |= ATO_FIERY;
 	}
 }
 
-static float ARX_THROWN_ComputeDamages(long thrownum, EntityHandle source,
+static float ARX_THROWN_ComputeDamages(const Projectile & projectile, EntityHandle source,
                                        EntityHandle target) {
 	
 	float distance_limit = 1000.f;
@@ -185,7 +160,7 @@ static float ARX_THROWN_ComputeDamages(long thrownum, EntityHandle source,
 
 	SendIOScriptEvent(io_target, SM_AGGRESSION);
 
-	float distance = fdist(Thrown[thrownum].position, Thrown[thrownum].initial_position);
+	float distance = fdist(projectile.position, projectile.initial_position);
 	float distance_modifier = 1.f;
 
 	if(distance < distance_limit * 2.f) {
@@ -203,7 +178,7 @@ static float ARX_THROWN_ComputeDamages(long thrownum, EntityHandle source,
 	bool critical = false;
 
 	if(source == PlayerEntityHandle) {
-		attack = Thrown[thrownum].damages;
+		attack = projectile.damages;
 
 		if(Random::getf(0.f, 100.f) <= float(player.m_attributeFull.dexterity - 9) * 2.f
 						   + float(player.m_skillFull.projectile * 0.2f)) {
@@ -265,7 +240,7 @@ static float ARX_THROWN_ComputeDamages(long thrownum, EntityHandle source,
 
 	power = power * 0.15f + 0.85f;
 
-	ARX_SOUND_PlayCollision(*amat, wmat, power, 1.f, Thrown[thrownum].position, io_source);
+	ARX_SOUND_PlayCollision(*amat, wmat, power, 1.f, projectile.position, io_source);
 
 	dmgs *= backstab;
 	dmgs -= dmgs * (absorb * ( 1.0f / 100 ));
@@ -337,10 +312,10 @@ static EERIEPOLY * CheckArrowPolyCollision(const Vec3f & start, const Vec3f & en
 	return NULL;
 }
 
-static void CheckExp(long i) {
+static void CheckExp(const Projectile & projectile) {
 	
-	if((Thrown[i].flags & ATO_FIERY) && !(Thrown[i].flags & ATO_UNDERWATER)) {
-		const Vec3f & pos = Thrown[i].position;
+	if((projectile.flags & ATO_FIERY) && !(projectile.flags & ATO_UNDERWATER)) {
+		const Vec3f & pos = projectile.position;
 
 		ARX_BOOMS_Add(pos);
 		LaunchFireballBoom(pos, 10);
@@ -349,7 +324,7 @@ static void CheckExp(long i) {
 		ARX_NPC_SpawnAudibleSound(pos, entities.player());
 		LightHandle id = GetFreeDynLight();
 
-		if(lightHandleIsValid(id) && framedelay > 0) {
+		if(lightHandleIsValid(id) && g_framedelay > 0) {
 			EERIE_LIGHT * light = lightHandleGet(id);
 			
 			light->intensity = 3.9f;
@@ -369,172 +344,170 @@ void ARX_THROWN_OBJECT_Render() {
 	GRenderer->SetRenderState(Renderer::DepthTest, true);
 
 	for(size_t i = 0; i < MAX_THROWN_OBJECTS; i++) {
-		ARX_THROWN_OBJECT *thrownObj = &Thrown[i];
-		if(!(thrownObj->flags & ATO_EXIST))
+		Projectile & projectile = g_projectiles[i];
+		if(!(projectile.flags & ATO_EXIST))
 			continue;
 
-		TransformInfo t(thrownObj->position, thrownObj->quat);
+		TransformInfo t(projectile.position, projectile.quat);
 		// Object has to be retransformed because arrows share the same object
-		DrawEERIEInter_ModelTransform(thrownObj->obj, t);
-		DrawEERIEInter_ViewProjectTransform(thrownObj->obj);
-		DrawEERIEInter_Render(thrownObj->obj, t, NULL);
+		DrawEERIEInter_ModelTransform(projectile.obj, t);
+		DrawEERIEInter_ViewProjectTransform(projectile.obj);
+		DrawEERIEInter_Render(projectile.obj, t, NULL);
 
-		if(thrownObj->pRuban) {
-			thrownObj->pRuban->Render();
+		if(projectile.m_trail) {
+			projectile.m_trail->Render();
 		}
 	}
 }
 
-void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
+void ARX_THROWN_OBJECT_Manage(float time_offset)
 {
 	for(size_t i = 0; i < MAX_THROWN_OBJECTS; i++) {
-		ARX_THROWN_OBJECT *thrownObj = &Thrown[i];
-		if(!(thrownObj->flags & ATO_EXIST))
+		Projectile & projectile = g_projectiles[i];
+		if(!(projectile.flags & ATO_EXIST))
 			continue;
 
 		{
 		// Is Object Visible & Near ?
 
-		EERIE_BKG_INFO * bkgData = getFastBackgroundData(thrownObj->position.x, thrownObj->position.z);
+		EERIE_BKG_INFO * bkgData = getFastBackgroundData(projectile.position.x, projectile.position.z);
 
 		if(!bkgData || !bkgData->treat) {
 			continue;
 		}
 
 		// Now render object !
-		if(!thrownObj->obj)
+		if(!projectile.obj)
 			continue;
 
-		TransformInfo t(thrownObj->position, thrownObj->quat);
-		DrawEERIEInter_ModelTransform(thrownObj->obj, t);
+		TransformInfo t(projectile.position, projectile.quat);
+		DrawEERIEInter_ModelTransform(projectile.obj, t);
 
-		if((thrownObj->flags & ATO_FIERY) && (thrownObj->flags & ATO_MOVING)
-		   && !(thrownObj->flags & ATO_UNDERWATER)) {
+		if((projectile.flags & ATO_FIERY) && (projectile.flags & ATO_MOVING)
+		   && !(projectile.flags & ATO_UNDERWATER)) {
 
 			LightHandle id = GetFreeDynLight();
-			if(lightHandleIsValid(id) && framedelay > 0) {
+			if(lightHandleIsValid(id) && g_framedelay > 0) {
 				EERIE_LIGHT * light = lightHandleGet(id);
 				
 				light->intensity = 1.f;
 				light->fallstart = 100.f;
 				light->fallend   = 240.f;
 				light->rgb = Color3f(1.f, .8f, .6f) - randomColor3f() * Color3f(.2f, .2f, .2f);
-				light->pos = thrownObj->position;
+				light->pos = projectile.position;
 				light->ex_flaresize = 40.f;
 				light->extras |= EXTRAS_FLARE;
-				light->duration = static_cast<long>(framedelay * 0.5f);
+				light->duration = static_cast<unsigned long>(g_framedelay * 0.5f);
 			}
 			
-			createObjFireParticles(thrownObj->obj, 6, 2, 180);
+			createObjFireParticles(projectile.obj, 6, 2, 180);
 		}
 
-		if(thrownObj->pRuban) {
-			thrownObj->pRuban->SetNextPosition(thrownObj->position);
-			thrownObj->pRuban->Update(time_offset);
+		if(projectile.m_trail) {
+			projectile.m_trail->SetNextPosition(projectile.position);
+			projectile.m_trail->Update(time_offset);
 		}
 
-		Vec3f original_pos;
-
-		if(thrownObj->flags & ATO_MOVING) {
+		if(projectile.flags & ATO_MOVING) {
 			long need_kill = 0;
-			float mod = (float)time_offset * thrownObj->velocity;
-			original_pos = thrownObj->position;
-			thrownObj->position.x += thrownObj->vector.x * mod;
-			float gmod = 1.f - thrownObj->velocity;
+			float mod = time_offset * projectile.velocity;
+			Vec3f original_pos = projectile.position;
+			projectile.position.x += projectile.vector.x * mod;
+			float gmod = 1.f - projectile.velocity;
 
 			gmod = glm::clamp(gmod, 0.f, 1.f);
 
-			thrownObj->position.y += thrownObj->vector.y * mod + (time_offset * gmod);
-			thrownObj->position.z += thrownObj->vector.z * mod;
+			projectile.position.y += projectile.vector.y * mod + (time_offset * gmod);
+			projectile.position.z += projectile.vector.z * mod;
 
 			CheckForIgnition(Sphere(original_pos, 10.f), 0, 2);
 
-			Vec3f wpos = thrownObj->position;
+			Vec3f wpos = projectile.position;
 			wpos.y += 20.f;
 			EERIEPOLY * ep = EEIsUnderWater(wpos);
 
-			if(thrownObj->flags & ATO_UNDERWATER) {
+			if(projectile.flags & ATO_UNDERWATER) {
 				if(!ep) {
-					thrownObj->flags &= ~ATO_UNDERWATER;
-					ARX_SOUND_PlaySFX(SND_PLOUF, &thrownObj->position);
+					projectile.flags &= ~ATO_UNDERWATER;
+					ARX_SOUND_PlaySFX(SND_PLOUF, &projectile.position);
 				}
 			} else if(ep) {
-				thrownObj->flags |= ATO_UNDERWATER;
-				ARX_SOUND_PlaySFX(SND_PLOUF, &thrownObj->position);
+				projectile.flags |= ATO_UNDERWATER;
+				ARX_SOUND_PlaySFX(SND_PLOUF, &projectile.position);
 			}
 
 			// Check for collision MUST be done after DRAWING !!!!
-			long nbact = thrownObj->obj->actionlist.size();
+			long nbact = projectile.obj->actionlist.size();
 
 			for(long j = 0; j < nbact; j++) {
-				float rad = GetHitValue(thrownObj->obj->actionlist[j].name);
+				float rad = GetHitValue(projectile.obj->actionlist[j].name);
 
 				if(rad == -1)
 					continue;
 
 				rad *= .5f;
 
-				const Vec3f v0 = actionPointPosition(thrownObj->obj, thrownObj->obj->actionlist[j].idx);
-				Vec3f dest = original_pos + thrownObj->vector * 95.f;
-				Vec3f orgn = original_pos - thrownObj->vector * 25.f;
+				const Vec3f v0 = actionPointPosition(projectile.obj, projectile.obj->actionlist[j].idx);
+				Vec3f dest = original_pos + projectile.vector * 95.f;
+				Vec3f orgn = original_pos - projectile.vector * 25.f;
 				EERIEPOLY * ep = CheckArrowPolyCollision(orgn, dest);
 
 				if(ep) {
-					ARX_PARTICLES_Spawn_Spark(v0, 14, 0);
-					CheckExp(i);
+					ARX_PARTICLES_Spawn_Spark(v0, 14, SpawnSparkType_Default);
+					CheckExp(projectile);
 
-					if(ValidIONum(thrownObj->source))
-						ARX_NPC_SpawnAudibleSound(v0, entities[thrownObj->source]);
+					if(ValidIONum(projectile.source))
+						ARX_NPC_SpawnAudibleSound(v0, entities[projectile.source]);
 
-					thrownObj->flags &= ~ATO_MOVING;
-					thrownObj->velocity = 0.f;
+					projectile.flags &= ~ATO_MOVING;
+					projectile.velocity = 0.f;
 					
 					std::string bkg_material = "earth";
 
 					if(ep && ep->tex && !ep->tex->m_texName.empty())
 						bkg_material = GetMaterialString(ep->tex->m_texName);
 
-					if(ValidIONum(thrownObj->source)) {
+					if(ValidIONum(projectile.source)) {
 						char weapon_material[64] = "dagger";
 						
-						ARX_SOUND_PlayCollision(weapon_material, bkg_material, 1.f, 1.f, v0, entities[thrownObj->source]);
+						ARX_SOUND_PlayCollision(weapon_material, bkg_material, 1.f, 1.f, v0, entities[projectile.source]);
 					}
 
-					thrownObj->position = original_pos;
+					projectile.position = original_pos;
 					j = 200;
 				} else if(IsPointInField(v0)) {
-					ARX_PARTICLES_Spawn_Spark(v0, 24, 0);
-					CheckExp(i);
+					ARX_PARTICLES_Spawn_Spark(v0, 24, SpawnSparkType_Default);
+					CheckExp(projectile);
 
-					if (ValidIONum(thrownObj->source))
-						ARX_NPC_SpawnAudibleSound(v0, entities[thrownObj->source]);
+					if (ValidIONum(projectile.source))
+						ARX_NPC_SpawnAudibleSound(v0, entities[projectile.source]);
 
-					thrownObj->flags &= ~ATO_MOVING;
-					thrownObj->velocity = 0.f;
+					projectile.flags &= ~ATO_MOVING;
+					projectile.velocity = 0.f;
 					
-					if(ValidIONum(thrownObj->source)) {
+					if(ValidIONum(projectile.source)) {
 						char weapon_material[64] = "dagger";
 						char bkg_material[64] = "earth";
 						
-						ARX_SOUND_PlayCollision(weapon_material, bkg_material, 1.f, 1.f, v0, entities[thrownObj->source]);
+						ARX_SOUND_PlayCollision(weapon_material, bkg_material, 1.f, 1.f, v0, entities[projectile.source]);
 					}
 
-					thrownObj->position = original_pos;
+					projectile.position = original_pos;
 					j = 200;
 					need_kill = 1;
 				} else {
 					for(float precision = 0.5f; precision <= 6.f; precision += 0.5f) {
 						Sphere sphere;
-						sphere.origin = v0 + thrownObj->vector * precision * 4.5f;
+						sphere.origin = v0 + projectile.vector * precision * 4.5f;
 						sphere.radius = rad + 3.f;
 
 						std::vector<EntityHandle> sphereContent;
 
-						if(CheckEverythingInSphere(sphere, thrownObj->source, EntityHandle(), sphereContent)) {
+						if(CheckEverythingInSphere(sphere, projectile.source, EntityHandle(), sphereContent)) {
 							for(size_t jj = 0; jj < sphereContent.size(); jj++) {
 
 								if(ValidIONum(sphereContent[jj])
-										&& sphereContent[jj] != thrownObj->source)
+										&& sphereContent[jj] != projectile.source)
 								{
 
 									Entity * target = entities[sphereContent[jj]];
@@ -563,8 +536,8 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 											pos = target->obj->vertexlist3[hitpoint].v;
 										}
 
-										if(thrownObj->source == PlayerEntityHandle) {
-											float damages = ARX_THROWN_ComputeDamages(i, thrownObj->source, sphereContent[jj]);
+										if(projectile.source == PlayerEntityHandle) {
+											float damages = ARX_THROWN_ComputeDamages(projectile, projectile.source, sphereContent[jj]);
 
 											if(damages > 0.f) {
 												arx_assert(hitpoint >= 0);
@@ -575,36 +548,36 @@ void ARX_THROWN_OBJECT_Manage(unsigned long time_offset)
 												}
 
 												ARX_PARTICLES_Spawn_Blood2(pos, damages, color, target);
-												ARX_DAMAGES_DamageNPC(target, damages, thrownObj->source, false, &pos);
+												ARX_DAMAGES_DamageNPC(target, damages, projectile.source, false, &pos);
 
 												if(Random::getf(0.f, 100.f) > target->_npcdata->resist_poison) {
-													target->_npcdata->poisonned += thrownObj->poisonous;
+													target->_npcdata->poisonned += projectile.poisonous;
 												}
 
-												CheckExp(i);
+												CheckExp(projectile);
 											} else {
-												ARX_PARTICLES_Spawn_Spark(v0, 14, 0);
-												ARX_NPC_SpawnAudibleSound(v0, entities[thrownObj->source]);
+												ARX_PARTICLES_Spawn_Spark(v0, 14, SpawnSparkType_Default);
+												ARX_NPC_SpawnAudibleSound(v0, entities[projectile.source]);
 											}
 										}
 									} else {
 										// not NPC
 										if(target->ioflags & IO_FIX) {
-											if(ValidIONum(thrownObj->source))
-												ARX_DAMAGES_DamageFIX(target, 0.1f, thrownObj->source, false);
+											if(ValidIONum(projectile.source))
+												ARX_DAMAGES_DamageFIX(target, 0.1f, projectile.source, false);
 										}
 
-										ARX_PARTICLES_Spawn_Spark(v0, 14, 0);
+										ARX_PARTICLES_Spawn_Spark(v0, 14, SpawnSparkType_Default);
 
-										if(ValidIONum(thrownObj->source))
-											ARX_NPC_SpawnAudibleSound(v0, entities[thrownObj->source]);
+										if(ValidIONum(projectile.source))
+											ARX_NPC_SpawnAudibleSound(v0, entities[projectile.source]);
 
-										CheckExp(i);
+										CheckExp(projectile);
 									}
 
 									// Need to deal damages !
-									thrownObj->flags &= ~ATO_MOVING;
-									thrownObj->velocity = 0.f;
+									projectile.flags &= ~ATO_MOVING;
+									projectile.velocity = 0.f;
 									need_kill = 1;
 									precision = 500.f;
 									j = 200;

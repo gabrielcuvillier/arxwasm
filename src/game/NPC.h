@@ -52,7 +52,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "game/Entity.h"
 #include "game/GameTypes.h"
 #include "math/Types.h"
-#include "platform/Flags.h"
+#include "util/Flags.h"
 
 static const size_t MAX_STACKED_BEHAVIOR = 5;
 static const size_t MAX_EXTRA_ROTATE = 4;
@@ -170,7 +170,7 @@ struct IO_NPCDATA {
 	float absorb;
 	float damages;
 	float tohit;
-	float aimtime;
+	unsigned int aimtime;
 	float critical;
 	float reach;
 	float backstab_skill;
@@ -201,7 +201,7 @@ struct IO_NPCDATA {
 	
 	short strike_time;
 	short walk_start_time;
-	long aiming_start;
+	unsigned long aiming_start;
 	NPCFlags npcflags;
 	IO_PATHFIND pathfind;
 	EERIE_EXTRA_ROTATE * ex_rotate;
@@ -236,7 +236,6 @@ bool ARX_NPC_LaunchPathfind(Entity * io, EntityHandle target);
 bool IsDeadNPC(Entity * io);
 
 void FaceTarget2(Entity * io);
-void ARX_TEMPORARY_TrySound(float power);
 void ARX_NPC_Behaviour_Stack(Entity * io);
 void ARX_NPC_Behaviour_UnStack(Entity * io);
 void ARX_NPC_Behaviour_Reset(Entity * io);

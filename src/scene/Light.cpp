@@ -44,6 +44,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "scene/Light.h"
 
+#include <boost/array.hpp>
+
 #include "core/Application.h"
 #include "core/GameTime.h"
 #include "core/Core.h"
@@ -198,7 +200,7 @@ void EERIE_LIGHT_MoveAll(const Vec3f & trans) {
 static void ComputeLight2DPos(EERIE_LIGHT * _pL) {
 	
 	TexturedVertex out;
-	EE_RTP(_pL->pos, &out);
+	EE_RTP(_pL->pos, out);
 	
 	if(out.p.z > 0.f && out.p.z < 1000.f && out.rhw > 0) {
 		float siz = 50;
@@ -206,10 +208,7 @@ static void ComputeLight2DPos(EERIE_LIGHT * _pL) {
 		
 		float t = siz * (1.0f - 1.0f / (out.rhw * fMaxdist)) + 10;
 
-		_pL->m_screenRect.max.x = out.p.x + t;
-		_pL->m_screenRect.min.x = out.p.x - t;
-		_pL->m_screenRect.max.y = out.p.y + t;
-		_pL->m_screenRect.min.y = out.p.y - t;
+		_pL->m_screenRect = Rectf(out.p.x - t, out.p.y - t, out.p.x + t, out.p.y + t);
 	}
 }
 
@@ -227,8 +226,7 @@ void TreatBackgroundDynlights() {
 			if(!fartherThan(light->pos, ACTIVECAM->orgTrans.pos, fMaxdist)) {
 				ComputeLight2DPos(light);
 			} else {
-				light->m_screenRect.max.x = -1;
-				light->m_screenRect.min.x = 1;
+				light->m_screenRect = Rectf(1, 0, -1, 0); // Intentionally invalid
 			}
 
 			if(!light->m_ignitionStatus) {
@@ -277,7 +275,7 @@ void TreatBackgroundDynlights() {
 					dynamicLight->intensity    = light->intensity;
 					dynamicLight->ex_flaresize = light->ex_flaresize;
 					dynamicLight->extras       = light->extras;
-					dynamicLight->duration     = std::numeric_limits<long>::max();
+					dynamicLight->duration     = std::numeric_limits<unsigned long>::max();
 					
 					dynamicLight->rgb = light->rgb - light->rgb * light->ex_flicker * randomColor3f() * 0.5f;
 					
@@ -292,11 +290,11 @@ void TreatBackgroundDynlights() {
 		EERIE_LIGHT * el = &DynLight[i];
 
 		if(el->exist && el->duration) {
-			float tim = (float)float(arxtime) - (float)el->time_creation;
-			float duration = (float)el->duration;
+			const unsigned long elapsed = arxtime.now_ul() - el->creationTime;
+			const unsigned long duration = el->duration;
 
-			if(tim >= duration) {
-				float sub = framedelay * 0.001f;
+			if(elapsed >= duration) {
+				float sub = g_framedelay * 0.001f;
 
 				el->rgb.r -= sub;
 				el->rgb.g -= sub;
@@ -320,17 +318,17 @@ void TreatBackgroundDynlights() {
 	}
 }
 
-void PrecalcDynamicLighting(long x0, long z0, long x1, long z1) {
+void PrecalcDynamicLighting(long x0, long z0, long x1, long z1, const Vec3f & camPos, float camDepth) {
 	
 	ARX_PROFILE_FUNC();
 	
 	TOTPDL = 0;
 	
-	float fx0 = ACTIVEBKG->Xdiv * (float)x0;
-	float fz0 = ACTIVEBKG->Zdiv * (float)z0;
-	float fx1 = ACTIVEBKG->Xdiv * (float)x1;
-	float fz1 = ACTIVEBKG->Zdiv * (float)z1;
-
+	float fx0 = ACTIVEBKG->Xdiv * x0;
+	float fz0 = ACTIVEBKG->Zdiv * z0;
+	float fx1 = ACTIVEBKG->Xdiv * x1;
+	float fz1 = ACTIVEBKG->Zdiv * z1;
+	
 	for(size_t i = 0; i < MAX_DYNLIGHTS; i++) {
 		EERIE_LIGHT * el = &DynLight[i];
 
@@ -339,7 +337,7 @@ void PrecalcDynamicLighting(long x0, long z0, long x1, long z1) {
 			   && el->pos.x <= fx1
 			   && el->pos.z >= fz0
 			   && el->pos.z <= fz1
-			   && closerThan(el->pos, ACTIVECAM->orgTrans.pos, ACTIVECAM->cdepth)
+			   && closerThan(el->pos, camPos, camDepth)
 			) {
 				el->treat = 1;
 				RecalcLight(el);
@@ -398,13 +396,13 @@ void lightHandleDestroy(LightHandle & handle) {
 	handle = LightHandle();
 }
 
-void endLightDelayed(LightHandle & handle, long delay) {
+void endLightDelayed(LightHandle & handle, unsigned long delay) {
 	
 	if(lightHandleIsValid(handle)) {
 		EERIE_LIGHT * light = lightHandleGet(handle);
 		
 		light->duration = delay;
-		light->time_creation = (unsigned long)(arxtime);
+		light->creationTime = arxtime.now_ul();
 	}
 }
 
@@ -417,7 +415,7 @@ LightHandle GetFreeDynLight() {
 			DynLight[i].m_isIgnitionLight = false;
 			DynLight[i].intensity = 1.3f;
 			DynLight[i].treat = 1;
-			DynLight[i].time_creation = (unsigned long)(arxtime);
+			DynLight[i].creationTime = arxtime.now_ul();
 			DynLight[i].duration = 0;
 			DynLight[i].extras = 0;
 			DynLight[i].m_storedFlameTime.reset();
@@ -451,8 +449,12 @@ void ClearDynLights() {
 static int MAX_LLIGHTS = llightsSize;
 
 // Inserts Light in the List of Nearest Lights
-static void Insertllight(EERIE_LIGHT * llights[], float values[], EERIE_LIGHT * el, const Vec3f & pos, bool forPlayerColor) {
-	
+static void Insertllight(boost::array<EERIE_LIGHT *, llightsSize> & llights,
+                         boost::array<float, llightsSize> & values,
+                         EERIE_LIGHT * el,
+                         const Vec3f & pos,
+                         bool forPlayerColor
+) {
 	if(!el)
 		return;
 	
@@ -501,14 +503,11 @@ void setMaxLLights(int count) {
 
 void UpdateLlights(ShaderLight lights[], int & lightsCount, const Vec3f pos, bool forPlayerColor) {
 	
-	EERIE_LIGHT * llights[llightsSize];
-	float values[llightsSize];
+	boost::array<EERIE_LIGHT *, llightsSize> llights;
+	llights.fill(NULL);
+	boost::array<float, llightsSize> values;
+	values.fill(999999999.f);
 	
-	for(int i = 0; i < MAX_LLIGHTS; i++) {
-		llights[i] = NULL;
-		values[i] = 999999999.f;
-	}
-
 	for(size_t i = 0; i < TOTIOPDL; i++) {
 		Insertllight(llights, values, IO_PDL[i], pos, forPlayerColor);
 	}
@@ -557,18 +556,17 @@ void ResetTileLights() {
 	
 	ARX_PROFILE_FUNC();
 	
-	for(long z=0; z<ACTIVEBKG->Zsize; z++) {
-		for(long x=0; x<ACTIVEBKG->Xsize; x++) {
-			tilelights[x][z].el.clear();
-		}
+	for(long z = 0; z < ACTIVEBKG->Zsize; z++)
+	for(long x = 0; x < ACTIVEBKG->Xsize; x++) {
+		tilelights[x][z].el.clear();
 	}
 }
 
 void ComputeTileLights(short x,short z)
 {
 	tilelights[x][z].el.clear();
-	float xx=((float)x+0.5f)*ACTIVEBKG->Xdiv;
-	float zz=((float)z+0.5f)*ACTIVEBKG->Zdiv;
+	float xx = (x + 0.5f) * ACTIVEBKG->Xdiv;
+	float zz = (z + 0.5f) * ACTIVEBKG->Zdiv;
 
 	for(size_t i = 0; i < TOTPDL; i++) {
 		EERIE_LIGHT * light = PDL[i];
@@ -581,10 +579,10 @@ void ComputeTileLights(short x,short z)
 }
 
 void ClearTileLights() {
-	for(long z = 0; z < MAX_BKGZ; z++) {
-		for(long x = 0; x < MAX_BKGX; x++) {
-			tilelights[x][z].el.clear();
-		}
+	
+	for(long z = 0; z < MAX_BKGZ; z++)
+	for(long x = 0; x < MAX_BKGX; x++) {
+		tilelights[x][z].el.clear();
 	}
 }
 

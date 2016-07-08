@@ -132,12 +132,13 @@ static float LastFrameTicks = 0;
 
 // Manages Currently playing 2D cinematic
 void cinematicRender() {
-
-	float FrameTicks = arxtime.get_updated(false);
+	
+	arxtime.update(false);
+	float now = arxtime.now_f();
 
 	if(PLAY_LOADED_CINEMATIC == Cinematic_StartRequested) {
 		LogDebug("really starting cinematic now");
-		LastFrameTicks = FrameTicks;
+		LastFrameTicks = now;
 		PLAY_LOADED_CINEMATIC = Cinematic_Started;
 	}
 
@@ -145,7 +146,7 @@ void cinematicRender() {
 	ControlCinematique->InitDeviceObjects();
 	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 
-	ControlCinematique->Render(FrameTicks - LastFrameTicks);
+	ControlCinematique->Render(now - LastFrameTicks);
 
 	// end the animation
 	if(   !ControlCinematique->key
@@ -176,5 +177,5 @@ void cinematicRender() {
 		SendMsgToAllIO(SM_CINE_END, LAST_LAUNCHED_CINE);
 	}
 
-	LastFrameTicks = FrameTicks;
+	LastFrameTicks = now;
 }

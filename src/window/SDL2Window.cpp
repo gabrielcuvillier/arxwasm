@@ -21,11 +21,33 @@
 
 #include <algorithm>
 #include <sstream>
+#include <cstdlib>
+
+#include "Configure.h"
+
+#if ARX_HAVE_SETENV || ARX_HAVE_UNSETENV
+#include <stdlib.h>
+#endif
 
 #ifdef ARX_DEBUG
 #include <signal.h>
 #endif
 
+#include <boost/scope_exit.hpp>
+
+#include "platform/Platform.h"
+
+#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
+#if ARX_PLATFORM != ARX_PLATFORM_WIN32
+#define SDL_PROTOTYPES_ONLY 1
+#endif
+#include <SDL_syswm.h>
+
+#include "core/Version.h"
 #include "gui/Credits.h"
 #include "graphics/opengl/GLDebug.h"
 #include "graphics/opengl/OpenGLRenderer.h"
@@ -33,7 +55,27 @@
 #include "io/log/Logger.h"
 #include "math/Rectangle.h"
 #include "platform/CrashHandler.h"
-#include "platform/Platform.h"
+#include "platform/WindowsUtils.h"
+
+// Avoid including SDL_syswm.h without SDL_PROTOTYPES_ONLY on non-Windows systems
+// it includes X11 stuff which pullutes the namespace global namespace.
+typedef enum {
+	ARX_SDL_SYSWM_UNKNOWN,
+	ARX_SDL_SYSWM_WINDOWS,
+	ARX_SDL_SYSWM_X11,
+	ARX_SDL_SYSWM_DIRECTFB,
+	ARX_SDL_SYSWM_COCOA,
+	ARX_SDL_SYSWM_UIKIT,
+	ARX_SDL_SYSWM_WAYLAND,
+	ARX_SDL_SYSWM_MIR,
+	ARX_SDL_SYSWM_WINRT,
+	ARX_SDL_SYSWM_ANDROID
+} ARX_SDL_SYSWM_TYPE;
+struct ARX_SDL_SysWMinfo {
+	SDL_version version;
+	ARX_SDL_SYSWM_TYPE subsystem;
+	char padding[1024];
+};
 
 #ifdef __native_client__
 #include <GL/Regal.h>
@@ -47,6 +89,7 @@ SDL2Window::SDL2Window()
 	: m_window(NULL)
 	, m_glcontext(NULL)
 	, m_input(NULL)
+	, m_minimizeOnFocusLost(AlwaysEnabled)
 	{
 	m_renderer = new OpenGLRenderer;
 }
@@ -77,6 +120,22 @@ SDL2Window::~SDL2Window() {
 
 bool SDL2Window::initializeFramework() {
 	
+	#if defined(ARX_DEBUG) && defined(SDL_HINT_NO_SIGNAL_HANDLERS)
+	// SDL 2.0.4+
+	SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
+	#endif
+	
+	const char * minimize = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
+	if(minimize) {
+		if(*minimize == '0') {
+			m_minimizeOnFocusLost = AlwaysDisabled;
+		} else {
+			m_minimizeOnFocusLost = AlwaysEnabled;
+		}
+	} else {
+		m_minimizeOnFocusLost = Enabled;
+	}
+	
 	arx_assert(s_mainWindow == NULL, "SDL only supports one window"); // TODO it supports multiple windows now!
 	arx_assert(m_displayModes.empty());
 	
@@ -84,20 +143,27 @@ bool SDL2Window::initializeFramework() {
 	                             "." ARX_STR(SDL_PATCHLEVEL);
 	CrashHandler::setVariable("SDL version (headers)", headerVersion);
 	
+	#if ARX_PLATFORM != ARX_PLATFORM_WIN32 && ARX_HAVE_SETENV && ARX_HAVE_UNSETENV
+	/*
+	 * We want the X11 WM_CLASS to match the .desktop file and icon name,
+	 * but SDL does not let us set it directly.
+	 */
+	const char * oldClass = std::getenv("SDL_VIDEO_X11_WMCLASS");
+	if(!oldClass) {
+		setenv("SDL_VIDEO_X11_WMCLASS", arx_icon_name.c_str(), 1);
+	}
+	BOOST_SCOPE_EXIT((oldClass)) {
+		if(!oldClass) {
+			// Don't overrride WM_CLASS for SDL child processes
+			unsetenv("SDL_VIDEO_X11_WMCLASS");
+		}
+	} BOOST_SCOPE_EXIT_END
+	#endif
+	
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
 		LogError << "Failed to initialize SDL: " << SDL_GetError();
 		return false;
 	}
-	
-	#ifdef ARX_DEBUG
-	// No SDL, this is more annoying than helpful!
-	#if defined(SIGINT)
-	signal(SIGINT, SIG_DFL);
-	#endif
-	#if defined(SIGTERM)
-	signal(SIGTERM, SIG_DFL);
-	#endif
-	#endif
 	
 	SDL_version ver;
 	SDL_GetVersion(&ver);
@@ -106,6 +172,19 @@ bool SDL2Window::initializeFramework() {
 	LogInfo << "Using SDL " << runtimeVersion.str();
 	CrashHandler::setVariable("SDL version (runtime)", runtimeVersion.str());
 	credits::setLibraryCredits("windowing", "SDL " + runtimeVersion.str());
+	
+	#ifdef ARX_DEBUG
+	// No SDL, this is more annoying than helpful!
+	if(ver.major == 2 && ver.minor == 0 && ver.patch < 4) {
+		// Earlier versions don't support SDL_HINT_NO_SIGNAL_HANDLERS
+		#if defined(SIGINT)
+		signal(SIGINT, SIG_DFL);
+		#endif
+		#if defined(SIGTERM)
+		signal(SIGTERM, SIG_DFL);
+		#endif
+	}
+	#endif
 	
 	int ndisplays = SDL_GetNumVideoDisplays();
 	for(int display = 0; display < ndisplays; display++) {
@@ -156,7 +235,7 @@ bool SDL2Window::initialize() {
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 	
-#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
 	// Used on Windows to prevent software opengl fallback.
 	// The linux situation:
 	// Causes SDL to require visuals without caveats.
@@ -164,7 +243,7 @@ bool SDL2Window::initialize() {
 	// with a GLX_NON_CONFORMANT_VISUAL_EXT caveat.
 	// see: https://www.opengl.org/registry/specs/EXT/visual_rating.txt
 	SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
-#endif
+	#endif
 	
 	// TODO EGL and core profile are not supported yet
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
@@ -247,6 +326,34 @@ bool SDL2Window::initialize() {
 		}
 		
 		// All good
+		const char * system = "(unknown)";
+		{
+		  ARX_SDL_SysWMinfo info;
+			info.version.major = 2;
+			info.version.minor = 0;
+			info.version.patch = 4;
+			if(SDL_GetWindowWMInfo(m_window, reinterpret_cast<SDL_SysWMinfo *>(&info))) {
+				switch(info.subsystem) {
+					case ARX_SDL_SYSWM_UNKNOWN:   break;
+					case ARX_SDL_SYSWM_WINDOWS:   system = "Windows"; break;
+					case ARX_SDL_SYSWM_X11:       system = "X11"; break;
+					#if SDL_VERSION_ATLEAST(2, 0, 3)
+					case ARX_SDL_SYSWM_WINRT:     system = "WinRT"; break;
+					#endif
+					case ARX_SDL_SYSWM_DIRECTFB:  system = "DirectFB"; break;
+					case ARX_SDL_SYSWM_COCOA:     system = "Cocoa"; break;
+					case ARX_SDL_SYSWM_UIKIT:     system = "UIKit"; break;
+					#if SDL_VERSION_ATLEAST(2, 0, 2)
+					case ARX_SDL_SYSWM_WAYLAND:   system = "Wayland"; break;
+					case ARX_SDL_SYSWM_MIR:       system = "Mir"; break;
+					#endif
+					#if SDL_VERSION_ATLEAST(2, 0, 4)
+					case ARX_SDL_SYSWM_ANDROID:   system = "Android"; break;
+					#endif
+				}
+			}
+		}
+		
 		int red = 0, green = 0, blue = 0, alpha = 0, depth = 0, doublebuffer = 0;
 		SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &red);
 		SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &green);
@@ -254,10 +361,40 @@ bool SDL2Window::initialize() {
 		SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &alpha);
 		SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depth);
 		SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &doublebuffer);
-		LogInfo << "Window: r:" << red << " g:" << green << " b:" << blue << " a:" << alpha
-		        << " depth:" << depth << " aa:" << msaa << "x doublebuffer:" << doublebuffer;
+		LogInfo << "Window: " << system << " r:" << red << " g:" << green << " b:" << blue
+		        << " a:" << alpha << " depth:" << depth << " aa:" << msaa << "x"
+		        << " doublebuffer:" << doublebuffer;
 		break;
 	}
+	
+	// Use the executable icon for the window
+	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+	{
+		SDL_SysWMinfo info;
+		SDL_VERSION(&info.version);
+		if(SDL_GetWindowWMInfo(m_window, &info) && info.subsystem == SDL_SYSWM_WINDOWS) {
+			platform::WideString filename;
+			filename.allocate(filename.capacity());
+			while(true) {
+				DWORD size = GetModuleFileNameW(NULL, filename.data(), filename.size());
+				if(size < filename.size()) {
+					filename.resize(size);
+					break;
+				}
+				filename.allocate(filename.size() * 2);
+			}
+			HICON largeIcon = 0;
+			HICON smallIcon = 0;
+			ExtractIconExW(filename, 0, &largeIcon, &smallIcon, 1);
+			if(smallIcon) {
+				SendMessage(info.info.win.window, WM_SETICON, ICON_SMALL, LPARAM(smallIcon));
+			}
+			if(largeIcon) {
+				SendMessage(info.info.win.window, WM_SETICON, ICON_BIG, LPARAM(largeIcon));
+			}
+		}
+	}
+	#endif
 	
 	setVSync(m_vsync);
 	
@@ -308,9 +445,13 @@ void SDL2Window::changeMode(DisplayMode mode, bool makeFullscreen) {
 	
 	bool wasFullscreen = m_fullscreen;
 	
-	m_renderer->beforeResize(wasFullscreen || makeFullscreen);
+	m_renderer->beforeResize(false);
 	
 	if(makeFullscreen) {
+		if(wasFullscreen) {
+			// SDL will not update the window size with the new mode if already fullscreen
+			SDL_SetWindowFullscreen(m_window, 0);
+		}
 		if(mode.resolution != Vec2i_ZERO) {
 			SDL_DisplayMode sdlmode;
 			SDL_DisplayMode requested;
@@ -435,20 +576,6 @@ void SDL2Window::tick() {
 				break;
 			}
 			
-			#if ARX_PLATFORM == ARX_PLATFORM_WIN32
-			case SDL_KEYDOWN: {
-				// SDL2 is still eating our ALT+F4 under windows...
-				// See bug report here: https://bugzilla.libsdl.org/show_bug.cgi?id=1555
-				if(event.key.keysym.sym == SDLK_F4
-				   && (event.key.keysym.mod & KMOD_ALT) != KMOD_NONE) {
-					SDL_Event quitevent;
-					quitevent.type = SDL_QUIT;
-					SDL_PushEvent(&quitevent);
-				}
-				break;
-			}
-			#endif
-			
 			case SDL_QUIT: {
 				// The user has requested to close the whole program
 				// TODO onDestroy() fits SDL_WINDOWEVENT_CLOSE better, but SDL captures Ctrl+C
@@ -480,6 +607,17 @@ void SDL2Window::showFrame() {
 void SDL2Window::hide() {
 	SDL_HideWindow(m_window);
 	onShow(false);
+}
+
+void SDL2Window::setMinimizeOnFocusLost(bool enabled) {
+	if(m_minimizeOnFocusLost != AlwaysDisabled && m_minimizeOnFocusLost != AlwaysEnabled) {
+		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, enabled ? "1" : "0");
+		m_minimizeOnFocusLost = enabled ? Enabled : Disabled;
+	}
+}
+
+Window::MinimizeSetting SDL2Window::willMinimizeOnFocusLost() {
+	return m_minimizeOnFocusLost;
 }
 
 InputBackend * SDL2Window::getInputBackend() {

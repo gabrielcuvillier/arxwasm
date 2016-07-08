@@ -32,7 +32,7 @@ public:
 	bool CanLaunch();
 	void Launch();
 	void End();
-	void Update(float timeDelta);
+	void Update();
 	
 	Vec3f getPosition();
 	
@@ -46,7 +46,7 @@ public:
 	
 	void Launch();
 	void End();
-	void Update(float timeDelta);
+	void Update();
 	
 	Vec3f getPosition();
 	
@@ -65,7 +65,7 @@ public:
 	
 	void Launch();
 	void End();
-	void Update(float timeDelta);
+	void Update();
 	
 	Vec3f getPosition();
 	
@@ -88,7 +88,7 @@ class LightningStrikeSpell : public SpellBase {
 public:
 	void Launch();
 	void End();
-	void Update(float timeDelta);
+	void Update();
 	
 private:
 	CLightning m_lightning;
@@ -100,7 +100,7 @@ public:
 	
 	void Launch();
 	void End();
-	void Update(float timeDelta);
+	void Update();
 	
 	Vec3f getPosition();
 	
@@ -108,7 +108,7 @@ private:
 	LightHandle m_light;
 	TextureContainer * tex_p1;
 	TextureContainer * tex_trail;
-	AnimLayer au;
+	AnimLayer animlayer[MAX_ANIM_LAYERS];
 	Vec3f eCurPos;
 };
 

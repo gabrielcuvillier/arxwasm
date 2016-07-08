@@ -58,12 +58,12 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "game/EntityManager.h"
 #include "game/magic/spells/SpellsLvl06.h"
 
+#include "scene/GameSound.h"
 #include "scene/Interactive.h"
 
 #include "physics/Box.h"
 #include "physics/Collisions.h"
 
-extern Material CUR_COLLISION_MATERIAL;
 
 static const float VELOCITY_THRESHOLD = 400.f;
 
@@ -251,19 +251,18 @@ static bool IsObjectVertexCollidingPoly(PHYSICS_BOX_DATA * pbox, const EERIEPOLY
 	return false;
 }
 
-static void polyTypeToCollisionMaterial(const EERIEPOLY & ep) {
-	if (ep.type & POLY_METAL) CUR_COLLISION_MATERIAL = MATERIAL_METAL;
-	else if (ep.type & POLY_WOOD) CUR_COLLISION_MATERIAL = MATERIAL_WOOD;
-	else if (ep.type & POLY_STONE) CUR_COLLISION_MATERIAL = MATERIAL_STONE;
-	else if (ep.type & POLY_GRAVEL) CUR_COLLISION_MATERIAL = MATERIAL_GRAVEL;
-	else if (ep.type & POLY_WATER) CUR_COLLISION_MATERIAL = MATERIAL_WATER;
-	else if (ep.type & POLY_EARTH) CUR_COLLISION_MATERIAL = MATERIAL_EARTH;
-	else CUR_COLLISION_MATERIAL = MATERIAL_STONE;
+static Material polyTypeToCollisionMaterial(const EERIEPOLY & ep) {
+	if (ep.type & POLY_METAL) return MATERIAL_METAL;
+	else if (ep.type & POLY_WOOD) return MATERIAL_WOOD;
+	else if (ep.type & POLY_STONE) return MATERIAL_STONE;
+	else if (ep.type & POLY_GRAVEL) return MATERIAL_GRAVEL;
+	else if (ep.type & POLY_WATER) return MATERIAL_WATER;
+	else if (ep.type & POLY_EARTH) return MATERIAL_EARTH;
+	else return MATERIAL_STONE;
 }
 
 static bool IsFULLObjectVertexInValidPosition(PHYSICS_BOX_DATA * pbox, EERIEPOLY *& collisionPoly) {
 
-	bool ret = true;
 	float rad = pbox->radius;
 	
 	// TODO copy-paste background tiles
@@ -303,9 +302,6 @@ static bool IsFULLObjectVertexInValidPosition(PHYSICS_BOX_DATA * pbox, EERIEPOLY
 					   || !fartherThan(pbox->vert[kk].pos, (ep.v[0].p + ep.v[2].p) * .5f, radd)
 					) {
 						collisionPoly = &ep;
-						
-						polyTypeToCollisionMaterial(ep);
-						
 						return false;
 					}
 					
@@ -323,9 +319,6 @@ static bool IsFULLObjectVertexInValidPosition(PHYSICS_BOX_DATA * pbox, EERIEPOLY
 							   || !fartherThan(pos, (ep.v[0].p + ep.v[2].p) * .5f, radd)
 							) {
 								collisionPoly = &ep;
-
-								polyTypeToCollisionMaterial(ep);
-								
 								return false;
 							}
 						}
@@ -333,26 +326,50 @@ static bool IsFULLObjectVertexInValidPosition(PHYSICS_BOX_DATA * pbox, EERIEPOLY
 				}
 				
 				if(IsObjectVertexCollidingPoly(pbox, ep)) {
-					
 					collisionPoly = &ep;
-					
-					polyTypeToCollisionMaterial(ep);
-					
 					return false;
 				}
 			}
 		}
 	}
 
-	return ret;
+	return true;
 }
 
-static bool ARX_EERIE_PHYSICS_BOX_Compute(PHYSICS_BOX_DATA * pbox, float framediff, EntityHandle source) {
+static void ARX_TEMPORARY_TrySound(Entity * source, Material collisionMaterial, float volume) {
+	
+	if(source->ioflags & IO_BODY_CHUNK)
+		return;
+	
+	unsigned long now = arxtime.now_ul();
+	
+	if(now > source->soundtime) {
+		
+		source->soundcount++;
+		
+		if(source->soundcount < 5) {
+			Material material;
+			if(EEIsUnderWater(source->pos))
+				material = MATERIAL_WATER;
+			else if(source->material)
+				material = source->material;
+			else
+				material = MATERIAL_STONE;
+			
+			if(volume > 1.f)
+				volume = 1.f;
+			
+			long soundLength = ARX_SOUND_PlayCollision(material, collisionMaterial, volume, 1.f, source->pos, source);
+			
+			source->soundtime = now + (soundLength >> 4) + 50;
+		}
+	}
+}
+
+static void ARX_EERIE_PHYSICS_BOX_Compute(PHYSICS_BOX_DATA * pbox, float framediff, Entity * source) {
 
 	Vec3f oldpos[32];
-	long COUNT = 0;
-	COUNT++;
-
+	
 	for(long kk = 0; kk < pbox->nb_physvert; kk++) {
 		PHYSVERT *pv = &pbox->vert[kk];
 		oldpos[kk] = pv->pos;
@@ -363,58 +380,46 @@ static bool ARX_EERIE_PHYSICS_BOX_Compute(PHYSICS_BOX_DATA * pbox, float framedi
 		pv->velocity.z = glm::clamp(pv->velocity.z, -VELOCITY_THRESHOLD, VELOCITY_THRESHOLD);
 	}
 
-	CUR_COLLISION_MATERIAL = MATERIAL_STONE;
-
 	RK4Integrate(pbox, framediff);
 
-	Sphere sphere;
-	PHYSVERT *pv = &pbox->vert[0];
-	sphere.origin = pv->pos;
-	sphere.radius = pbox->radius;
-	long colidd = 0;
 	EERIEPOLY * collisionPoly = NULL;
 	
 	if(   !IsFULLObjectVertexInValidPosition(pbox, collisionPoly)
 	   || ARX_INTERACTIVE_CheckFULLCollision(pbox, source)
-	   || colidd
 	   || IsObjectInField(pbox)
 	) {
-		colidd = 1;
-		float power = (glm::abs(pbox->vert[0].velocity.x)
-					   + glm::abs(pbox->vert[0].velocity.y)
-					   + glm::abs(pbox->vert[0].velocity.z)) * .01f;
-
-
-		if(!(ValidIONum(source) && (entities[source]->ioflags & IO_BODY_CHUNK)))
-			ARX_TEMPORARY_TrySound(0.4f + power);
+		
+		if(!(source->ioflags & IO_BODY_CHUNK)) {
+			Material collisionMat = MATERIAL_STONE;
+			if(collisionPoly) {
+				collisionMat = polyTypeToCollisionMaterial(*collisionPoly);
+			}
+			
+			Vec3f velocity = pbox->vert[0].velocity;
+			
+			float power = (glm::abs(velocity.x) + glm::abs(velocity.y) + glm::abs(velocity.z)) * .01f;
+			
+			ARX_TEMPORARY_TrySound(source, collisionMat, 0.4f + power);
+		}
 
 		if(!collisionPoly) {
 			for(long k = 0; k < pbox->nb_physvert; k++) {
-				pv = &pbox->vert[k];
-
-				pv->velocity.x *= -0.3f;
-				pv->velocity.z *= -0.3f;
-				pv->velocity.y *= -0.4f;
-
+				PHYSVERT * pv = &pbox->vert[k];
+				pv->velocity *= Vec3f(-0.3f, -0.4f, -0.3f);
 				pv->pos = oldpos[k];
 			}
 		} else {
 			for(long k = 0; k < pbox->nb_physvert; k++) {
-				pv = &pbox->vert[k];
+				PHYSVERT * pv = &pbox->vert[k];
 
 				float t = glm::dot(collisionPoly->norm, pv->velocity);
 				pv->velocity -= collisionPoly->norm * (2.f * t);
 
-				pv->velocity.x *= 0.3f;
-				pv->velocity.z *= 0.3f;
-				pv->velocity.y *= 0.4f;
-
+				pv->velocity *= Vec3f(0.3f, 0.4f, 0.3f);
 				pv->pos = oldpos[k];
 			}
 		}
-	}
-
-	if(colidd) {
+		
 		pbox->stopcount += 1;
 	} else {
 		pbox->stopcount -= 2;
@@ -422,22 +427,15 @@ static bool ARX_EERIE_PHYSICS_BOX_Compute(PHYSICS_BOX_DATA * pbox, float framedi
 		if(pbox->stopcount < 0)
 			pbox->stopcount = 0;
 	}
-
-	return true;
 }
 
-long ARX_PHYSICS_BOX_ApplyModel(PHYSICS_BOX_DATA * pbox, float framediff, float rubber, EntityHandle source) {
-
-	long ret = 0;
-
-	if(!pbox)
-		return ret;
-
+void ARX_PHYSICS_BOX_ApplyModel(PHYSICS_BOX_DATA * pbox, float framediff, float rubber, Entity * source) {
+	
 	if(pbox->active == 2)
-		return ret;
+		return;
 
 	if(framediff == 0.f)
-		return ret;
+		return;
 	
 	// Memorizes initpos
 	for(long k = 0; k < pbox->nb_physvert; k++) {
@@ -450,13 +448,12 @@ long ARX_PHYSICS_BOX_ApplyModel(PHYSICS_BOX_DATA * pbox, float framediff, float 
 
 	if(timing < t_threshold) {
 		pbox->storedtiming = timing;
-		return 1;
+		return;
 	} else {
 		while(timing >= t_threshold) {
 			ComputeForces(pbox->vert, pbox->nb_physvert);
 
-			if(!ARX_EERIE_PHYSICS_BOX_Compute(pbox, std::min(0.11f, timing * 10), source))
-				ret = 1;
+			ARX_EERIE_PHYSICS_BOX_Compute(pbox, std::min(0.11f, timing * 10), source);
 
 			timing -= t_threshold;
 		}
@@ -465,16 +462,12 @@ long ARX_PHYSICS_BOX_ApplyModel(PHYSICS_BOX_DATA * pbox, float framediff, float 
 	}
 
 	if(pbox->stopcount < 16)
-		return ret;
+		return;
 
 	pbox->active = 2;
 	pbox->stopcount = 0;
 
-	if(ValidIONum(source)) {
-		entities[source]->soundcount = 0;
-		entities[source]->soundtime = (unsigned long)(arxtime) + 2000;
-	}
-
-	return ret;
+	source->soundcount = 0;
+	source->soundtime = arxtime.now_ul() + 2000;
 }
 

@@ -127,38 +127,37 @@ static glm::mat4 Util_SetViewMatrix(EERIE_TRANSFORM &transform) {
 	return Util_LookAt(vFrom, vView, vWorldUp);
 }
 
-static void EERIE_CreateMatriceProj(float _fWidth, float _fHeight, EERIE_CAMERA * cam) {
+static void EERIE_CreateMatriceProj(float width, float height, EERIE_CAMERA * cam) {
 
-	float _fFOV = focalToFov(cam->focal);
-	float _fZNear = 1.f;
-	float _fZFar = cam->cdepth;
+	float fov = focalToFov(cam->focal);
+	
+	const float nearDist = 1.f;
+	const float farDist = cam->cdepth;
+	const float frustumDepth = farDist - nearDist;
+	
+	float aspect = height / width;
+	float w = aspect * (glm::cos(fov / 2) / glm::sin(fov / 2));
+	float h =   1.0f  * (glm::cos(fov / 2) / glm::sin(fov / 2));
+	float Q = farDist / frustumDepth;
 
-
-	float fAspect = _fHeight / _fWidth;
-	float fFOV = glm::radians(_fFOV);
-	float fFarPlane = _fZFar;
-	float fNearPlane = _fZNear;
-	float w = fAspect * (glm::cos(fFOV / 2) / glm::sin(fFOV / 2));
-	float h =   1.0f  * (glm::cos(fFOV / 2) / glm::sin(fFOV / 2));
-	float Q = fFarPlane / (fFarPlane - fNearPlane);
-
-	memset(&cam->ProjectionMatrix, 0, sizeof(glm::mat4x4));
+	cam->ProjectionMatrix = glm::mat4x4();
 	cam->ProjectionMatrix[0][0] = w;
 	cam->ProjectionMatrix[1][1] = h;
 	cam->ProjectionMatrix[2][2] = Q;
-	cam->ProjectionMatrix[3][2] = (-Q * fNearPlane);
+	cam->ProjectionMatrix[3][2] = (-Q * nearDist);
 	cam->ProjectionMatrix[2][3] = 1.f;
+	cam->ProjectionMatrix[3][3] = 0.f;
 	GRenderer->SetProjectionMatrix(cam->ProjectionMatrix);
 	
 	glm::mat4 tempViewMatrix = Util_SetViewMatrix(cam->orgTrans);
 	GRenderer->SetViewMatrix(tempViewMatrix);
 
-	cam->ProjectionMatrix[0][0] *= _fWidth * .5f;
-	cam->ProjectionMatrix[1][1] *= _fHeight * .5f;
-	cam->ProjectionMatrix[2][2] = -(fFarPlane * fNearPlane) / (fFarPlane - fNearPlane);	//HYPERBOLIC
+	cam->ProjectionMatrix[0][0] *= width * .5f;
+	cam->ProjectionMatrix[1][1] *= height * .5f;
+	cam->ProjectionMatrix[2][2] = -(farDist * nearDist) / frustumDepth;	//HYPERBOLIC
 	cam->ProjectionMatrix[3][2] = Q;
 
-	GRenderer->SetViewport(Rect(static_cast<s32>(_fWidth), static_cast<s32>(_fHeight)));
+	GRenderer->SetViewport(Rect(static_cast<s32>(width), static_cast<s32>(height)));
 }
 
 void SP_PrepareCamera(EERIE_CAMERA * cam) {

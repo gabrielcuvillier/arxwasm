@@ -577,18 +577,18 @@ static unsigned char *convert_format(unsigned char *data, int img_n, int req_com
       // convert source image with img_n components to one with req_comp components;
       // avoid switch per pixel, so use switch per scanline and massive macros
       switch (STBI_COMBO(img_n, req_comp)) {
-         STBI_CASE(1,2) dest[0]=src[0], dest[1]=255; break;
-         STBI_CASE(1,3) dest[0]=dest[1]=dest[2]=src[0]; break;
-         STBI_CASE(1,4) dest[0]=dest[1]=dest[2]=src[0], dest[3]=255; break;
-         STBI_CASE(2,1) dest[0]=src[0]; break;
-         STBI_CASE(2,3) dest[0]=dest[1]=dest[2]=src[0]; break;
-         STBI_CASE(2,4) dest[0]=dest[1]=dest[2]=src[0], dest[3]=src[1]; break;
-         STBI_CASE(3,4) dest[0]=src[0],dest[1]=src[1],dest[2]=src[2],dest[3]=255; break;
-         STBI_CASE(3,1) dest[0]=compute_y(src[0],src[1],src[2]); break;
-         STBI_CASE(3,2) dest[0]=compute_y(src[0],src[1],src[2]), dest[1] = 255; break;
-         STBI_CASE(4,1) dest[0]=compute_y(src[0],src[1],src[2]); break;
-         STBI_CASE(4,2) dest[0]=compute_y(src[0],src[1],src[2]), dest[1] = src[3]; break;
-         STBI_CASE(4,3) dest[0]=src[0],dest[1]=src[1],dest[2]=src[2]; break;
+         STBI_CASE(1,2) { dest[0]=src[0], dest[1]=255; } break;
+         STBI_CASE(1,3) { dest[0]=dest[1]=dest[2]=src[0]; } break;
+         STBI_CASE(1,4) { dest[0]=dest[1]=dest[2]=src[0], dest[3]=255; } break;
+         STBI_CASE(2,1) { dest[0]=src[0]; } break;
+         STBI_CASE(2,3) { dest[0]=dest[1]=dest[2]=src[0]; } break;
+         STBI_CASE(2,4) { dest[0]=dest[1]=dest[2]=src[0], dest[3]=src[1]; } break;
+         STBI_CASE(3,4) { dest[0]=src[0],dest[1]=src[1],dest[2]=src[2],dest[3]=255; } break;
+         STBI_CASE(3,1) { dest[0]=compute_y(src[0],src[1],src[2]); } break;
+         STBI_CASE(3,2) { dest[0]=compute_y(src[0],src[1],src[2]), dest[1] = 255; } break;
+         STBI_CASE(4,1) { dest[0]=compute_y(src[0],src[1],src[2]); } break;
+         STBI_CASE(4,2) { dest[0]=compute_y(src[0],src[1],src[2]), dest[1] = src[3]; } break;
+         STBI_CASE(4,3) { dest[0]=src[0],dest[1]=src[1],dest[2]=src[2]; } break;
          default: assert(0);
       }
       #undef STBI_CASE
@@ -858,7 +858,7 @@ stbi_inline static int extend_receive(jpeg *j, int n)
    // predict well. I tried to table accelerate it but failed.
    // maybe it's compiling as a conditional move?
    if (k < m)
-      return (-1 << n) + k + 1;
+      return -(1 << n) + k + 1;
    else
       return k;
 }
@@ -2215,13 +2215,13 @@ static int create_png_image_raw(png *a, uint8 *raw, uint32 raw_len, int out_n, u
                 for (i=x-1; i >= 1; --i, raw+=img_n,cur+=img_n,prior+=img_n) \
                    for (k=0; k < img_n; ++k)
          switch (filter) {
-            STBI_CASE(F_none)  cur[k] = raw[k]; break;
-            STBI_CASE(F_sub)   cur[k] = raw[k] + cur[k-img_n]; break;
-            STBI_CASE(F_up)    cur[k] = raw[k] + prior[k]; break;
-            STBI_CASE(F_avg)   cur[k] = raw[k] + ((prior[k] + cur[k-img_n])>>1); break;
-            STBI_CASE(F_paeth)  cur[k] = (uint8) (raw[k] + paeth(cur[k-img_n],prior[k],prior[k-img_n])); break;
-            STBI_CASE(F_avg_first)    cur[k] = raw[k] + (cur[k-img_n] >> 1); break;
-            STBI_CASE(F_paeth_first)  cur[k] = (uint8) (raw[k] + paeth(cur[k-img_n],0,0)); break;
+            STBI_CASE(F_none)  { cur[k] = raw[k]; } break;
+            STBI_CASE(F_sub)   { cur[k] = raw[k] + cur[k-img_n]; } break;
+            STBI_CASE(F_up)    { cur[k] = raw[k] + prior[k]; } break;
+            STBI_CASE(F_avg)   { cur[k] = raw[k] + ((prior[k] + cur[k-img_n])>>1); } break;
+            STBI_CASE(F_paeth) { cur[k] = (uint8) (raw[k] + paeth(cur[k-img_n],prior[k],prior[k-img_n])); } break;
+            STBI_CASE(F_avg_first)   { cur[k] = raw[k] + (cur[k-img_n] >> 1); } break;
+            STBI_CASE(F_paeth_first) { cur[k] = (uint8) (raw[k] + paeth(cur[k-img_n],0,0)); } break;
          }
          #undef STBI_CASE
       } else {
@@ -2231,13 +2231,13 @@ static int create_png_image_raw(png *a, uint8 *raw, uint32 raw_len, int out_n, u
                 for (i=x-1; i >= 1; --i, cur[img_n]=255,raw+=img_n,cur+=out_n,prior+=out_n) \
                    for (k=0; k < img_n; ++k)
          switch (filter) {
-            STBI_CASE(F_none)  cur[k] = raw[k]; break;
-            STBI_CASE(F_sub)   cur[k] = raw[k] + cur[k-out_n]; break;
-            STBI_CASE(F_up)    cur[k] = raw[k] + prior[k]; break;
-            STBI_CASE(F_avg)   cur[k] = raw[k] + ((prior[k] + cur[k-out_n])>>1); break;
-            STBI_CASE(F_paeth)  cur[k] = (uint8) (raw[k] + paeth(cur[k-out_n],prior[k],prior[k-out_n])); break;
-            STBI_CASE(F_avg_first)    cur[k] = raw[k] + (cur[k-out_n] >> 1); break;
-            STBI_CASE(F_paeth_first)  cur[k] = (uint8) (raw[k] + paeth(cur[k-out_n],0,0)); break;
+            STBI_CASE(F_none)  { cur[k] = raw[k]; } break;
+            STBI_CASE(F_sub)   { cur[k] = raw[k] + cur[k-out_n]; } break;
+            STBI_CASE(F_up)    { cur[k] = raw[k] + prior[k]; } break;
+            STBI_CASE(F_avg)   { cur[k] = raw[k] + ((prior[k] + cur[k-out_n])>>1); } break;
+            STBI_CASE(F_paeth) { cur[k] = (uint8) (raw[k] + paeth(cur[k-out_n],prior[k],prior[k-out_n])); } break;
+            STBI_CASE(F_avg_first)   { cur[k] = raw[k] + (cur[k-out_n] >> 1); } break;
+            STBI_CASE(F_paeth_first) { cur[k] = (uint8) (raw[k] + paeth(cur[k-out_n],0,0)); } break;
          }
          #undef STBI_CASE
       }

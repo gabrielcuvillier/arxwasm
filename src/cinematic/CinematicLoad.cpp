@@ -253,7 +253,7 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 	LogDebug(t.nbkey << " keyframes:");
 	for(int i = 0; i < t.nbkey; i++) {
 		
-		C_KEY k;
+		CinematicKeyframe k;
 		int idsound;
 		
 		if(version <= CINEMATIC_VERSION_1_75) {
@@ -371,7 +371,7 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 	
 	SetCurrFrame(0);
 	
-	GereTrackNoPlay(c);
+	GereTrack(c, 0, false, false);
 	c->projectload = true;
 	
 	LogDebug("loaded cinematic");

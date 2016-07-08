@@ -37,6 +37,8 @@
 
 #include "graphics/particle/ParticleEffects.h"
 #include "graphics/font/Font.h"
+
+#include "gui/DebugUtils.h"
 #include "gui/Text.h"
 #include "gui/Interface.h"
 
@@ -52,11 +54,6 @@
 #include "window/RenderWindow.h"
 #include "platform/profiler/Profiler.h"
 
-template <typename T>
-struct FlagName {
-	T flag;
-	const char * name;
-};
 
 const FlagName<EntityFlags> EntityFlagNames[] = {
 	{IO_UNDERWATER          , "UNDERWATER"},
@@ -92,6 +89,25 @@ const FlagName<EntityFlags> EntityFlagNames[] = {
 	{IO_CAN_COMBINE         , "CAN_COMBINE"}
 };
 
+const FlagName<GameFlags> GameFlagNames[] = {
+	{GFLAG_INTERACTIVITY     , "INTERACTIVITY"},
+	{GFLAG_ISINTREATZONE     , "ISINTREATZONE"},
+	{GFLAG_WASINTREATZONE    , "WASINTREATZONE"},
+	{GFLAG_NEEDINIT          , "NEEDINIT"},
+	{GFLAG_INTERACTIVITYHIDE , "INTERACTIVITYHIDE"},
+	{GFLAG_DOOR              , "DOOR"},
+	{GFLAG_INVISIBILITY      , "INVISIBILITY"},
+	{GFLAG_NO_PHYS_IO_COL    , "NO_PHYS_IO_COL"},
+	{GFLAG_VIEW_BLOCKER      , "VIEW_BLOCKER"},
+	{GFLAG_PLATFORM          , "PLATFORM"},
+	{GFLAG_ELEVATOR          , "ELEVATOR"},
+	{GFLAG_MEGAHIDE          , "MEGAHIDE"},
+	{GFLAG_HIDEWEAPON        , "HIDEWEAPON"},
+	{GFLAG_NOGORE            , "NOGORE"},
+	{GFLAG_GOREEXPLODE       , "GOREEXPLODE"},
+	{GFLAG_NOCOMPUTATION     , "NOCOMPUTATION"}
+};
+
 const FlagName<Behaviour> BehaviourFlagNames[] = {
 	{BEHAVIOUR_NONE          , "NONE"},
 	{BEHAVIOUR_FRIENDLY      , "FRIENDLY"},
@@ -110,17 +126,6 @@ const FlagName<Behaviour> BehaviourFlagNames[] = {
 	{BEHAVIOUR_STARE_AT      , "STARE_AT"}
 };
 
-template <typename T, size_t N>
-std::string flagNames(const FlagName<T> (&names)[N], const T flags) {
-	std::stringstream ss;
-	for(size_t i = 0; i < N; i++) {
-		if(names[i].flag & flags) {
-			ss << names[i].name << " ";
-		}
-	}
-	return ss.str();
-}
-
 
 static const char * entityVisilibityToString(EntityVisilibity value) {
 	switch (value) {
@@ -138,92 +143,7 @@ static const char * entityVisilibityToString(EntityVisilibity value) {
 }
 
 
-class DebugBox {
-public:
-	DebugBox(const Vec2i & pos, const std::string & title)
-		: m_pos(pos)
-		, m_title(title)
-		, m_maxKeyLen(0)
-	{}
-	
-	void add(std::string key, const std::string value) {
-		m_maxKeyLen = std::max(m_maxKeyLen, key.length());
-		m_elements.push_back(std::pair<std::string, std::string>(key, value));
-	}
-	
-	void add(std::string key, const long value) {
-		m_maxKeyLen = std::max(m_maxKeyLen, key.length());
-		std::string valueStr = boost::str(boost::format("%ld") % value);
-		m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
-	}
-	
-	void add(std::string key, const float value) {
-		m_maxKeyLen = std::max(m_maxKeyLen, key.length());
-		std::string valueStr = boost::str(boost::format("%4.2f") % value);
-		m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
-	}
-	
-	void add(std::string key, const Vec2i value) {
-		m_maxKeyLen = std::max(m_maxKeyLen, key.length());
-		std::string valueStr = boost::str(boost::format("(%d, %d)") % value.x % value.y);
-		m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
-	}
-	
-	void add(std::string key, const Vec3f value) {
-		m_maxKeyLen = std::max(m_maxKeyLen, key.length());
-		std::string valueStr = boost::str(boost::format("%4.2f %4.2f %4.2f") % value.x % value.y % value.z);
-		m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
-	}
-	
-	void add(std::string key, const Anglef value) {
-		m_maxKeyLen = std::max(m_maxKeyLen, key.length());
-		std::string valueStr = boost::str(boost::format("%4.2f %4.2f %4.2f") % value.getYaw() % value.getPitch() % value.getRoll());
-		m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
-	}
-	
-	void add(std::string key, const ResourcePool value) {
-		m_maxKeyLen = std::max(m_maxKeyLen, key.length());
-		std::string valueStr = boost::str(boost::format("%4.2f/%4.2f") % value.current % value.max);
-		m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
-	}
-	
-	void print() {
-		int lineHeight = hFontDebug->getLineHeight();
-		Vec2i lineOffset = m_pos;
-		
-		hFontDebug->draw(lineOffset, std::string("╭─ ") + m_title, Color::white);
-		lineOffset.y += lineHeight;
-		
-		std::vector<std::pair<std::string, std::string> >::const_iterator itr;
-		for(itr = m_elements.begin(); itr != m_elements.end(); ++itr) {
-			std::stringstream out;
-			out << "│ " << std::left << std::setw(m_maxKeyLen) << std::setfill(' ') << itr->first << " " << itr->second;
-			hFontDebug->draw(lineOffset, out.str(), Color::white);
-			lineOffset.y += lineHeight;
-		}
-		
-		hFontDebug->draw(lineOffset, std::string("╰─ "), Color::white);
-		lineOffset.y += lineHeight;
-		
-		m_size = lineOffset;
-	}
-	
-	Vec2i size() {
-		return m_size;
-	}
-	
-private:
-	Vec2i m_pos;
-	std::string m_title;
-	size_t m_maxKeyLen;
-	Vec2i m_size;
-	
-	
-	std::vector<std::pair<std::string, std::string> > m_elements;
-};
-
 std::string LAST_FAILED_SEQUENCE = "none";
-extern float CURRENT_PLAYER_COLOR;
 EntityHandle LastSelectedIONum = EntityHandle();
 
 void ShowInfoText() {
@@ -232,7 +152,7 @@ void ShowInfoText() {
 	frameInfo.add("Prims", EERIEDrawnPolys);
 	frameInfo.add("Particles", getParticleCount());
 	frameInfo.add("Polybooms", long(polyboom.size()));
-	frameInfo.add("TIME", static_cast<long>((unsigned long)(arxtime) / 1000));
+	frameInfo.add("TIME", static_cast<long>(arxtime.now_ul() / 1000));
 	frameInfo.print();
 	
 	DebugBox playerBox = DebugBox(Vec2i(10, frameInfo.size().y + 5), "Player");
@@ -274,11 +194,11 @@ void ShowInfoText() {
 	playerBox.print();
 	
 	DebugBox miscBox = DebugBox(Vec2i(10, playerBox.size().y + 5), "Misc");
-	miscBox.add("Arx version", arx_version);
+	miscBox.add(arx_name + " version", arx_version);
 	miscBox.add("Level", LastLoadedScene.string().c_str());
 	miscBox.add("Spell failed seq", LAST_FAILED_SEQUENCE.c_str());
 	miscBox.add("Camera focal", ACTIVECAM->focal);
-	miscBox.add("Cinema", CINEMA_DECAL);
+	miscBox.add("Cinema", cinematicBorder.CINEMA_DECAL);
 	miscBox.add("Mouse", Vec2i(DANAEMouse));
 	miscBox.add("Pathfind queue", EERIE_PATHFINDER_Get_Queued_Number());
 	miscBox.add("Pathfind status", (PATHFINDER_WORKING ? "Working" : "Idled"));
@@ -331,6 +251,7 @@ void ShowInfoText() {
 			entityBox.add("Room", static_cast<long>(io->room));
 			entityBox.add("Move", io->move);
 			entityBox.add("Flags", flagNames(EntityFlagNames, io->ioflags));
+			entityBox.add("GFlags", flagNames(GameFlagNames, io->gameFlags));
 			entityBox.add("Show", entityVisilibityToString(io->show));
 			entityBox.print();
 			
@@ -458,11 +379,11 @@ void ShowFpsGraph() {
 
 	Color avgColor = Color::blue * 0.5f + Color::white * 0.5f;
 	float avgPos = windowSize.y - (avg * SCALE_Y);
-	drawLine2D(0, avgPos,  windowSize.x, avgPos, 1.0f, Color::blue);
+	drawLine(Vec2f(0, avgPos), Vec2f(windowSize.x, avgPos), 1.0f, Color::blue);
 
 	Color worstColor = Color::red * 0.5f + Color::white * 0.5f;
 	float worstPos = windowSize.y - (worst * SCALE_Y);
-	drawLine2D(0, worstPos,  windowSize.x, worstPos, 1.0f, Color::red);
+	drawLine(Vec2f(0, worstPos), Vec2f(windowSize.x, worstPos), 1.0f, Color::red);
 
 	Font * font = hFontDebug;
 	float lineOffset = font->getLineHeight() + 2;

@@ -237,25 +237,23 @@ bool ArxGame::initialize()
 	
 	init = initInput();
 	if(!init) {
-		LogCritical << "Failed to initialize the input subsystem.";
 		return false;
 	}
 	
 	init = initSound();
 	if(!init) {
-		LogCritical << "Failed to initialize the sound subsystem.";
 		return false;
 	}
 	
 	init = initLocalisation();
 	if(!init) {
-		LogCritical << "Failed to initialize the localisation subsystem.";
+		LogCritical << "Failed to initialize the localisation subsystem";
 		return false;
 	}
 	
 	init = initGame();
 	if(!init) {
-		LogCritical << "Failed to initialize game.";
+		LogCritical << "Failed to initialize game";
 		return false;
 	}
 	
@@ -273,7 +271,7 @@ static bool migrateFilenames(fs::path path, bool is_dir) {
 		
 		fs::path dst = path.parent() / lowercase;
 		
-		LogInfo << "Renaming " << path << " to " << dst.filename() << "";
+		LogInfo << "Renaming " << path << " to " << dst.filename();
 		
 		if(fs::rename(path, dst)) {
 			path = dst;
@@ -352,7 +350,7 @@ bool ArxGame::initConfig() {
 		fs::path file = fs::paths.find("cfg_default.ini");
 		if(!config.init(file)) {
 			LogWarning << "Could not read config files cfg.ini and cfg_default.ini,"
-			           << " using defaults.";
+			           << " using defaults";
 		}
 		
 		// Save a default config file so users have a chance to edit it even if we crash.
@@ -436,7 +434,8 @@ bool ArxGame::initWindow(RenderWindow * window) {
 		}
 	}
 	
-	m_MainWindow->setTitle(arx_version);
+	m_MainWindow->setTitle(arx_name + " " + arx_version);
+	m_MainWindow->setMinimizeOnFocusLost(config.window.minimizeOnFocusLost);
 	m_MainWindow->setMinTextureUnits(3);
   #ifdef __native_client__
     // Disable antialiasing on NACL, as it do to not work at all
@@ -499,7 +498,7 @@ bool ArxGame::initWindow() {
 	}
 	
 	if(!m_MainWindow) {
-		LogCritical << "Graphics initialization failed.";
+		LogCritical << "Graphics initialization failed";
 		return false;
 	}
 	
@@ -511,7 +510,7 @@ bool ArxGame::initInput() {
 	LogDebug("Input init");
 	bool init = ARX_INPUT_Init(m_MainWindow);
 	if(!init) {
-		LogCritical << "Input initialization failed.";
+		LogCritical << "Input initialization failed";
 	}
 	
 	return init;
@@ -522,7 +521,7 @@ bool ArxGame::initSound() {
 	LogDebug("Sound init");
 	bool init = ARX_SOUND_Init();
 	if(!init) {
-		LogWarning << "Sound initialization failed.";
+		LogWarning << "Sound initialization failed";
 	}
 	
 	return true;
@@ -532,7 +531,7 @@ bool ArxGame::initGameData() {
 	
 	bool init = addPaks();
 	if(!init) {
-		LogCritical << "Error loading pak files";
+		LogCritical << "Failed to initialize the game data";
 		return false;
 	}
 	
@@ -691,16 +690,17 @@ static bool HandleGameFlowTransitions() {
 				GameFlow::setTransition(GameFlow::SecondLogo);
 				return true;
 			}
-
-			TRANSITION_START = arxtime.get_updated_ul();
+			
+			arxtime.update();
+			TRANSITION_START = arxtime.now_ul();
 		}
 
 		ARX_INTERFACE_ShowFISHTANK();
+		
+		arxtime.update();
+		float elapsed = arxtime.now_f() - TRANSITION_START;
 
-		unsigned long tim = arxtime.get_updated_ul();
-		float pos = (float)tim - (float)TRANSITION_START;
-
-		if(pos > TRANSITION_DURATION) {
+		if(elapsed > TRANSITION_DURATION) {
 			TRANSITION_START = 0;
 			GameFlow::setTransition(GameFlow::SecondLogo);
 		}
@@ -716,16 +716,18 @@ static bool HandleGameFlowTransitions() {
 				GameFlow::setTransition(GameFlow::LoadingScreen);
 				return true;
 			}
-
-			TRANSITION_START = arxtime.get_updated_ul();
+			
+			arxtime.update();
+			TRANSITION_START = arxtime.now_ul();
 			ARX_SOUND_PlayInterface(SND_PLAYER_HEART_BEAT);
 		}
 
 		ARX_INTERFACE_ShowARKANE();
-		unsigned long tim = arxtime.get_updated_ul();
-		float pos = (float)tim - (float)TRANSITION_START;
+		
+		arxtime.update();
+		float elapsed = arxtime.now_f() - TRANSITION_START;
 
-		if(pos > TRANSITION_DURATION) {
+		if(elapsed > TRANSITION_DURATION) {
 			TRANSITION_START = 0;
 			GameFlow::setTransition(GameFlow::LoadingScreen);
 		}
@@ -765,7 +767,7 @@ bool ArxGame::initGame()
 {
 	// Check if the game will be able to use the current game directory.
 	if(!ARX_Changelevel_CurGame_Clear()) {
-		LogCritical << "Error accessing current game directory.";
+		LogCritical << "Error accessing current game directory";
 		return false;
 	}
 	
@@ -845,6 +847,7 @@ bool ArxGame::initGame()
 	
 	ARXMenu_Options_Control_SetInvertMouse(config.input.invertMouse);
 	ARXMenu_Options_Control_SetMouseSensitivity(config.input.mouseSensitivity);
+	GInput->setRawMouseInput(config.input.rawMouseInput);
 	
 	g_miniMap.firstInit(&player, resources, &entities);
 	
@@ -863,22 +866,19 @@ bool ArxGame::initGame()
 	LastLoadedScene.clear();
 	
 	DefaultBkg = new EERIE_BACKGROUND();
-  memset(DefaultBkg, 0, sizeof(EERIE_BACKGROUND));
+    memset(DefaultBkg, 0, sizeof(EERIE_BACKGROUND));
 	ACTIVEBKG=DefaultBkg;
 	InitBkg(ACTIVEBKG,MAX_BKGX,MAX_BKGZ,BKG_SIZX,BKG_SIZZ);
 	
 	player.size.y = -player.baseHeight();
 	player.size.x = player.baseRadius();
 	player.size.z = player.baseRadius();
-	subj.size.setYaw(player.size.y);
-	subj.size.setPitch(player.size.x);
-	subj.size.setRoll(player.size.z);
 	player.desiredangle = player.angle = subj.angle = Anglef(3.f, 268.f, 0.f);
 
 	subj.orgTrans.pos = Vec3f(900.f, player.baseHeight(), 4340.f);
 	subj.clip = Rect(0, 0, 640, 480);
 	subj.center = subj.clip.center();
-	subj.focal = BASE_FOCAL;
+	subj.focal = defaultCameraFocal;
 	subj.bkgcolor = Color::none;
 	subj.cdepth = 2100.f;
 	
@@ -889,19 +889,19 @@ bool ArxGame::initGame()
 	
 	bookcam.angle = Anglef::ZERO;
 	bookcam.orgTrans.pos = Vec3f_ZERO;
-	bookcam.focal = BASE_FOCAL;
+	bookcam.focal = defaultCameraFocal;
 	
 	LoadSysTextures();
 	cursorTexturesInit();
 	
-	LogInfo << "Launching splash screens.";
+	LogInfo << "Launching splash screens";
 	if(GameFlow::getTransition() == GameFlow::NoTransition) {
 		GameFlow::setTransition(GameFlow::FirstLogo);
 	}
 	
 	switch(resources->getReleaseType()) {
 		
-		case 0: LogWarning << "Neither demo nor full game data files loaded."; break;
+		case 0: LogWarning << "Neither demo nor full game data files loaded!"; break;
 		
 		case PakReader::Demo: {
 			LogInfo << "Initialized Arx Fatalis (demo)";
@@ -927,7 +927,7 @@ bool ArxGame::initGame()
 	LogDebug("Before Run...");
 	
 	const Vec2i & size = getWindow()->getSize();
-	ControlCinematique = new Cinematic(size.x, size.y);
+	ControlCinematique = new Cinematic(size);
 	
 	long old = GLOBAL_EERIETEXTUREFLAG_LOADSCENE_RELEASE;
 	GLOBAL_EERIETEXTUREFLAG_LOADSCENE_RELEASE = -1;
@@ -990,7 +990,7 @@ static void runDataFilesInstaller() {
 	if(platform::runHelper(command, true) < 0) {
 		std::ostringstream error;
 		error << "Could not run `" << command[0] << "`.";
-		platform::showErrorDialog(error.str(), "Critical Error - " + arx_version);
+		platform::showErrorDialog(error.str(), "Critical Error - " + arx_name);
 	}
 }
 #endif
@@ -1029,7 +1029,7 @@ bool ArxGame::addPaks() {
 			oss << " * " << dir.string() << fs::path::dir_sep << "\n";
 		}
 		oss << "See " << url::help_install_data << " or `arx --list-dirs` for details.";
-		LogError << oss.str();
+		LogInfo << oss.str();
 		
 		// Try to launch the data file installer on non-Windows systems
 		#if ARX_PLATFORM != ARX_PLATFORM_WIN32
@@ -1039,7 +1039,7 @@ bool ArxGame::addPaks() {
 		
 		// Construct an informative error message about missing files
 		oss.str(std::string());
-		oss << "Could not load required data files.\n";
+		oss << "Could not load required data files!\n";
 		oss << "\nSee " << url::help_get_data << " for help.\n";
 		LogCritical << oss.str();
 		
@@ -1180,20 +1180,36 @@ void ArxGame::shutdownGame() {
 		ARX_INPUT_Release();
 		ARX_SOUND_Release();
 	}
+	
+	ScriptEvent::shutdown();
+	
 }
 
 void ArxGame::onWindowGotFocus(const Window &) {
+	
 	if(GInput) {
 		GInput->reset();
 	}
+	
+	if(config.audio.muteOnFocusLost) {
+		ARXMenu_Options_Audio_SetMuted(false);
+	}
+	
 }
 
 void ArxGame::onWindowLostFocus(const Window &) {
+	
 	// TODO(option-control) add a config option for this
 	ARX_INTERFACE_Combat_Mode(0);
 	TRUE_PLAYER_MOUSELOOK_ON = false;
 	PLAYER_MOUSELOOK_ON = false;
+	
 	// TODO(option-audio) add a config option to disable audio on focus loss
+	
+	if(config.audio.muteOnFocusLost) {
+		ARXMenu_Options_Audio_SetMuted(true);
+	}
+	
 }
 
 void ArxGame::onResizeWindow(const Window & window) {
@@ -1309,7 +1325,7 @@ void ArxGame::doFrame() {
 		
 		if(GInput->actionNowPressed(CONTROLS_CUST_QUICKSAVE)) {
 			g_hudRoot.quickSaveIconGui.show();
-			GRenderer->getSnapshot(savegame_thumbnail, 160, 100);
+			GRenderer->getSnapshot(savegame_thumbnail, config.interface.thumbnailSize.x, config.interface.thumbnailSize.y);
 			ARX_QuickSave();
 		}
 		
@@ -1331,15 +1347,15 @@ void ArxGame::updateFirstPersonCamera() {
 	AnimLayer & layer1 = io->animlayer[1];
 	ANIM_HANDLE ** alist = io->anims;
 
-	if ( BOW_FOCAL
+	if ( player.m_bowAimRatio
 		&& (layer1.cur_anim!=alist[ANIM_MISSILE_STRIKE_PART_1])
 		&& (layer1.cur_anim!=alist[ANIM_MISSILE_STRIKE_PART_2])
 		&& (layer1.cur_anim!=alist[ANIM_MISSILE_STRIKE_CYCLE]))
 	{
-		BOW_FOCAL -= Original_framedelay;
+		player.m_bowAimRatio -= bowZoomFromDuration(Original_framedelay);
 
-		if(BOW_FOCAL < 0)
-			BOW_FOCAL = 0;
+		if(player.m_bowAimRatio < 0)
+			player.m_bowAimRatio = 0;
 	}
 
 	if(eyeball.exist == 2) {
@@ -1410,7 +1426,9 @@ void ArxGame::speechControlledCinematic() {
 		const CinematicSpeech & acs = aspeech[valid].cine;
 		const Entity * io = aspeech[valid].io;
 		
-		float rtime=(float)(arxtime.get_updated()-aspeech[valid].time_creation)/(float)aspeech[valid].duration;
+		arxtime.update();
+		float elapsed = arxtime.now_f() - aspeech[valid].time_creation;
+		float rtime = elapsed / aspeech[valid].duration;
 
 		rtime = glm::clamp(rtime, 0.f, 1.f);
 
@@ -1534,7 +1552,7 @@ void ArxGame::speechControlledCinematic() {
 
 void ArxGame::handlePlayerDeath() {
 	if(player.lifePool.current <= 0) {
-		DeadTime += static_cast<long>(framedelay);
+		DeadTime += static_cast<long>(g_framedelay);
 		float mdist = glm::abs(player.physics.cyl.height)-60;
 
 		float startDistance = 40.f;
@@ -1613,19 +1631,20 @@ void ArxGame::updateTime() {
 
 	// TODO this code shouldn't exist. ARXStartTime should be constant.
 	if (GLOBAL_SLOWDOWN != 1.0f) {
-
-		arxtime.increment_start_time((u64)(Original_framedelay * (1.0f - GLOBAL_SLOWDOWN) * 1000.0f));
+		
+		float drift = Original_framedelay * (1.0f - GLOBAL_SLOWDOWN) * 1000.0f;
+		arxtime.increment_start_time(static_cast<u64>(drift));
 
 		// recalculate frame delta
 		arxtime.update_frame_time();
 	}
 
-	framedelay = arxtime.get_frame_delay();
-	arx_assert(framedelay >= 0.0f);
+	g_framedelay = arxtime.get_frame_delay();
+	arx_assert(g_framedelay >= 0.0f);
 
 	// limit fps above 10fps
 	const float max_framedelay = 1000.0f / 10.0f;
-	framedelay = framedelay > max_framedelay ? max_framedelay : framedelay;
+	g_framedelay = g_framedelay > max_framedelay ? max_framedelay : g_framedelay;
 }
 
 void ArxGame::updateInput() {
@@ -1634,7 +1653,7 @@ void ArxGame::updateInput() {
 	GInput->update();
 	
 	// Handle double clicks.
-	const ActionKey & button = config.actions[CONTROLS_CUST_ACTION].key[0];
+	const ActionKey & button = config.actions[CONTROLS_CUST_ACTION];
 	if((button.key[0] != -1 && (button.key[0] & Mouse::ButtonBase)
 	    && GInput->getMouseButtonDoubleClick(button.key[0], 300))
 	   || (button.key[1] != -1 && (button.key[1] & Mouse::ButtonBase)
@@ -1678,13 +1697,6 @@ void ArxGame::updateInput() {
 			EERIEMouseButton |= 2;
 		else
 			EERIEMouseButton &= ~2;
-	}
-	
-	
-	if(EERIEMouseGrab && GInput->hasMouseMoved()) {
-		if(!(ARXmenu.currentmode == AMCM_NEWQUEST || (player.Interface & INTER_MAP && (g_guiBookCurrentTopTab != BOOKMODE_MINIMAP)))) {
-			GInput->setMousePosAbs(Vec2s(g_size.center()));
-		}
 	}
 
 	if(GInput->actionNowPressed(CONTROLS_CUST_TOGGLE_FULLSCREEN)) {
@@ -1735,6 +1747,16 @@ void ArxGame::updateInput() {
 	if(GInput->isKeyPressedNowPressed(Keyboard::Key_ScrollLock)) {
 		drawDebugCycleViews();
 	}
+	
+#ifdef ARX_DEBUG
+	if(GInput->isKeyPressedNowPressed(Keyboard::Key_Pause)) {
+		if(!arxtime.is_paused()) {
+			arxtime.pause();
+		} else {
+			arxtime.resume();
+		}
+	}
+#endif
 }
 
 bool ArxGame::isInMenu() const {
@@ -1826,9 +1848,19 @@ void ArxGame::updateLevel() {
 
 	if(entities.player()->animlayer[0].cur_anim) {
 		ManageNONCombatModeAnimations();
-
-		AnimatedEntityUpdate(entities.player(), Original_framedelay);
-
+		
+		{
+			Entity * entity = entities.player();
+			
+			EERIEDrawAnimQuatUpdate(entity->obj,
+			                        entity->animlayer,
+			                        entity->angle,
+			                        entity->pos,
+			                        Original_framedelay,
+			                        entity,
+			                        true);
+		}
+		
 		if((player.Interface & INTER_COMBATMODE) && entities.player()->animlayer[1].cur_anim)
 			ManageCombatModeAnimations();
 
@@ -1878,7 +1910,7 @@ void ArxGame::updateLevel() {
 	ARX_SCENE_Update();
 
 	arx_assert(pParticleManager);
-	pParticleManager->Update(static_cast<long>(framedelay));
+	pParticleManager->Update(static_cast<long>(g_framedelay));
 
 	ARX_FOGS_Render();
 
@@ -1904,7 +1936,19 @@ void ArxGame::updateLevel() {
 
 	ManageTorch();
 
-	if(!player.m_improve) {
+	{
+		float magicSightZoom = 0.f;
+		
+		SpellBase * spell = spells.getSpellByCaster(PlayerEntityHandle, SPELL_MAGIC_SIGHT);
+		if(spell) {
+			long duration = long(arxtime.now_ul()) - long(spell->m_timcreation);
+			magicSightZoom = glm::clamp(float(duration) / 500.f, 0.f, 1.f);
+		}
+		
+		float BASE_FOCAL = CURRENT_BASE_FOCAL
+		                 + (magicSightZoom * -30.f)
+		                 + (player.m_bowAimRatio * 177.5f);
+		
 		if(subj.focal < BASE_FOCAL) {
 			static const float INC_FOCAL = 75.0f;
 			subj.focal += INC_FOCAL;
@@ -2060,7 +2104,7 @@ void ArxGame::renderLevel() {
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
 
 	if(pTextManage && !pTextManage->Empty()) {
-		pTextManage->Update(framedelay);
+		pTextManage->Update(g_framedelay);
 		pTextManage->Render();
 	}
 
@@ -2095,9 +2139,8 @@ void ArxGame::renderLevel() {
 	}
 
 	GRenderer->SetRenderState(Renderer::Fog, true);
-
-	if(sp_max_start)
-		Manage_sp_max();
+	
+	CheatDrawText();
 
 	if(FADEDIR)
 		ManageFade();
@@ -2122,10 +2165,7 @@ void ArxGame::render() {
 		
 	subj.center = Vec2i(g_size.center().x, g_size.center().y);
 	subj.orgTrans.mod = Vec2f(subj.center);
-
-	// Finally computes current focal
-	BASE_FOCAL = CURRENT_BASE_FOCAL + (BOW_FOCAL * (1.f/4));
-
+	
 	// SPECIFIC code for Snapshot MODE... to insure constant capture framerate
 
 	PULSATE = std::sin(arxtime.get_frame_time() / 800);
@@ -2187,7 +2227,7 @@ void ArxGame::render() {
 		benchmark::begin(benchmark::Cinematic);
 		cinematicRender();
 	} else {
-		benchmark::begin(CINEMA_DECAL ? benchmark::Cutscene : benchmark::Scene);
+		benchmark::begin(cinematicBorder.CINEMA_DECAL ? benchmark::Cutscene : benchmark::Scene);
 		updateLevel();
 		
 		renderLevel();
@@ -2244,9 +2284,9 @@ void ArxGame::update2DFX() {
 	TexturedVertex ltvv;
 
 	Entity* pTableIO[256];
-	int nNbInTableIO = 0;
+	size_t nNbInTableIO = 0;
 
-	float temp_increase = framedelay * (1.0f/1000) * 4.f;
+	float temp_increase = g_framedelay * (1.0f/1000) * 4.f;
 
 	bool bComputeIO = false;
 
@@ -2262,7 +2302,7 @@ void ArxGame::update2DFX() {
 
 		if(el->extras & EXTRAS_FLARE) {
 			Vec3f lv = el->pos;
-			EE_RTP(lv, &ltvv);
+			EE_RTP(lv, ltvv);
 			el->m_flareFader -= temp_increase;
 
 			if(!(player.Interface & INTER_COMBATMODE) && (player.Interface & INTER_MAP))
@@ -2270,9 +2310,9 @@ void ArxGame::update2DFX() {
 
 			if(ltvv.rhw > 0.f &&
 				ltvv.p.x > 0.f &&
-				ltvv.p.y > (CINEMA_DECAL*g_sizeRatio.y) &&
+				ltvv.p.y > (cinematicBorder.CINEMA_DECAL * g_sizeRatio.y) &&
 				ltvv.p.x < g_size.width() &&
-				ltvv.p.y < (g_size.height()-(CINEMA_DECAL*g_sizeRatio.y))
+				ltvv.p.y < (g_size.height()-(cinematicBorder.CINEMA_DECAL * g_sizeRatio.y))
 				)
 			{
 				Vec3f vector = lv - ACTIVECAM->orgTrans.pos;
@@ -2321,16 +2361,16 @@ void ArxGame::goFor2DFX() {
 	GRenderer->SetFogColor(Color::none);
 
 	for(size_t i = 0; i < TOTPDL; i++) {
-		EERIE_LIGHT *el = PDL[i];
+		const EERIE_LIGHT & el = *PDL[i];
 
-		if(!el->exist || !el->treat)
+		if(!el.exist || !el.treat)
 			continue;
 
-		if(el->extras & EXTRAS_FLARE) {
-			if(el->m_flareFader > 0.f) {
-				Vec3f ltvv = EE_RT(el->pos);
+		if(el.extras & EXTRAS_FLARE) {
+			if(el.m_flareFader > 0.f) {
+				Vec3f ltvv = EE_RT(el.pos);
 				
-				float v = el->m_flareFader;
+				float v = el.m_flareFader;
 
 				if(FADEDIR) {
 					v *= 1.f - LAST_FADEVALUE;
@@ -2338,12 +2378,12 @@ void ArxGame::goFor2DFX() {
 
 				float siz;
 
-				if(el->extras & EXTRAS_FIXFLARESIZE)
-					siz = el->ex_flaresize;
+				if(el.extras & EXTRAS_FIXFLARESIZE)
+					siz = el.ex_flaresize;
 				else
-					siz = -el->ex_flaresize;
+					siz = -el.ex_flaresize;
 
-				EERIEDrawSprite(el->pos, siz, tflare, (el->rgb * v).to<u8>(), ltvv.z);
+				EERIEDrawSprite(el.pos, siz, tflare, (el.rgb * v).to<u8>(), ltvv.z);
 
 			}
 		}

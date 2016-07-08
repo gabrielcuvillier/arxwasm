@@ -17,6 +17,9 @@
  * along with Arx Libertatis.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef ARX_PLATFORM_WINDOWSMAINCOMMON_H
+#define ARX_PLATFORM_WINDOWSMAINCOMMON_H
+
 #include <clocale>
 
 #include <windows.h>
@@ -30,8 +33,6 @@ public:
 	char ** argv;
 	
 	WindowsMain() {
-		
-		std::setlocale(LC_ALL, "");
 		
 		// Convert the UTF-16 command-line parameters to UTF-8
 		
@@ -60,3 +61,15 @@ public:
 	}
 	
 };
+
+// Disable telemetry added in Visual Studio 2015
+#if defined(_MSC_VER) && _MSC_VER >= 1900
+extern "C" {
+	void _cdecl __vcrt_initialize_telemetry_provider() { }
+	void _cdecl __telemetry_main_invoke_trigger() { }
+	void _cdecl __telemetry_main_return_trigger() { }
+	void _cdecl __vcrt_uninitialize_telemetry_provider() { }
+};
+#endif
+
+#endif // ARX_PLATFORM_WINDOWSMAINCOMMON_H

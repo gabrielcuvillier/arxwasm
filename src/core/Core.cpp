@@ -142,7 +142,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "physics/Projectile.h"
 
 #include "platform/CrashHandler.h"
-#include "platform/Flags.h"
 #include "platform/Platform.h"
 #include "platform/ProgramOptions.h"
 
@@ -165,7 +164,7 @@ class TextManager;
 Image savegame_thumbnail;
 
 extern TextManager	*pTextManage;
-extern float FORCE_TIME_RESTORE;
+extern unsigned long FORCE_TIME_RESTORE;
 
 extern long		DONT_WANT_PLAYER_INZONE;
 extern size_t		TOTPDL;
@@ -201,10 +200,7 @@ long TELEPORT_TO_ANGLE;
 // END -   Information for Player Teleport between/in Levels---------------------------------------
 res::path LastLoadedScene;
 
-float BASE_FOCAL=350.f;
-float STRIKE_AIMTIME=0.f;
-
-float framedelay=0.f;
+float g_framedelay = 0.f;
 
 bool LOAD_N_ERASE = true;
 bool TIME_INIT = true;
@@ -212,22 +208,18 @@ bool TIME_INIT = true;
 Rect g_size(640, 480);
 Vec2f g_sizeRatio(1.f, 1.f);
 
-long CurrFightPos=0;
 bool PLAYER_POSITION_RESET = true;
 
-float BOW_FOCAL=0;
-long PlayerWeaponBlocked=-1;
-
-long REQUEST_SPEECH_SKIP= 0;
+bool REQUEST_SPEECH_SKIP = false;
 long CURRENTLEVEL		= -1;
-long DONT_ERASE_PLAYER	= 0;
-long FASTmse			= 0;
+bool DONT_ERASE_PLAYER = false;
+bool FASTmse = false;
 
 //-----------------------------------------------------------------------------
 // EDITOR FLAGS/Vars
 //-----------------------------------------------------------------------------
 // Flag used to Launch Moulinex
-long LOADEDD = 0; // Is a Level Loaded ?
+bool LOADEDD = false; // Is a Level Loaded ?
 
 long CHANGE_LEVEL_ICON=-1;
 
@@ -236,8 +228,6 @@ bool g_cursorOverBook = false;
 // DEBUG FLAGS/Vars
 //-----------------------------------------------------------------------------
 bool g_requestLevelInit = true;
-unsigned long AimTime;
-//-----------------------------------------------------------------------------
 
 bool START_NEW_QUEST = false;
 static long LAST_WEAPON_TYPE = -1;
@@ -300,7 +290,7 @@ void runGame() {
 		mainApp->run();
 	} else {
 		// Fallback to a generic critical error in case none was set yet...
-		LogCritical << "Application failed to initialize properly.";
+		LogCritical << "Initialization failed";
 	}
 	
 	if(mainApp) {
@@ -373,18 +363,15 @@ void SetEditMode(long ed, const bool stop_sound) {
 	
 	RestoreAllLightsInitialStatus();
 
-	if (stop_sound) ARX_SOUND_MixerStop(ARX_SOUND_MixerGame);
+	if(stop_sound)
+		ARX_SOUND_MixerStop(ARX_SOUND_MixerGame);
 
 	RestoreInitialIOStatus();
 
-	if (ed)
-	{
+	if(ed) {
 		ARX_PATH_ComputeAllBoundingBoxes();
-
 		arxtime.pause();
-	}
-	else
-	{
+	} else {
 		ARX_SCRIPT_ResetAll(true);
 		EERIE_ANIMMANAGER_PurgeUnused();
 	}
@@ -400,7 +387,7 @@ bool GMOD_RESET = true;
 
 Vec3f LastValidPlayerPos;
 Vec3f	WILL_RESTORE_PLAYER_POSITION;
-long WILL_RESTORE_PLAYER_POSITION_FLAG=0;
+bool WILL_RESTORE_PLAYER_POSITION_FLAG = false;
 
 void levelInit() {
 	
@@ -483,10 +470,10 @@ void levelInit() {
 	
 	
 	if(FASTmse) {
-		FASTmse = 0;
+		FASTmse = false;
 		if(LOADEDD) {
 			Vec3f trans = Mscenepos;
-			player.pos = loddpos + trans;
+			player.pos = g_loddpos + trans;
 		} else {
 			player.pos.y += player.baseHeight();
 		}
@@ -531,7 +518,7 @@ void levelInit() {
 
 		if(PLAYER_POSITION_RESET) {
 			if(LOADEDD) {
-				player.pos = loddpos + trans;
+				player.pos = g_loddpos + trans;
 			} else {
 				player.pos.y += player.baseHeight();
 			}
@@ -572,7 +559,7 @@ void levelInit() {
 	LoadLevelScreen();
 
 	LOAD_N_ERASE = true;
-	DONT_ERASE_PLAYER=0;
+	DONT_ERASE_PLAYER = false;
 
 	progressBarAdvance();
 	LoadLevelScreen();
@@ -626,7 +613,7 @@ void levelInit() {
 		for(size_t i = 0; i < io->obj->vertexlist.size(); i++) {
 			io->obj->vertexlist3[i].v = io->obj->vertexlist[i].v + io->pos;
 		}
-		WILL_RESTORE_PLAYER_POSITION_FLAG = 0;
+		WILL_RESTORE_PLAYER_POSITION_FLAG = false;
 	}
 	
 	ARX_NPC_RestoreCuts();
@@ -657,7 +644,7 @@ void ManageNONCombatModeAnimations() {
 	AnimLayer & layer3 = io->animlayer[3];
 	ANIM_HANDLE ** alist=io->anims;
 
-	if(player.Current_Movement & (PLAYER_LEAN_LEFT | PLAYER_LEAN_RIGHT))
+	if(player.m_currentMovement & (PLAYER_LEAN_LEFT | PLAYER_LEAN_RIGHT))
 		return;
 
 	if(ValidIONum(player.equiped[EQUIP_SLOT_SHIELD]) && !BLOCK_PLAYER_CONTROLS) {
@@ -684,18 +671,19 @@ float GLOBAL_SLOWDOWN=1.f;
 static bool StrikeAimtime() {
 	
 	ARX_PLAYER_Remove_Invisibility();
-	STRIKE_AIMTIME = float(arxtime) - (float)AimTime;
-	STRIKE_AIMTIME = STRIKE_AIMTIME * (1.f+(1.f-GLOBAL_SLOWDOWN));
+	
+	const unsigned long delta = arxtime.now_ul() - player.m_aimTime;
+	player.m_strikeAimRatio = delta * (1.f+(1.f-GLOBAL_SLOWDOWN));
 
-	if(STRIKE_AIMTIME > player.Full_AimTime)
-		STRIKE_AIMTIME=1.f;
+	if(player.m_strikeAimRatio > player.Full_AimTime)
+		player.m_strikeAimRatio = 1.f;
 	else
-		STRIKE_AIMTIME = (float)STRIKE_AIMTIME / (float)player.Full_AimTime;
+		player.m_strikeAimRatio = player.m_strikeAimRatio / player.Full_AimTime;
 
-	if(STRIKE_AIMTIME < 0.1f)
-		STRIKE_AIMTIME = 0.1f;
+	if(player.m_strikeAimRatio < 0.1f)
+		player.m_strikeAimRatio = 0.1f;
 
-	if(STRIKE_AIMTIME > 0.8f)
+	if(player.m_strikeAimRatio > 0.8f)
 		return true;
 
 	return false;
@@ -726,49 +714,48 @@ void ManageCombatModeAnimations() {
 	Entity * const io = entities.player();
 	
 	AnimLayer & layer1 = io->animlayer[1];
-
+	
 	ANIM_HANDLE ** alist=io->anims;
 	WeaponType weapontype = ARX_EQUIPMENT_GetPlayerWeaponType();
 	
 	if(weapontype == WEAPON_BARE && LAST_WEAPON_TYPE != weapontype) {
 		if(layer1.cur_anim != alist[ANIM_BARE_WAIT]) {
 			changeAnimation(io, 1, alist[ANIM_BARE_WAIT]);
-			AimTime = 0;
+			player.m_aimTime = 0;
 		}
 	}
 	
 	switch(weapontype) {
-		case WEAPON_BARE:	// BARE HANDS PLAYER MANAGEMENT
-
+		case WEAPON_BARE: { // BARE HANDS PLAYER MANAGEMENT
 			if(layer1.cur_anim == alist[ANIM_BARE_WAIT]) {
-				AimTime = 0;
+				player.m_aimTime = 0;
 				if(eeMousePressed1()) {
-					changeAnimation(io, 1, alist[ANIM_BARE_STRIKE_LEFT_START + CurrFightPos * 3]);
+					changeAnimation(io, 1, alist[ANIM_BARE_STRIKE_LEFT_START + player.m_strikeDirection * 3]);
 					io->isHit = false;
 				}
 			}
-
+			
 			// Now go for strike cycle...
 			for(long j = 0; j < 4; j++) {
 				if(layer1.cur_anim == alist[ANIM_BARE_STRIKE_LEFT_START+j*3] && (layer1.flags & EA_ANIMEND)) {
 					changeAnimation(io, 1, alist[ANIM_BARE_STRIKE_LEFT_CYCLE + j * 3], EA_LOOP);
-					AimTime = (unsigned long)(arxtime);
+					player.m_aimTime = arxtime.now_ul();
 				} else if(layer1.cur_anim == alist[ANIM_BARE_STRIKE_LEFT_CYCLE+j*3] && !eeMousePressed1()) {
 					changeAnimation(io, 1, alist[ANIM_BARE_STRIKE_LEFT + j * 3]);
 					strikeSpeak(io);
 					SendIOScriptEvent(io, SM_STRIKE, "bare");
-					PlayerWeaponBlocked = -1;
-					CurrFightPos = 0;
-					AimTime = 0;
+					player.m_weaponBlocked = -1;
+					player.m_strikeDirection = 0;
+					player.m_aimTime = 0;
 				} else if(layer1.cur_anim == alist[ANIM_BARE_STRIKE_LEFT+j*3]) {
 					if(layer1.flags & EA_ANIMEND) {
 						changeAnimation(io, 1, alist[ANIM_BARE_WAIT], EA_LOOP);
-						CurrFightPos = 0;
-						AimTime = (unsigned long)(arxtime);
-						PlayerWeaponBlocked = -1;
+						player.m_strikeDirection = 0;
+						player.m_aimTime = arxtime.now_ul();
+						player.m_weaponBlocked = -1;
 					} else if(layer1.ctime > layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.2f
 							&& layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.8f
-							&& PlayerWeaponBlocked == -1
+							&& player.m_weaponBlocked == -1
 					) {
 						ActionPoint id = ActionPoint();
 						
@@ -786,13 +773,13 @@ void ManageCombatModeAnimations() {
 							EntityHandle num;
 							
 							if(CheckAnythingInSphere(sphere, PlayerEntityHandle, 0, &num)) {
-								float dmgs = (player.m_miscFull.damages + 1) * STRIKE_AIMTIME;
+								float dmgs = (player.m_miscFull.damages + 1) * player.m_strikeAimRatio;
 								
 								if(ARX_DAMAGES_TryToDoDamage(actionPointPosition(io->obj, id), dmgs, 40, PlayerEntityHandle)) {
-									PlayerWeaponBlocked = layer1.ctime;
+									player.m_weaponBlocked = layer1.ctime;
 								}
 								
-								ARX_PARTICLES_Spawn_Spark(sphere.origin, int(dmgs), 2);
+								ARX_PARTICLES_Spawn_Spark(sphere.origin, static_cast<unsigned int>(dmgs), SpawnSparkType_Success);
 								
 								if(ValidIONum(num)) {
 									ARX_SOUND_PlayCollision(entities[num]->material, MATERIAL_FLESH, 1.f, 1.f, sphere.origin, NULL);
@@ -802,231 +789,230 @@ void ManageCombatModeAnimations() {
 					}
 				}
 			}
-
-		break;
-		case WEAPON_DAGGER: // DAGGER PLAYER MANAGEMENT
-			
+			break;
+		}
+		case WEAPON_DAGGER: { // DAGGER PLAYER MANAGEMENT
 			// Waiting and receiving Strike Impulse
 			if(layer1.cur_anim == alist[ANIM_DAGGER_WAIT]) {
-				AimTime = 0;
+				player.m_aimTime = 0;
 				if(eeMousePressed1()) {
-					changeAnimation(io, 1, alist[ANIM_DAGGER_STRIKE_LEFT_START + CurrFightPos * 3]);
+					changeAnimation(io, 1, alist[ANIM_DAGGER_STRIKE_LEFT_START + player.m_strikeDirection * 3]);
 					io->isHit = false;
 				}
 			}
-
+			
 			// Now go for strike cycle...
 			for(long j = 0; j < 4; j++) {
 				if(layer1.cur_anim == alist[ANIM_DAGGER_STRIKE_LEFT_START+j*3] && (layer1.flags & EA_ANIMEND)) {
 					changeAnimation(io, 1, alist[ANIM_DAGGER_STRIKE_LEFT_CYCLE + j * 3], EA_LOOP);
-					AimTime = (unsigned long)(arxtime);
+					player.m_aimTime = arxtime.now_ul();
 				} else if(layer1.cur_anim == alist[ANIM_DAGGER_STRIKE_LEFT_CYCLE+j*3] && !eeMousePressed1()) {
 					changeAnimation(io, 1, alist[ANIM_DAGGER_STRIKE_LEFT + j * 3]);
 					strikeSpeak(io);
 					SendIOScriptEvent(io, SM_STRIKE, "dagger");
-					CurrFightPos = 0;
-					AimTime = 0;
+					player.m_strikeDirection = 0;
+					player.m_aimTime = 0;
 				} else if(layer1.cur_anim == alist[ANIM_DAGGER_STRIKE_LEFT+j*3]) {
 					if(layer1.ctime > layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.3f
 						&& layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.7f)
 					{
 						Entity * weapon = entities[player.equiped[EQUIP_SLOT_WEAPON]];
 						
-						if(PlayerWeaponBlocked == -1
-							&& ARX_EQUIPMENT_Strike_Check(io, weapon, STRIKE_AIMTIME, 0))
+						if(player.m_weaponBlocked == -1
+							&& ARX_EQUIPMENT_Strike_Check(io, weapon, player.m_strikeAimRatio, 0))
 						{
-							PlayerWeaponBlocked = layer1.ctime;
+							player.m_weaponBlocked = layer1.ctime;
 						}
 					}
-
+					
 					if(layer1.flags & EA_ANIMEND) {
 						changeAnimation(io, 1, alist[ANIM_DAGGER_WAIT], EA_LOOP);
 						layer1.flags &= ~(EA_PAUSED | EA_REVERSE);
-						CurrFightPos = 0;
-						AimTime = (unsigned long)(arxtime);
-						PlayerWeaponBlocked = -1;
+						player.m_strikeDirection = 0;
+						player.m_aimTime = arxtime.now_ul();
+						player.m_weaponBlocked = -1;
 					}
-
-					if(PlayerWeaponBlocked != -1 && layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.9f) {
+					
+					if(player.m_weaponBlocked != -1 && layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.9f) {
 						Entity * weapon = entities[player.equiped[EQUIP_SLOT_WEAPON]];
-						ARX_EQUIPMENT_Strike_Check(io, weapon, STRIKE_AIMTIME, 1);
+						ARX_EQUIPMENT_Strike_Check(io, weapon, player.m_strikeAimRatio, 1);
 					}
 				}
 			}
-
-		break;
-		case WEAPON_1H: // 1HANDED PLAYER MANAGEMENT
-			
+			break;
+		}
+		case WEAPON_1H: { // 1HANDED PLAYER MANAGEMENT
 			// Waiting and Received Strike Impulse
 			if(layer1.cur_anim == alist[ANIM_1H_WAIT]) {
-				AimTime = 0;
+				player.m_aimTime = 0;
 				if(eeMousePressed1()) {
-					changeAnimation(io, 1, alist[ANIM_1H_STRIKE_LEFT_START + CurrFightPos * 3]);
+					changeAnimation(io, 1, alist[ANIM_1H_STRIKE_LEFT_START + player.m_strikeDirection * 3]);
 					io->isHit = false;
 				}
 			}
-
+			
 			// Now go for strike cycle...
 			for(long j = 0; j < 4; j++) {
 				if(layer1.cur_anim == alist[ANIM_1H_STRIKE_LEFT_START+j*3] && (layer1.flags & EA_ANIMEND)) {
 					changeAnimation(io, 1, alist[ANIM_1H_STRIKE_LEFT_CYCLE + j * 3], EA_LOOP);
-					AimTime = (unsigned long)(arxtime);
+					player.m_aimTime = arxtime.now_ul();
 				} else if(layer1.cur_anim == alist[ANIM_1H_STRIKE_LEFT_CYCLE+j*3] && !eeMousePressed1()) {
 					changeAnimation(io, 1, alist[ANIM_1H_STRIKE_LEFT + j * 3]);
 					strikeSpeak(io);
 					SendIOScriptEvent(io, SM_STRIKE, "1h");
-					CurrFightPos = 0;
-					AimTime = 0;
+					player.m_strikeDirection = 0;
+					player.m_aimTime = 0;
 				} else if(layer1.cur_anim == alist[ANIM_1H_STRIKE_LEFT+j*3]) {
 					if(layer1.ctime > layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.3f
 						&& layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.7f)
 					{
 						Entity * weapon = entities[player.equiped[EQUIP_SLOT_WEAPON]];
 						
-						if(PlayerWeaponBlocked == -1
-							&& ARX_EQUIPMENT_Strike_Check(io, weapon, STRIKE_AIMTIME, 0))
+						if(player.m_weaponBlocked == -1
+							&& ARX_EQUIPMENT_Strike_Check(io, weapon, player.m_strikeAimRatio, 0))
 						{
-							PlayerWeaponBlocked = layer1.ctime;
+							player.m_weaponBlocked = layer1.ctime;
 						}
 					}
-
+					
 					if(layer1.flags & EA_ANIMEND) {
 						changeAnimation(io, 1, alist[ANIM_1H_WAIT], EA_LOOP);
 						layer1.flags &= ~(EA_PAUSED | EA_REVERSE);
-						CurrFightPos = 0;
-						AimTime = 0;
-						PlayerWeaponBlocked = -1;
+						player.m_strikeDirection = 0;
+						player.m_aimTime = 0;
+						player.m_weaponBlocked = -1;
 					}
-
-					if(PlayerWeaponBlocked != -1 && layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.9f) {
+					
+					if(player.m_weaponBlocked != -1 && layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.9f) {
 						Entity * weapon = entities[player.equiped[EQUIP_SLOT_WEAPON]];
-						ARX_EQUIPMENT_Strike_Check(io, weapon, STRIKE_AIMTIME, 1);
+						ARX_EQUIPMENT_Strike_Check(io, weapon, player.m_strikeAimRatio, 1);
 					}
 				}
 			}
-		break;
-		case WEAPON_2H: // 2HANDED PLAYER MANAGEMENT
-			
+			break;
+		}
+		case WEAPON_2H: { // 2HANDED PLAYER MANAGEMENT
 			// Waiting and Receiving Strike Impulse
 			if(layer1.cur_anim == alist[ANIM_2H_WAIT]) {
-				AimTime = 0;
+				player.m_aimTime = 0;
 				if(eeMousePressed1()) {
-					changeAnimation(io, 1, alist[ANIM_2H_STRIKE_LEFT_START + CurrFightPos * 3]);
+					changeAnimation(io, 1, alist[ANIM_2H_STRIKE_LEFT_START + player.m_strikeDirection * 3]);
 					io->isHit = false;
 				}
 			}
-
+			
 			// Now go for strike cycle...
 			for(long j = 0; j < 4; j++) {
 				if(layer1.cur_anim == alist[ANIM_2H_STRIKE_LEFT_START+j*3] && (layer1.flags & EA_ANIMEND)) {
 					changeAnimation(io, 1, alist[ANIM_2H_STRIKE_LEFT_CYCLE + j * 3], EA_LOOP);
-					AimTime = (unsigned long)(arxtime);
+					player.m_aimTime = arxtime.now_ul();
 				} else if(layer1.cur_anim == alist[ANIM_2H_STRIKE_LEFT_CYCLE+j*3] && !eeMousePressed1()) {
 					changeAnimation(io, 1, alist[ANIM_2H_STRIKE_LEFT + j * 3]);
 					strikeSpeak(io);
 					SendIOScriptEvent(io, SM_STRIKE, "2h");
-					CurrFightPos = 0;
-					AimTime = 0;
+					player.m_strikeDirection = 0;
+					player.m_aimTime = 0;
 				} else if(layer1.cur_anim == alist[ANIM_2H_STRIKE_LEFT+j*3]) {
 					if(layer1.ctime > layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.3f
 						&& layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.7f)
 					{
 						Entity * weapon = entities[player.equiped[EQUIP_SLOT_WEAPON]];
 						
-						if(PlayerWeaponBlocked == -1
-							&& ARX_EQUIPMENT_Strike_Check(io, weapon, STRIKE_AIMTIME, 0))
+						if(player.m_weaponBlocked == -1
+							&& ARX_EQUIPMENT_Strike_Check(io, weapon, player.m_strikeAimRatio, 0))
 						{
-							PlayerWeaponBlocked = layer1.ctime;
+							player.m_weaponBlocked = layer1.ctime;
 						}
 					}
-
+					
 					if(layer1.flags & EA_ANIMEND) {
 						changeAnimation(io, 1, alist[ANIM_2H_WAIT], EA_LOOP);
 						layer1.flags &= ~(EA_PAUSED | EA_REVERSE);
-						CurrFightPos = 0;
-						AimTime = 0;
-						PlayerWeaponBlocked = -1;
+						player.m_strikeDirection = 0;
+						player.m_aimTime = 0;
+						player.m_weaponBlocked = -1;
 					}
-
-					if(PlayerWeaponBlocked != -1 && layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.9f) {
+					
+					if(player.m_weaponBlocked != -1 && layer1.ctime < layer1.cur_anim->anims[layer1.altidx_cur]->anim_time * 0.9f) {
 						Entity * weapon = entities[player.equiped[EQUIP_SLOT_WEAPON]];
-						ARX_EQUIPMENT_Strike_Check(io, weapon, STRIKE_AIMTIME, 1);
+						ARX_EQUIPMENT_Strike_Check(io, weapon, player.m_strikeAimRatio, 1);
 					}
 				}
 			}
-		break;
-		case WEAPON_BOW: // MISSILE PLAYER MANAGEMENT
+			break;
+		}
+		case WEAPON_BOW: { // MISSILE PLAYER MANAGEMENT
 			if(layer1.cur_anim == alist[ANIM_MISSILE_STRIKE_CYCLE]) {
 				if(GLOBAL_SLOWDOWN != 1.f)
-					BOW_FOCAL += Original_framedelay;
+					player.m_bowAimRatio += bowZoomFromDuration(Original_framedelay);
 				else
-					BOW_FOCAL += framedelay;
-
-				if(BOW_FOCAL > 710)
-					BOW_FOCAL = 710;
+					player.m_bowAimRatio += bowZoomFromDuration(g_framedelay);
+				
+				if(player.m_bowAimRatio > 1.f)
+					player.m_bowAimRatio = 1.f;
 			}
-
+			
 			// Waiting and Receiving Strike Impulse
 			if(layer1.cur_anim == alist[ANIM_MISSILE_WAIT]) {
-				AimTime = (unsigned long)(arxtime);
-
+				player.m_aimTime = arxtime.now_ul();
+				
 				if(eeMousePressed1() && Player_Arrow_Count() > 0) {
 					changeAnimation(io, 1, alist[ANIM_MISSILE_STRIKE_PART_1]);
 					io->isHit = false;
 				}
 			}
-
+			
 			if(layer1.cur_anim == alist[ANIM_MISSILE_STRIKE_PART_1] && (layer1.flags & EA_ANIMEND)) {
-				AimTime = 0;
+				player.m_aimTime = 0;
 				changeAnimation(io, 1, alist[ANIM_MISSILE_STRIKE_PART_2]);
 				EERIE_LINKEDOBJ_LinkObjectToObject(io->obj, arrowobj, "left_attach", "attach", NULL);
 			}
-
+			
 			// Now go for strike cycle...
 			if(layer1.cur_anim == alist[ANIM_MISSILE_STRIKE_PART_2] && (layer1.flags & EA_ANIMEND)) {
 				changeAnimation(io, 1, alist[ANIM_MISSILE_STRIKE_CYCLE], EA_LOOP);
-				AimTime = (unsigned long)(arxtime);
+				player.m_aimTime = arxtime.now_ul();
 			} else if(layer1.cur_anim == alist[ANIM_MISSILE_STRIKE_CYCLE] && !eeMousePressed1()) {
 				EERIE_LINKEDOBJ_UnLinkObjectFromObject(io->obj, arrowobj);
 				changeAnimation(io, 1, alist[ANIM_MISSILE_STRIKE]);
 				SendIOScriptEvent(io, SM_STRIKE, "bow");
 				StrikeAimtime();
-				STRIKE_AIMTIME = (float)(BOW_FOCAL)/710.f;
+				player.m_strikeAimRatio = player.m_bowAimRatio;
 				Entity * quiver = Player_Arrow_Count_Decrease();
 				float poisonous = 0.f;
-
+				
 				if(quiver) {
 					poisonous = quiver->poisonous;
 					if(quiver->poisonous_count > 0) {
 						quiver->poisonous_count--;
-
+						
 						if(quiver->poisonous_count <= 0)
 							quiver->poisonous = 0;
 					}
-
+					
 					ARX_DAMAGES_DurabilityLoss(quiver, 1.f);
-
+					
 					// TODO is this needed ?, quivers seem to self destruct via script, but maybe not all
 					if(ValidIOAddress(quiver) && quiver->durability <= 0.f) {
 						ARX_INTERACTIVE_DestroyIOdelayed(quiver);
 					}
 				}
-
-				float aimratio = STRIKE_AIMTIME;
-
+				
+				float aimratio = player.m_strikeAimRatio;
+				
 				if(sp_max && poisonous < 3.f)
 					poisonous = 3.f;
-
+				
 				Vec3f orgPos = player.pos + Vec3f(0.f, 40.f, 0.f);
-
+				
 				if(io->obj->fastaccess.left_attach != ActionPoint()) {
 					orgPos = actionPointPosition(io->obj, io->obj->fastaccess.left_attach);
 				}
-
+				
 				Anglef orgAngle = player.angle;
-
+				
 				PlayerLaunchArrow_Test(aimratio, poisonous, orgPos, orgAngle);
-
+				
 				if(sp_max) {
 					Anglef angle;
 					Vec3f pos = player.pos + Vec3f(0.f, 40.f, 0.f);
@@ -1045,25 +1031,26 @@ void ManageCombatModeAnimations() {
 					angle.setPitch(player.angle.getPitch() - 4.f);
 					PlayerLaunchArrow_Test(aimratio, poisonous, pos, angle);
 				}
-
-				AimTime = 0;
+				
+				player.m_aimTime = 0;
 			} else if(layer1.cur_anim == alist[ANIM_MISSILE_STRIKE]) {
-				BOW_FOCAL -= Original_framedelay;
-
-				if(BOW_FOCAL < 0)
-					BOW_FOCAL = 0;
-
+				player.m_bowAimRatio -= bowZoomFromDuration(Original_framedelay);
+				
+				if(player.m_bowAimRatio < 0)
+					player.m_bowAimRatio = 0;
+				
 				if(layer1.flags & EA_ANIMEND) {
-					BOW_FOCAL = 0;
+					player.m_bowAimRatio = 0;
 					changeAnimation(io, 1, alist[ANIM_MISSILE_WAIT], EA_LOOP);
-					AimTime = 0;
-					PlayerWeaponBlocked = -1;
+					player.m_aimTime = 0;
+					player.m_weaponBlocked = -1;
 					EERIE_LINKEDOBJ_UnLinkObjectFromObject(io->obj, arrowobj);
 				}
 			}
-		break;
+			break;
+		}
 	}
-
+	
 	LAST_WEAPON_TYPE = weapontype;
 }
 
@@ -1087,7 +1074,7 @@ void ManageCombatModeAnimationsEND() {
 			||	(layer1.cur_anim == alist[ANIM_MISSILE_READY_PART_1])
 			||	(layer1.cur_anim == alist[ANIM_MISSILE_READY_PART_2])	)
 	) {
-		AimTime = (unsigned long)(arxtime);
+		player.m_aimTime = arxtime.now_ul();
 	}
 
 	if(layer1.flags & EA_ANIMEND) {
@@ -1112,14 +1099,14 @@ void ManageCombatModeAnimationsEND() {
 						player.Interface &= ~INTER_NO_STRIKE;
 						changeAnimation(io, 1, alist[ANIM_BARE_WAIT], EA_LOOP);
 					} else {
-						changeAnimation(io, 1, alist[ANIM_BARE_STRIKE_LEFT_START + CurrFightPos * 3]);
+						changeAnimation(io, 1, alist[ANIM_BARE_STRIKE_LEFT_START + player.m_strikeDirection * 3]);
 					}
-					AimTime = (unsigned long)(arxtime);
+					player.m_aimTime = arxtime.now_ul();
 					io->isHit = false;
 				}
 				break;
 			}
-			case WEAPON_DAGGER: // DAGGER ANIMS end
+			case WEAPON_DAGGER: { // DAGGER ANIMS end
 
 				if(alist[ANIM_DAGGER_READY_PART_1]) {
 					if(layer1.cur_anim == alist[ANIM_DAGGER_READY_PART_1]) {
@@ -1130,9 +1117,9 @@ void ManageCombatModeAnimationsEND() {
 							player.Interface &= ~INTER_NO_STRIKE;
 							changeAnimation(io, 1, alist[ANIM_DAGGER_WAIT], EA_LOOP);
 						} else {
-							changeAnimation(io, 1, alist[ANIM_DAGGER_STRIKE_LEFT_START + CurrFightPos * 3]);
+							changeAnimation(io, 1, alist[ANIM_DAGGER_STRIKE_LEFT_START + player.m_strikeDirection * 3]);
 						}
-						AimTime = (unsigned long)(arxtime);
+						player.m_aimTime = arxtime.now_ul();
 						io->isHit = false;
 					} else if(layer1.cur_anim == alist[ANIM_DAGGER_UNREADY_PART_1]) {
 						ARX_EQUIPMENT_AttachPlayerWeaponToBack();
@@ -1141,7 +1128,8 @@ void ManageCombatModeAnimationsEND() {
 				}
 
 			break;
-			case WEAPON_1H:	// 1H ANIMS end
+			}
+			case WEAPON_1H: { // 1H ANIMS end
 
 				if(alist[ANIM_1H_READY_PART_1]) {
 					if(layer1.cur_anim == alist[ANIM_1H_READY_PART_1]) {
@@ -1152,9 +1140,9 @@ void ManageCombatModeAnimationsEND() {
 							player.Interface &= ~INTER_NO_STRIKE;
 							changeAnimation(io, 1, alist[ANIM_1H_WAIT], EA_LOOP);
 						} else {
-							changeAnimation(io, 1, alist[ANIM_1H_STRIKE_LEFT_START + CurrFightPos * 3]);
+							changeAnimation(io, 1, alist[ANIM_1H_STRIKE_LEFT_START + player.m_strikeDirection * 3]);
 						}
-						AimTime = (unsigned long)(arxtime);
+						player.m_aimTime = arxtime.now_ul();
 						io->isHit = false;
 					} else if (layer1.cur_anim == alist[ANIM_1H_UNREADY_PART_1]) {
 						ARX_EQUIPMENT_AttachPlayerWeaponToBack();
@@ -1163,7 +1151,8 @@ void ManageCombatModeAnimationsEND() {
 				}
 
 			break;
-			case WEAPON_2H:	// 2H ANIMS end
+			}
+			case WEAPON_2H: { // 2H ANIMS end
 
 				if(alist[ANIM_2H_READY_PART_1]) {
 					if(layer1.cur_anim == alist[ANIM_2H_READY_PART_1]) {
@@ -1174,9 +1163,9 @@ void ManageCombatModeAnimationsEND() {
 							player.Interface &= ~INTER_NO_STRIKE;
 							changeAnimation(io, 1, alist[ANIM_2H_WAIT], EA_LOOP);
 						} else {
-							changeAnimation(io, 1, alist[ANIM_2H_STRIKE_LEFT_START + CurrFightPos * 3]);
+							changeAnimation(io, 1, alist[ANIM_2H_STRIKE_LEFT_START + player.m_strikeDirection * 3]);
 						}
-						AimTime = (unsigned long)(arxtime);
+						player.m_aimTime = arxtime.now_ul();
 						io->isHit = false;
 					} else if(layer1.cur_anim == alist[ANIM_2H_UNREADY_PART_1]) {
 						ARX_EQUIPMENT_AttachPlayerWeaponToBack();
@@ -1185,7 +1174,8 @@ void ManageCombatModeAnimationsEND() {
 				}
 
 			break;
-			case WEAPON_BOW:// MISSILE Weapon ANIMS end
+			}
+			case WEAPON_BOW: { // MISSILE Weapon ANIMS end
 
 				if(alist[ANIM_MISSILE_READY_PART_1]) {
 					if(layer1.cur_anim == alist[ANIM_MISSILE_READY_PART_1]) {
@@ -1217,6 +1207,7 @@ void ManageCombatModeAnimationsEND() {
 				}
 
 			break;
+			}
 		}
 
 		// Spell casting anims
@@ -1254,7 +1245,8 @@ void DrawImproveVisionInterface() {
 
 	if(ombrignon) {
 		float mod = 0.6f + PULSATE * 0.35f;
-		EERIEDrawBitmap(Rectf(g_size), 0.0001f, ombrignon, Color3f((0.5f+PULSATE*( 1.0f / 10 ))*mod,0.f,0.f).to<u8>());
+		Color3f color = Color3f((0.5f + PULSATE * (1.0f/10)) * mod, 0.f, 0.f);
+		EERIEDrawBitmap(Rectf(g_size), 0.0001f, ombrignon, color.to<u8>());
 	}
 }
 
@@ -1265,7 +1257,7 @@ void DANAE_StartNewQuest()
 	progressBarSetTotal(108);
 	progressBarReset();
 	LoadLevelScreen(1);
-	DONT_ERASE_PLAYER=1;
+	DONT_ERASE_PLAYER = true;
 	DanaeClearLevel();
 	progressBarAdvance(2.f);
 	LoadLevelScreen();

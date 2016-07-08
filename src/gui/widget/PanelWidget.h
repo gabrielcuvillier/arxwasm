@@ -33,15 +33,18 @@ public:
 	void Move(const Vec2f & offset);
 	void AddElement(Widget * widget);
 	
-	void Update(int time);
+	void Update();
 	void Render();
 	bool OnMouseClick() { return false; }
 	void RenderMouseOver() { }
 	Widget * IsMouseOver(const Vec2f & mousePos) const;
 	Widget * GetZoneWithID(MenuButton zoneId);
 	
-private:
-	std::vector<Widget *>	vElement;
+	virtual WidgetType type() const {
+		return WidgetType_Panel;
+	};
+	
+	std::vector<Widget *> m_children;
 };
 
 #endif // ARX_GUI_WIDGET_PANELWIDGET_H

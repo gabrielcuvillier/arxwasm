@@ -50,6 +50,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <map>
 #include <cmath>
 
+#include <boost/lexical_cast.hpp>
+
 #include "core/Application.h"
 #include "core/Config.h"
 #include "core/GameTime.h"
@@ -199,6 +201,9 @@ void ARX_INPUT_Release() {
 
 Input::Input()
 	: backend(NULL)
+	, m_useRawMouseInput(true)
+	, m_mouseMode(Mouse::Absolute)
+	, m_lastMousePosition(Vec2s_ZERO)
 	, mouseInWindow(false)
 {
 	setMouseSensitivity(2);
@@ -209,6 +214,10 @@ bool Input::init(Window * window) {
 	arx_assert(backend == NULL);
 	
 	backend = window->getInputBackend();
+	
+	int x, y;
+	backend->getAbsoluteMouseCoords(x, y);
+	m_lastMousePosition = Vec2s(x, y);
 	
 	return (backend != NULL);
 }
@@ -234,17 +243,56 @@ void Input::reset() {
 	iWheelDir = 0;
 }
 
-void Input::setMousePosAbs(const Vec2s& mousePos) {
+void Input::setMouseMode(Mouse::Mode mode) {
+	
+	if(m_mouseMode == mode) {
+		return;
+	}
+	
+	m_mouseMode = mode;
+	
+	if(backend && m_useRawMouseInput) {
+		if(!backend->setMouseMode(mode)) {
+			m_useRawMouseInput = false;
+		}
+	}
+	
+	if(m_mouseMode == Mouse::Absolute) {
+		centerMouse();
+	}
+	
+}
+
+void Input::setRawMouseInput(bool enabled) {
+	
+	if(m_useRawMouseInput == enabled) {
+		return;
+	}
+	
+	m_useRawMouseInput = enabled;
+	
+	if(backend && m_mouseMode == Mouse::Relative) {
+		if(!backend->setMouseMode(enabled ? Mouse::Relative : Mouse::Absolute)) {
+			m_useRawMouseInput = false;
+		}
+	}
+	
+}
+
+void Input::centerMouse() {
+	setMousePosAbs(Vec2s(mainApp->getWindow()->getSize() / s32(2)));
+}
+
+void Input::setMousePosAbs(const Vec2s & mousePos) {
 	
 	if(backend) {
 		backend->setAbsoluteMouseCoords(mousePos.x, mousePos.y);
 	}
 	
-	iMouseA = mousePos;
+	m_lastMousePosition = iMouseA = mousePos;
 }
 
 void Input::update() {
-	int iDTime;
 
 	backend->update();
 
@@ -324,8 +372,9 @@ void Input::update() {
 			}
 		}
 	}
-
-	const int iArxTime = checked_range_cast<int>(arxtime.get_updated(false));
+	
+	arxtime.update(false);
+	const unsigned long now = arxtime.now_ul();
 
 	for(int buttonId = Mouse::ButtonBase; buttonId < Mouse::ButtonMax; buttonId++) {
 		int i = buttonId - Mouse::ButtonBase;
@@ -354,14 +403,16 @@ void Input::update() {
 
 		if(iOldNumClick[i]) 
 			iOldNumClick[i]--;
-
+		
+		int iDTime;
 		backend->isMouseButtonPressed(buttonId,iDTime);
 
 		if(iDTime) {
 			iMouseTime[i]=iDTime;
 			iMouseTimeSet[i]=2;
 		} else {
-			if(iMouseTimeSet[i] > 0 && (arxtime.get_updated(false)-iMouseTime[i]) > 300) {
+			arxtime.update(false);
+			if(iMouseTimeSet[i] > 0 && (arxtime.now_f() - iMouseTime[i]) > 300) {
 				iMouseTime[i]=0;
 				iMouseTimeSet[i]=0;
 			}
@@ -369,11 +420,11 @@ void Input::update() {
 			if(getMouseButtonNowPressed(buttonId)) {
 				switch(iMouseTimeSet[i]) {
 				case 0:
-					iMouseTime[i] = iArxTime;
+					iMouseTime[i] = now;
 					iMouseTimeSet[i]++;
 					break;
 				case 1:
-					iMouseTime[i] = iArxTime - iMouseTime[i];
+					iMouseTime[i] = now - iMouseTime[i];
 					iMouseTimeSet[i]++;
 					break;
 				}
@@ -384,27 +435,54 @@ void Input::update() {
 	// Get the new coordinates
 	int absX, absY;
 	mouseInWindow = backend->getAbsoluteMouseCoords(absX, absY);
+	Vec2s newMousePosition(absX, absY);
 	
 	Vec2i wndSize = mainApp->getWindow()->getSize();
 	if(absX >= 0 && absX < wndSize.x && absY >= 0 && absY < wndSize.y) {
 		
 		// Use the absolute mouse position reported by the backend, as is
-		iMouseA = Vec2s((short)absX, (short)absY);
+		if(m_mouseMode == Mouse::Absolute) {
+			iMouseA = newMousePosition;
+		} else {
+			iMouseA = wndSize / s32(2);
+		}
 		
-		int relX, relY;
-		backend->getRelativeMouseCoords(relX, relY, iWheelDir);
+	} else {
+		mouseInWindow = false;
+	}
+	
+	int relX, relY;
+	backend->getRelativeMouseCoords(relX, relY, iWheelDir);
+	
+	if(m_mouseMode == Mouse::Relative) {
+		
+		if(m_useRawMouseInput) {
+			iMouseR = Vec2s(relX * 2, relY * 2);
+		} else {
+			iMouseR = newMousePosition - m_lastMousePosition;
+			m_lastMousePosition = newMousePosition;
+			if(iMouseR != Vec2s_ZERO) {
+				centerMouse();
+			}
+		}
 		
 		// Use the sensitivity config value to adjust relative mouse mouvements
 		float fSensMax = 1.f / 6.f;
 		float fSensMin = 2.f;
 		float fSens = ( ( fSensMax - fSensMin ) * ( (float)iSensibility ) / 10.f ) + fSensMin;
 		fSens = std::pow(0.7f, fSens) * 2.f;
-		iMouseR.x = relX * fSens;
-		iMouseR.y = relY * fSens;
+		iMouseR *= fSens;
+		
+		if(!mouseInWindow) {
+			LogWarning << "Cursor escaped the window while in relative input mode";
+			centerMouse();
+		}
 		
 	} else {
-		mouseInWindow = false;
+		iMouseR = Vec2s_ZERO;
+		m_lastMousePosition = newMousePosition;
 	}
+	
 }
 
 std::map<std::string, InputKeyId> keyNames;
@@ -472,21 +550,19 @@ InputKeyId Input::getKeyId(const std::string & name) {
 	}
 	
 	if(!name.compare(0, PREFIX_KEY.length(), PREFIX_KEY)) {
-		std::istringstream iss(name.substr(PREFIX_KEY.length()));
-		int key;
-		iss >> key;
-		if(!iss.bad()) {
+		try {
+			int key = boost::lexical_cast<int>(name.substr(PREFIX_KEY.length()));
 			return key;
-		}
+		} catch(const boost::bad_lexical_cast &) { }
 	}
 	
 	if(!name.compare(0, PREFIX_BUTTON.length(), PREFIX_BUTTON)) {
-		std::istringstream iss(name.substr(PREFIX_BUTTON.length()));
-		int key;
-		iss >> key;
-		if(!iss.bad() && key >= 0 && key < Mouse::ButtonCount) {
-			return Mouse::ButtonBase + key - 1;
-		}
+		try {
+			int key = boost::lexical_cast<int>(name.substr(PREFIX_BUTTON.length()));
+			if(key >= 0 && key < Mouse::ButtonCount) {
+				return Mouse::ButtonBase + key - 1;
+			}
+		} catch(const boost::bad_lexical_cast &) { }
 	}
 	
 	if(keyNames.empty()) {
@@ -754,14 +830,14 @@ bool Input::actionNowPressed(ControlAction actionId) const {
 		}
 		
 		bool bCombine = true;
-		if(config.actions[actionId].key[j] & INPUT_COMBINATION_MASK) {
-			if(!isKeyPressed((config.actions[actionId].key[j] >> 16) & INPUT_KEYBOARD_MASK)) {
+		if(key & INPUT_COMBINATION_MASK) {
+			if(!isKeyPressed((key >> 16) & INPUT_KEYBOARD_MASK)) {
 				bCombine = false;
 			}
 		}
 		
-		if(isKeyPressedNowPressed(config.actions[actionId].key[j] & INPUT_KEYBOARD_MASK)) {
-			return true && bCombine;
+		if(isKeyPressedNowPressed(key & INPUT_KEYBOARD_MASK)) {
+			return bCombine;
 		}
 	}
 	
@@ -772,158 +848,136 @@ static unsigned int uiOneHandedMagicMode = 0;
 static unsigned int uiOneHandedStealth = 0;
 
 bool Input::actionPressed(ControlAction actionId) const {
-	switch(actionId) {
-		case CONTROLS_CUST_USE:
-		case CONTROLS_CUST_ACTION:
-			break;
-		default:
-		{
-			if(config.misc.forceToggle) {
-				for(int j = 0; j < 2; j++) {
-					if(config.actions[actionId].key[j] != -1) {
-						if(config.actions[actionId].key[j] & Mouse::ButtonBase) {
-							if(getMouseButtonRepeat(config.actions[actionId].key[j]))
-								return true;
-						} else if(config.actions[actionId].key[j] & Mouse::WheelBase) {
-							if (config.actions[actionId].key[j] == Mouse::Wheel_Down) {
-								if(getMouseWheelDir() < 0)
-									return true;
-							} else {
-								if(getMouseWheelDir() > 0)
-									return true;
-							}
-						} else {
-							bool bCombine = true;
-
-							if(config.actions[actionId].key[j] & INPUT_COMBINATION_MASK) {
-								if(!isKeyPressed((config.actions[actionId].key[j] >> 16) & 0xFFFF))
-									bCombine = false;
-							}
-
-							if(isKeyPressed(config.actions[actionId].key[j] & 0xFFFF)) {
-								bool bQuit = false;
-
-								switch (actionId) {
-									case CONTROLS_CUST_MAGICMODE: {
-										if(bCombine) {
-											if(!uiOneHandedMagicMode) {
-												uiOneHandedMagicMode = 1;
-											} else {
-												if(uiOneHandedMagicMode == 2) {
-													uiOneHandedMagicMode = 3;
-												}
-											}
-
-											bQuit = true;
-										}
-									}
-									break;
-									case CONTROLS_CUST_STEALTHMODE: {
-										if(bCombine) {
-											if(!uiOneHandedStealth) {
-												uiOneHandedStealth = 1;
-											} else {
-												if(uiOneHandedStealth == 2) {
-													uiOneHandedStealth = 3;
-												}
-											}
-
-											bQuit = true;
-										}
-									}
-									break;
-									default: {
-										return true & bCombine;
-									}
-									break;
-								}
-
-								if(bQuit) {
-									break;
-								}
-							} else {
-								switch(actionId) {
-									case CONTROLS_CUST_MAGICMODE: {
-										if(!j && isKeyPressed(config.actions[actionId].key[1] & 0xFFFF)) {
-											continue;
-										}
-
-										if(uiOneHandedMagicMode == 1) {
-											uiOneHandedMagicMode = 2;
-										} else {
-											if(uiOneHandedMagicMode == 3) {
-												uiOneHandedMagicMode = 0;
-											}
-										}
-									}
-									break;
-									case CONTROLS_CUST_STEALTHMODE: {
-										if(!j && isKeyPressed(config.actions[actionId].key[1] & 0xFFFF)) {
-											continue;
-										}
-
-										if(uiOneHandedStealth == 1) {
-											uiOneHandedStealth = 2;
-										} else {
-											if(uiOneHandedStealth == 3) {
-												uiOneHandedStealth = 0;
-											}
-										}
-									}
-									break;
-									default:
-										break;
-								}
-							}
-						}
+	
+	if(actionId == CONTROLS_CUST_USE || actionId == CONTROLS_CUST_ACTION) {
+		return false;
+	}
+	
+	if(config.misc.forceToggle) {
+		for(int j = 0; j < 2; j++) {
+			if(config.actions[actionId].key[j] != -1) {
+				if(config.actions[actionId].key[j] & Mouse::ButtonBase) {
+					if(getMouseButtonRepeat(config.actions[actionId].key[j]))
+						return true;
+				} else if(config.actions[actionId].key[j] & Mouse::WheelBase) {
+					if (config.actions[actionId].key[j] == Mouse::Wheel_Down) {
+						if(getMouseWheelDir() < 0)
+							return true;
+					} else {
+						if(getMouseWheelDir() > 0)
+							return true;
 					}
-				}
-
-				switch(actionId) {
-					case CONTROLS_CUST_MAGICMODE:
-						if(uiOneHandedMagicMode == 1 || uiOneHandedMagicMode == 2) {
-							return true;
-						}
-						break;
-					case CONTROLS_CUST_STEALTHMODE:
-						if(uiOneHandedStealth == 1 || uiOneHandedStealth == 2) {
-							return true;
-						}
-						break;
-					default:
-						break;
-				}
-			} else {
-				for(int j = 0; j < 2; j++) {
-					if(config.actions[actionId].key[j] != -1) {
-						if(config.actions[actionId].key[j] & Mouse::ButtonBase) {
-							if(getMouseButtonRepeat(config.actions[actionId].key[j]))
-								return true;
-						} else if(config.actions[actionId].key[j] & Mouse::WheelBase) {
-							if(config.actions[actionId].key[j] == Mouse::Wheel_Down) {
-								if(getMouseWheelDir() < 0)
-									return true;
-							} else {
-								if(getMouseWheelDir() > 0)
-									return true;
+				} else {
+					bool bCombine = true;
+					
+					if(config.actions[actionId].key[j] & INPUT_COMBINATION_MASK) {
+						if(!isKeyPressed((config.actions[actionId].key[j] >> 16) & 0xFFFF))
+							bCombine = false;
+					}
+					
+					if(isKeyPressed(config.actions[actionId].key[j] & 0xFFFF)) {
+						bool bQuit = false;
+						
+						if(actionId == CONTROLS_CUST_MAGICMODE) {
+							if(bCombine) {
+								if(!uiOneHandedMagicMode) {
+									uiOneHandedMagicMode = 1;
+								} else {
+									if(uiOneHandedMagicMode == 2) {
+										uiOneHandedMagicMode = 3;
+									}
+								}
+								
+								bQuit = true;
+							}
+						} else if(actionId == CONTROLS_CUST_STEALTHMODE) {
+							if(bCombine) {
+								if(!uiOneHandedStealth) {
+									uiOneHandedStealth = 1;
+								} else {
+									if(uiOneHandedStealth == 2) {
+										uiOneHandedStealth = 3;
+									}
+								}
+								
+								bQuit = true;
 							}
 						} else {
-							bool bCombine = true;
-
-							if(config.actions[actionId].key[j] & INPUT_COMBINATION_MASK) {
-								if(!isKeyPressed((config.actions[actionId].key[j] >> 16) & 0xFFFF))
-									bCombine = false;
+							return bCombine;
+						}
+						
+						if(bQuit) {
+							break;
+						}
+					} else {
+						if(actionId == CONTROLS_CUST_MAGICMODE) {
+							if(!j && isKeyPressed(config.actions[actionId].key[1] & 0xFFFF)) {
+								continue;
 							}
-
-							if(isKeyPressed(config.actions[actionId].key[j] & 0xFFFF))
-								return true & bCombine;
+							
+							if(uiOneHandedMagicMode == 1) {
+								uiOneHandedMagicMode = 2;
+							} else {
+								if(uiOneHandedMagicMode == 3) {
+									uiOneHandedMagicMode = 0;
+								}
+							}
+						} else if(actionId == CONTROLS_CUST_STEALTHMODE) {
+							if(!j && isKeyPressed(config.actions[actionId].key[1] & 0xFFFF)) {
+								continue;
+							}
+							
+							if(uiOneHandedStealth == 1) {
+								uiOneHandedStealth = 2;
+							} else {
+								if(uiOneHandedStealth == 3) {
+									uiOneHandedStealth = 0;
+								}
+							}
 						}
 					}
 				}
 			}
 		}
+		
+		if(actionId == CONTROLS_CUST_MAGICMODE) {
+			if(uiOneHandedMagicMode == 1 || uiOneHandedMagicMode == 2) {
+				return true;
+			}
+		} else if(actionId == CONTROLS_CUST_STEALTHMODE) {
+			if(uiOneHandedStealth == 1 || uiOneHandedStealth == 2) {
+				return true;
+			}
+		}
+	} else {
+		for(int j = 0; j < 2; j++) {
+			if(config.actions[actionId].key[j] != -1) {
+				if(config.actions[actionId].key[j] & Mouse::ButtonBase) {
+					if(getMouseButtonRepeat(config.actions[actionId].key[j]))
+						return true;
+				} else if(config.actions[actionId].key[j] & Mouse::WheelBase) {
+					if(config.actions[actionId].key[j] == Mouse::Wheel_Down) {
+						if(getMouseWheelDir() < 0)
+							return true;
+					} else {
+						if(getMouseWheelDir() > 0)
+							return true;
+					}
+				} else {
+					bool bCombine = true;
+					
+					if(config.actions[actionId].key[j] & INPUT_COMBINATION_MASK) {
+						if(!isKeyPressed((config.actions[actionId].key[j] >> 16) & 0xFFFF))
+							bCombine = false;
+					}
+					
+					if(isKeyPressed(config.actions[actionId].key[j] & 0xFFFF))
+						return bCombine;
+				}
+			}
+		}
 	}
-
+	
 	return false;
 }
 
@@ -948,14 +1002,14 @@ bool Input::actionNowReleased(ControlAction actionId) const {
 		}
 		
 		bool bCombine = true;
-		if(config.actions[actionId].key[j] & INPUT_COMBINATION_MASK) {
-			if(!isKeyPressed((config.actions[actionId].key[j] >> 16) & INPUT_KEYBOARD_MASK)) {
+		if(key & INPUT_COMBINATION_MASK) {
+			if(!isKeyPressed((key >> 16) & INPUT_KEYBOARD_MASK)) {
 				bCombine = false;
 			}
 		}
 		
-		if(isKeyPressedNowUnPressed(config.actions[actionId].key[j] & INPUT_KEYBOARD_MASK)) {
-			return true && bCombine;
+		if(isKeyPressedNowUnPressed(key & INPUT_KEYBOARD_MASK)) {
+			return bCombine;
 		}
 	}
 	

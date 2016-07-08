@@ -95,6 +95,18 @@ struct EERIE_BACKGROUND
 	float		Zmul;
 	long		  nbanchors;
 	ANCHOR_DATA * anchors;
+	
+	EERIE_BACKGROUND()
+		: exist(false)
+		, Xsize(0)
+		, Zsize(0)
+		, Xdiv(0)
+		, Zdiv(0)
+		, Xmul(0)
+		, Zmul(0)
+		, nbanchors(0)
+		, anchors(NULL)
+	{ }
 };
 
 extern long EERIEDrawnPolys;
@@ -118,9 +130,18 @@ EERIEPOLY * CheckInPoly(const Vec3f & poss, float * needY = NULL);
  */
 EERIEPOLY * EEIsUnderWater(const Vec3f & pos);
 
+/*!
+ * Get the height a polygon as at a specific position
+ *
+ * \param pos the (x, z) postion where to query the height. The y component is ignored.
+ *
+ * \return false if no height could be calculated because the the polygon's normal lies
+ *         on the xz plane, true otherwise.
+ */
 bool GetTruePolyY(const EERIEPOLY * ep, const Vec3f & pos, float * ret);
+
 bool IsAnyPolyThere(float x, float z);
-bool IsVertexIdxInGroup(EERIE_3DOBJ * eobj,long idx,long grs);
+bool IsVertexIdxInGroup(EERIE_3DOBJ * eobj, size_t idx, size_t grs);
 EERIEPOLY * GetMinPoly(const Vec3f & pos);
 EERIEPOLY * GetMaxPoly(const Vec3f & pos);
  
@@ -129,8 +150,8 @@ int PointIn2DPolyXZ(const EERIEPOLY * ep, float x, float z);
 int EERIELaunchRay3(const Vec3f & orgn, const Vec3f & dest, Vec3f & hit, long flag);
 
 Vec3f EE_RT(const Vec3f & in);
-void EE_P(const Vec3f * in, TexturedVertex * out);
-void EE_RTP(const Vec3f & in,TexturedVertex *out);
+void EE_P(const Vec3f & in, TexturedVertex & out);
+void EE_RTP(const Vec3f & in, TexturedVertex & out);
 
 
 // FAST SAVE LOAD
@@ -158,16 +179,15 @@ void EERIEAddPoly(TexturedVertex * vert, TexturedVertex * vert2, TextureContaine
 
 long MakeTopObjString(Entity * io, std::string& dest);
 bool TryToQuadify(EERIEPOLY * ep,EERIE_3DOBJ * eobj);
-Vec2f getWaterFxUvOffset(const Vec3f & odtv, float power);
+Vec2f getWaterFxUvOffset(const Vec3f & odtv);
 
 //*************************************************************************************
 //*************************************************************************************
 
 long EERIERTPPoly(EERIEPOLY *ep);
 
-float PtIn2DPolyProj(EERIE_3DOBJ * obj,EERIE_FACE * ef, float x, float z);
+float PtIn2DPolyProj(const std::vector<EERIE_VERTEX> & verts, EERIE_FACE * ef, float x, float z);
 
-Vec3f GetVertexPos(Entity * io, long id);
 long CountBkgVertex();
 
 bool RayCollidingPoly(const Vec3f & orgn, const Vec3f & dest, const EERIEPOLY & ep, Vec3f * hit);
@@ -177,21 +197,31 @@ void EERIEPOLY_Compute_PolyIn();
 
 #define MAX_FRUSTRUMS 32
 
-struct EERIE_FRUSTRUM_PLANE
+struct Plane
 {
 	float	a;
 	float	b;
 	float	c;
 	float	d; // dist to origin
-
-	inline float getDist(const Vec3f & point) const {
-		return point.x * a + point.y * b + point.z * c + d;
-	}
 };
+
+inline float distanceToPoint(const Plane & plane, const Vec3f & point) {
+	return point.x * plane.a + point.y * plane.b + point.z * plane.c + plane.d;
+}
+
+inline void normalizePlane(Plane & plane) {
+	
+	float n = 1.f / std::sqrt(plane.a * plane.a + plane.b * plane.b + plane.c * plane.c);
+	
+	plane.a = plane.a * n;
+	plane.b = plane.b * n;
+	plane.c = plane.c * n;
+	plane.d = plane.d * n;
+}
 
 struct EERIE_FRUSTRUM
 {
-	EERIE_FRUSTRUM_PLANE plane[4];
+	Plane plane[4];
 };
 
 struct EERIE_FRUSTRUM_DATA
@@ -203,8 +233,6 @@ struct EERIE_FRUSTRUM_DATA
 struct PORTAL_ROOM_DRAW
 {
 	short			count;
-	short			flags;
-	EERIE_2D_BBOX	bbox;
 	EERIE_FRUSTRUM_DATA	frustrum;
 };
 
@@ -219,7 +247,6 @@ extern ROOM_DIST_DATA * RoomDistance;
 
 void UpdateIORoom(Entity * io);
 float SP_GetRoomDist(const Vec3f & pos, const Vec3f & c_pos, long io_room, long Cam_Room);
-float CEDRIC_PtIn2DPolyProjV2(EERIE_3DOBJ * obj,EERIE_FACE * ef, float x, float z);
 void EERIE_PORTAL_ReleaseOnlyVertexBuffer();
 void ComputePortalVertexBuffer();
 bool GetNameInfo( const std::string& name1,long& type,long& val1,long& val2);

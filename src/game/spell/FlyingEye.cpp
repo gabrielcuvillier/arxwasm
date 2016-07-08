@@ -19,6 +19,8 @@
 
 #include "game/spell/FlyingEye.h"
 
+#include "core/Core.h"
+
 #include "scene/Object.h"
 
 #include "graphics/Renderer.h"
@@ -32,8 +34,6 @@ float MagicSightFader=0.f;
 
 static TextureContainer * Flying_Eye = NULL;
 static EERIE_3DOBJ * eyeballobj = NULL;			// EyeBall 3D Object	// NEEDTO: Load dynamically
-
-extern Rect g_size;
 
 extern float Original_framedelay;
 extern float PULSATE;
@@ -62,7 +62,7 @@ void DrawMagicSightInterface()
 		col = 1.f;
 
 	if(eyeball.exist < 0) {
-		col = (float)(-eyeball.exist) * (1.f/100);
+		col = -eyeball.exist * (1.f/100);
 	} else if(eyeball.exist > 2) {
 		col = 1.f - eyeball.size.x;
 	}
@@ -91,10 +91,10 @@ void ARXDRAW_DrawEyeBall() {
 	float d;
 
 	if(eyeball.exist < 0) {
-		d = (float)(-eyeball.exist)*( 1.0f / 100 );
+		d = -eyeball.exist * (1.0f/100);
 		eyeball.exist++;
 	} else if(eyeball.exist > 2) {
-		d = (float)(eyeball.exist)*( 1.0f / 100 );
+		d = eyeball.exist * (1.0f/100);
 	}
 	else
 		return;

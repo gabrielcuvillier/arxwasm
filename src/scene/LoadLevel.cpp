@@ -158,7 +158,7 @@ long DanaeSaveLevel(const fs::path & _fic) {
 	
 	char * dat = new char[allocsize];
 	if(!dat) {
-		LogError << "Unable to allocate Buffer for save...";
+		LogError << "Unable to allocate buffer for saving";
 		return -1;
 	}
 	
@@ -291,7 +291,7 @@ long DanaeSaveLevel(const fs::path & _fic) {
 	
 	//Saving Special Polys
 	if(pos > allocsize) {
-		LogError << "Badly Allocated SaveBuffer..." << fic;
+		LogError << "Badly allocated save buffer for " << fic;
 		delete[] dat;
 		return -1;
 	}
@@ -299,7 +299,7 @@ long DanaeSaveLevel(const fs::path & _fic) {
 	// Now Saving Whole Buffer
 	fs::ofstream ofs(fic, fs::fstream::out | fs::fstream::binary | fs::fstream::trunc);
 	if(!ofs.is_open()) {
-		LogError << "Unable to open " << fic << " for write...";
+		LogError << "Unable to open " << fic << " for writing";
 		delete[] dat;
 		return -1;
 	}
@@ -398,7 +398,7 @@ long DanaeSaveLevel(const fs::path & _fic) {
 	}
 	
 	if(pos > allocsize) {
-		LogError << "Badly allocated save buffer..." << fic2;
+		LogError << "Badly allocated save buffer for " << fic2;
 		delete[] dat;
 		return -1;
 	}
@@ -406,7 +406,7 @@ long DanaeSaveLevel(const fs::path & _fic) {
 	// Now Saving Whole Buffer
 	ofs.open(fic2, fs::fstream::out | fs::fstream::binary | fs::fstream::trunc);
 	if(!ofs.is_open()) {
-		LogError << "Unable to open " << fic2 << " for write...";
+		LogError << "Unable to open " << fic2 << " for writing";
 		delete[] dat;
 		return -1;
 	}
@@ -420,7 +420,7 @@ long DanaeSaveLevel(const fs::path & _fic) {
 	delete[] compressed;
 	
 	if(ofs.fail()) {
-		LogError << "Unable to Write to " << fic2;
+		LogError << "Unable to write to " << fic2;
 		return -1;
 	}
 	
@@ -481,14 +481,14 @@ static ColorBGRA savedColorConversion(u32 bgra) {
 
 static long LastLoadedLightningNb = 0;
 static ColorBGRA * LastLoadedLightning = NULL;
-Vec3f loddpos;
+Vec3f g_loddpos;
 Vec3f MSP;
 
-extern long FASTmse;
+extern bool FASTmse;
 
 bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 	
-	LogInfo << "Loading Level " << file;
+	LogInfo << "Loading level " << file;
 	
 	CURRENTLEVEL = GetLevelNumByName(file.string());
 	
@@ -536,8 +536,11 @@ bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 		}
 	}
 	
-	loddpos = subj.orgTrans.pos = dlh.pos_edit.toVec3();
-	player.desiredangle = player.angle = subj.angle = dlh.angle_edit;
+	g_loddpos = dlh.pos_edit.toVec3();
+	player.desiredangle = player.angle = dlh.angle_edit;
+	
+	subj.orgTrans.pos = g_loddpos;
+	subj.angle = player.angle;
 	
 	if(strcmp(dlh.ident, "DANAE_FILE")) {
 		LogError << "Not a valid file " << file << ": \"" << util::loadString(dlh.ident) << '"';
@@ -556,7 +559,7 @@ bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 		
 		if(FastSceneLoad(scene)) {
 			LogDebug("done loading scene");
-			FASTmse = 1;
+			FASTmse = true;
 		} else {
 #if BUILD_EDIT_LOADSAVE
 			LogDebug("fast loading scene failed");
@@ -576,7 +579,7 @@ bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 	Vec3f trans;
 	if(FASTmse) {
 		trans = Mscenepos;
-		player.pos = loddpos + trans;
+		player.pos = g_loddpos + trans;
 	}
 #if BUILD_EDIT_LOADSAVE
 	else if(mse != NULL) {
@@ -834,8 +837,8 @@ bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 	// TODO size ignored
 	
 	if(!dat) {
-		LOADEDD = 1;
-		FASTmse = 0;
+		LOADEDD = true;
+		FASTmse = false;
 		USE_PLAYERCOLLISIONS = true;
 		LogInfo << "Done loading level";
 		return true;
@@ -932,8 +935,8 @@ bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 	progressBarAdvance();
 	LoadLevelScreen();
 	
-	LOADEDD = 1;
-	FASTmse = 0;
+	LOADEDD = true;
+	FASTmse = false;
 	USE_PLAYERCOLLISIONS = true;
 	
 	LogInfo << "Done loading level";
