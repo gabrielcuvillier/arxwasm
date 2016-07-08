@@ -5,7 +5,7 @@
              |   __(PNaCl port)____|__
               \_/____________________/
 
-This is an experimental port of Arx Libertatis to Portable Native Client architecture (PNaCl) and Pepper API (PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
+This is an experimental port of Arx Libertatis to Portable Native Client (PNaCl) and Pepper API (PPAPI), allowing to run the Arx Fatalis game in a native sandbox of Google Chrome browser.
 
 ## Contents
 
@@ -35,7 +35,7 @@ See section [Access to game data](#access-to-game-data) for more information on 
 
 The port have been tested with latest version of Chrome for Windows and Linux (starting from version 41), both on x86 and x86_64 architectures. I did not test with Chromebooks, or other ARM / MIPS based device. I'd be interested to know if this is working !
 
-### What is NOT (yet) working
+### What is NOT working
 
 There is still one technical limitation that prevent 'real' gameplay for now: the _mouselook_ functionality does not work correctly, making navigation in the game 3D world quite difficult.
 
@@ -79,7 +79,7 @@ It will start a simple HTTP server, configured to give access to the website con
 
 http://localhost:5100
 
-Finally, you may also build the Native Client module yourself, and host it in a similar way. The source code of the sample website is fully available in git repository. See section 'How To Build' for more information. 
+Finally, you may also build the Native Client module yourself, and host it in a similar way. The source code of the sample website is fully available in git repository. See section [How To Build](#how-to-build) for more information. 
 
 ### Access to game data
 
@@ -140,11 +140,11 @@ The first time the program is loaded, it will take quite some time to complete (
 
 ## How to Build
 
-Building consists in cross-compilation of Arx Libertatis and its dependencies to the Native Client / Pepper API platform, by using the _NaCl SDK_, the _Naclports_ project, and this fork of Arx Libertatis.
+Building consists in cross-compilation of Arx Libertatis and its dependencies to the Native Client / Pepper API platform, by using the NaCl SDK, the Naclports project, and this fork of Arx Libertatis.
 
 As usual with cross-compilation, the most difficult part is to correctly install and  setup the build environment, and then build the project dependencies.
 
-If you feel brave enough to build the project yourself, detailed build instructions are located in the file [BUILD.PNACL.md](http://github.com/gabrielcuvillier/ArxLibertatis-pnacl/blob/master/BUILD.PNACL.md).
+If you feel brave enough to build the port yourself, detailed build instructions are located in the file [BUILD.PNACL.md](http://github.com/gabrielcuvillier/ArxLibertatis-pnacl/blob/master/BUILD.PNACL.md).
 
 ## Technical Details
 
@@ -181,11 +181,11 @@ Arx Libertatis have been chosen because it is an open source project that fit th
 
 This port also have been an opportunity to think about how Native Client could be used beyond the browser. A couple of other projects already have found interesting ways to use it, for example the "Unvanquished" project (as a secure sandbox for native game plugins) or "ZeroVM" (for server-side single process virtualization).
 
-For my part, I do think that Native Client could be used as a standard target platform for many desktop applications, and in particular CAD softwares. But this is another story that have yet to be written...
+For my part, I do think that Native Client could be used as a standard target platform for many desktop applications, and in particular CAD softwares. But this is another story that have yet to be written.
 
 ### What's next ?
 
-I consider having achieved my goals with this Native Client port: being able to compile/link using the NaCl SDK, play the game in Chrome without major crashes, and publish needed material so that anybody is able to do the same (source code, detailed information and build instructions in Readme files, a sample hosting website along with the precompiled game module).
+I consider having achieved my goals with this Native Client port: being able to compile/link using the NaCl SDK, play the game in Chrome without major crashes, and publish needed material so that anybody is able to do the same (source code, detailed information and build instructions, a sample hosting website along with the precompiled module).
 
 There are still some work to do for a more enjoyable experience. I'd be glad to give necessary knowledge to someone willing to continue work on this port. 
 
@@ -195,9 +195,9 @@ The two most important things remaining to do are:
 
 - Data:  it would be really nice to be able to just drop the GOG executable or game demo directly in Chrome, and the program extract all the _*.pak_ files automatically.
 
-OR
+Or,
 
-- Contact the game publisher and ask them to make the game demo data directly available on their website . It could then be fetched automatically by the module without user intervention. That would be awesome !
+- Contact the game publisher and ask them to make the game demo data directly available on their website . It could then be fetched automatically by the PNACL module. That would be awesome !
 
 
 ### 'Mouselook' is unusable!
@@ -206,7 +206,7 @@ Yes, this is _the_ most important limitation of this port. See section [Port Sta
 
 ## Credits
 
-The Native Client team, for creating this interesting sandboxing technology.
+The Native Client team, for creating this nice sandboxing technology.
 
 Arkane Studios, for creating the Arx Fatalis game and released its source code under an open source license.
 
