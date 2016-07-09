@@ -1,21 +1,21 @@
 set(NACL 1)
 set(PNACL 1)
 
-set(PLATFORM_NAME	        "PNaCl")				     
+set(PLATFORM_NAME	        "PNaCl")	
+set(PLATFORM_ARCH           "le32-nacl")
+set(PLATFORM_EXE_SUFFIX     ".pexe")				     
 set(PLATFORM_C_COMPILER     "clang")				      
 set(PLATFORM_CXX_COMPILER   "clang++")			       
 set(PLATFORM_TOOLCHAIN	    "linux_pnacl")		  
-set(PLATFORM_ARCH           "pnacl")
-set(PLATFORM_EXE_SUFFIX     ".pexe")				    
 set(PLATFORM_SDK_ROOT       "$ENV{NACL_SDK_ROOT}")
 set(PLATFORM_SDK_INC_DIR    "${PLATFORM_SDK_ROOT}/include")
-set(PLATFORM_SDK_LIB_DIR    "${PLATFORM_SDK_ROOT}/lib/${PLATFORM_ARCH}/Release")
+set(PLATFORM_SDK_LIB_DIR    "${PLATFORM_SDK_ROOT}/lib/pnacl/Release")
 set(PLATFORM_TOOLCHAIN_DIR  "${PLATFORM_SDK_ROOT}/toolchain/${PLATFORM_TOOLCHAIN}")
-set(PLATFORM_ROOT_DIR       "${PLATFORM_TOOLCHAIN_DIR}/le32-nacl")
+set(PLATFORM_ROOT_DIR       "${PLATFORM_TOOLCHAIN_DIR}/${PLATFORM_ARCH}")
 
 set(CMAKE_SYSTEM_NAME       "Linux")
 set(CMAKE_SYSTEM_PROCESSOR  "${PLATFORM_ARCH}")
-set(CMAKE_FIND_ROOT_PATH 	"${PLATFORM_TOOLCHAIN_DIR}" "${PLATFORM_ROOT_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
+set(CMAKE_FIND_ROOT_PATH 	"${PLATFORM_TOOLCHAIN_DIR}" "${PLATFORM_ROOT_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CMAKE_C_COMPILER        "${PLATFORM_TOOLCHAIN_DIR}/bin/${PLATFORM_ARCH}-${PLATFORM_C_COMPILER}")
 set(CMAKE_CXX_COMPILER      "${PLATFORM_TOOLCHAIN_DIR}/bin/${PLATFORM_ARCH}-${PLATFORM_CXX_COMPILER}")
 
@@ -59,10 +59,10 @@ macro(pnacl_finalize target)
   add_custom_command(TARGET ${target} POST_BUILD
     COMMENT "Finalizing ${target} to ${target}.pexe"
     COMMAND "cp" "$<TARGET_FILE:${target}>" "$<TARGET_FILE:${target}>_unstripped.bc"
-    COMMAND "${PLATFORM_TOOLCHAIN_DIR}/bin/${PLATFORM_ARCH}-finalize" "$<TARGET_FILE:${target}>" "-o"  "$<TARGET_FILE:${target}>${PLATFORM_EXE_SUFFIX}")
+    COMMAND "${PLATFORM_TOOLCHAIN_DIR}/bin/pnacl-finalize" "$<TARGET_FILE:${target}>" "-o"  "$<TARGET_FILE:${target}>${PLATFORM_EXE_SUFFIX}")
 endmacro()
 
 macro(pnacl_compress target)
   add_custom_target(pnacl-compress
-    COMMAND "${PLATFORM_TOOLCHAIN_DIR}/bin/${PLATFORM_ARCH}-compress" "$<TARGET_FILE:${target}>${PLATFORM_EXE_SUFFIX}")
+    COMMAND "${PLATFORM_TOOLCHAIN_DIR}/bin/pnacl-compress" "$<TARGET_FILE:${target}>${PLATFORM_EXE_SUFFIX}")
 endmacro()
