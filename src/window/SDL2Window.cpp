@@ -69,7 +69,8 @@ typedef enum {
 	ARX_SDL_SYSWM_WAYLAND,
 	ARX_SDL_SYSWM_MIR,
 	ARX_SDL_SYSWM_WINRT,
-	ARX_SDL_SYSWM_ANDROID
+	ARX_SDL_SYSWM_ANDROID,
+	ARX_SDL_SYSWM_EMSCRIPTEN,   // EMSCRIPTEN
 } ARX_SDL_SYSWM_TYPE;
 struct ARX_SDL_SysWMinfo {
 	SDL_version version;
@@ -209,7 +210,7 @@ bool SDL2Window::initializeFramework() {
 	SDL_EventState(SDL_QUIT,        SDL_ENABLE);
 	SDL_EventState(SDL_SYSWMEVENT,  SDL_IGNORE);
 	SDL_EventState(SDL_USEREVENT,   SDL_IGNORE);
-	
+
 	return true;
 }
 
@@ -229,12 +230,16 @@ static Uint32 getSDLFlagsForMode(const Vec2i & size, bool fullscreen) {
 }
 
 bool SDL2Window::initialize() {
-	
+
 	arx_assert(!m_displayModes.empty());
-	
+
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+#ifdef __EMSCRIPTEN__
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 32); // Otherwise GLContext creation fails for unknown reason
+#else
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-	
+#endif
+
 	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
 	// Used on Windows to prevent software opengl fallback.
 	// The linux situation:
@@ -244,16 +249,20 @@ bool SDL2Window::initialize() {
 	// see: https://www.opengl.org/registry/specs/EXT/visual_rating.txt
 	SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
 	#endif
-	
-	// TODO EGL and core profile are not supported yet
+
+#ifdef __EMSCRIPTEN__
+	// EMSCRIPTEN use ES profile backend
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#else
+    // TODO EGL and core profile are not supported yet
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-	
+#endif
+
 	if(gldebug::isEnabled()) {
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 	}
-	
-	
-	int x = SDL_WINDOWPOS_UNDEFINED, y = SDL_WINDOWPOS_UNDEFINED;
+
+    int x = SDL_WINDOWPOS_UNDEFINED, y = SDL_WINDOWPOS_UNDEFINED;
 	Uint32 windowFlags = getSDLFlagsForMode(m_size, m_fullscreen);
 	windowFlags |= SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
 	
@@ -274,8 +283,8 @@ bool SDL2Window::initialize() {
 		
 		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, msaa > 1 ? 1 : 0);
 		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, msaa > 1 ? msaa : 0);
-		
-		m_window = SDL_CreateWindow(m_title.c_str(), x, y, m_size.x, m_size.y, windowFlags);
+
+        m_window = SDL_CreateWindow(m_title.c_str(), x, y, m_size.x, m_size.y, windowFlags);
 		if(!m_window) {
 			if(lastTry) {
 				LogError << "Could not create window: " << SDL_GetError();
@@ -283,20 +292,20 @@ bool SDL2Window::initialize() {
 			}
 			continue;
 		}
-		
-		m_glcontext = SDL_GL_CreateContext(m_window);
+
+        m_glcontext = SDL_GL_CreateContext(m_window);
 		if(!m_glcontext) {
-			if(lastTry) {
+        	if(lastTry) {
 				LogError << "Could not create GL context: " << SDL_GetError();
 				return false;
 			}
 			continue;
 		}
-    
+
 #ifdef __native_client__
     RegalMakeCurrent((int32_t)m_glcontext,(PPB_OpenGLES2*)PSGetInterface(PPB_OPENGLES2_INTERFACE));
 #endif
-		
+
 		// Verify that the MSAA setting matches what was requested
 		int msaaEnabled, msaaValue;
 		SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &msaaEnabled);
@@ -349,6 +358,7 @@ bool SDL2Window::initialize() {
 					#endif
 					#if SDL_VERSION_ATLEAST(2, 0, 4)
 					case ARX_SDL_SYSWM_ANDROID:   system = "Android"; break;
+					case ARX_SDL_SYSWM_EMSCRIPTEN:system = "Emscripten"; break;
 					#endif
 				}
 			}
@@ -400,7 +410,7 @@ bool SDL2Window::initialize() {
 	
 	SDL_ShowWindow(m_window);
 	SDL_ShowCursor(SDL_DISABLE);
-	
+
 	m_renderer->initialize();
 	
 	onCreate();
@@ -409,7 +419,7 @@ bool SDL2Window::initialize() {
 	
 	onShow(true);
 	onFocus(true);
-	
+
 	return true;
 }
 
