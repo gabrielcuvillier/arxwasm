@@ -19,7 +19,6 @@ else()
 	cmake_policy(VERSION ${CMAKE_VERSION})
 endif()
 
-
 # Define configuration options
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
@@ -39,11 +38,16 @@ endmacro()
 # Components
 option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_TOOLS "Build tools" ON)
+if (NACL OR EMSCRIPTEN)
+    set(BUILD_TOOLS OFF)
+endif()
 set(def_BUILD_CRASHHANDLER ON)
 if(MACOSX)
 	set(def_BUILD_CRASHHANDLER OFF)
 elseif(WIN32 AND NOT MSVC)
 	set(def_BUILD_CRASHHANDLER OFF)
+elseif(NACL OR EMSCRIPTEN)
+    set(def_BUILD_CRASHHANDLER OFF)
 endif()
 option(BUILD_CRASHHANDLER "Build the crash handler" ${def_BUILD_CRASHHANDLER})
 option(BUILD_CRASHREPORTER "Build the crash reporter" ${BUILD_CRASHHANDLER})
@@ -53,26 +57,21 @@ endif()
 option(BUILD_PROFILER_INSTRUMENT "Enable instrumentation for the profiler" OFF)
 suboption(BUILD_PROFILER "Build the profiler GUI" BOOL ${BUILD_PROFILER_INSTRUMENT})
 option(BUILD_EDIT_LOADSAVE "Build save/load functions only used by the editor" ON)
+if (NACL OR EMSCRIPTEN)
+    set(BUILD_EDIT_LOADSAVE OFF)
+endif()
 option(INSTALL_BLENDER_PLUGIN "Install the Arx Libertatis blender plugin" ON)
+if (NACL OR EMSCRIPTEN)
+    set(INSTALL_BLENDER_PLUGIN OFF)
+endif()
 suboption(BUILD_IO_LIBRARY "Build shared library for reading and writing arx data"
           BOOL ${INSTALL_BLENDER_PLUGIN})
 if(INSTALL_BLENDER_PLUGIN)
 	set(BUILD_IO_LIBRARY ON)
 endif()
 option(INSTALL_SCRIPTS "Install the data install script" ON)
-
-if (NACL)
-  # Disable all external tools on NACL. For now, we just want the arx executable.
-  set(BUILD_TESTS OFF)
-  set(BUILD_TOOLS OFF)
-  set(BUILD_CRASHREPORTER OFF)
-  set(BUILD_CRASHHANDLER OFF)
-  set(BUILD_PROFILER OFF)
-  set(BUILD_PROFILER_INSTRUMENT OFF)
-  set(BUILD_EDIT_LOADSAVE OFF)
-  set(INSTALL_BLENDER_PLUGIN OFF)
-  set(BUILD_IO_LIBRARY OFF)
-  set(INSTALL_SCRIPTS OFF)
+if (NACL OR EMSCRIPTEN)
+    set(INSTALL_SCRIPTS OFF)
 endif()
 
 # Optional dependencies
@@ -83,12 +82,10 @@ option(USE_NATIVE_FS "Use the native filesystem backend directly instead of boos
 
 # Alternative dependencies
 set(WITH_SDL CACHE STRING "The SDL version to use: 1 or 2 or empty (use any)")
-set(WITH_QT CACHE STRING "The Qt version to use: 4 or 5 or empty (use any)")
-
-if (NACL)
-  # Force SDL 2 on NACL, as it works better than SDL 1 (no visual glitches and input lag)
-  set(WITH_SDL 2)
+if (NACL OR EMSCRIPTEN)
+    set(WITH_SDL 2)
 endif()
+set(WITH_QT CACHE STRING "The Qt version to use: 4 or 5 or empty (use any)")
 
 # Build types
 option(DEVELOPER "Use build settings suitable for developers" OFF)
@@ -97,16 +94,22 @@ if(DEVELOPER)
 else()
 	set(default_UNITY_BUILD ON)
 endif()
-if(NACL)
-set(default_UNITY_BUILD OFF)
-endif()
+
 suboption(UNITY_BUILD "Unity build" BOOL ${default_UNITY_BUILD})
+if (NACL OR EMSCRIPTEN)
+    set(UNITY_BUILD OFF)
+endif()
 option(DEBUG_EXTRA "Expensive debug options" OFF)
 option(SET_WARNING_FLAGS "Adjust compiler warning flags" ON)
 option(SET_NOISY_WARNING_FLAGS "Enable noisy compiler warnings" OFF)
 option(SET_OPTIMIZATION_FLAGS "Adjust compiler optimization flags" ON)
 
 option(USE_CXX11 "Try to use C++11 if available" ON)
+if (NACL)
+    # Disable CXX11 on NACL, because of compilation issues (GCC on NACL is a little bit outdated)
+    set(USE_CXX11 OFF)
+endif()
+
 if(DEVELOPER OR CMAKE_BUILD_TYPE STREQUAL "Debug")
 	set(default_DEBUG ON)
 else()
@@ -117,15 +120,10 @@ if(DEBUG)
 	add_definitions(-DARX_DEBUG=1)
 endif()
 
-if (NACL)
-  # Disable CXX11 on NACL, because of compilation issues (GCC on NACL is a little bit outdated)
-  set(USE_CXX11 OFF)
-endif()
-
 # Static libs
 set(default_USE_STATIC_LIBS OFF)
 # Win32 and NACL must use static libraries
-if(WIN32 OR NACL)
+if(WIN32 OR NACL OR EMSCRIPTEN)
 	set(default_USE_STATIC_LIBS ON)
 endif()
 option(USE_STATIC_LIBS          "Statically link libraries" ${default_USE_STATIC_LIBS})
@@ -140,7 +138,7 @@ if(WIN32)
 	set(default_ICON_TYPE "ico")
 elseif(MACOSX)
 	set(default_ICON_TYPE "icns")
-elseif(NACL)
+elseif(NACL OR EMSCRIPTEN)
 	set(default_ICON_TYPE "png")
 else()
 	set(default_ICON_TYPE "iconset")
@@ -221,16 +219,21 @@ elseif(MACOSX)
 	set(DATA_DIR_PREFIXES "/Applications"                 CACHE STRING "Data dir paths")
 	set(USER_DIR          "ArxLibertatis"                 CACHE STRING "User dir names")
 	set(USER_DIR_PREFIXES "$HOME/Library/Application Support" CACHE STRING "User dir paths")
-elseif(NACL)
+elseif(NACL OR EMSCRIPTEN)
   # Special data directories on NACL (corresponding to HTML5FS and HTTPFS mounts. See Startup.cpp)
   set(DATA_DIR
       "arx"
 		  CACHE STRING "Data dir names"
 	  )
-	  set(DATA_DIR_PREFIXES
-      "/mnt/http:/tmp"
-      CACHE STRING "Data dir paths"
-	  )
+      if (NACL)
+	   set(DATA_DIR_PREFIXES
+       "/mnt/http:/tmp"
+       CACHE STRING "Data dir paths"
+	   )
+      elseif(EMSCRIPTEN)
+        set(DATA_DIR_PREFIXES
+         "/data" CACHE STRING "Data dir paths")
+      endif()
 	  set(USER_DIR
 		  "arx"
 		  CACHE STRING "User dir names"
@@ -300,7 +303,7 @@ include(CheckCXXSourceCompiles)
 include(CheckSymbolExists)
 include(CheckTypeSize)
 
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake") # For custom cmake modules
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake") # For custom cmake modules
 
 include(VersionString)
 set(version_names VERSION ICON_NAME DATA_VERSION IO_LIBRARY_ABI_VERSION)
@@ -400,7 +403,7 @@ use_static_libs(Freetype)
 find_package(Freetype REQUIRED)
 has_static_libs(Freetype FREETYPE_LIBRARIES)
 if(Freetype_HAS_STATIC_LIBS)
-  if (NOT NACL)
+  if (NOT NACL AND NOT EMSCRIPTEN)
 	# Freetype may require other libraries depending on how it was configured
 	find_package(PkgConfig QUIET)
 	pkg_check_modules(PC_Freetype freetype2)
@@ -446,15 +449,15 @@ if(Freetype_HAS_STATIC_LIBS)
     set(Freetype_LINKING_ZLIB 1)
     list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
 
-		set(Freetype_LINKING_BZip2 1)
-		find_package(BZip2 REQUIRED)
-		check_link_library(BZip2 BZIP2_LIBRARIES)
-		list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
+	set(Freetype_LINKING_BZip2 1)
+	find_package(BZip2 REQUIRED)
+	check_link_library(BZip2 BZIP2_LIBRARIES)
+	list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
 
-		set(Freetype_LINKING_PNG 1)
+	set(Freetype_LINKING_PNG 1)
     find_package(PNG REQUIRED)
   	check_link_library(PNG PNG_LIBRARIES)
-	  list(APPEND FREETYPE_LIBRARIES ${PNG_LIBRARIES})
+	list(APPEND FREETYPE_LIBRARIES ${PNG_LIBRARIES})
   endif()
 endif()
 use_static_libs_restore()
@@ -471,6 +474,7 @@ if(USE_OPENGL)
 	  find_package(GLEW 1.5.2 ${OPTIONAL_DEPENDENCY})
 	  add_definitions(-DGLEW_NO_GLU)
 	  if(NOT MSVC AND OPENGL_FOUND AND GLEW_FOUND)
+          message("ICI")
 	  	check_link_library(OpenGL OPENGL_gl_LIBRARY)
 	  	check_link_library(GLEW GLEW_LIBRARIES)
 	  endif()
@@ -501,7 +505,7 @@ if(NOT ARX_HAVE_SDL AND (NOT WITH_SDL OR WITH_SDL EQUAL 2))
 		set(SDL_OPTIONAL_DEPENDENCY ${OPTIONAL_DEPENDENCY})
 	endif()
   # On NACL, we need SDL2main so that some initializations are done correctly
-  if (NACL)	
+  if (NACL)
     set(SDL2_BUILDING_LIBRARY 0) 
   else()
     set(SDL2_BUILDING_LIBRARY 1)
@@ -538,10 +542,10 @@ add_definitions(-DBOOST_ALL_NO_LIB)
 # We compile with -fno-rtti and boost is not able to detect that for all compilers.
 add_definitions(-DBOOST_NO_RTTI -DBOOST_NO_TYPEID)
 
-# glm
 find_package(GLM 0.9.5.0 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIRS})
 add_definitions(-DGLM_FORCE_RADIANS)
+add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 
 # DbgHelp
 if(MSVC AND BUILD_CRASHHANDLER)
@@ -713,7 +717,9 @@ else(MSVC)
 	check_symbol_exists(close "unistd.h" ARX_HAVE_CLOSE)
 	check_symbol_exists(setpgid "unistd.h" ARX_HAVE_SETPGID)
 	check_symbol_exists(execvp "unistd.h" ARX_HAVE_EXECVP)
-	check_symbol_exists(posix_spawnp "spawn.h" ARX_HAVE_POSIX_SPAWNP)
+    if(NOT EMSCRIPTEN)
+	    check_symbol_exists(posix_spawnp "spawn.h" ARX_HAVE_POSIX_SPAWNP)
+    endif()
 	if(NOT WIN32)
 		check_symbol_exists(isatty "unistd.h" ARX_HAVE_ISATTY)
 	endif()
@@ -728,7 +734,7 @@ else(MSVC)
 	
 	check_include_file("sys/types.h" ARX_HAVE_SYS_TYPES_H)
 	if(CMAKE_USE_PTHREADS_INIT AND ARX_HAVE_SYS_TYPES_H)
-		set(ARX_HAVE_PTHREADS 1)
+        set(ARX_HAVE_PTHREADS 1)
 	endif()
 	
 	check_symbol_exists(getpid "unistd.h" ARX_HAVE_GETPID)
@@ -768,7 +774,8 @@ else(MSVC)
 		   AND ARX_HAVE_READDIR_R AND ARX_HAVE_GETCWD
 			 AND ((((ARX_HAVE_DIRFD AND ARX_HAVE_FPATHCONF) OR ARX_HAVE_PATHCONF)
 			       AND ARX_HAVE_PC_NAME_MAX) OR ARX_HAVE_NAME_MAX OR NACL)) # NACL have a POSIX filesystem, we just have to do a small hack
-			set(ARX_HAVE_POSIX_FILESYSTEM 1)
+			message("POSIX FS")
+            set(ARX_HAVE_POSIX_FILESYSTEM 1)
 		elseif(STRICT_USE)
 			message(FATAL_ERROR "Missing dependencies for native filesystem backend.")
 		endif()
@@ -1150,7 +1157,7 @@ if(ARX_HAVE_SDL)
 		list(APPEND ARX_LIBRARIES ${SDL_LIBRARY})
 		include_directories(SYSTEM ${SDL_INCLUDE_DIR})
 	endif()
-  if (NOT NACL)
+  if (NOT NACL OR NOT EMSCRIPTEN)
   	add_definitions(-DNO_SDL_GLEXT) # we use GLEW for that
   endif()
 endif()
@@ -1173,8 +1180,10 @@ elseif(USE_NATIVE_FS AND WIN32)
 	list(APPEND IO_FILESYSTEM_SOURCES ${IO_FILESYSTEM_WINDOWS_SOURCES})
 	set(ARX_HAVE_WIN32_FILESYSTEM 1)
 else()
-	
+
+	set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE NEVER)
 	find_package(Boost 1.48 REQUIRED COMPONENTS filesystem system)
+	set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 	set(ARX_HAVE_BOOST_FILESYSTEM_V3 1)
 	add_definitions(-DBOOST_FILESYSTEM_VERSION=3)
 	add_definitions(-DBOOST_FILESYSTEM_NO_DEPRECATED)
@@ -1271,7 +1280,9 @@ set(ARX_SOURCES
 )
 
 # Using include() for now as add_subdirectory causes problems with uses in qrc files
+if(NOT EMSCRIPTEN)
 include(data/CMakeLists.txt)
+endif()
 
 # Set the icon for the Windows executable by adding this resource file to the sources
 if(WIN32)
@@ -1646,7 +1657,7 @@ if(BUILD_TESTS)
 endif()
 
 
-if(NACL)
+if(NACL OR EMSCRIPTEN)
 else()
 # Install Arx Libertatis data files
 # TODO these should be zipped up once we support that
@@ -1673,7 +1684,7 @@ if(INSTALL_SCRIPTS AND NOT WIN32)
 endif()
 
 # Install icon and desktop entry
-if(NOT WIN32 AND NOT MACOSX AND NOT NACL)
+if(NOT WIN32 AND NOT MACOSX AND NOT NACL AND NOT EMSCRIPTEN)
 	
 	find_program(DESKTOP_FILE_VALIDATE desktop-file-validate)
 	

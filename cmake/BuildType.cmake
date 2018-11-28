@@ -85,7 +85,7 @@ if(MSVC)
 	
 	# Always generate a PDB file
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG")
-	
+
 	# Enable compiler optimization in release
 	set(CMAKE_CXX_FLAGS_RELEASE
 	    "${CMAKE_CXX_FLAGS_RELEASE} /Ox /Oi /Ot /GL /GS- /fp:fast")
@@ -149,6 +149,10 @@ else(MSVC)
         add_cxxflag("-Wno-undef")
         add_cxxflag("-Wno-unused-local-typedef")
       endif()
+
+	  if(EMSCRIPTEN)
+		  add_cxxflag("-Wno-unused-private-field") #too noisy
+	  endif()
     	
 			# icc
 			if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -264,7 +268,15 @@ else(MSVC)
 		endif()
 		
 	endif(SET_OPTIMIZATION_FLAGS)
-	
+
+     add_ldflag("-s LEGACY_GL_EMULATION=1")
+     add_ldflag("-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
+     add_ldflag("-s FORCE_FILESYSTEM=1")
+     add_ldflag("-s GL_UNSAFE_OPTS=0")
+     add_ldflag("-s GL_FFP_ONLY=1")
+     add_ldflag("-s BINARYEN_TRAP_MODE=clamp")
+     add_ldflag("-s ALLOW_MEMORY_GROWTH=1")
+
 endif(MSVC)
 
 set(BUILD_TYPES ${CMAKE_CONFIGURATION_TYPES} ${CMAKE_BUILD_TYPE})
