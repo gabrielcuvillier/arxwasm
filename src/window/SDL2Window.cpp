@@ -70,7 +70,6 @@ typedef enum {
 	ARX_SDL_SYSWM_MIR,
 	ARX_SDL_SYSWM_WINRT,
 	ARX_SDL_SYSWM_ANDROID,
-	ARX_SDL_SYSWM_EMSCRIPTEN,   // EMSCRIPTEN
 } ARX_SDL_SYSWM_TYPE;
 struct ARX_SDL_SysWMinfo {
 	SDL_version version;
@@ -234,11 +233,7 @@ bool SDL2Window::initialize() {
 	arx_assert(!m_displayModes.empty());
 
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-#ifdef __EMSCRIPTEN__
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 32); // Otherwise GLContext creation fails for unknown reason
-#else
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-#endif
 
 	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
 	// Used on Windows to prevent software opengl fallback.
@@ -251,7 +246,7 @@ bool SDL2Window::initialize() {
 	#endif
 
 #ifdef __EMSCRIPTEN__
-	// EMSCRIPTEN use ES profile backend
+	// SDL need ES profile on emscripten
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 #else
     // TODO EGL and core profile are not supported yet
@@ -358,12 +353,11 @@ bool SDL2Window::initialize() {
 					#endif
 					#if SDL_VERSION_ATLEAST(2, 0, 4)
 					case ARX_SDL_SYSWM_ANDROID:   system = "Android"; break;
-					case ARX_SDL_SYSWM_EMSCRIPTEN:system = "Emscripten"; break;
 					#endif
 				}
 			}
 		}
-		
+
 		int red = 0, green = 0, blue = 0, alpha = 0, depth = 0, doublebuffer = 0;
 		SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &red);
 		SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &green);
