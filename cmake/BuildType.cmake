@@ -271,7 +271,6 @@ else(MSVC)
 
      add_ldflag("-s LEGACY_GL_EMULATION=1")
      add_ldflag("-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
-     add_ldflag("-s FORCE_FILESYSTEM=1")
      add_ldflag("-s GL_UNSAFE_OPTS=0")
      add_ldflag("-s GL_FFP_ONLY=1")
      add_ldflag("-s BINARYEN_TRAP_MODE=clamp")
