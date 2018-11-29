@@ -72,7 +72,10 @@ static unsigned long PATHFINDER_UPDATE_INTERVAL = 10;
 long PATHFINDER_WORKING = 0;
 
 class PathFinderThread : public StoppableThread {
-	
+
+#ifdef __EMSCRIPTEN__
+public:
+#endif
 	void run();
 	
 };
@@ -242,12 +245,14 @@ static bool EERIE_PATHFINDER_Get_Next_Request(PATHFINDER_REQUEST & request) {
 
 // Pathfinder Thread
 void PathFinderThread::run() {
-	
 	EERIE_BACKGROUND * eb = ACTIVEBKG;
 	PathFinder pathfinder(eb->nbanchors, eb->anchors, MAX_LIGHTS, (EERIE_LIGHT **)GLight);
 
-	while(!isStopRequested()) {
-		
+#ifdef __EMSCRIPTEN__
+	if(!isStopRequested()) {
+#else
+    while(!isStopRequested()) {
+#endif
 		mutex->lock();
 
 		PATHFINDER_WORKING = 1;
@@ -362,3 +367,14 @@ void EERIE_PATHFINDER_Create() {
 	pathfinder->setThreadName("Pathfinder");
 	pathfinder->start();
 }
+
+#ifdef __EMSCRIPTEN__
+// Simulate pathfinder thread running on emscripten. Must be called from emscripten main loop in ArxGame.cpp
+void ARX_PATHFINDER_THREAD_RUN()
+{
+    if (pathfinder && pathfinder->isStarted())
+    {
+        pathfinder->run();
+    }
+}
+#endif

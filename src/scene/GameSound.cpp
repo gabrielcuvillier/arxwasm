@@ -1682,11 +1682,17 @@ static float GetSamplePresenceFactor(const res::path & name) {
 }
 
 class SoundUpdateThread : public StoppableThread {
-	
+
+#ifdef __EMSCRIPTEN__
+public:
+#endif
 	void run() {
-		
-		while(!isStopRequested()) {
-			
+
+#ifdef __EMSCRIPTEN__
+		if(!isStopRequested()) {
+#else
+        while(!isStopRequested()) {
+#endif
 			ARX_PROFILE("SoundUpdate");
 			
 			sleep(ARX_SOUND_UPDATE_INTERVAL);
@@ -1718,3 +1724,14 @@ static void ARX_SOUND_KillUpdateThread() {
 	updateThread->stop();
 	delete updateThread, updateThread = NULL;
 }
+
+#ifdef __EMSCRIPTEN__
+// Simulate sound thread running on emscripten. Must be called from emscripten main loop in ArxGame.cpp
+void ARX_SOUND_THREAD_RUN()
+{
+    if (updateThread && updateThread->isStarted())
+    {
+        updateThread->run();
+    }
+}
+#endif

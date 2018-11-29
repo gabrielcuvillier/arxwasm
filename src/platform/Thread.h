@@ -57,7 +57,7 @@ private:
 #endif
 	
 	std::string threadName;
-	
+
 public:
 	
 	Thread();
@@ -104,9 +104,13 @@ public:
 	void waitForCompletion();
 	
 	static thread_id_type getCurrentThreadId();
-	
+
+#ifdef __EMSCRIPTEN__
+	bool isStarted() { return started; }
+#endif
+
 protected:
-	
+
 	/*!
 	 * \brief The threads main entry point, to be implemented by subclasses
 	 */

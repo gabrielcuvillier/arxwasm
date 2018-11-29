@@ -27,6 +27,10 @@ void Thread::setThreadName(const std::string & _threadName) {
 	threadName = _threadName;
 }
 
+#ifdef __EMSCRIPTEN__
+#pragma message ("Threads not supported on emscripten");
+#endif
+
 #if ARX_HAVE_PTHREADS
 
 #include <sched.h>
@@ -58,14 +62,19 @@ void Thread::start() {
 	
 	sched_param param;
 	param.sched_priority = priority;
-#ifdef __native_client__
-  #pragma message ("Unable to set thread priority")
+#if defined __native_client__ || __EMSCRIPTEN__
+	;
 #else
-  pthread_attr_setschedparam(&attr, &param);
+    pthread_attr_setschedparam(&attr, &param);
 #endif
-	
-	pthread_create(&thread, NULL, entryPoint, this);
-	
+#endif
+
+#ifdef __EMSCRIPTEN__
+    ;
+#else
+    pthread_create(&thread, NULL, entryPoint, this);
+#endif
+
 	pthread_attr_destroy(&attr);
 	
 	started = true;
@@ -79,8 +88,7 @@ void Thread::setPriority(Priority _priority) {
 	int policy = SCHED_RR;
 #endif
 	
-#ifdef __native_client__
-  #pragma message ("Unable to set thread priority")
+#if defined __native_client__ || __EMSCRIPTEN__
   ARX_UNUSED(_priority);
   ARX_UNUSED(policy);
 #else
@@ -101,12 +109,18 @@ Thread::~Thread() { }
 
 void Thread::waitForCompletion() {
 	if(started) {
+#ifdef __EMSCRIPTEN__
+	    ;
+#else
 		pthread_join(thread, NULL);
+#endif
 	}
 }
 
 void * Thread::entryPoint(void * param) {
-	
+
+    LogInfo << "Thread started";
+
 	Thread & thread = *((Thread *)param);
 	
 	// Set the thread name.
@@ -137,7 +151,11 @@ void * Thread::entryPoint(void * param) {
 }
 
 void Thread::exit() {
+#ifdef __EMSCRIPTEN__
+    ;
+#else
 	pthread_exit(NULL);
+#endif
 }
 
 thread_id_type Thread::getCurrentThreadId() {
@@ -255,8 +273,12 @@ void Thread::sleep(unsigned milliseconds) {
 	timespec t;
 	t.tv_sec = milliseconds / 1000;
 	t.tv_nsec = (milliseconds % 1000) * 1000000;
-	
+
+#ifdef __EMSCRIPTEN__
+	;
+#else
 	nanosleep(&t, NULL);
+#endif
 }
 
 #elif ARX_PLATFORM == ARX_PLATFORM_WIN32
