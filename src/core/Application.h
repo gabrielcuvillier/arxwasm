@@ -103,7 +103,7 @@ public:
 
 #ifdef __EMSCRIPTEN__
 	// main loop for emscripten
-	virtual bool emscrimpten_run() = 0;
+	virtual bool emscripten_run() = 0;
 #endif
 
 protected:
