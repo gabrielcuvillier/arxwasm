@@ -36,7 +36,7 @@
 
 namespace gldebug {
 
-#if defined(GL_ARB_debug_output)
+#if defined(GL_ARB_debug_output) && !defined(__EMSCRIPTEN__)
 
 static const char * sourceToString(GLenum source) {
 	
