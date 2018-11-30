@@ -23,7 +23,7 @@
 #include "graphics/VertexBuffer.h"
 #include "graphics/Vertex.h"
 #include "graphics/opengl/OpenGLRenderer.h"
-
+#include "io/log/Logger.h"
 template <class Vertex>
 static void renderVertex(const Vertex & vertex);
 
@@ -32,11 +32,17 @@ void renderVertex(const TexturedVertex & vertex) {
 	
 	Color c = Color::fromRGBA(vertex.color);
 	glColor4ub(c.r, c.g, c.b, c.a);
-	
+
+#ifndef __EMSCRIPTEN__
 	glMultiTexCoord2f(GL_TEXTURE0, vertex.uv.x, vertex.uv.y);
 	
 	GLfloat w = 1.0f / vertex.rhw; 
 	glVertex4f(vertex.p.x * w, vertex.p.y * w, vertex.p.z * w, w);
+#else
+    glTexCoord2f(vertex.uv.x, vertex.uv.y);
+    GLfloat w = 1.0f / vertex.rhw;
+    glVertex3f(vertex.p.x * w, vertex.p.y * w, vertex.p.z * w);
+#endif
 }
 
 template <>
@@ -44,10 +50,17 @@ void renderVertex(const SMY_VERTEX & vertex) {
 	
 	Color c = Color::fromRGBA(vertex.color);
 	glColor4ub(c.r, c.g, c.b, c.a);
-	
-	glMultiTexCoord2f(GL_TEXTURE0, vertex.uv.x, vertex.uv.y);
+
+
+#ifndef __EMSCRIPTEN__
+	glMultiTexCoord2d(GL_TEXTURE0, vertex.uv.x, vertex.uv.y);
 	
 	glVertex3f(vertex.p.x, vertex.p.y, vertex.p.z);
+#else
+    glTexCoord2f(vertex.uv.x, vertex.uv.y);
+
+    glVertex3f(vertex.p.x, vertex.p.y, vertex.p.z);
+#endif
 }
 
 template <>
@@ -55,12 +68,18 @@ void renderVertex(const SMY_VERTEX3 & vertex) {
 	
 	Color c = Color::fromRGBA(vertex.color);
 	glColor4ub(c.r, c.g, c.b, c.a);
-	
+
+#ifndef __EMSCRIPTEN__
 	glMultiTexCoord2f(GL_TEXTURE0, vertex.uv[0].x, vertex.uv[0].y);
 	glMultiTexCoord2f(GL_TEXTURE1, vertex.uv[1].x, vertex.uv[1].y);
 	glMultiTexCoord2f(GL_TEXTURE2, vertex.uv[2].x, vertex.uv[2].y);
 	
 	glVertex3f(vertex.p.x, vertex.p.y, vertex.p.z);
+#else
+    glTexCoord2f(vertex.uv[0].x, vertex.uv[0].y);
+
+    glVertex3f(vertex.p.x, vertex.p.y, vertex.p.z);
+#endif
 }
 
 extern const GLenum arxToGlPrimitiveType[];

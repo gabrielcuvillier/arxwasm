@@ -114,7 +114,10 @@ static bool checkShader(GLuint object, const char * op, GLuint check) {
 }
 
 static GLuint loadVertexShader(const char * source) {
-	
+
+#ifdef __EMSCRIPTEN__
+	return 0;
+#else
 	GLuint shader = glCreateProgramObjectARB();
 	if(!shader) {
 		LogWarning << "Failed to create program object";
@@ -146,6 +149,7 @@ static GLuint loadVertexShader(const char * source) {
 	}
 	
 	return shader;
+#endif
 }
 
 void OpenGLRenderer::initialize() {
@@ -294,7 +298,7 @@ void OpenGLRenderer::reinit() {
 		}
 	}
 
-#ifdef __native_client__
+#if defined __native_client__ || defined __EMSCRIPTEN__
   useVertexArrays = false;
 #else
 	useVertexArrays = true;
@@ -639,6 +643,8 @@ void OpenGLRenderer::setMaxAnisotropy(float value) {
 	}
 }
 
+#ifdef __EMSCRIPTEN__
+#else
 template <typename Vertex>
 static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
                                                      size_t capacity,
@@ -646,7 +652,7 @@ static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
                                                      const std::string & setting) {
 	
 	bool matched = false;
-	
+
 	if(GLEW_ARB_map_buffer_range) {
 		
 		#ifdef GL_ARB_buffer_storage
@@ -687,11 +693,11 @@ static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
 		}
 		
 	}
-	
+
 	if(setting.empty() || setting == "map" || setting == "map+subdata") {
 		return new GLVertexBuffer<Vertex>(renderer, capacity, usage);
 	}
-	
+
 	static bool warned = false;
 	if(!matched && !warned) {
 		LogWarning << "Ignoring unsupported video.buffer_upload setting: " << setting;
@@ -699,13 +705,18 @@ static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
 	}
 	return createVertexBufferImpl<Vertex>(renderer, capacity, usage, std::string());
 }
+#endif
 
 template <typename Vertex>
 static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
                                                      size_t capacity,
                                                      Renderer::BufferUsage usage) {
 	const std::string & setting = config.video.bufferUpload;
+#ifdef __EMSCRIPTEN__
+	return new GLNoVertexBuffer<Vertex>(renderer, capacity);
+#else
 	return createVertexBufferImpl<Vertex>(renderer, capacity, usage, setting);
+#endif
 }
 
 VertexBuffer<TexturedVertex> * OpenGLRenderer::createVertexBufferTL(size_t capacity, BufferUsage usage) {
