@@ -28,7 +28,7 @@ void Thread::setThreadName(const std::string & _threadName) {
 }
 
 #ifdef __EMSCRIPTEN__
-#pragma message ("Threads not supported on emscripten");
+#pragma message ("Threads not supported on emscripten")
 #endif
 
 #if ARX_HAVE_PTHREADS
@@ -66,7 +66,6 @@ void Thread::start() {
 	;
 #else
     pthread_attr_setschedparam(&attr, &param);
-#endif
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -118,8 +117,6 @@ void Thread::waitForCompletion() {
 }
 
 void * Thread::entryPoint(void * param) {
-
-    LogInfo << "Thread started";
 
 	Thread & thread = *((Thread *)param);
 	
