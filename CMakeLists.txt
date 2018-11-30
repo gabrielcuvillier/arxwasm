@@ -1,5 +1,12 @@
 project(ArxLibertatis)
 
+unset(CMAKE_C_USE_RESPONSE_FILE_FOR_LIBRARIES)
+unset(CMAKE_CXX_USE_RESPONSE_FILE_FOR_LIBRARIES)
+unset(CMAKE_C_USE_RESPONSE_FILE_FOR_OBJECTS)
+unset(CMAKE_CXX_USE_RESPONSE_FILE_FOR_OBJECTS)
+unset(CMAKE_C_USE_RESPONSE_FILE_FOR_INCLUDES)
+unset(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES)
+
 if(MSVC)
 	# CMake 2.8.5 or newer is needed for CMAKE_LIBRARY_ARCHITECTURE support.
 	cmake_minimum_required(VERSION 2.8.5)
@@ -474,7 +481,6 @@ if(USE_OPENGL)
 	  find_package(GLEW 1.5.2 ${OPTIONAL_DEPENDENCY})
 	  add_definitions(-DGLEW_NO_GLU)
 	  if(NOT MSVC AND OPENGL_FOUND AND GLEW_FOUND)
-          message("ICI")
 	  	check_link_library(OpenGL OPENGL_gl_LIBRARY)
 	  	check_link_library(GLEW GLEW_LIBRARIES)
 	  endif()
@@ -482,8 +488,8 @@ if(USE_OPENGL)
     # Don't use find_package, as we have to use some custom GL implementation (Regal)
     # This is done by the toolchain file.
 
-    # Ensure it is correctly setup 
-    check_link_library(OpenGL OPENGL_gl_LIBRARY)
+    # Ensure it is correctly setup
+	check_link_library(OpenGL OPENGL_gl_LIBRARY)
     set(OPENGL_FOUND 1)
   endif()
 endif()
@@ -774,8 +780,7 @@ else(MSVC)
 		   AND ARX_HAVE_READDIR_R AND ARX_HAVE_GETCWD
 			 AND ((((ARX_HAVE_DIRFD AND ARX_HAVE_FPATHCONF) OR ARX_HAVE_PATHCONF)
 			       AND ARX_HAVE_PC_NAME_MAX) OR ARX_HAVE_NAME_MAX OR NACL)) # NACL have a POSIX filesystem, we just have to do a small hack
-			message("POSIX FS")
-            set(ARX_HAVE_POSIX_FILESYSTEM 1)
+			set(ARX_HAVE_POSIX_FILESYSTEM 1)
 		elseif(STRICT_USE)
 			message(FATAL_ERROR "Missing dependencies for native filesystem backend.")
 		endif()
@@ -1157,7 +1162,7 @@ if(ARX_HAVE_SDL)
 		list(APPEND ARX_LIBRARIES ${SDL_LIBRARY})
 		include_directories(SYSTEM ${SDL_INCLUDE_DIR})
 	endif()
-  if (NOT NACL OR NOT EMSCRIPTEN)
+  if (NOT NACL)
   	add_definitions(-DNO_SDL_GLEXT) # we use GLEW for that
   endif()
 endif()

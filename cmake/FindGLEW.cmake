@@ -20,81 +20,14 @@
 # Adapted from:
 #	http://nvidia-texture-tools.googlecode.com/svn-history/r96/trunk/cmake/FindGLEW.cmake
 
-if(UNIX)
-	find_package(PkgConfig QUIET)
-	pkg_check_modules(_PC_GLEW glew)
-endif()
 
-include(UseStaticLibs)
-use_static_libs(GLEW _PC_GLEW)
-
-find_path(GLEW_INCLUDE_DIR GL/glew.h
-	HINTS
-		${_PC_GLEW_INCLUDE_DIRS}
-	PATHS
-		/usr/include
-		/usr/local/include
-		/sw/include
-		/opt/local/include
-		$ENV{PROGRAMFILES}/GLEW/include
-	DOC "The directory where GL/glew.h resides"
-)
-mark_as_advanced(GLEW_INCLUDE_DIR)
-
-set(_glew_library_names GLEW glew)
-
-if(WIN32)
-	list(APPEND _glew_library_names glew32 glew64)
-	if(GLEW_USE_STATIC_LIBS)
-		set(_glew_library_names glew32s glew64s ${_glew_library_names})
-	endif()
-endif()
-
-# Prefer libraries in the same prefix as the include files
-string(REGEX REPLACE "(.*)/include/?" "\\1" GLEW_BASE_DIR "${GLEW_INCLUDE_DIR}")
-
-find_library(GLEW_LIBRARY
-	NAMES ${_glew_library_names}
-	HINTS
-		${_PC_GLEW_LIBRARY_DIRS}
-		"${GLEW_BASE_DIR}/lib"
-	PATHS
-		/usr/lib64
-		/usr/lib
-		/usr/local/lib64
-		/usr/local/lib
-		/sw/lib
-		/opt/local/lib
-		$ENV{PROGRAMFILES}/GLEW/lib
-	DOC "The GLEW library"
-)
-mark_as_advanced(GLEW_LIBRARY)
-
-use_static_libs_restore()
-
+set(GLEW_INCLUDE_DIR "${EMSCRIPTEN_ROOT_PATH}/system/include")
+set(GLEW_LIBRARY   "nul")
 set(GLEW_DEFINITIONS -DGL_GLEXT_PROTOTYPES)
-if(WIN32 AND GLEW_USE_STATIC_LIBS)
-	list(APPEND GLEW_DEFINITIONS -DGLEW_STATIC)
-endif()
-
-if(NOT DEFINED GLEW_VERSION_STRING AND GLEW_LIBRARY MATCHES ".*\\.so")
-	get_filename_component(_glew_soname "${GLEW_LIBRARY}" REALPATH)
-	string(REGEX REPLACE "^.*\\.so\\." "" _glew_soversion "${_glew_soname}")
-	if(_glew_soversion MATCHES "^([0-9]+)(\\.([0-9]+))+$")
-		set(GLEW_VERSION_STRING "${_glew_soversion}")
-	endif()
-endif()
-
-if(UNIX AND NOT DEFINED GLEW_VERSION_STRING AND _PC_GLEW_FOUND)
-	set(GLEW_VERSION_STRING "${_PC_GLEW_VERSION}")
-endif()
-
-# handle the QUIETLY and REQUIRED arguments and set GLEW_FOUND to TRUE if
-# all listed variables are TRUE
+set(GLEW_VERSION_STRING "1.10.0")
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(GLEW REQUIRED_VARS GLEW_LIBRARY GLEW_INCLUDE_DIR
-                                  VERSION_VAR GLEW_VERSION_STRING)
-
+        VERSION_VAR GLEW_VERSION_STRING)
 if(GLEW_FOUND)
-	set(GLEW_LIBRARIES ${GLEW_LIBRARY})
+    set(GLEW_LIBRARIES ${GLEW_LIBRARY})
 endif(GLEW_FOUND)

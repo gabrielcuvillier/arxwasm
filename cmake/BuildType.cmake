@@ -269,9 +269,13 @@ else(MSVC)
 		
 	endif(SET_OPTIMIZATION_FLAGS)
 
+	  #add_cxxflag("-g")
+	  #add_ldflag("-g")
+
      add_ldflag("-s LEGACY_GL_EMULATION=1")
      add_ldflag("-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
-     add_ldflag("-s GL_UNSAFE_OPTS=0")
+     add_ldflag("-s FORCE_FILESYSTEM=1")
+     add_ldflag("-s GL_UNSAFE_OPTS=1")
      add_ldflag("-s GL_FFP_ONLY=1")
      add_ldflag("-s BINARYEN_TRAP_MODE=clamp")
      add_ldflag("-s ALLOW_MEMORY_GROWTH=1")
