@@ -52,7 +52,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 class ArxGame : public Application, public Window::Listener, public Renderer::Listener {
 	
-protected:
+public:
 	
 	virtual bool initialize();
 	bool initConfig();
@@ -85,6 +85,10 @@ public:
 	virtual ~ArxGame();
 	
 	virtual void run();
+
+#ifdef __EMSCRIPTEN__
+	virtual bool emscripten_run();
+#endif
 	
 private:
 	void updateTime();

@@ -54,6 +54,11 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include <glm/gtx/norm.hpp>
 
+#ifdef __EMSCRIPTEN__
+// For emscripten_set_main_loop() and emscripten_cancel_main_loop()
+#include "emscripten.h"
+#endif
+
 #include "ai/PathFinderManager.h"
 #include "ai/Paths.h"
 
@@ -407,7 +412,7 @@ bool ArxGame::initWindow(RenderWindow * window) {
 		m_MainWindow = NULL;
 		return false;
 	}
-	
+
 	// Register ourself as a listener for this window messages
 	m_MainWindow->addListener(this);
 	m_MainWindow->getRenderer()->addListener(this);
@@ -431,31 +436,31 @@ bool ArxGame::initWindow(RenderWindow * window) {
 			config.video.resolution = mode.resolution;
 		}
 	}
-	
+
 	m_MainWindow->setTitle(arx_name + " " + arx_version);
 	m_MainWindow->setMinimizeOnFocusLost(config.window.minimizeOnFocusLost);
 	m_MainWindow->setMinTextureUnits(3);
-  #ifdef __native_client__
+  #if defined __native_client__ || defined __EMSCRIPTEN__
     // Disable antialiasing on NACL, as it do to not work at all
     m_MainWindow->setMaxMSAALevel(1);
   #else
     m_MainWindow->setMaxMSAALevel(config.video.antialiasing ? 8 : 1);
   #endif
 	m_MainWindow->setVSync(config.video.vsync ? 1 : 0);
-	
+
 	setWindowSize(config.video.fullscreen);
-	
+
 	if(!m_MainWindow->initialize()) {
 		m_MainWindow = NULL;
 		return false;
 	}
-	
+
 	if(GRenderer == NULL) {
 		// We could not initialize all resources in onRendererInit().
 		m_MainWindow = NULL;
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -479,7 +484,7 @@ bool ArxGame::initWindow() {
 			}
 		}
 		#endif
-		
+
 		#if ARX_HAVE_SDL1
 		if(!m_MainWindow && first == (autoFramework || config.window.framework == "SDL")) {
 			matched = true;
@@ -1239,32 +1244,62 @@ void ArxGame::onToggleFullscreen(const Window & window) {
 	config.video.fullscreen = window.isFullScreen();
 }
 
+#ifdef __EMSCRIPTEN__
+
+// External functions used to simulate sound and pathfinder threads runnning (threading is disabled in emscripten)
+extern void ARX_SOUND_THREAD_RUN();
+extern void ARX_PATHFINDER_THREAD_RUN();
+
+bool ArxGame::emscripten_run()
+{
+    if (m_RunLoop) {
+        ARX_PROFILE(Main Loop);
+
+        platform::reapZombies();
+
+        m_MainWindow->tick();
+        if(m_RunLoop) {
+            if(m_MainWindow->isVisible() && !m_MainWindow->isMinimized() && m_bReady) {
+                doFrame();
+
+                // execute sound and pathfinder threads
+                ARX_SOUND_THREAD_RUN();
+                ARX_PATHFINDER_THREAD_RUN();
+
+                // Show the frame on the primary surface.
+                m_MainWindow->showFrame();
+            }
+        }
+    }
+
+    return m_RunLoop;
+}
+
+static void emloopcb()
+{
+	if (!mainApp)
+		return;
+
+	if (mainApp->emscripten_run() == false)
+    {
+	    emscripten_cancel_main_loop();
+	    benchmark::begin(benchmark::Shutdown);
+
+        if(mainApp) {
+            mainApp->shutdown();
+            delete mainApp;
+            mainApp = NULL;
+        }
+    }
+}
+#endif
+
 /*!
  * \brief Message-processing loop. Idle time is used to render the scene.
  */
 void ArxGame::run() {
-	
-	while(m_RunLoop) {
-		
-		ARX_PROFILE(Main Loop);
-		
-		platform::reapZombies();
-		
-		m_MainWindow->tick();
-		if(!m_RunLoop) {
-			break;
-		}
-		
-		if(m_MainWindow->isVisible() && !m_MainWindow->isMinimized() && m_bReady) {
-			doFrame();
-			
-			// Show the frame on the primary surface.
-			m_MainWindow->showFrame();
-		}
-	}
-	
-	benchmark::begin(benchmark::Shutdown);
-	
+    LogInfo << "Starting Main Loop";
+    emscripten_set_main_loop(emloopcb,0,true);
 }
 
 /*!
