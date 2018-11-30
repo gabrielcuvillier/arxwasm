@@ -1,8 +1,10 @@
 build_nacl
 build_pnacl
+build-wasm
 *~
 *.pexe
 *.nexe
 build
 *.orig
 arx_
+.idea
