@@ -41,7 +41,7 @@ void renderVertex(const TexturedVertex & vertex) {
 #else
     glTexCoord2f(vertex.uv.x, vertex.uv.y);
     GLfloat w = 1.0f / vertex.rhw;
-    glVertex3f(vertex.p.x * w, vertex.p.y * w, vertex.p.z * w);
+    glVertex4f(vertex.p.x * w, vertex.p.y * w, vertex.p.z * w, w);
 #endif
 }
 
