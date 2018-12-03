@@ -120,6 +120,7 @@ void GLTextureStage::setOp(OpType alpha, GLint op, GLfloat scale) {
 void GLTextureStage::setOp(OpType alpha, TextureOp op) {
 	
 	if(mStage != 0) {
+		return;
 		glActiveTexture(GL_TEXTURE0 + mStage);
 	}
 		
@@ -273,6 +274,7 @@ void GLTextureStage::setMipFilter(FilterMode filterMode) {
 void GLTextureStage::setMipMapLODBias(float bias) {
 	
 	if(mStage != 0) {
+		return;
 		glActiveTexture(GL_TEXTURE0 + mStage);
 	}
 	
@@ -290,6 +292,7 @@ void GLTextureStage::apply() {
 	}
 	
 	if(mStage != 0) {
+		return;
 		glActiveTexture(GL_TEXTURE0 + mStage);
 	}
 	
