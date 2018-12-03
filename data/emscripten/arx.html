@@ -1284,7 +1284,6 @@
         }
       };
       Module.setStatus('Downloading...');
-      Module.GL_MAX_TEXTURE_IMAGE_UNITS = 3;
       window.onerror = function(event) {
         // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
         Module.setStatus('Exception thrown, see JavaScript console');
