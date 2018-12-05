@@ -77,10 +77,12 @@ struct ARX_SDL_SysWMinfo {
 	char padding[1024];
 };
 
-#ifdef __native_client__
+#if defined __native_client__ || defined __EMSCRIPTEN__
 #include <GL/Regal.h>
+#if defined __native_client__
 #include <ppapi_simple/ps_main.h>
 #include <ppapi/c/ppb_opengles2.h>
+#endif
 #endif
 
 SDL2Window * SDL2Window::s_mainWindow = NULL;
@@ -297,8 +299,10 @@ bool SDL2Window::initialize() {
 			continue;
 		}
 
-#ifdef __native_client__
-    RegalMakeCurrent((int32_t)m_glcontext,(PPB_OpenGLES2*)PSGetInterface(PPB_OPENGLES2_INTERFACE));
+#if defined __native_client__
+        RegalMakeCurrent((int32_t)m_glcontext,(PPB_OpenGLES2*)PSGetInterface(PPB_OPENGLES2_INTERFACE));
+#elif defined __EMSCRIPTEN__
+		RegalMakeCurrent((void*)1);
 #endif
 
 		// Verify that the MSAA setting matches what was requested

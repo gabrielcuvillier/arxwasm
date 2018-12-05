@@ -24,12 +24,11 @@
 
 #include <map>
 
-#ifdef __native_client__
+#if defined __native_client__ || defined __EMSCRIPTEN__
 #include <GL/Regal.h>
 #else
 #include <GL/glew.h>
 #endif
-
 
 class OpenGLRenderer;
 class GLTexture2D;

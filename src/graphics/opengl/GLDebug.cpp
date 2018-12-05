@@ -21,9 +21,9 @@
 
 #include <cstring>
 
-#ifdef __native_client__
+#if defined __native_client__ || defined __EMSCRIPTEN__
 #include <GL/Regal.h>
-#define GLEW_ARB_debug_output 0
+#define GLEW_ARB_debug_output 1
 #else
 #include <GL/glew.h>
 #endif
@@ -36,7 +36,7 @@
 
 namespace gldebug {
 
-#if defined(GL_ARB_debug_output) && !defined(__EMSCRIPTEN__)
+#if defined(GL_ARB_debug_output)
 
 static const char * sourceToString(GLenum source) {
 	

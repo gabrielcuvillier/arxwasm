@@ -22,12 +22,11 @@
 
 #include <boost/intrusive/list_hook.hpp>
 
-#ifdef __native_client__
+#if defined __native_client__ || defined __EMSCRIPTEN__
 #include <GL/Regal.h>
 #else
 #include <GL/glew.h>
 #endif
-
 
 #include "graphics/texture/Texture.h"
 #include "graphics/texture/TextureStage.h"

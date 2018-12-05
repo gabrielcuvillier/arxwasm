@@ -341,11 +341,10 @@ if((NOT LAST_CMAKE_CXX_FLAGS STREQUAL CMAKE_CXX_FLAGS)
 	force_recheck_library(Freetype)
 	force_recheck_library(Threads)
 	force_recheck_library(OpenAL)
-  # GLEW is not supported on NACL
-  if (NOT NACL)
     force_recheck_library(OpenGL)
+	if (NOT NACL AND NOT EMSCRIPTEN)
     force_recheck_library(GLEW)
-  endif()
+	endif()
 	force_recheck_library(Boost)
 	force_recheck_library(QtCore)
 	force_recheck_library(QtConcurrent)
@@ -476,7 +475,7 @@ include_directories(SYSTEM ${FREETYPE_INCLUDE_DIRS})
 
 # OpenGL
 if(USE_OPENGL)
-  if(NOT NACL)
+  if(NOT NACL AND NOT EMSCRIPTEN)
     find_package(OpenGL ${OPTIONAL_DEPENDENCY})
 	  find_package(GLEW 1.5.2 ${OPTIONAL_DEPENDENCY})
 	  add_definitions(-DGLEW_NO_GLU)
@@ -489,6 +488,11 @@ if(USE_OPENGL)
     # This is done by the toolchain file.
 
     # Ensure it is correctly setup
+	add_definitions(-DREGAL_SYS_EMSCRIPTEN_STATIC=1)
+	set(OPENGL_INCLUDE_DIR		$ENV{EMSCRIPTEN}/system/local/include)
+	set(OPENGL_gl_LIBRARY    	$ENV{EMSCRIPTEN}/system/local/lib/libRegallib.a)
+	set(OPENGL_LIBRARIES	    $ENV{EMSCRIPTEN}/system/local/lib/libRegallib.a $ENV{EMSCRIPTEN}/system/local/lib/libglslopt.a) # this is required too
+
 	check_link_library(OpenGL OPENGL_gl_LIBRARY)
     set(OPENGL_FOUND 1)
   endif()
@@ -1136,7 +1140,7 @@ if(USE_OPENAL AND OPENAL_FOUND)
 endif()
 
 # Graphics
-if(USE_OPENGL AND OPENGL_FOUND AND (GLEW_FOUND OR NACL)) # GLEW is not required on NACL
+if(USE_OPENGL AND OPENGL_FOUND AND (GLEW_FOUND OR NACL OR EMSCRIPTEN))
 	list(APPEND GRAPHICS_SOURCES ${GRAPHICS_OPENGL_SOURCES})
 	list(APPEND ARX_LIBRARIES ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
 	include_directories(SYSTEM ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIR})
@@ -1154,7 +1158,7 @@ if(ARX_HAVE_SDL)
 	if(ARX_HAVE_SDL2)
 		list(APPEND WINDOW_SOURCES ${WINDOW_SDL2_SOURCES})
 		list(APPEND INPUT_SOURCES ${INPUT_SDL2_SOURCES})
-		#list(APPEND ARX_LIBRARIES ${SDL2_LIBRARIES})
+		list(APPEND ARX_LIBRARIES ${SDL2_LIBRARIES})
 		include_directories(SYSTEM ${SDL2_INCLUDE_DIR})
 	elseif(ARX_HAVE_SDL1)
 		list(APPEND WINDOW_SOURCES ${WINDOW_SDL1_SOURCES})
@@ -1162,9 +1166,7 @@ if(ARX_HAVE_SDL)
 		list(APPEND ARX_LIBRARIES ${SDL_LIBRARY})
 		include_directories(SYSTEM ${SDL_INCLUDE_DIR})
 	endif()
-  if (NOT NACL)
   	add_definitions(-DNO_SDL_GLEXT) # we use GLEW for that
-  endif()
 endif()
 
 # Logging

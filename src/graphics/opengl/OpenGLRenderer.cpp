@@ -36,9 +36,9 @@
 #include "platform/CrashHandler.h"
 #include "window/RenderWindow.h"
 
-#ifdef __native_client__
-  #define GLEW_ARB_texture_non_power_of_two 0
-  #define GLEW_ARB_draw_elements_base_vertex 0
+#if defined __native_client__ || defined __EMSCRIPTEN__
+  #define GLEW_ARB_texture_non_power_of_two 1
+  #define GLEW_ARB_draw_elements_base_vertex 1
   #define GLEW_ARB_map_buffer_range 0
   #define GLEW_EXT_texture_filter_anisotropic 0
   #define GLEW_VERSION_2_0 0
@@ -115,9 +115,6 @@ static bool checkShader(GLuint object, const char * op, GLuint check) {
 
 static GLuint loadVertexShader(const char * source) {
 
-#ifdef __EMSCRIPTEN__
-	return 0;
-#else
 	GLuint shader = glCreateProgramObjectARB();
 	if(!shader) {
 		LogWarning << "Failed to create program object";
@@ -149,12 +146,12 @@ static GLuint loadVertexShader(const char * source) {
 	}
 	
 	return shader;
-#endif
 }
 
 void OpenGLRenderer::initialize() {
-	
-#ifdef __native_client__
+
+#if defined __native_client__ || defined __EMSCRIPTEN__
+    LogInfo << "Not using GLEW";
 #else
 	if(glewInit() != GLEW_OK) {
 		LogError << "GLEW init failed";
@@ -230,7 +227,8 @@ void OpenGLRenderer::initialize() {
 	
 	{
 		std::ostringstream oss;
-#ifdef __native_client__
+#if defined __native_client__ || defined __EMSCRIPTEN__
+		;
 #else
 		oss << "GLEW " << glewVersion << '\n';
 #endif
@@ -299,7 +297,7 @@ void OpenGLRenderer::reinit() {
 	}
 
 #if defined __native_client__ || defined __EMSCRIPTEN__
-  useVertexArrays = false;
+    useVertexArrays = false;
 #else
 	useVertexArrays = true;
 #endif
@@ -308,7 +306,7 @@ void OpenGLRenderer::reinit() {
 		LogWarning << "Missing OpenGL extension ARB_draw_elements_base_vertex!";
 	}
 	
-	useVBOs = useVertexArrays;
+	useVBOs = false;
 	if(useVBOs && !GLEW_ARB_map_buffer_range) {
 		LogWarning << "Missing OpenGL extension ARB_map_buffer_range, VBO performance will suffer.";
 	}
@@ -643,8 +641,6 @@ void OpenGLRenderer::setMaxAnisotropy(float value) {
 	}
 }
 
-#ifdef __EMSCRIPTEN__
-#else
 template <typename Vertex>
 static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
                                                      size_t capacity,
@@ -705,18 +701,13 @@ static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
 	}
 	return createVertexBufferImpl<Vertex>(renderer, capacity, usage, std::string());
 }
-#endif
 
 template <typename Vertex>
 static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
                                                      size_t capacity,
                                                      Renderer::BufferUsage usage) {
 	const std::string & setting = config.video.bufferUpload;
-#ifdef __EMSCRIPTEN__
-	return new GLNoVertexBuffer<Vertex>(renderer, capacity);
-#else
 	return createVertexBufferImpl<Vertex>(renderer, capacity, usage, setting);
-#endif
 }
 
 VertexBuffer<TexturedVertex> * OpenGLRenderer::createVertexBufferTL(size_t capacity, BufferUsage usage) {

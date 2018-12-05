@@ -68,22 +68,21 @@ void GLTexture2D::Upload() {
 	GLint internal;
 	GLenum format;
 	if(flags & Intensity) {
-		internal = GL_INTENSITY8, format = GL_RED;
-		return;
+		internal = GL_ALPHA8, format = GL_ALPHA;
 	} else if(mFormat == Image::Format_L8) {
-		internal = 0x1909 /*GL_LUMINANCE8*/, format = GL_LUMINANCE;
+		internal = GL_LUMINANCE8, format = GL_LUMINANCE;
 	} else if(mFormat == Image::Format_A8) {
-		internal = 0x1906 /*GL_ALPHA8*/, format = GL_ALPHA;
+		internal = GL_ALPHA8, format = GL_ALPHA;
 	} else if(mFormat == Image::Format_L8A8) {
-		internal = 0x190A /*GL_LUMINANCE8_ALPHA8*/, format = GL_LUMINANCE_ALPHA;
+		internal = GL_LUMINANCE8_ALPHA8, format = GL_LUMINANCE_ALPHA;
 	} else if(mFormat == Image::Format_R8G8B8) {
-		internal = 0x1907 /*GL_RGB8*/, format = GL_RGB;
+		internal = GL_RGB8, format = GL_RGB;
 	} else if(mFormat == Image::Format_B8G8R8) {
-		internal = 0x1907 /*GL_RGB8*/, format = GL_BGR;
+		internal = GL_RGB8, format = GL_BGR;
 	} else if(mFormat == Image::Format_R8G8B8A8) {
-		internal = 0x1908 /*GL_RGBA8*/, format = GL_RGBA;
+		internal = GL_RGBA8, format = GL_RGBA;
 	} else if(mFormat == Image::Format_B8G8R8A8) {
-		internal = 0x1908 /*GL_RGBA8*/, format = GL_BGRA;
+		internal = GL_RGBA8, format = GL_BGRA;
 	} else {
 		arx_assert(false, "Unsupported image format: %ld", long(mFormat));
 		return;
@@ -95,7 +94,7 @@ void GLTexture2D::Upload() {
   
 #if defined __native_client__ || defined __EMSCRIPTEN__
 #pragma message( "Problems with Mimaps and fitering with OpenGL ES 2" )
-  flags &= ~HasMipmaps;
+    flags &= ~HasMipmaps;
 #endif
 
 	if(hasMipmaps()) {
@@ -104,7 +103,7 @@ void GLTexture2D::Upload() {
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, renderer->getMaxAnisotropy());
 		}
 	} else {
-		  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	}
   
 	// TODO handle GL_MAX_TEXTURE_SIZE

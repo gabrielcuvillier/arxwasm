@@ -27,9 +27,9 @@
 #include "graphics/Math.h"
 #include "graphics/opengl/OpenGLRenderer.h"
 
-#ifdef __native_client__
-  #define GLEW_ARB_map_buffer_range 0
-  #define GLEW_ARB_draw_elements_base_vertex 0
+#if defined __native_client__ || defined __EMSCRIPTEN__
+#define GLEW_ARB_map_buffer_range 0
+#define GLEW_ARB_draw_elements_base_vertex 1
 #endif
 
 #include "io/log/Logger.h"
