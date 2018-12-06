@@ -62,7 +62,7 @@ void Thread::start() {
 	
 	sched_param param;
 	param.sched_priority = priority;
-#if defined __native_client__ || __EMSCRIPTEN__
+#if defined __native_client__ || defined __EMSCRIPTEN__
 	;
 #else
     pthread_attr_setschedparam(&attr, &param);
@@ -87,7 +87,7 @@ void Thread::setPriority(Priority _priority) {
 	int policy = SCHED_RR;
 #endif
 	
-#if defined __native_client__ || __EMSCRIPTEN__
+#if defined __native_client__ || defined __EMSCRIPTEN__
   ARX_UNUSED(_priority);
   ARX_UNUSED(policy);
 #else

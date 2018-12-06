@@ -34,7 +34,7 @@ Lock::~Lock() {
 
 void Lock::lock() {
 
-#ifdef __EMSCRITPEN__
+#ifdef __EMSCRIPTEN__
 	locked = true;
 #else
 	pthread_mutex_lock(&mutex);
