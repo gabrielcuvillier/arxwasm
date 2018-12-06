@@ -440,6 +440,17 @@ PakReader::~PakReader() {
 	clear();
 }
 
+#include "emscripten.h"
+
+static bool safeG(emscripten_align1_int & data, char * & pos, u32 & size) {
+
+	const emscripten_align1_int* dat = reinterpret_cast<const emscripten_align1_int *>(pos);
+    data = *dat;
+    pos += sizeof(emscripten_align1_int);
+    size -= sizeof(emscripten_align1_int);
+    return true;
+}
+
 bool PakReader::addArchive(const fs::path & pakfile) {
 	
 	fs::ifstream * ifs = new fs::ifstream(pakfile, fs::fstream::in | fs::fstream::binary);
@@ -450,7 +461,7 @@ bool PakReader::addArchive(const fs::path & pakfile) {
 	}
 	
 	// Read fat location and size.
-	u32 fat_offset;
+    u32 fat_offset;
 	u32 fat_size;
 	
 	if(fs::read(*ifs, fat_offset).fail()) {
@@ -480,38 +491,39 @@ bool PakReader::addArchive(const fs::path & pakfile) {
 	}
 	
 	// Decrypt the FAT.
-	ReleaseType key = guessReleaseType(*reinterpret_cast<const u32 *>(fat));
+    const emscripten_align1_int* iii = reinterpret_cast<const emscripten_align1_int *>(fat);
+	ReleaseType key = guessReleaseType(*iii);
 	if(key != Unknown) {
 		pakDecrypt(fat, fat_size, key);
 	} else {
 		LogWarning << pakfile << ": unknown PAK key ID 0x" << std::hex << std::setfill('0')
-		           << std::setw(8) << *(u32*)fat << ", assuming no key";
+		           << std::setw(8) << *(reinterpret_cast<emscripten_align1_int*>(fat)) << ", assuming no key";
 	}
 	release |= key;
 	
 	char * pos = fat;
 	
 	paks.push_back(ifs);
-	
+
 	while(fat_size) {
-		
+
 		char * dirname = util::safeGetString(pos, fat_size);
 		if(!dirname) {
 			LogError << pakfile << ": error reading directory name from FAT, wrong key?";
 			goto error;
 		}
-		
+
 		PakDirectory * dir = addDirectory(res::path::load(dirname));
-		
-		u32 nfiles;
-		if(!util::safeGet(nfiles, pos, fat_size)) {
+
+		emscripten_align1_int nfiles;
+		if(!safeG(nfiles, pos, fat_size)) {
 			LogError << pakfile << ": error reading file count from FAT, wrong key?";
 			goto error;
 		}
-		
-		while(nfiles--) {
-			
-			char * filename =  util::safeGetString(pos, fat_size);
+
+        while(nfiles--) {
+
+            char * filename =  util::safeGetString(pos, fat_size);
 			if(!filename) {
 				LogError << pakfile << ": error reading file name from FAT, wrong key?";
 				goto error;
@@ -519,19 +531,19 @@ bool PakReader::addArchive(const fs::path & pakfile) {
 			
 			size_t len = std::strlen(filename);
 			std::transform(filename, filename + len, filename, ::tolower);
-			
-			u32 offset;
-			u32 flags;
-			u32 uncompressedSize;
-			u32 size;
-			if(!util::safeGet(offset, pos, fat_size) || !util::safeGet(flags, pos, fat_size)
-			   || !util::safeGet(uncompressedSize, pos, fat_size)
-				 || !util::safeGet(size, pos, fat_size)) {
+
+            emscripten_align1_int offset;
+			emscripten_align1_int flags;
+			emscripten_align1_int uncompressedSize;
+			emscripten_align1_int size;
+			if(!safeG(offset, pos, fat_size) || !safeG(flags, pos, fat_size)
+			   || !safeG(uncompressedSize, pos, fat_size)
+				 || !safeG(size, pos, fat_size)) {
 				LogError << pakfile << ": error reading file attributes from FAT, wrong key?";
 				goto error;
 			}
-			
-			const u32 PAK_FILE_COMPRESSED = 1;
+
+            const u32 PAK_FILE_COMPRESSED = 1;
 			PakFile * file;
 			if((flags & PAK_FILE_COMPRESSED) && size != 0) {
 				file = new CompressedFile(ifs, offset, uncompressedSize, size);
@@ -540,7 +552,8 @@ bool PakReader::addArchive(const fs::path & pakfile) {
 			}
 			
 			dir->addFile(std::string(filename, len), file);
-		}
+
+        }
 		
 	}
 	

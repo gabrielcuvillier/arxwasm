@@ -145,6 +145,26 @@ bool loadCinematic(Cinematic * c, const res::path & file) {
 	return ret;
 }
 
+#include "emscripten.h"
+
+static bool safeG(emscripten_align1_int & data, const char * & pos, size_t & size) {
+
+	const emscripten_align1_int* dat = reinterpret_cast<const emscripten_align1_int *>(pos);
+	data = *dat;
+	pos += sizeof(emscripten_align1_int);
+	size -= sizeof(emscripten_align1_int);
+	return true;
+}
+
+static bool safeG(emscripten_align1_short & data, const char * & pos, size_t & size) {
+
+	const emscripten_align1_short* dat = reinterpret_cast<const emscripten_align1_short *>(pos);
+	data = *dat;
+	pos += sizeof(emscripten_align1_short);
+	size -= sizeof(emscripten_align1_short);
+	return true;
+}
+
 bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 	
 	const char * cinematicId = util::safeGetString(data, size);
@@ -157,9 +177,9 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 		LogError << "Wrong magic number";
 		return false;
 	}
-	
-	s32 version;
-	if(!util::safeGet(version, data, size)) {
+
+	emscripten_align1_int version;
+	if(!safeG(version, data, size)) {
 		LogError << "Error reading file version";
 		return false;
 	}
@@ -178,8 +198,8 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 	util::safeGetString(data, size);
 	
 	// Load bitmaps.
-	s32 nbitmaps;
-	if(!util::safeGet(nbitmaps, data, size)) {
+	emscripten_align1_int nbitmaps;
+	if(!safeG(nbitmaps, data, size)) {
 		LogError << "Error reading bitmap count";
 		return false;
 	}
@@ -188,9 +208,9 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 	c->m_bitmaps.reserve(nbitmaps);
 	
 	for(int i = 0; i < nbitmaps; i++) {
-		
-		s32 scale = 0;
-		if(!util::safeGet(scale, data, size)) {
+
+		emscripten_align1_int scale = 0;
+		if(!safeG(scale, data, size)) {
 			LogError << "Error reading bitmap scale";
 			return false;
 		}
@@ -212,8 +232,8 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 	}
 	
 	// Load sounds.
-	s32 nsounds;
-	if(!util::safeGet(nsounds, data, size)) {
+	emscripten_align1_int nsounds;
+	if(!safeG(nsounds, data, size)) {
 		LogError << "Error reading sound count";
 		return false;
 	}
@@ -222,8 +242,8 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 	for(int i = 0; i < nsounds; i++) {
 		
 		if(version >= CINEMATIC_VERSION_1_76) {
-			s16 ignored;
-			if(!util::safeGet(ignored, data, size)) {
+			emscripten_align1_short ignored;
+			if(!safeG(ignored, data, size)) {
 				LogError << "Error reading sound id";
 				return false;
 			}
