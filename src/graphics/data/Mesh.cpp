@@ -1317,6 +1317,7 @@ bool FastSceneLoad(const res::path & partial_path) {
 	}
 }
 
+#include "emscripten.h"
 
 static bool loadFastScene(const res::path & file, const char * data, const char * end) {
 	
@@ -1443,7 +1444,8 @@ static bool loadFastScene(const res::path & file, const char * data, const char 
 				bkg.ianchors = NULL;
 			} else {
 				bkg.ianchors = (long *)malloc(sizeof(long) * fsi->nbianchors);
-				const s32 * anchors = fts_read<s32>(data, end, fsi->nbianchors);
+				const emscripten_align1_int * anchors = reinterpret_cast<const emscripten_align1_int*>(data);
+				data += sizeof(emscripten_align1_int) * fsi->nbianchors;
 				std::copy(anchors, anchors + fsi->nbianchors, bkg.ianchors);
 			}
 			
@@ -1478,7 +1480,8 @@ static bool loadFastScene(const res::path & file, const char * data, const char 
 			anchor.linked = NULL;
 		} else {
 			anchor.linked = (long *)malloc(sizeof(long) * fad->nb_linked);
-			const s32 * links = fts_read<s32>(data, end, fad->nb_linked);
+			const emscripten_align1_int * links = reinterpret_cast<const emscripten_align1_int*>(data);
+			data += sizeof(emscripten_align1_int) * fad->nb_linked;
 			std::copy(links, links + fad->nb_linked, anchor.linked);
 		}
 	}
@@ -1543,7 +1546,8 @@ static bool loadFastScene(const res::path & file, const char * data, const char 
 		
 		if(room.nb_portals) {
 			room.portals = (long *)malloc(sizeof(long) * room.nb_portals);
-			const s32 * start = fts_read<s32>(data, end, room.nb_portals);
+			const emscripten_align1_int * start = reinterpret_cast<const emscripten_align1_int*>(data);
+			data += sizeof(emscripten_align1_int) * room.nb_portals;
 			std::copy(start, start + room.nb_portals, room.portals);
 		} else {
 			room.portals = NULL;
@@ -2076,7 +2080,7 @@ static bool FastSceneSave(const fs::path & partial_path) {
 		
 		for(size_t i = 0; i < portals->rooms.size(); i++) {
 			allocsize += sizeof(EERIE_SAVE_ROOM_DATA);
-			allocsize += sizeof(s32) * portals->rooms[i].nb_portals;
+			allocsize += sizeof(emscripten_align1_int) * portals->rooms[i].nb_portals;
 			allocsize += sizeof(FAST_EP_DATA) * portals->rooms[i].nb_polys;
 		}
 		
@@ -2234,8 +2238,8 @@ static bool FastSceneSave(const fs::path & partial_path) {
 			}
 			
 			for(long k = 0; k < fsi->nbianchors; k++) {
-				s32 * ianch = (s32 *)(dat + pos);
-				pos += sizeof(s32);
+				emscripten_align1_int * ianch = reinterpret_cast<emscripten_align1_int *>(dat + pos);
+				pos += sizeof(emscripten_align1_int);
 				if(pos >= allocsize - 100000) {
 					delete[] dat;
 					return false;
@@ -2263,7 +2267,7 @@ static bool FastSceneSave(const fs::path & partial_path) {
 		fad->height = anchor.height;
 		
 		for(long kk = 0; kk < fad->nb_linked; kk++) {
-			s32 * lng = reinterpret_cast<s32 *>(dat + pos);
+			emscripten_align1_int * lng = reinterpret_cast<emscripten_align1_int *>(dat + pos);
 			pos += sizeof(s32);
 			if(pos >= allocsize - 100000) {
 				delete[] dat;
@@ -2312,7 +2316,7 @@ static bool FastSceneSave(const fs::path & partial_path) {
 			erd->nb_portals = portals->rooms[i].nb_portals;
 			
 			for(long jj = 0; jj < portals->rooms[i].nb_portals; jj++) {
-				s32 * lng = reinterpret_cast<s32 *>(dat + pos);
+				emscripten_align1_int * lng = reinterpret_cast<emscripten_align1_int *>(dat + pos);
 				pos += sizeof(s32);
 				*lng = portals->rooms[i].portals[jj];
 			}

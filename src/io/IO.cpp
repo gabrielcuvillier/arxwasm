@@ -61,7 +61,7 @@ void HERMES_CreateFileCheck(const fs::path & name, char * scheck, size_t size, f
 	
 	memset(scheck, 0, size);
 	
-	s32 * dst = reinterpret_cast<s32 *>(scheck);
+	emscripten_align1_int * dst = reinterpret_cast<emscripten_align1_int *>(scheck);
 	size_t length = size / 4;
 	arx_assert(length > 6);
 	

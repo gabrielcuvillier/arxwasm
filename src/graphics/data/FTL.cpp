@@ -75,6 +75,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "util/String.h"
 
+#include "emscripten.h"
+
 #if BUILD_EDIT_LOADSAVE
 
 bool ARX_FTL_Save(const fs::path & file, const EERIE_3DOBJ * obj) {
@@ -237,8 +239,8 @@ bool ARX_FTL_Save(const fs::path & file, const EERIE_3DOBJ * obj) {
 
 		for(int i = 0; i < af3Ddh->nb_groups; i++) {
 			if(!obj->grouplist[i].indexes.empty()) {
-				std::copy(obj->grouplist[i].indexes.begin(), obj->grouplist[i].indexes.end(), (s32*)(dat + pos));
-				pos += sizeof(s32) * obj->grouplist[i].indexes.size();
+				std::copy(obj->grouplist[i].indexes.begin(), obj->grouplist[i].indexes.end(), reinterpret_cast<emscripten_align1_int*>(dat + pos));
+				pos += sizeof(emscripten_align1_int) * obj->grouplist[i].indexes.size();
 			}
 		}
 	}
@@ -260,8 +262,8 @@ bool ARX_FTL_Save(const fs::path & file, const EERIE_3DOBJ * obj) {
 		if (pos > allocsize) LogError << ("Invalid Allocsize in ARX_FTL_Save");
 
 		for(size_t i = 0; i < size_t(af3Ddh->nb_selections); i++) {
-			std::copy(obj->selections[i].selected.begin(), obj->selections[i].selected.end(), (s32*)(dat + pos));
-			pos += sizeof(s32) * obj->selections[i].selected.size();
+			std::copy(obj->selections[i].selected.begin(), obj->selections[i].selected.end(), reinterpret_cast<emscripten_align1_int*>(dat + pos));
+			pos += sizeof(emscripten_align1_int) * obj->selections[i].selected.size();
 
 			if (pos > allocsize) LogError << ("Invalid Allocsize in ARX_FTL_Save");
 		}
@@ -608,8 +610,8 @@ EERIE_3DOBJ * ARX_FTL_Load(const res::path & file) {
 		for(size_t i = 0; i < obj->grouplist.size(); i++) {
 			if(!obj->grouplist[i].indexes.empty()) {
 				size_t oldpos = pos;
-				pos += sizeof(s32) * obj->grouplist[i].indexes.size(); // Advance to the next index block
-				std::copy((const s32 *)(dat+oldpos), (const s32 *)(dat + pos), obj->grouplist[i].indexes.begin());
+				pos += sizeof(emscripten_align1_int) * obj->grouplist[i].indexes.size(); // Advance to the next index block
+				std::copy(reinterpret_cast<const emscripten_align1_int *>(dat+oldpos), reinterpret_cast<const emscripten_align1_int *>(dat + pos), obj->grouplist[i].indexes.begin());
 			}
 		}
 	}
@@ -632,8 +634,8 @@ EERIE_3DOBJ * ARX_FTL_Load(const res::path & file) {
 	
 	// Copy in the selections selected data
 	for(long i = 0; i < af3Ddh->nb_selections; i++) {
-		std::copy((const s32 *)(dat + pos), (const s32 *)(dat + pos) + obj->selections[i].selected.size(), obj->selections[i].selected.begin() );
-		pos += sizeof(s32) * obj->selections[i].selected.size(); // Advance to the next selection data block
+		std::copy(reinterpret_cast<const emscripten_align1_int *>(dat + pos), reinterpret_cast<const emscripten_align1_int *>(dat + pos) + obj->selections[i].selected.size(), obj->selections[i].selected.begin() );
+		pos += sizeof(emscripten_align1_int) * obj->selections[i].selected.size(); // Advance to the next selection data block
 	}
 	
 	obj->pbox = NULL; // Reset physics

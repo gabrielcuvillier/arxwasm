@@ -96,6 +96,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "util/String.h"
 
+#include "emscripten.h"
+
 
 extern bool bGCroucheToggle;
 
@@ -653,8 +655,8 @@ bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 			ColorBGRA * ll = LastLoadedLightning = (ColorBGRA *)malloc(sizeof(ColorBGRA) * bcount);
 			
 			if(dlh.version > 1.001f) {
-				std::transform((u32*)(dat + pos), (u32*)(dat + pos) + bcount, LastLoadedLightning, savedColorConversion);
-				pos += sizeof(u32) * bcount;
+				std::transform(reinterpret_cast<emscripten_align1_int*>(dat + pos), reinterpret_cast<emscripten_align1_int*>(dat + pos) + bcount, LastLoadedLightning, savedColorConversion);
+				pos += sizeof(emscripten_align1_int) * bcount;
 			} else {
 				while(bcount) {
 					const DANAE_LS_VLIGHTING * dlv = reinterpret_cast<const DANAE_LS_VLIGHTING *>(dat + pos);
@@ -666,7 +668,7 @@ bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 			}
 			
 		} else {
-			pos += sizeof(u32) * bcount;
+			pos += sizeof(emscripten_align1_int) * bcount;
 		}
 	}
 	
@@ -915,8 +917,8 @@ bool DanaeLoadLevel(const res::path & file, bool loadEntities) {
 	free(LastLoadedLightning);
 	ColorBGRA * ll = LastLoadedLightning = (ColorBGRA *)malloc(sizeof(ColorBGRA) * bcount);
 	if(dlh.version > 1.001f) {
-		std::transform((u32*)(dat + pos), (u32*)(dat + pos) + bcount, LastLoadedLightning, savedColorConversion);
-		pos += sizeof(u32) * bcount;
+		std::transform(reinterpret_cast<emscripten_align1_int*>(dat + pos), reinterpret_cast<emscripten_align1_int*>(dat + pos) + bcount, LastLoadedLightning, savedColorConversion);
+		pos += sizeof(emscripten_align1_int) * bcount;
 	} else {
 		while(bcount) {
 			const DANAE_LS_VLIGHTING * dlv = reinterpret_cast<const DANAE_LS_VLIGHTING *>(dat + pos);

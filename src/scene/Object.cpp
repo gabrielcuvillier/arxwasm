@@ -443,7 +443,7 @@ static void loadObjectData(EERIE_3DOBJ * eerie, const char * adr, size_t * poss,
 		eerie->grouplist[i].origin = ptg3011->origin;
 		eerie->grouplist[i].indexes.resize(ptg3011->nb_index);
 		
-		std::copy((const long*)(adr + pos), (const long*)(adr + pos) + ptg3011->nb_index, eerie->grouplist[i].indexes.begin());
+		std::copy(reinterpret_cast<const emscripten_align1_long*>(adr + pos), reinterpret_cast<const emscripten_align1_long*>(adr + pos) + ptg3011->nb_index, eerie->grouplist[i].indexes.begin());
 		pos += ptg3011->nb_index * sizeof(long);
 		
 		eerie->grouplist[i].name = boost::to_lower_copy(util::loadString(adr + pos, 256));
@@ -461,8 +461,9 @@ static void loadObjectData(EERIE_3DOBJ * eerie, const char * adr, size_t * poss,
 	}
 
 	// SELECTIONS
-	s32 THEO_nb_selected = *reinterpret_cast<const s32 *>(adr + pos);
-	pos += sizeof(s32);
+	const emscripten_align1_int* p = reinterpret_cast<const emscripten_align1_int *>(adr + pos);
+	emscripten_align1_int THEO_nb_selected = *p;
+	pos += sizeof(emscripten_align1_int);
 	
 	eerie->selections.resize(THEO_nb_selected);
 	for(long i = 0; i < THEO_nb_selected; i++) {
@@ -605,9 +606,10 @@ static EERIE_3DSCENE * ScnToEerie(const char * adr, size_t size, const res::path
 	
 	// read objects
 	pos = psth->object_seek;
-	
-	s32 nbo = *reinterpret_cast<const s32 *>(adr + pos);
-	pos += sizeof(s32);
+
+	const emscripten_align1_int* p = reinterpret_cast<const emscripten_align1_int *>(adr + pos);
+	emscripten_align1_int nbo = *p;
+	pos += sizeof(emscripten_align1_int);
 	
 	seerie->nbobj = nbo;
 	seerie->objs = allocStructZero<EERIE_3DOBJ *>(nbo);
@@ -667,9 +669,10 @@ static EERIE_3DSCENE * ScnToEerie(const char * adr, size_t size, const res::path
 	pos = psth->light_seek; // ambient
 	
 	pos += sizeof(SavedColor); // ignore ambient color
-	
-	s32 nbl = *reinterpret_cast<const s32 *>(adr + pos);
-	pos += sizeof(s32);
+
+	const emscripten_align1_int* p = reinterpret_cast<const emscripten_align1_int *>(adr + pos);
+	emscripten_align1_int nbl = *p;
+	pos += sizeof(emscripten_align1_int);
 	
 	seerie->light = NULL; 
 	seerie->nblight = nbl;

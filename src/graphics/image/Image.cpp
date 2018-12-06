@@ -31,6 +31,8 @@
 #include "io/log/Logger.h"
 #include "platform/CrashHandler.h"
 
+#include "emscripten.h"
+
 namespace {
 
 const unsigned int SIZE_TABLE[Image::Format_Num] = {
@@ -844,7 +846,7 @@ static void FlipColorBlock(unsigned char * data) {
 	data[6] = tmp;
 }
 
-static void FlipSimpleAlphaBlock(u16 * data) {
+static void FlipSimpleAlphaBlock(emscripten_align1_short * data) {
 	
 	u16 tmp;
 	
@@ -895,7 +897,7 @@ static void FlipDXT1(unsigned char * data, unsigned int count) {
 
 static void FlipDXT3(unsigned char * data, unsigned int count) {
 	for(unsigned int i = 0; i < count; ++i) {
-		FlipSimpleAlphaBlock((u16*)data);
+		FlipSimpleAlphaBlock(reinterpret_cast<emscripten_align1_short*>(data));
 		FlipColorBlock(data + 8);
 		data += 16; // Advance to next block
 	}
