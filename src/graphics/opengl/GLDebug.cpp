@@ -23,7 +23,7 @@
 
 #if defined __native_client__ || defined __EMSCRIPTEN__
 #include <GL/Regal.h>
-#define GLEW_ARB_debug_output 1
+#define GLEW_ARB_debug_output 0
 #else
 #include <GL/glew.h>
 #endif
