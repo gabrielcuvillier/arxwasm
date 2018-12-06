@@ -455,10 +455,10 @@ if(Freetype_HAS_STATIC_LIBS)
     set(Freetype_LINKING_ZLIB 1)
     list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
 
-	set(Freetype_LINKING_BZip2 1)
-	find_package(BZip2 REQUIRED)
-	check_link_library(BZip2 BZIP2_LIBRARIES)
-	list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
+	#set(Freetype_LINKING_BZip2 1)
+	#find_package(BZip2 REQUIRED)
+	#check_link_library(BZip2 BZIP2_LIBRARIES)
+	#list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
 
 	set(Freetype_LINKING_PNG 1)
     find_package(PNG REQUIRED)
@@ -471,7 +471,7 @@ if(NOT MSVC)
 	check_link_library(Freetype FREETYPE_LIBRARIES)
 endif()
 include_directories(SYSTEM ${FREETYPE_INCLUDE_DIRS})
-#list(APPEND ARX_LIBRARIES ${FREETYPE_LIBRARIES})
+list(APPEND ARX_LIBRARIES ${FREETYPE_LIBRARIES})
 
 # OpenGL
 if(USE_OPENGL)
@@ -555,7 +555,7 @@ add_definitions(-DBOOST_NO_RTTI -DBOOST_NO_TYPEID)
 find_package(GLM 0.9.5.0 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIRS})
 add_definitions(-DGLM_FORCE_RADIANS)
-add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
+#add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 
 # DbgHelp
 if(MSVC AND BUILD_CRASHHANDLER)
