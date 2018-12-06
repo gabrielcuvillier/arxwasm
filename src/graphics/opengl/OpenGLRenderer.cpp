@@ -40,7 +40,7 @@
   #define GLEW_ARB_texture_non_power_of_two 1
   #define GLEW_ARB_draw_elements_base_vertex 1
   #define GLEW_ARB_map_buffer_range 0
-  #define GLEW_EXT_texture_filter_anisotropic 0
+  #define GLEW_EXT_texture_filter_anisotropic 1
   #define GLEW_VERSION_2_0 0
   #define GLEW_VERSION_3_0 0
   #define GLEW_ARB_shader_objects 0
@@ -306,7 +306,7 @@ void OpenGLRenderer::reinit() {
 		LogWarning << "Missing OpenGL extension ARB_draw_elements_base_vertex!";
 	}
 	
-	useVBOs = false;
+	useVBOs = useVertexArrays;
 	if(useVBOs && !GLEW_ARB_map_buffer_range) {
 		LogWarning << "Missing OpenGL extension ARB_map_buffer_range, VBO performance will suffer.";
 	}
