@@ -235,13 +235,13 @@ static float GetTimeBetweenKeyFrames(EERIE_ANIM * ea, long f1, long f2) {
 	return time;
 }
 
+#include "emscripten.h"
 static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path & file) {
 
 	(void)size; // TODO use size
 
 	LogDebug("Loading animation file " << file);
-
-	size_t pos = 0;
+    size_t pos = 0;
 	
 	const THEA_HEADER * th = reinterpret_cast<const THEA_HEADER *>(adr + pos);
 	if(th->version < 2014) {
@@ -251,16 +251,14 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 	pos += sizeof(THEA_HEADER);
 	
 	EERIE_ANIM * eerie = new EERIE_ANIM();
-	
-	LogDebug("TEA header size: " << sizeof(THEA_HEADER));
+    LogDebug("TEA header size: " << sizeof(THEA_HEADER));
 	LogDebug("Identity " << th->identity);
 	LogDebug("Version - " << th->version << "  Frames " << th->nb_frames
 			 << "  Groups " << th->nb_groups << "  KeyFrames " << th->nb_key_frames);
 
 	eerie->nb_groups = th->nb_groups;
 	eerie->nb_key_frames = th->nb_key_frames;
-
-	eerie->frames = allocStructZero<EERIE_FRAME>(th->nb_key_frames);
+    eerie->frames = allocStructZero<EERIE_FRAME>(th->nb_key_frames);
 	eerie->groups = allocStructZero<EERIE_GROUP>(th->nb_key_frames * th->nb_groups);
 	eerie->voidgroups = allocStructZero<unsigned char>(th->nb_groups);
 
@@ -274,11 +272,16 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 		const THEA_KEYFRAME_2015 * tkf2015;
 		if(th->version >= 2015) {
 			LogDebug(" New keyframe version THEA_KEYFRAME_2015:" << sizeof(THEA_KEYFRAME_2015));
-			tkf2015 = reinterpret_cast<const THEA_KEYFRAME_2015 *>(adr + pos);
+			THEA_KEYFRAME_2015 const * tkf = reinterpret_cast<THEA_KEYFRAME_2015 const *>(adr + pos);
+            memcpy((void*)&kf2015, (const void*)tkf, sizeof(THEA_KEYFRAME_2015));
+            tkf2015 = &kf2015;
 			pos += sizeof(THEA_KEYFRAME_2015);
 		} else {
 			LogDebug(" Old keyframe version THEA_KEYFRAME_2014:" << sizeof(THEA_KEYFRAME_2014));
+            THEA_KEYFRAME_2014 kf2014;
 			const THEA_KEYFRAME_2014 * tkf = reinterpret_cast<const THEA_KEYFRAME_2014 *>(adr + pos);
+			memcpy((void*)&kf2014, (const void*)tkf, sizeof(THEA_KEYFRAME_2015));
+			tkf=&kf2014;
 			pos += sizeof(THEA_KEYFRAME_2014);
 			memset(&kf2015, 0, sizeof(THEA_KEYFRAME_2015));
 			kf2015.num_frame = tkf->num_frame;
@@ -312,7 +315,10 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 		// Is There a Global translation ?
 		if(tkf2015->key_move != 0) {
 
+		    THEA_KEYMOVE tkmdat;
 			const THEA_KEYMOVE * tkm = reinterpret_cast<const THEA_KEYMOVE *>(adr + pos);
+			memcpy((void*)&tkmdat,(const void*)tkm, sizeof(THEA_KEYMOVE));
+			tkm = &tkmdat;
 			pos += sizeof(THEA_KEYMOVE);
 
 			LogDebug(" -> move x " << tkm->x << " y " << tkm->y << " z " << tkm->z
@@ -325,7 +331,10 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 		if(tkf2015->key_orient != 0) {
 			pos += 8; // THEO_ANGLE
 
+            ArxQuat quatdat;
 			const ArxQuat * quat = reinterpret_cast<const ArxQuat *>(adr + pos);
+            memcpy((void*)&quatdat,(const void*)quat, sizeof(ArxQuat));
+            quat=&quatdat;
 			pos += sizeof(ArxQuat);
 
 			LogDebug(" -> rotate x " << quat->x << " y " << quat->y << " z " << quat->z
@@ -342,7 +351,10 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 		// Now go for Group Rotations/Translations/scaling for each GROUP
 		for(long j = 0; j < th->nb_groups; j++) {
 
+            THEO_GROUPANIM tgadat;
 			const THEO_GROUPANIM * tga = reinterpret_cast<const THEO_GROUPANIM *>(adr + pos);
+            memcpy((void*)&tgadat,(const void*)tga, sizeof(THEO_GROUPANIM));
+            tga=&tgadat;
 			pos += sizeof(THEO_GROUPANIM);
 
 			EERIE_GROUP * eg = &eerie->groups[j + i * th->nb_groups];
@@ -353,7 +365,8 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 		}
 
 		// Now Read Sound Data included in this frame
-		s32 num_sample = *reinterpret_cast<const s32 *>(adr + pos);
+		const emscripten_align1_int* sptr = reinterpret_cast<const emscripten_align1_int *>(adr + pos);
+		s32 num_sample = *sptr;
 		pos += sizeof(s32);
 		LogDebug(" -> num_sample " << num_sample << " s32:" << sizeof(s32));
 

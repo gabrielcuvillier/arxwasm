@@ -85,7 +85,8 @@ inline bool safeGet(T & data, CTYPE * & pos, STYPE & size) {
 	if(size < sizeof(T)) {
 		return false;
 	}
-	data = *reinterpret_cast<const T *>(pos);
+	const T* dat = reinterpret_cast<const T *>(pos);
+	data = *dat;
 	pos += sizeof(T);
 	size -= sizeof(T);
 	return true;
