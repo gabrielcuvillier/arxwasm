@@ -129,7 +129,7 @@ endif()
 
 # Static libs
 set(default_USE_STATIC_LIBS OFF)
-# Win32 and NACL must use static libraries
+# Win32, NACL, and EMSCRIPTEN must use static libraries
 if(WIN32 OR NACL OR EMSCRIPTEN)
 	set(default_USE_STATIC_LIBS ON)
 endif()
@@ -227,7 +227,7 @@ elseif(MACOSX)
 	set(USER_DIR          "ArxLibertatis"                 CACHE STRING "User dir names")
 	set(USER_DIR_PREFIXES "$HOME/Library/Application Support" CACHE STRING "User dir paths")
 elseif(NACL OR EMSCRIPTEN)
-  # Special data directories on NACL (corresponding to HTML5FS and HTTPFS mounts. See Startup.cpp)
+  # Special data directories on NACL (corresponding to HTML5FS and HTTPFS mounts), as well as EMSCRIPTEN
   set(DATA_DIR
       "arx"
 		  CACHE STRING "Data dir names"
@@ -239,7 +239,7 @@ elseif(NACL OR EMSCRIPTEN)
 	   )
       elseif(EMSCRIPTEN)
         set(DATA_DIR_PREFIXES
-         "/data" CACHE STRING "Data dir paths")
+         "/data:/data_demo" CACHE STRING "Data dir paths")
       endif()
 	  set(USER_DIR
 		  "arx"
@@ -342,6 +342,7 @@ if((NOT LAST_CMAKE_CXX_FLAGS STREQUAL CMAKE_CXX_FLAGS)
 	force_recheck_library(Threads)
 	force_recheck_library(OpenAL)
     force_recheck_library(OpenGL)
+	# GLEW not supported on NACL and EMSCRIPTEN
 	if (NOT NACL AND NOT EMSCRIPTEN)
     force_recheck_library(GLEW)
 	endif()
@@ -450,15 +451,9 @@ if(Freetype_HAS_STATIC_LIBS)
 		endif()
 	endforeach()
   else()
-    # On NACL, we can't use pkg-config because it is compiled for NACL and not for the host. 
-    # So we manually add required dependencies: ZLIB BZIP2 PNG
+    # On NACL and EMSCRIPTEN, we force the dependencies of Freetype to ZLIB and PNG
     set(Freetype_LINKING_ZLIB 1)
     list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
-
-	#set(Freetype_LINKING_BZip2 1)
-	#find_package(BZip2 REQUIRED)
-	#check_link_library(BZip2 BZIP2_LIBRARIES)
-	#list(APPEND FREETYPE_LIBRARIES ${BZIP2_LIBRARIES})
 
 	set(Freetype_LINKING_PNG 1)
     find_package(PNG REQUIRED)
@@ -485,14 +480,14 @@ if(USE_OPENGL)
 	  endif()
   else()
     # Don't use find_package, as we have to use some custom GL implementation (Regal)
-    # This is done by the toolchain file.
 
-    # Ensure it is correctly setup
-	add_definitions(-DREGAL_SYS_EMSCRIPTEN_STATIC=1)
-	set(OPENGL_INCLUDE_DIR		$ENV{EMSCRIPTEN}/system/local/include)
-	set(OPENGL_gl_LIBRARY    	$ENV{EMSCRIPTEN}/system/local/lib/libRegallib.a)
-	set(OPENGL_LIBRARIES	    $ENV{EMSCRIPTEN}/system/local/lib/libRegallib.a $ENV{EMSCRIPTEN}/system/local/lib/libglslopt.a) # this is required too
-
+	if (NACL)
+		#done in the toolchain file
+	elseif(EMSCRIPTEN)
+		set(OPENGL_INCLUDE_DIR		$ENV{EMSCRIPTEN}/system/local/include)
+		set(OPENGL_gl_LIBRARY    	$ENV{EMSCRIPTEN}/system/local/lib/libRegallib.a)
+		set(OPENGL_LIBRARIES	    $ENV{EMSCRIPTEN}/system/local/lib/libRegallib.a $ENV{EMSCRIPTEN}/system/local/lib/libglslopt.a)
+	endif()
 	check_link_library(OpenGL OPENGL_gl_LIBRARY)
     set(OPENGL_FOUND 1)
   endif()
@@ -501,8 +496,10 @@ endif()
 # OpenAL
 if(USE_OPENAL)
 	find_package(OpenAL ${OPTIONAL_DEPENDENCY})
-	find_package(OpenALEFX)
-	if(NOT MSVC AND OPENAL_FOUND)
+	if(NOT EMSCRIPTEN)
+		find_package(OpenALEFX)
+	endif()
+	if(NOT MSVC AND NOT EMSCRIPTEN AND OPENAL_FOUND)
 		check_link_library(OpenAL OPENAL_LIBRARY)
 	endif()
 endif()
@@ -555,7 +552,6 @@ add_definitions(-DBOOST_NO_RTTI -DBOOST_NO_TYPEID)
 find_package(GLM 0.9.5.0 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIRS})
 add_definitions(-DGLM_FORCE_RADIANS)
-#add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 
 # DbgHelp
 if(MSVC AND BUILD_CRASHHANDLER)
@@ -597,10 +593,11 @@ if(BUILD_CRASHREPORTER OR BUILD_PROFILER)
 	
 endif()
 
-find_package(Doxygen)
+if (NOT EMSCRIPTEN)
+	find_package(Doxygen)
+endif()
 
 find_package(PythonInterp)
-
 
 # Check for optional functionality and system configuration
 
@@ -728,6 +725,7 @@ else(MSVC)
 	check_symbol_exists(setpgid "unistd.h" ARX_HAVE_SETPGID)
 	check_symbol_exists(execvp "unistd.h" ARX_HAVE_EXECVP)
     if(NOT EMSCRIPTEN)
+		# For some reason spawn functions are not present in EMSCRIPTEN
 	    check_symbol_exists(posix_spawnp "spawn.h" ARX_HAVE_POSIX_SPAWNP)
     endif()
 	if(NOT WIN32)
@@ -1286,9 +1284,10 @@ set(ARX_SOURCES
 	${WINDOW_SOURCES}
 )
 
-# Using include() for now as add_subdirectory causes problems with uses in qrc files
+# data is setup separately for emscripten
 if(NOT EMSCRIPTEN)
-include(data/CMakeLists.txt)
+	# Using include() for now as add_subdirectory causes problems with uses in qrc files
+	include(data/CMakeLists.txt)
 endif()
 
 # Set the icon for the Windows executable by adding this resource file to the sources
@@ -1665,6 +1664,7 @@ endif()
 
 
 if(NACL OR EMSCRIPTEN)
+	#data is setup differently for NACL and EMSCRIPTEN
 else()
 # Install Arx Libertatis data files
 # TODO these should be zipped up once we support that

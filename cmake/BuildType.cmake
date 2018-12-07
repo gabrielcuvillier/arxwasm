@@ -117,7 +117,6 @@ else(MSVC)
 		
 		# GCC (and compatible)
 		add_cxxflag("-Wall")
-			add_cxxflag("-Wcast-align")
 		add_cxxflag("-Wextra")
 		add_cxxflag("-Wformat=2")
 		add_cxxflag("-Wundef")
@@ -270,11 +269,14 @@ else(MSVC)
 		
 	endif(SET_OPTIMIZATION_FLAGS)
 
-	  #add_ldflag("-g")
-      add_ldflag("-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
-      add_ldflag("-s FORCE_FILESYSTEM=1")
-      add_ldflag("-s BINARYEN_TRAP_MODE=js")
-      add_ldflag("-s ALLOW_MEMORY_GROWTH=1")
+	  if(EMSCRIPTEN)
+		  #add_ldflag("-g")
+		  add_ldflag("-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
+		  add_ldflag("-s FORCE_FILESYSTEM=1")
+		  add_ldflag("-s BINARYEN_TRAP_MODE=js")
+		  add_ldflag("-s ALLOW_MEMORY_GROWTH=1")
+		  add_ldflag("-s LZ4=1")
+	  endif()
 
 endif(MSVC)
 
