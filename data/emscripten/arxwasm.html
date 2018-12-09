@@ -1293,7 +1293,25 @@
         };
       };
     </script>
-    <script type="text/javascript" src="aaaa.js"></script>
+    <script type="text/javascript" src="data_demo.js"></script>
+    <script type="text/javascript">
+      var Module = typeof Module !== 'undefined' ? Module : {};
+
+      function mountuserhome() {
+        console.info("Mount user home to IDBFS");
+        Module['FS_createPath']('/', "home", true, true);
+        Module['FS_createPath']('/home', "user", true, true);
+        FS.mount(IDBFS, {}, '/home/user');
+        FS.syncfs(true, function (err) {
+          console.info("Syncing from IDBFS done");
+        });
+      }
+
+      (function() {
+        console.info("init my js");
+        Module["preRun"].push(mountuserhome);
+      })();
+    </script>
     <script async type="text/javascript" src="arx.js"></script>
   </body>
 </html>
