@@ -1283,6 +1283,15 @@ static void emloopcb()
 	if (mainApp->emscripten_run() == false)
     {
 	    emscripten_cancel_main_loop();
+
+	    EM_ASM(
+	            console.info('Unmounting userhome');
+                FS.syncfs(false, function(err) {
+                    console.info("Syncing to IDBFS done");
+                    FS.unmount('/home/user');
+                });
+        	);
+
 	    benchmark::begin(benchmark::Shutdown);
 
         if(mainApp) {
@@ -1290,6 +1299,14 @@ static void emloopcb()
             delete mainApp;
             mainApp = NULL;
         }
+
+        benchmark::shutdown();
+
+	    // Shutdown the logging system
+	    // If there has been a critical error, a dialog will be shown now
+	    Logger::shutdown();
+
+    	CrashHandler::shutdown();
     }
 }
 #endif
