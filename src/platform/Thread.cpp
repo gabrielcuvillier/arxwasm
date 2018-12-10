@@ -28,7 +28,8 @@ void Thread::setThreadName(const std::string & _threadName) {
 }
 
 #ifdef __EMSCRIPTEN__
-#pragma message ("Threads not supported on emscripten")
+#pragma message ("Threads are not supported on emscripten. Most pthread calls will be disabled.")
+#pragma message ("Sound thread and pathfinder thread will be handled differently")
 #endif
 
 #if ARX_HAVE_PTHREADS
@@ -88,8 +89,8 @@ void Thread::setPriority(Priority _priority) {
 #endif
 	
 #if defined __native_client__ || defined __EMSCRIPTEN__
-  ARX_UNUSED(_priority);
-  ARX_UNUSED(policy);
+    ARX_UNUSED(_priority);
+    ARX_UNUSED(policy);
 #else
 	int min = sched_get_priority_min(policy);
 	int max = sched_get_priority_max(policy);

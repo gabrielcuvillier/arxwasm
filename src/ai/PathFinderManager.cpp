@@ -74,6 +74,7 @@ long PATHFINDER_WORKING = 0;
 class PathFinderThread : public StoppableThread {
 
 #ifdef __EMSCRIPTEN__
+// On emscripten, the run method will be called manually to simulate thread running. It needs to be public then.
 public:
 #endif
 	void run();
@@ -249,6 +250,7 @@ void PathFinderThread::run() {
 	PathFinder pathfinder(eb->nbanchors, eb->anchors, MAX_LIGHTS, (EERIE_LIGHT **)GLight);
 
 #ifdef __EMSCRIPTEN__
+	// No more infinite loop on emscripten. The loop is simulated with emscripten_set_main_loop
 	if(!isStopRequested()) {
 #else
     while(!isStopRequested()) {

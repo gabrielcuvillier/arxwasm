@@ -299,6 +299,7 @@ bool SDL2Window::initialize() {
 			continue;
 		}
 
+		// Regal GL Library setup
 #if defined __native_client__
         RegalMakeCurrent((int32_t)m_glcontext,(PPB_OpenGLES2*)PSGetInterface(PPB_OPENGLES2_INTERFACE));
 #elif defined __EMSCRIPTEN__

@@ -30,6 +30,10 @@
 #include "io/resource/PakReader.h"
 #include "scene/ChangeLevel.h"
 
+#ifdef __EMSCRIPTEN__
+#include "emscripten.h"	// for EM_ASM
+#endif
+
 namespace {
 
 static const fs::path SAVEGAME_NAME = "gsave.sav";

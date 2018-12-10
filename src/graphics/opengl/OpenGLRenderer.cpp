@@ -37,17 +37,18 @@
 #include "window/RenderWindow.h"
 
 #if defined __native_client__ || defined __EMSCRIPTEN__
-  #define GLEW_ARB_texture_non_power_of_two 1
-  #define GLEW_ARB_draw_elements_base_vertex 1
-  #define GLEW_ARB_map_buffer_range 0
-  #define GLEW_EXT_texture_filter_anisotropic 1
-  #define GLEW_VERSION_2_0 0
-  #define GLEW_VERSION_3_0 0
-  #define GLEW_ARB_shader_objects 0
-  #define GLEW_ARB_vertex_program 0
-  #define GLEW_ARB_buffer_storage 0
-  #define GLEW_NVX_gpu_memory_info 0
-  #define GLEW_ATI_meminfo 0
+// On Native Client and Emscripten, tweak some GLEW definitions so that Regal GL library works correctly
+#define GLEW_ARB_texture_non_power_of_two 1
+#define GLEW_ARB_draw_elements_base_vertex 1
+#define GLEW_ARB_map_buffer_range 0
+#define GLEW_EXT_texture_filter_anisotropic 1
+#define GLEW_VERSION_2_0 0
+#define GLEW_VERSION_3_0 0
+#define GLEW_ARB_shader_objects 0
+#define GLEW_ARB_vertex_program 0
+#define GLEW_ARB_buffer_storage 0
+#define GLEW_NVX_gpu_memory_info 0
+#define GLEW_ATI_meminfo 0
 #endif
   
 static const char vertexShaderSource[] = "void main() {\n"
@@ -228,7 +229,7 @@ void OpenGLRenderer::initialize() {
 	{
 		std::ostringstream oss;
 #if defined __native_client__ || defined __EMSCRIPTEN__
-		;
+		oss << "Not using GLEW" << '\n';
 #else
 		oss << "GLEW " << glewVersion << '\n';
 #endif
@@ -297,6 +298,8 @@ void OpenGLRenderer::reinit() {
 	}
 
 #if defined __native_client__ || defined __EMSCRIPTEN__
+	// Disable usage of VertexArrays and VBOs on Native Client and Emscripten, due to issues with Regal GL library
+	// We will use traditional GL immediate mode instead
     useVertexArrays = false;
 #else
 	useVertexArrays = true;

@@ -93,7 +93,7 @@ void GLTexture2D::Upload() {
 	}
   
 #if defined __native_client__ || defined __EMSCRIPTEN__
-#pragma message( "Problems with Mimaps and fitering with OpenGL ES 2" )
+#pragma message( "Disabled Mimaps with OpenGL ES 2, as there is some issues in Regal" )
     flags &= ~HasMipmaps;
 #endif
 
