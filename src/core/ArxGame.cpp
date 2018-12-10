@@ -441,7 +441,7 @@ bool ArxGame::initWindow(RenderWindow * window) {
 	m_MainWindow->setMinimizeOnFocusLost(config.window.minimizeOnFocusLost);
 	m_MainWindow->setMinTextureUnits(3);
   #if defined __native_client__ || defined __EMSCRIPTEN__
-    // Disable antialiasing on NACL, as it do to not work at all
+    // Disable antialiasing on NACL and emscripten, as it do to not work at all with Regal GL Library
     m_MainWindow->setMaxMSAALevel(1);
   #else
     m_MainWindow->setMaxMSAALevel(config.video.antialiasing ? 8 : 1);
@@ -1288,7 +1288,7 @@ static void emloopcb()
 	            console.info('Syncing user home to persistent storage....');
                 FS.syncfs(false, function(err) {
                     console.info("Syncing done.");
-                    console.info("unmounting user home")
+                    console.info("unmounting user home");
                     FS.unmount('/home/user');
                 });
         	);
