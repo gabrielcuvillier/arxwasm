@@ -1285,9 +1285,10 @@ static void emloopcb()
 	    emscripten_cancel_main_loop();
 
 	    EM_ASM(
-	            console.info('Unmounting userhome');
+	            console.info('Syncing user home to persistent storage....');
                 FS.syncfs(false, function(err) {
-                    console.info("Syncing to IDBFS done");
+                    console.info("Syncing done.");
+                    console.info("unmounting user home")
                     FS.unmount('/home/user');
                 });
         	);

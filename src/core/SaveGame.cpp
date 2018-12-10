@@ -241,8 +241,17 @@ bool SaveGameList::save(const std::string & name, iterator overwrite, const Imag
 	if(thumbnail.IsValid() && !thumbnail.save(savefile.parent() / SAVEGAME_THUMBNAIL)) {
 		LogWarning << "Failed to save screenshot to " << (savefile.parent() / SAVEGAME_THUMBNAIL);
 	}
-	
+
 	update();
+
+#ifdef __EMSCRIPTEN__
+	EM_ASM(
+			console.info('Syncing user home to persistent storage....');
+			FS.syncfs(false, function(err) {
+				console.info("Syncing done.");
+			});
+		);
+#endif
 	
 	return true;
 }
