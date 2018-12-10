@@ -1310,7 +1310,6 @@ static void emloopcb()
     	CrashHandler::shutdown();
     }
 }
-#endif
 
 /*!
  * \brief Message-processing loop. Idle time is used to render the scene.
@@ -1319,6 +1318,36 @@ void ArxGame::run() {
     LogInfo << "Starting Main Loop";
     emscripten_set_main_loop(emloopcb,0,true);
 }
+#else
+
+/*!
+ * \brief Message-processing loop. Idle time is used to render the scene.
+ */
+void ArxGame::run() {
+
+	while (m_RunLoop) {
+
+		ARX_PROFILE(Main Loop);
+
+		platform::reapZombies();
+
+		m_MainWindow->tick();
+		if (!m_RunLoop) {
+			break;
+		}
+
+		if (m_MainWindow->isVisible() && !m_MainWindow->isMinimized() && m_bReady) {
+			doFrame();
+
+			// Show the frame on the primary surface.
+			m_MainWindow->showFrame();
+		}
+	}
+
+	benchmark::begin(benchmark::Shutdown);
+}
+
+#endif
 
 /*!
  * \brief Draws the scene.
