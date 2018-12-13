@@ -270,11 +270,17 @@ else(MSVC)
 	endif(SET_OPTIMIZATION_FLAGS)
 
 	  if(EMSCRIPTEN)
+		  add_cxxflag("-s USE_REGAL=1")
+		  add_cxxflag("-s USE_FREETYPE=1")
+		  add_cxxflag("-s USE_LIBPNG=1")
+		  add_cxxflag("-s USE_ZLIB=1")
+		  add_cxxflag("-s USE_SDL=2")
 		  #add_ldflag("-g")
 		  add_ldflag("-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
 		  add_ldflag("-s FORCE_FILESYSTEM=1")
 		  add_ldflag("-s BINARYEN_TRAP_MODE=clamp")
 		  add_ldflag("-s ALLOW_MEMORY_GROWTH=1")
+
 	  endif()
 
 endif(MSVC)
