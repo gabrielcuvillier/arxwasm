@@ -19,7 +19,11 @@
 
 #include "audio/openal/OpenALUtils.h"
 
+#ifdef __EMSCRIPTEN__
+#include <AL/alc.h>
+#else
 #include <alc.h>
+#endif
 
 const char * getAlcErrorString(ALenum error) {
 	

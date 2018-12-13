@@ -24,7 +24,11 @@
 
 #include <stddef.h>
 
+#ifdef __EMSCRIPTEN__
+#include <AL/al.h>
+#else
 #include <al.h>
+#endif
 
 #include "audio/AudioTypes.h"
 #include "audio/AudioSource.h"
