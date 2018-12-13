@@ -68,7 +68,11 @@ void GLTexture2D::Upload() {
 	GLint internal;
 	GLenum format;
 	if(flags & Intensity) {
-		internal = GL_ALPHA8, format = GL_ALPHA;
+		internal = GL_INTENSITY8, format = GL_RED;
+#ifdef __EMSCRIPTEN__
+#pragma message ("GL_INTENSITY/GL_RED not valid texture format. TODO: handle this case")
+		// This is essentially for blood textures (Red color...). Need to convert them manually to (Intensity,0,0)
+#endif
 	} else if(mFormat == Image::Format_L8) {
 		internal = GL_LUMINANCE8, format = GL_LUMINANCE;
 	} else if(mFormat == Image::Format_A8) {
