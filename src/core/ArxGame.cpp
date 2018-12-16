@@ -1235,8 +1235,8 @@ void ArxGame::onToggleFullscreen(const Window & window) {
 #ifdef __EMSCRIPTEN__
 
 // External functions used to simulate sound and pathfinder threads runnning (threading is disabled in emscripten)
-extern void ARX_SOUND_THREAD_RUN();
-extern void ARX_PATHFINDER_THREAD_RUN();
+extern void ARX_SOUND_THREAD_RUN(bool bForce = false);
+extern void ARX_PATHFINDER_THREAD_RUN(bool bForce = false);
 
 bool ArxGame::emscripten_run()
 {

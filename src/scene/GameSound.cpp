@@ -72,6 +72,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "platform/Platform.h"
 #include "platform/Thread.h"
+#include "platform/Time.h"
 
 #include "scene/Interactive.h"
 
@@ -1657,6 +1658,25 @@ public:
 
 static SoundUpdateThread * updateThread = NULL;
 
+#ifdef __EMSCRIPTEN__
+// Simulate sound thread running on emscripten. Must be called from emscripten main loop in ArxGame.cpp
+void ARX_SOUND_THREAD_RUN(bool bForce = false)
+{
+	static u32 last_time = platform::getTimeMs();
+
+	float diff = platform::getElapsedMs(last_time);
+	if (diff >= ARX_SOUND_UPDATE_INTERVAL || bForce) {
+		last_time = platform::getTimeMs();
+
+    	if (updateThread && updateThread->isStarted())
+    	{
+        	updateThread->run();
+    	}
+	}
+}
+
+#endif
+
 static void ARX_SOUND_LaunchUpdateThread() {
 	
 	arx_assert(!updateThread);
@@ -1664,6 +1684,9 @@ static void ARX_SOUND_LaunchUpdateThread() {
 	updateThread = new SoundUpdateThread();
 	updateThread->setThreadName("Sound Update");
 	updateThread->start();
+#ifdef __EMSCRIPTEN__
+	ARX_SOUND_THREAD_RUN(true);
+#endif
 }
 
 static void ARX_SOUND_KillUpdateThread() {
@@ -1675,14 +1698,3 @@ static void ARX_SOUND_KillUpdateThread() {
 	updateThread->stop();
 	delete updateThread, updateThread = NULL;
 }
-
-#ifdef __EMSCRIPTEN__
-// Simulate sound thread running on emscripten. Must be called from emscripten main loop in ArxGame.cpp
-void ARX_SOUND_THREAD_RUN()
-{
-    if (updateThread && updateThread->isStarted())
-    {
-        updateThread->run();
-    }
-}
-#endif

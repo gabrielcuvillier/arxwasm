@@ -57,6 +57,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "platform/Thread.h"
 #include "platform/Lock.h"
 #include "platform/profiler/Profiler.h"
+#include "platform/Time.h"
 #include "physics/Anchors.h"
 #include "scene/Light.h"
 
@@ -356,6 +357,24 @@ void EERIE_PATHFINDER_Release() {
 	mutex->unlock(), delete mutex, mutex = NULL;
 }
 
+
+#ifdef __EMSCRIPTEN__
+// Simulate pathfinder thread running on emscripten. Must be called from emscripten main loop in ArxGame.cpp
+void ARX_PATHFINDER_THREAD_RUN(bool bForce = false)
+{
+    static u32 last_time = platform::getTimeMs();
+
+	float diff = platform::getElapsedMs(last_time);
+	if (diff >= PATHFINDER_UPDATE_INTERVAL || bForce) {
+		last_time = platform::getTimeMs();
+
+    	if (pathfinder && pathfinder->isStarted())
+    	{
+        	pathfinder->run();
+    	}
+	}
+}
+
 void EERIE_PATHFINDER_Create() {
 	
 	if(pathfinder) {
@@ -369,15 +388,9 @@ void EERIE_PATHFINDER_Create() {
 	pathfinder = new PathFinderThread();
 	pathfinder->setThreadName("Pathfinder");
 	pathfinder->start();
+#ifdef __EMSCRIPTEN__
+	ARX_PATHFINDER_THREAD_RUN(true);
+#endif
 }
 
-#ifdef __EMSCRIPTEN__
-// Simulate pathfinder thread running on emscripten. Must be called from emscripten main loop in ArxGame.cpp
-void ARX_PATHFINDER_THREAD_RUN()
-{
-    if (pathfinder && pathfinder->isStarted())
-    {
-        pathfinder->run();
-    }
-}
 #endif
