@@ -64,15 +64,30 @@ void GLTexture2D::Upload() {
 	
 	glBindTexture(GL_TEXTURE_2D, tex);
 	renderer->GetTextureStage(0)->current = this;
-	
+
+#ifdef __EMSCRIPTEN__
+	// Regal/GLES2 does not support GL_INTENSITY textures, so convert them to L8A8
+	if(flags & Intensity) {
+		arx_assert(mFormat == Image::Format_L8);
+		Image converted;
+		converted.Create(storedSize.x, storedSize.y, Image::Format_L8A8);
+		unsigned char * input = mImage.GetData();
+		unsigned char * end = input + storedSize.x * storedSize.y;
+		unsigned char * output = converted.GetData();
+		for(; input != end; input++) {
+			*output++ = *input;
+			*output++ = *input;
+		}
+		mImage = converted;
+		mFormat = Image::Format_L8A8;
+		flags &= ~Intensity;
+	}
+#endif
+
 	GLint internal;
 	GLenum format;
 	if(flags & Intensity) {
 		internal = GL_INTENSITY8, format = GL_RED;
-#ifdef __EMSCRIPTEN__
-#pragma message ("GL_INTENSITY/GL_RED not valid texture format. TODO: handle this case")
-		// This is essentially for blood textures (Red color...). Need to convert them manually to (Intensity,0,0)
-#endif
 	} else if(mFormat == Image::Format_L8) {
 		internal = GL_LUMINANCE8, format = GL_LUMINANCE;
 	} else if(mFormat == Image::Format_A8) {
