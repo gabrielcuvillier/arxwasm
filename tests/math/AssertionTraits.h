@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -26,8 +26,9 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_access.hpp>
-#include <glm/gtx/string_cast.hpp>
 #include <glm/ext.hpp>
+
+#include <cppunit/TestAssert.h>
 
 #include "graphics/Math.h"
 
@@ -53,7 +54,7 @@ namespace CppUnit {
 			ost << quat.w << ", ";
 			ost << quat.x << ", ";
 			ost << quat.y << ", ";
-			ost << quat.z << ")" << std::endl;			
+			ost << quat.z << ")" << std::endl;
 			return ost.str();
 		}
 	};
@@ -65,7 +66,26 @@ namespace CppUnit {
 		}
 		
 		static std::string toString(const Vec2s &v) {
-			return glm::to_string(Vec2i(v));
+			std::ostringstream ost;
+			ost << std::fixed << std::setprecision(4);
+			ost << "Vec2s(";
+			ost << v.x << ", ";
+			ost << v.y << ")";
+			return ost.str();
+		}
+	};
+	
+	template <>
+	struct assertion_traits<Vec2i> {
+		static bool equal(const Vec2i & v, const Vec2i & other) {
+			return glm::all(glm::equal(v, other));
+		}
+		
+		static std::string toString(const Vec2i &v) {
+			std::ostringstream ost;
+			ost << std::fixed << std::setprecision(4);
+			ost << "Vec2i(" << v.x << ", " << v.y << ")";
+			return ost.str();
 		}
 	};
 	
@@ -76,7 +96,13 @@ namespace CppUnit {
 		}
 		
 		static std::string toString(const Vec3f &v) {
-			return glm::to_string(v);
+			std::ostringstream ost;
+			ost << std::fixed << std::setprecision(4);
+			ost << "Vec3f(";
+			ost << v.x << ", ";
+			ost << v.y << ", ";
+			ost << v.z << ")";
+			return ost.str();
 		}
 	};
 	
@@ -87,7 +113,14 @@ namespace CppUnit {
 		}
 		
 		static std::string toString(const Vec4f &v) {
-			return glm::to_string(v);
+			std::ostringstream ost;
+			ost << std::fixed << std::setprecision(4);
+			ost << "Vec4f(";
+			ost << v.x << ", ";
+			ost << v.y << ", ";
+			ost << v.z << ", ";
+			ost << v.w << ")";
+			return ost.str();
 		}
 	};
 	

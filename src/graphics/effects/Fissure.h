@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -27,16 +27,18 @@ class FissureFx {
 public:
 	FissureFx();
 	
-	void SetDuration(unsigned long alDurationIntro, unsigned long alDurationRender, unsigned long alDurationOuttro);
+	void SetDuration(ArxDuration alDurationIntro, ArxDuration alDurationRender, ArxDuration alDurationOuttro);
 	
 	void SetColorBorder(Color3f color);
 	void SetColorRays1(Color3f color);
 	void SetColorRays2(Color3f color);
 	
-	unsigned long ulCurrentTime;
-	unsigned long ulDurationIntro;
-	unsigned long ulDurationRender;
-	unsigned long ulDurationOuttro;
+	ArxDuration m_elapsed;
+	ArxDuration m_duration;
+	
+	ArxDuration m_durationIntro;
+	ArxDuration m_durationRender;
+	ArxDuration m_durationOuttro;
 	
 	Color3f m_colorBorder;
 	Color3f m_colorRays1;
@@ -51,7 +53,7 @@ public:
 	CRiseDead();
 	~CRiseDead();
 	
-	unsigned long GetDuration();
+	ArxDuration GetDuration();
 	
 	void Create(Vec3f, float afBeta = 0);
 	void Update(float timeDelta);

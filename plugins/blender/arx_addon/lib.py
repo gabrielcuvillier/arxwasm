@@ -1,4 +1,4 @@
-# Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+# Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
 #
 # This file is part of Arx Libertatis.
 #
@@ -35,14 +35,18 @@ class ArxIO(object):
                 "libArxIO.so.0"
             ]
         
+        self.lib = None
+        lastException = None
         for libPath in libPaths:
-            try:
-                self.lib = ctypes.cdll.LoadLibrary(libPath)
-                break
-            except:
-                continue
+            if os.path.isfile(libPath):
+                try:
+                    self.lib = ctypes.cdll.LoadLibrary(libPath)
+                    break
+                except Exception as e:
+                    lastException = e
+                    continue
         if self.lib is None:
-            raise Exception('could not load the ArxIO library from ' + ', '.join(libPaths))
+            raise Exception('could not load the ArxIO library from: [\n' + ',\n'.join(libPaths) + '\n]\nLoadLibrary Exception: ' + str(lastException))
         self.lib.ArxIO_init()
 
     def getError(self):

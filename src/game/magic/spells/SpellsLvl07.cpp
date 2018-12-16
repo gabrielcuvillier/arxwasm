@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -19,8 +19,6 @@
 
 #include "game/magic/spells/SpellsLvl07.h"
 
-#include <glm/gtc/random.hpp>
-
 #include "animation/AnimationRender.h"
 #include "core/Application.h"
 #include "core/Config.h"
@@ -31,61 +29,63 @@
 #include "game/EntityManager.h"
 #include "game/Player.h"
 #include "game/Spells.h"
+#include "game/effect/ParticleSystems.h"
 #include "game/spell/FlyingEye.h"
 
 #include "graphics/particle/ParticleEffects.h"
 
 #include "gui/Interface.h"
+#include "math/RandomVector.h"
 
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
 #include "scene/Object.h"
 #include "scene/Scene.h"
 
-extern float SLID_START;
+extern PlatformInstant SLID_START;
 bool bOldLookToggle;
 
-static LightHandle special[3];
-
 FlyingEyeSpell::FlyingEyeSpell()
-	: m_lastupdate(0)
+	: m_lastupdate(ArxInstant_ZERO)
 {
 	
 }
 
-bool FlyingEyeSpell::CanLaunch()
-{
-	if(eyeball.exist)
-		return false;
-
-	if(spells.ExistAnyInstanceForThisCaster(m_type, m_caster))
-		return false;
+bool FlyingEyeSpell::CanLaunch() {
 	
-	if(m_caster == PlayerEntityHandle) {
-		m_target = PlayerEntityHandle;
+	if(eyeball.exist) {
+		return false;
+	}
+
+	if(spells.ExistAnyInstanceForThisCaster(m_type, m_caster)) {
+		return false;
 	}
 	
-	if(m_target != PlayerEntityHandle) {
+	if(m_caster == EntityHandle_Player) {
+		m_target = EntityHandle_Player;
+	}
+	
+	if(m_target != EntityHandle_Player) {
 		return false;
 	}
 	
 	return true;
 }
 
-void FlyingEyeSpell::Launch()
-{
+void FlyingEyeSpell::Launch() {
+	
 	static TextureContainer * tc4 = TextureContainer::Load("graph/particles/smoke");
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_EYEBALL_IN);
 	
 	m_lastupdate = m_timcreation;
-	m_duration = 1000000;
+	m_duration = ArxDurationMs(1000000);
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 3.2f;
 	eyeball.exist = 1;
 	
 	eyeball.pos = player.pos;
-	eyeball.pos += angleToVectorXZ(player.angle.getPitch()) * 200.f;
+	eyeball.pos += angleToVectorXZ(player.angle.getYaw()) * 200.f;
 	eyeball.pos += Vec3f(0.f, 50.f, 0.f);
 	
 	eyeball.angle = player.angle;
@@ -97,26 +97,29 @@ void FlyingEyeSpell::Launch()
 			break;
 		}
 		
-		pd->ov = eyeball.pos + randomVec(-5.f, 5.f);
-		pd->move = randomVec(-2.f, 2.f);
+		pd->ov = eyeball.pos + arx::randomVec(-5.f, 5.f);
+		pd->move = arx::randomVec(-2.f, 2.f);
 		pd->siz = 28.f;
 		pd->tolive = Random::getu(2000, 6000);
 		pd->scale = Vec3f(12.f);
 		pd->tc = tc4;
-		pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
-		pd->fparam = 0.0000001f;
+		pd->m_flags = FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+		pd->m_rotation = 0.0000001f;
 		pd->rgb = Color3f(0.7f, 0.7f, 1.f);
 	}
 	
 	TRUE_PLAYER_MOUSELOOK_ON = true;
-	SLID_START = arxtime.now_f();
+	SLID_START = g_platformTime.frameStart();
 	bOldLookToggle = config.input.mouseLookToggle;
 	config.input.mouseLookToggle = true;
 }
 
-void FlyingEyeSpell::End()
-{
-	ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE, &entities[m_caster]->pos);
+void FlyingEyeSpell::End() {
+	
+	Entity * caster = entities.get(m_caster);
+	if(caster) {
+		ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE, &caster->pos);
+	}
 	
 	static TextureContainer * tc4=TextureContainer::Load("graph/particles/smoke");
 	
@@ -130,89 +133,83 @@ void FlyingEyeSpell::End()
 			break;
 		}
 		
-		pd->ov = eyeball.pos + randomVec(-5.f, 5.f);
-		pd->move = randomVec(-2.f, 2.f);
+		pd->ov = eyeball.pos + arx::randomVec(-5.f, 5.f);
+		pd->move = arx::randomVec(-2.f, 2.f);
 		pd->siz = 28.f;
 		pd->tolive = Random::getu(2000, 6000);
 		pd->scale = Vec3f(12.f);
 		pd->tc = tc4;
-		pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
-		pd->fparam = 0.0000001f;
+		pd->m_flags = FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+		pd->m_rotation = 0.0000001f;
 		pd->rgb = Color3f(0.7f, 0.7f, 1.f);
 	}
 	
 	config.input.mouseLookToggle = bOldLookToggle;
 	
-	lightHandleDestroy(special[2]);
-	lightHandleDestroy(special[1]);
+	lightHandleDestroy(m_light1);
+	lightHandleDestroy(m_light2);
+}
+
+static void FlyingEyeSpellUpdateHand(const Vec3f & pos, LightHandle & light) {
+	
+	EERIE_LIGHT * el = dynLightCreate(light);
+	if(el) {
+		el->intensity = 1.3f;
+		el->fallend = 180.f;
+		el->fallstart = 50.f;
+		el->rgb = Color3f(0.7f, 0.3f, 1.f);
+		el->pos = pos;
+	}
+	
+	for(long kk = 0; kk < 2; kk++) {
+		
+		PARTICLE_DEF * pd = createParticle();
+		if(!pd) {
+			break;
+		}
+		
+		pd->ov = pos + arx::randomVec(-1.f, 1.f);
+		pd->move = Vec3f(0.1f, 0.f, 0.1f) + Vec3f(-0.2f, -2.2f, -0.2f) * arx::randomVec3f();
+		pd->siz = 5.f;
+		pd->tolive = Random::getu(1500, 3500);
+		pd->scale = Vec3f(0.2f);
+		pd->tc = TC_smoke;
+		pd->m_flags = FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+		pd->sourceionum = EntityHandle_Player;
+		pd->m_rotation = 0.0000001f;
+		pd->rgb = Color3f(.7f, .3f, 1.f) + Color3f(-.1f, -.1f, -.1f) * randomColor3f();
+	}
 }
 
 void FlyingEyeSpell::Update() {
 	
-	const unsigned long now = arxtime.now_ul();
+	const ArxInstant now = arxtime.now();
 	
-	const long framediff3 = now - m_lastupdate;
+	const ArxDuration framediff3 = now - m_lastupdate;
 	
-	eyeball.floating = std::sin(m_lastupdate-m_timcreation * 0.001f);
+	eyeball.floating = std::sin(toMs(m_lastupdate - m_timcreation) * 0.001f);
 	eyeball.floating *= 10.f;
 	
-	if(m_lastupdate-m_timcreation <= 3000) {
-		eyeball.exist = m_lastupdate - m_timcreation * (1.0f / 30);
+	if(m_lastupdate - m_timcreation <= ArxDurationMs(3000)) {
+		eyeball.exist = toMs(m_lastupdate - m_timcreation) * (1.0f / 30);
 		eyeball.size = Vec3f(1.f - float(eyeball.exist) * 0.01f);
-		eyeball.angle.setPitch(eyeball.angle.getPitch() + framediff3 * 0.6f);
+		eyeball.angle.setYaw(eyeball.angle.getYaw() + toMs(framediff3) * 0.6f);
 	} else {
 		eyeball.exist = 2;
 	}
 	
-	m_lastupdate=now;
+	m_lastupdate = now;
 	
 	Entity * io = entities.player();
-	EERIE_3DOBJ * eobj = io->obj;
-	long pouet = 2;
-
-	while(pouet) {
-		ActionPoint id;
-
-		if(pouet == 2)
-			id = io->obj->fastaccess.primary_attach;
-		else
-			id = GetActionPointIdx(io->obj, "left_attach");
-
-		pouet--;
-
-		if(id != ActionPoint()) {
-			if(!lightHandleIsValid(special[pouet])) {
-				special[pouet] = GetFreeDynLight();
-			}
-			if(lightHandleIsValid(special[pouet])) {
-				EERIE_LIGHT * el = lightHandleGet(special[pouet]);
-				el->intensity = 1.3f;
-				el->fallend = 180.f;
-				el->fallstart = 50.f;
-				el->rgb = Color3f(0.7f, 0.3f, 1.f);
-				el->pos = actionPointPosition(eobj, id);
-			}
-			
-			for(long kk = 0; kk < 2; kk++) {
-				
-				PARTICLE_DEF * pd = createParticle();
-				if(!pd) {
-					break;
-				}
-				
-				pd->ov = actionPointPosition(eobj, id) + randomVec(-1.f, 1.f);
-				pd->move = Vec3f(0.1f, 0.f, 0.1f) + Vec3f(-0.2f, -2.2f, -0.2f) * randomVec3f();
-				pd->siz = 5.f;
-				pd->tolive = Random::getu(1500, 3500);
-				pd->scale = Vec3f(0.2f);
-				pd->tc = TC_smoke;
-				pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
-				pd->sourceionum = PlayerEntityHandle;
-				pd->source = &eobj->vertexlist3[id.handleData()].v; // FIXME passing of pointer to vertex position
-				pd->fparam = 0.0000001f;
-				pd->rgb = Color3f(.7f, .3f, 1.f) + Color3f(-.1f, -.1f, -.1f) * randomColor3f();
-			}
-		}
+	
+	if(io->obj->fastaccess.primary_attach != ActionPoint()) {
+		Vec3f pos = actionPointPosition(io->obj, io->obj->fastaccess.primary_attach);
+		FlyingEyeSpellUpdateHand(pos, m_light1);
+	}
+	
+	if(io->obj->fastaccess.left_attach != ActionPoint()) {
+		Vec3f pos = actionPointPosition(io->obj, io->obj->fastaccess.left_attach);
+		FlyingEyeSpellUpdateHand(pos, m_light2);
 	}
 }
 
@@ -232,7 +229,7 @@ void FireFieldSpell::Launch() {
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_FIRE_FIELD_START);
 	
-	m_duration = (m_launchDuration > -1) ? m_launchDuration : 100000;
+	m_duration = (m_launchDuration > ArxDuration::ofRaw(-1)) ? m_launchDuration : ArxDurationMs(100000);
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 2.8f;
 	m_light = LightHandle();
@@ -240,15 +237,15 @@ void FireFieldSpell::Launch() {
 	Vec3f target;
 	float beta = 0.f;
 	bool displace = false;
-	if(m_caster == PlayerEntityHandle) {
+	if(m_caster == EntityHandle_Player) {
 		target = player.basePosition();
-		beta = player.angle.getPitch();
+		beta = player.angle.getYaw();
 		displace = true;
 	} else {
-		if(ValidIONum(m_caster)) {
-			Entity * io = entities[m_caster];
+		Entity * io = entities.get(m_caster);
+		if(io) {
 			target = io->pos;
-			beta = io->angle.getPitch();
+			beta = io->angle.getYaw();
 			displace = (io->ioflags & IO_NPC) == IO_NPC;
 		} else {
 			ARX_DEAD_CODE();
@@ -264,7 +261,7 @@ void FireFieldSpell::Launch() {
 	damage.radius = 150.f;
 	damage.damages = 10.f;
 	damage.area = DAMAGE_FULL;
-	damage.duration = 100000000;
+	damage.duration = ArxDurationMs(100000000);
 	damage.source = m_caster;
 	damage.flags = 0;
 	damage.type = DAMAGE_TYPE_MAGICAL | DAMAGE_TYPE_FIRE | DAMAGE_TYPE_FIELD;
@@ -273,85 +270,16 @@ void FireFieldSpell::Launch() {
 	
 	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_FIRE_FIELD_LOOP, &target, 1.f, ARX_SOUND_PLAY_LOOPED);
 	
-	{
-	ParticleParams cp = ParticleParams();
-	cp.m_nbMax = 100;
-	cp.m_life = 2000;
-	cp.m_lifeRandom = 1000;
-	cp.m_pos = Vec3f(80, 10, 80);
-	cp.m_direction = Vec3f(0.f, 1.f, 0.f);
-	cp.m_angle = 0;
-	cp.m_speed = 0;
-	cp.m_speedRandom = 0;
-	cp.m_gravity = Vec3f_ZERO;
-	cp.m_flash = 0;
-	cp.m_rotation = 0;
-	cp.m_rotationRandomDirection = false;
-	cp.m_rotationRandomStart = false;
-
-	cp.m_startSegment.m_size = 10;
-	cp.m_startSegment.m_sizeRandom = 3;
-	cp.m_startSegment.m_color = Color(25, 25, 25, 50).to<float>();
-	cp.m_startSegment.m_colorRandom = Color(51, 51, 51, 101).to<float>();
-
-	cp.m_endSegment.m_size = 10;
-	cp.m_endSegment.m_sizeRandom = 3;
-	cp.m_endSegment.m_color = Color(25, 25, 25, 50).to<float>();
-	cp.m_endSegment.m_colorRandom = Color(0, 0, 0, 100).to<float>();
-	cp.m_texture.m_texLoop = true;
-
-	cp.m_blendMode = RenderMaterial::AlphaAdditive;
-	cp.m_freq = 150.0f;
-	cp.m_texture.set("graph/particles/firebase", 4, 100);
-	cp.m_spawnFlags = 0;
-	
-	pPSStream.SetParams(cp);
-	}
+	pPSStream.SetParams(g_particleParameters[ParticleParam_FireFieldBase]);
 	pPSStream.SetPos(m_pos);
-	pPSStream.Update(0);
-
-	//-------------------------------------------------------------------------
-
-	{
-	ParticleParams cp = ParticleParams();
-	cp.m_nbMax = 50;
-	cp.m_life = 1000;
-	cp.m_lifeRandom = 500;
-	cp.m_pos = Vec3f(100, 10, 100);
-	cp.m_direction = Vec3f(0.f, -1.f, 0.f);
-	cp.m_angle = glm::radians(10.f);
-	cp.m_speed = 0;
-	cp.m_speedRandom = 0;
-	cp.m_gravity = Vec3f_ZERO;
-	cp.m_flash = 0;
-	cp.m_rotation = 0;
-	cp.m_rotationRandomDirection = false;
-	cp.m_rotationRandomStart = false;
-
-	cp.m_startSegment.m_size = 10;
-	cp.m_startSegment.m_sizeRandom = 10;
-	cp.m_startSegment.m_color = Color(40, 40, 40, 50).to<float>();
-	cp.m_startSegment.m_colorRandom = Color(51, 51, 51, 100).to<float>();
-
-	cp.m_endSegment.m_size = 10;
-	cp.m_endSegment.m_sizeRandom = 10;
-	cp.m_endSegment.m_color = Color(0, 0, 0, 50).to<float>();
-	cp.m_endSegment.m_colorRandom = Color(0, 0, 0, 100).to<float>();
-	cp.m_texture.m_texLoop = false;
-
-	cp.m_blendMode = RenderMaterial::Additive;
-	cp.m_freq = 150.0f;
-	cp.m_texture.set("graph/particles/fire", 0, 500);
-	cp.m_spawnFlags = 0;
 	
-	pPSStream1.SetParams(cp);
-	}
+	pPSStream1.SetParams(g_particleParameters[ParticleParam_FireFieldFlame]);
 	pPSStream1.SetPos(m_pos + Vec3f(0, 10, 0));
-	pPSStream1.Update(0);
+	pPSStream1.Update(ArxDuration_ZERO);
 }
 
-void FireFieldSpell::End()
-{
+void FireFieldSpell::End() {
+	
 	DamageRequestEnd(m_damage);
 	
 	ARX_SOUND_Stop(m_snd_loop);
@@ -360,22 +288,17 @@ void FireFieldSpell::End()
 
 void FireFieldSpell::Update() {
 	
-	pPSStream.Update(g_framedelay);
-	pPSStream1.Update(g_framedelay);
+	pPSStream.Update(ArxDurationMs(g_framedelay));
+	pPSStream1.Update(ArxDurationMs(g_framedelay));
 	
-	
-	if(!lightHandleIsValid(m_light))
-		m_light = GetFreeDynLight();
-	
-	if(lightHandleIsValid(m_light)) {
-		EERIE_LIGHT * el = lightHandleGet(m_light);
-		
+	EERIE_LIGHT * el = dynLightCreate(m_light);
+	if(el) {
 		el->pos = m_pos + Vec3f(0.f, -120.f, 0.f);
 		el->intensity = 4.6f;
 		el->fallstart = Random::getf(150.f, 180.f);
 		el->fallend   = Random::getf(290.f, 320.f);
 		el->rgb = Color3f(1.f, 0.8f, 0.6f) + Color3f(Random::getf(-0.1f, 0.f), 0.f, 0.f);
-		el->duration = 600;
+		el->duration = ArxDurationMs(600);
 		el->extras=0;
 	}
 	
@@ -397,13 +320,13 @@ void FireFieldSpell::Update() {
 			float t = Random::getf() * (glm::pi<float>() * 2.f) - glm::pi<float>();
 			float ts = std::sin(t);
 			float tc = std::cos(t);
-			pd->ov = m_pos + Vec3f(120.f * ts, 15.f * ts, 120.f * tc) * randomVec();
-			pd->move = Vec3f(2.f, 1.f, 2.f) + Vec3f(-4.f, -8.f, -4.f) * randomVec3f();
+			pd->ov = m_pos + Vec3f(120.f * ts, 15.f * ts, 120.f * tc) * arx::randomVec();
+			pd->move = Vec3f(2.f, 1.f, 2.f) + Vec3f(-4.f, -8.f, -4.f) * arx::randomVec3f();
 			pd->siz = 7.f;
 			pd->tolive = Random::getu(500, 1500);
 			pd->tc = fire2;
-			pd->special = ROTATING | MODULATE_ROTATION | FIRE_TO_SMOKE;
-			pd->fparam = Random::getf(-0.1f, 0.1f);
+			pd->m_flags = ROTATING | FIRE_TO_SMOKE;
+			pd->m_rotation = Random::getf(-0.1f, 0.1f);
 			pd->scale = Vec3f(-8.f);
 			
 			PARTICLE_DEF * pd2 = createParticle();
@@ -431,13 +354,13 @@ IceFieldSpell::IceFieldSpell()
 	, tex_p2(NULL)
 {}
 
-void IceFieldSpell::Launch()
-{
+void IceFieldSpell::Launch() {
+	
 	spells.endByCaster(m_caster, SPELL_ICE_FIELD);
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_ICE_FIELD);
 	
-	m_duration = (m_launchDuration > -1) ? m_launchDuration : 100000;
+	m_duration = (m_launchDuration > ArxDuration::ofRaw(-1)) ? m_launchDuration : ArxDurationMs(100000);
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 2.8f;
 	m_light = LightHandle();
@@ -445,15 +368,15 @@ void IceFieldSpell::Launch()
 	Vec3f target;
 	float beta = 0.f;
 	bool displace = false;
-	if(m_caster == PlayerEntityHandle) {
+	if(m_caster == EntityHandle_Player) {
 		target = player.basePosition();
-		beta = player.angle.getPitch();
+		beta = player.angle.getYaw();
 		displace = true;
 	} else {
-		if(ValidIONum(m_caster)) {
-			Entity * io = entities[m_caster];
+		Entity * io = entities.get(m_caster);
+		if(io) {
 			target = io->pos;
-			beta = io->angle.getPitch();
+			beta = io->angle.getYaw();
 			displace = (io->ioflags & IO_NPC) == IO_NPC;
 		} else {
 			ARX_DEAD_CODE();
@@ -469,7 +392,7 @@ void IceFieldSpell::Launch()
 	damage.radius = 150.f;
 	damage.damages = 10.f;
 	damage.area = DAMAGE_FULL;
-	damage.duration = 100000000;
+	damage.duration = ArxDurationMs(100000000);
 	damage.source = m_caster;
 	damage.flags = 0;
 	damage.type = DAMAGE_TYPE_MAGICAL | DAMAGE_TYPE_COLD | DAMAGE_TYPE_FIELD;
@@ -482,13 +405,14 @@ void IceFieldSpell::Launch()
 	for(int i = 0; i < iMax; i++) {
 		float t = Random::getf();
 
-		if (t < 0.5f)
+		if(t < 0.5f) {
 			tType[i] = 0;
-		else
+		} else {
 			tType[i] = 1;
+		}
 		
 		tSize[i] = Vec3f_ZERO;
-		tSizeMax[i] = randomVec3f() + Vec3f(0.f, 0.2f, 0.f);
+		tSizeMax[i] = arx::randomVec3f() + Vec3f(0.f, 0.2f, 0.f);
 		
 		Vec3f minPos;
 		if(tType[i] == 0) {
@@ -523,23 +447,20 @@ void IceFieldSpell::End() {
 
 void IceFieldSpell::Update() {
 	
-	if(!lightHandleIsValid(m_light))
-		m_light = GetFreeDynLight();
-
-	if(lightHandleIsValid(m_light)) {
-		EERIE_LIGHT * el = lightHandleGet(m_light);
-		
+	EERIE_LIGHT * el = dynLightCreate(m_light);
+	if(el) {
 		el->pos = m_pos + Vec3f(0.f, -120.f, 0.f);
 		el->intensity = 4.6f;
 		el->fallstart = Random::getf(150.f, 180.f);
 		el->fallend   = Random::getf(290.f, 320.f);
 		el->rgb = Color3f(0.76f, 0.76f, 1.0f) + Color3f(0.f, 0.f, Random::getf(-0.1f, 0.f));
-		el->duration = 600;
+		el->duration = ArxDurationMs(600);
 		el->extras=0;
 	}
 
-	if(!VisibleSphere(Sphere(m_pos - Vec3f(0.f, 120.f, 0.f), 350.f)))
+	if(!VisibleSphere(Sphere(m_pos - Vec3f(0.f, 120.f, 0.f), 350.f))) {
 		return;
+	}
 	
 	RenderMaterial mat;
 	mat.setDepthTest(true);
@@ -555,7 +476,7 @@ void IceFieldSpell::Update() {
 		Vec3f stitescale;
 		Color3f stitecolor;
 
-		stiteangle.setPitch(glm::cos(glm::radians(tPos[i].x)) * 360);
+		stiteangle.setYaw(glm::cos(glm::radians(tPos[i].x)) * 360);
 		stitepos.x = tPos[i].x;
 		stitepos.y = m_pos.y;
 		stitepos.z = tPos[i].z;
@@ -564,14 +485,17 @@ void IceFieldSpell::Update() {
 		stitecolor.g = tSizeMax[i].y * 0.7f;
 		stitecolor.b = tSizeMax[i].y * 0.9f;
 
-		if(stitecolor.r > 1)
+		if(stitecolor.r > 1) {
 			stitecolor.r = 1;
+		}
 
-		if(stitecolor.g > 1)
+		if(stitecolor.g > 1) {
 			stitecolor.g = 1;
+		}
 
-		if(stitecolor.b > 1)
+		if(stitecolor.b > 1) {
 			stitecolor.b = 1;
+		}
 
 		stitescale.z = tSize[i].x;
 		stitescale.y = tSize[i].y;
@@ -589,13 +513,13 @@ void IceFieldSpell::Update() {
 			
 			PARTICLE_DEF * pd = createParticle();
 			if(pd) {
-				pd->ov = tPos[i] + randomVec(-5.f, 5.f);
-				pd->move = randomVec(-2.f, 2.f);
+				pd->ov = tPos[i] + arx::randomVec(-5.f, 5.f);
+				pd->move = arx::randomVec(-2.f, 2.f);
 				pd->siz = 20.f;
 				pd->tolive = Random::getu(2000, 6000);
 				pd->tc = tex_p2;
-				pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
-				pd->fparam = 0.0000001f;
+				pd->m_flags = FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+				pd->m_rotation = 0.0000001f;
 				pd->rgb = Color3f(0.7f, 0.7f, 1.f);
 			}
 			
@@ -603,13 +527,13 @@ void IceFieldSpell::Update() {
 			
 			PARTICLE_DEF * pd = createParticle();
 			if(pd) {
-				pd->ov = tPos[i] + randomVec(-5.f, 5.f) + Vec3f(0.f, 50.f, 0.f);
+				pd->ov = tPos[i] + arx::randomVec(-5.f, 5.f) + Vec3f(0.f, 50.f, 0.f);
 				pd->move = Vec3f(0.f, Random::getf(-2.f, 2.f), 0.f);
 				pd->siz = 0.5f;
 				pd->tolive = Random::getu(2000, 6000);
 				pd->tc = tex_p1;
-				pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
-				pd->fparam = 0.0000001f;
+				pd->m_flags = FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+				pd->m_rotation = 0.0000001f;
 				pd->rgb = Color3f(0.7f, 0.7f, 1.f);
 			}
 			
@@ -626,36 +550,40 @@ void LightningStrikeSpell::Launch() {
 	
 	Vec3f target(0.f, 0.f, -500.f);
 	m_lightning.Create(Vec3f_ZERO, target);
-	m_lightning.SetDuration(long(500 * m_level));
+	m_lightning.SetDuration(ArxDurationMs(500 * m_level));
 	m_lightning.m_isMassLightning = false;
-	m_duration = m_lightning.GetDuration();
+	m_duration = m_lightning.m_duration;
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_LIGHTNING_START, &m_caster_pos);
 	
 	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_LIGHTNING_LOOP, &m_caster_pos, 1.f, ARX_SOUND_PLAY_LOOPED);
 }
 
-void LightningStrikeSpell::End()
-{
-	ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &entities[m_caster]->pos);
+void LightningStrikeSpell::End() {
 	
 	ARX_SOUND_Stop(m_snd_loop);
-	ARX_SOUND_PlaySFX(SND_SPELL_LIGHTNING_END, &entities[m_caster]->pos);
+	
+	Entity * caster = entities.get(m_caster);
+	if(caster) {
+		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &caster->pos);
+		ARX_SOUND_PlaySFX(SND_SPELL_LIGHTNING_END, &caster->pos);
+	}
 }
 
 static Vec3f GetChestPos(EntityHandle num) {
 	
-	if(num == PlayerEntityHandle) {
+	if(num == EntityHandle_Player) {
 		return player.pos + Vec3f(0.f, 70.f, 0.f);
 	}
+	
+	Entity * io = entities.get(num);
+	if(io) {
+		ObjVertHandle idx = GetGroupOriginByName(io->obj, "chest");
 
-	if(ValidIONum(num)) {
-		long idx = GetGroupOriginByName(entities[num]->obj, "chest");
-
-		if(idx >= 0) {
-			return entities[num]->obj->vertexlist3[idx].v;
+		if(idx != ObjVertHandle()) {
+			return io->obj->vertexlist3[idx.handleData()].v;
 		} else {
-			return entities[num]->pos + Vec3f(0.f, -120.f, 0.f);
+			return io->pos + Vec3f(0.f, -120.f, 0.f);
 		}
 	} else {
 		// should not happen
@@ -669,18 +597,18 @@ void LightningStrikeSpell::Update() {
 	float falpha = 0.f;
 	
 	Entity * caster = entities[m_caster];
-	long idx = GetGroupOriginByName(caster->obj, "chest");
-	if(idx >= 0) {
-		m_caster_pos = caster->obj->vertexlist3[idx].v;
+	ObjVertHandle idx = GetGroupOriginByName(caster->obj, "chest");
+	if(idx != ObjVertHandle()) {
+		m_caster_pos = caster->obj->vertexlist3[idx.handleData()].v;
 	} else {
 		m_caster_pos = caster->pos;
 	}
 	
-	if(m_caster == PlayerEntityHandle) {
-		falpha = -player.angle.getYaw();
-		fBeta = player.angle.getPitch();
+	if(m_caster == EntityHandle_Player) {
+		falpha = -player.angle.getPitch();
+		fBeta = player.angle.getYaw();
 	} else {
-		fBeta = caster->angle.getPitch();
+		fBeta = caster->angle.getYaw();
 		if(ValidIONum(caster->targetinfo) && caster->targetinfo != m_caster) {
 			const Vec3f & p1 = m_caster_pos;
 			Vec3f p2 = GetChestPos(caster->targetinfo);
@@ -699,7 +627,7 @@ void LightningStrikeSpell::Update() {
 	m_lightning.m_caster = m_caster;
 	m_lightning.m_level = m_level;
 	
-	m_lightning.Update(g_framedelay);
+	m_lightning.Update(ArxDurationMs(g_framedelay));
 	m_lightning.Render();
 	
 	ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_caster]->pos);
@@ -719,7 +647,7 @@ void ConfuseSpell::Launch() {
 	
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 1.5f;
-	m_duration = (m_launchDuration > -1) ? m_launchDuration : 5000;
+	m_duration = (m_launchDuration > ArxDuration::ofRaw(-1)) ? m_launchDuration : ArxDurationMs(5000);
 	
 	
 	tex_p1 = TextureContainer::Load("graph/obj3d/textures/(fx)_tsu_blueting");
@@ -731,7 +659,7 @@ void ConfuseSpell::Launch() {
 	AnimLayer & au = animlayer[0];
 	au.next_anim = NULL;
 	au.cur_anim = anim_papii;
-	au.ctime = 0;
+	au.ctime = AnimationDuration_ZERO;
 	au.flags = EA_LOOP;
 	au.nextflags = 0;
 	au.lastframe = 0;
@@ -746,19 +674,19 @@ void ConfuseSpell::Launch() {
 void ConfuseSpell::End() {
 	
 	m_targets.clear();
-	endLightDelayed(m_light, 500);
+	endLightDelayed(m_light, ArxDurationMs(500));
 }
 
 void ConfuseSpell::Update() {
 	
 	Vec3f pos = entities[m_target]->pos;
-	if(m_target != PlayerEntityHandle) {
+	if(m_target != EntityHandle_Player) {
 		pos.y += entities[m_target]->physics.cyl.height - 30.f;
 	}
 	
-	long idx = entities[m_target]->obj->fastaccess.head_group_origin;
-	if(idx >= 0) {
-		pos = entities[m_target]->obj->vertexlist3[idx].v;
+	ObjVertHandle idx = entities[m_target]->obj->fastaccess.head_group_origin;
+	if(idx != ObjVertHandle()) {
+		pos = entities[m_target]->obj->vertexlist3[idx.handleData()].v;
 		pos.y -= 50.f;
 	}
 	
@@ -769,11 +697,11 @@ void ConfuseSpell::Update() {
 	mat.setBlendType(RenderMaterial::Additive);
 	mat.setTexture(tex_trail);
 	
-	arxtime.update();
 	Anglef stiteangle = Anglef(0.f, -glm::degrees(arxtime.now_f() * ( 1.0f / 500 )), 0.f);
 	
 	{
-		EERIEDrawAnimQuatUpdate(spapi, animlayer, stiteangle, eCurPos, g_framedelay, NULL, false);
+		AnimationDuration delta = AnimationDurationUs(s64(g_framedelay * 1000.f));
+		EERIEDrawAnimQuatUpdate(spapi, animlayer, stiteangle, eCurPos, delta, NULL, false);
 		EERIEDrawAnimQuatRender(spapi, eCurPos, NULL, 0.f);
 	}
 	
@@ -784,16 +712,15 @@ void ConfuseSpell::Update() {
 			break;
 		}
 		
-		Vec2f p = glm::diskRand(15.f);
+		Vec2f p = arx::diskRand(15.f);
 		pd->ov = eCurPos + Vec3f(p.x, 0.f, p.y);
 		
 		pd->move = Vec3f(0.f, Random::getf(1.f, 4.f), 0.f);
 		pd->siz = 0.25f;
 		pd->tolive = Random::getu(2300, 3300);
 		pd->tc = tex_p1;
-		pd->special = PARTICLE_GOLDRAIN | FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION
-					  | DISSIPATING;
-		pd->fparam = 0.0000001f;
+		pd->m_flags = PARTICLE_GOLDRAIN | FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+		pd->m_rotation = 0.0000001f;
 		
 		Color3f baseColor = Color3f(0.4f, 0.2f, 0.4f);
 		Color3f randomFactor = Color3f(0.4f, 0.6f, 0.4f);
@@ -804,18 +731,14 @@ void ConfuseSpell::Update() {
 		pd->rgb = c * Color3f(0.8f, 0.8f, 0.8f);
 	}
 	
-	if(!lightHandleIsValid(m_light))
-		m_light = GetFreeDynLight();
-
-	if(lightHandleIsValid(m_light)) {
-		EERIE_LIGHT * light = lightHandleGet(m_light);
-		
+	EERIE_LIGHT * light = dynLightCreate(m_light);
+	if(light) {
 		light->intensity = 1.3f;
 		light->fallstart = 180.f;
 		light->fallend   = 420.f;
 		light->rgb = Color3f(0.3f, 0.3f, 0.5f) + Color3f(0.2f, 0.f, 0.2f) * randomColor3f();
 		light->pos = eCurPos;
-		light->duration = 200;
+		light->duration = ArxDurationMs(200);
 		light->extras = 0;
 	}
 }

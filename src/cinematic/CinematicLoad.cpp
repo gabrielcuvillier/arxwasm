@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -371,7 +371,7 @@ bool parseCinematic(Cinematic * c, const char * data, size_t size) {
 	
 	SetCurrFrame(0);
 	
-	GereTrack(c, 0, false, false);
+	GereTrack(c, PlatformDuration_ZERO, false, false);
 	c->projectload = true;
 	
 	LogDebug("loaded cinematic");

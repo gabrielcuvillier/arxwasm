@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -298,7 +298,7 @@ void ReleaseScript(EERIE_SCRIPT * es) {
 ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::string & name,
                        std::string& txtcontent, float * fcontent,long * lcontent) {
 	
-	arx_assert(!name.empty() && name[0] == '^', "bad system variable: \"%s\"", name.c_str());
+	arx_assert_msg(!name.empty() && name[0] == '^', "bad system variable: \"%s\"", name.c_str());
 	
 	char c = (name.length() < 2) ? '\0' : name[1];
 	switch(c) {
@@ -383,37 +383,37 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 			}
 			
 			if(name == "^#timer1") {
-				if(!entity || entity->script.timers[0] == 0) {
+				if(!entity || entity->script.timers[0] == ArxInstant_ZERO) {
 					*lcontent = 0;
 				} else {
-					*lcontent = long(arxtime.now_ul() - es->timers[0]);
+					*lcontent = toMs(arxtime.now() - es->timers[0]);
 				}
 				return TYPE_LONG;
 			}
 			
 			if(name == "^#timer2") {
-				if(!entity || entity->script.timers[1] == 0) {
+				if(!entity || entity->script.timers[1] == ArxInstant_ZERO) {
 					*lcontent = 0;
 				} else {
-					*lcontent = long(arxtime.now_ul() - es->timers[1]);
+					*lcontent = toMs(arxtime.now() - es->timers[1]);
 				}
 				return TYPE_LONG;
 			}
 			
 			if(name == "^#timer3") {
-				if(!entity || entity->script.timers[2] == 0) {
+				if(!entity || entity->script.timers[2] == ArxInstant_ZERO) {
 					*lcontent = 0;
 				} else {
-					*lcontent = long(arxtime.now_ul() - es->timers[2]);
+					*lcontent = toMs(arxtime.now() - es->timers[2]);
 				}
 				return TYPE_LONG;
 			}
 			
 			if(name == "^#timer4") {
-				if(!entity || entity->script.timers[3] == 0) {
+				if(!entity || entity->script.timers[3] == ArxInstant_ZERO) {
 					*lcontent = 0;
 				} else {
-					*lcontent = long(arxtime.now_ul() - es->timers[3]);
+					*lcontent = toMs(arxtime.now() - es->timers[3]);
 				}
 				return TYPE_LONG;
 			}
@@ -1009,7 +1009,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 				for(size_t i = 0; i < MAX_SPELLS; i++) {
 					const SpellBase * spell = spells[SpellHandle(i)];
 					
-					if(spell && spell->m_caster == PlayerEntityHandle) {
+					if(spell && spell->m_caster == EntityHandle_Player) {
 						if(   spell->m_type == SPELL_LIFE_DRAIN
 						   || spell->m_type == SPELL_HARM
 						   || spell->m_type == SPELL_FIRE_FIELD
@@ -1031,7 +1031,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 				
 				SpellType id = GetSpellId(temp);
 				if(id != SPELL_NONE) {
-					if(spells.ExistAnyInstanceForThisCaster(id, PlayerEntityHandle)) {
+					if(spells.ExistAnyInstanceForThisCaster(id, EntityHandle_Player)) {
 						*lcontent = 1;
 						return TYPE_LONG;
 					}
@@ -1071,7 +1071,7 @@ ValueType getSystemVar(const EERIE_SCRIPT * es, Entity * entity, const std::stri
 			if(boost::starts_with(name, "^target")) {
 				if(!entity) {
 					txtcontent = "none";
-				} else if(entity->targetinfo == PlayerEntityHandle) {
+				} else if(entity->targetinfo == EntityHandle_Player) {
 					txtcontent = "player";
 				} else if(!ValidIONum(entity->targetinfo)) {
 					txtcontent = "none";
@@ -1808,12 +1808,12 @@ static bool Manage_Specific_RAT_Timer(SCR_TIMER * st) {
 		}
 		
 		io->gameFlags &= ~GFLAG_INVISIBILITY;
-		st->times = 1;
+		st->count = 1;
 	} else {
-		st->times++;
-		st->msecs = static_cast<long>(st->msecs * ( 1.0f / 2 ));
-		if(st->msecs < 100)
-			st->msecs = 100;
+		st->count++;
+		st->interval = ArxDurationMs(toMs(st->interval) * ( 1.0f / 2 ));
+		if(st->interval < ArxDurationMs(100))
+			st->interval = ArxDurationMs(100);
 		
 		return true;
 	}
@@ -1836,8 +1836,9 @@ void ARX_SCRIPT_Timer_Check() {
 			continue;
 		}
 		
-		unsigned long now = arxtime.now_ul();
-		unsigned long fire_time = st->tim + st->msecs;
+		ArxInstant now = arxtime.now();
+		ArxInstant fire_time = st->start + st->interval;
+		arx_assert(st->start <= now);
 		if(fire_time > now) {
 			// Timer not ready to fire yet
 			continue;
@@ -1845,10 +1846,12 @@ void ARX_SCRIPT_Timer_Check() {
 		
 		// Skip heartbeat timer events for far away objects
 		if((st->flags & 1) && !(st->io->gameFlags & GFLAG_ISINTREATZONE)) {
-			long increment = (now - st->tim) / st->msecs;
-			st->tim += st->msecs * increment;
-			arx_assert(st->tim <= now && st->tim + st->msecs > now,
-			           "start=%lu wait=%ld now=%lu", st->tim, st->msecs, now);
+			long increment = toMs(now - st->start) / toMs(st->interval);
+			st->start += ArxDurationMs(toMs(st->interval) * increment);
+			// TODO print full 64-bit time
+			arx_assert_msg(st->start <= now && st->start + st->interval > now,
+			               "start=%ld wait=%ld now=%ld",
+			               long(toMs(st->start)), long(toMs(st->interval)), long(toMs(now)));
 			continue;
 		}
 		
@@ -1866,13 +1869,13 @@ void ARX_SCRIPT_Timer_Check() {
 		std::string name = st->name;
 		#endif
 		
-		if(st->times == 1) {
+		if(st->count == 1) {
 			ARX_SCRIPT_Timer_ClearByNum(i);
 		} else {
-			if(st->times != 0) {
-				st->times--;
+			if(st->count != 0) {
+				st->count--;
 			}
-			st->tim += st->msecs;
+			st->start += st->interval;
 		}
 		
 		if(es && ValidIOAddress(io)) {
@@ -2030,7 +2033,7 @@ void loadScript(EERIE_SCRIPT & script, PakFile * file) {
 	script.master = NULL;
 	
 	for(size_t j = 0; j < MAX_SCRIPTTIMERS; j++) {
-		script.timers[j] = 0;
+		script.timers[j] = ArxInstant_ZERO;
 	}
 	
 	ARX_SCRIPT_ComputeShortcuts(script);

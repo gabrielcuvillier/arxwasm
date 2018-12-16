@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -24,13 +24,12 @@
 #include <vector>
 
 #include <windows.h>
+#include <wchar.h>
 
 #include "io/fs/FilePath.h"
 #include "io/log/Logger.h"
 
 #include "platform/WindowsUtils.h"
-
-using std::string;
 
 namespace fs {
 
@@ -55,7 +54,7 @@ bool is_directory(const path & p) {
 		return false;
 	}
 	
-	return (attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY;
+	return (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
 
 bool is_regular_file(const path & p) {
@@ -257,85 +256,81 @@ path current_path() {
 	return path(buffer.toUTF8());
 }
 
-struct directory_iterator_data {
-	WIN32_FIND_DATAW findData;
-	HANDLE findHandle;
-};
-
-directory_iterator::directory_iterator(const path & p) {
+directory_iterator::directory_iterator(const path & p) : m_handle(INVALID_HANDLE_VALUE), m_buffer(NULL) {
 	
-	directory_iterator_data * itData = new directory_iterator_data();
-	handle = itData;
+	std::string searchPath = (p.empty() ? "." : p.string()) + "\\*";
 	
-	string searchPath = (p.empty() ? "." : p.string()) + "\\*";
-	
-	itData->findHandle = FindFirstFileW(platform::WideString(searchPath), &itData->findData);
-	if(itData->findHandle != INVALID_HANDLE_VALUE) {
-		this->operator++();
+	WIN32_FIND_DATAW * data = new WIN32_FIND_DATAW;
+	m_handle = FindFirstFileW(platform::WideString(searchPath), data);
+	if(m_handle != INVALID_HANDLE_VALUE) {
+		m_buffer = data;
+		if(!wcscmp(data->cFileName, L".") || !wcscmp(data->cFileName, L"..")) {
+			operator++();
+		}
+	} else {
+		delete data;
 	}
 	
-};
+}
 
 directory_iterator::~directory_iterator() {
 	
-	directory_iterator_data * itData = (directory_iterator_data *)handle;
-	
-	if(itData->findHandle != INVALID_HANDLE_VALUE) {
-		::FindClose(itData->findHandle);
+	if(m_handle != INVALID_HANDLE_VALUE) {
+		FindClose(m_handle);
 	}
 	
-	delete itData;	
+	delete reinterpret_cast<WIN32_FIND_DATAW *>(m_buffer);
 }
 
 directory_iterator & directory_iterator::operator++() {
 	
-	directory_iterator_data * itData = (directory_iterator_data *)handle;
-	arx_assert(itData->findHandle != INVALID_HANDLE_VALUE);
+	arx_assert(m_buffer != NULL);
+	arx_assert(m_handle != INVALID_HANDLE_VALUE);
 	
-	bool cont = true;
-	while(cont) {
-		cont = FindNextFileW(itData->findHandle, &itData->findData) == TRUE;
-		if(cont && itData->findData.cFileName[0] != L'.') {
+	WIN32_FIND_DATAW * data = reinterpret_cast<WIN32_FIND_DATAW *>(m_buffer);
+	
+	do {
+		
+		if(!FindNextFileW(m_handle, data)) {
+			delete data;
+			m_buffer = NULL;
 			break;
 		}
-	}
-	
-	if(!cont) {
-		FindClose(itData->findHandle);
-		itData->findHandle = INVALID_HANDLE_VALUE;
-	}
+		
+	} while(!wcscmp(data->cFileName, L".") || !wcscmp(data->cFileName, L".."));
 	
 	return *this;
 }
 
 bool directory_iterator::end() {
-	directory_iterator_data * itData = (directory_iterator_data *)handle;
-	return itData->findHandle == INVALID_HANDLE_VALUE;
+	return !m_buffer;
 }
 
-string directory_iterator::name() {
+std::string directory_iterator::name() {
 	
-	directory_iterator_data * itData = (directory_iterator_data *)handle;
-	arx_assert(itData->findHandle != INVALID_HANDLE_VALUE);
+	arx_assert(m_buffer != NULL);
 	
-	return platform::WideString::toUTF8(itData->findData.cFileName);
+	const WIN32_FIND_DATAW * data = reinterpret_cast<const WIN32_FIND_DATAW *>(m_buffer);
+	
+	return platform::WideString::toUTF8(data->cFileName);
 }
 
 bool directory_iterator::is_directory() {
 	
-	directory_iterator_data * itData = (directory_iterator_data *)handle;
-	arx_assert(itData->findHandle != INVALID_HANDLE_VALUE);
+	arx_assert(m_buffer != NULL);
 	
-	return (itData->findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-	       == FILE_ATTRIBUTE_DIRECTORY;
+	const WIN32_FIND_DATAW * data = reinterpret_cast<const WIN32_FIND_DATAW *>(m_buffer);
+	
+	return (data->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
 
 bool directory_iterator::is_regular_file() {
 	
-	directory_iterator_data * itData = (directory_iterator_data *)handle;
-	arx_assert(itData->findHandle != INVALID_HANDLE_VALUE);
+	arx_assert(m_buffer != NULL);
 	
-	return (itData->findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
+	const WIN32_FIND_DATAW * data = reinterpret_cast<const WIN32_FIND_DATAW *>(m_buffer);
+	
+	return (data->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
 }
 
 } // namespace fs

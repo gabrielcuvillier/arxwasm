@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -106,7 +106,7 @@ Cinematic::Cinematic(Vec2i size)
 	, m_nextPosgrille()
 	, m_nextAngzgrille()
 	, speedtrack()
-	, flTime()
+	, flTime(PlatformDuration_ZERO)
 	, cinRenderSize(size)
 { }
 
@@ -221,40 +221,6 @@ void Cinematic::DeleteAllBitmap()
 	}
 
 	m_bitmaps.clear();
-}
-
-// Sets RenderStates
-void Cinematic::InitDeviceObjects() {
-	
-	GRenderer->SetRenderState(Renderer::DepthTest, false);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetCulling(CullNone);
-	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
-	
-	GRenderer->GetTextureStage(0)->setMipMapLODBias(0);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetRenderState(Renderer::Fog, false);
-	
-}
-
-void Cinematic::DeleteDeviceObjects() {
-	
-	GRenderer->SetRenderState(Renderer::DepthTest, true);
-	GRenderer->SetRenderState(Renderer::DepthWrite, true);
-	GRenderer->SetCulling(CullCCW);
-	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
-	
-	GRenderer->GetTextureStage(0)->setMipMapLODBias(0);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-	GRenderer->SetRenderState(Renderer::Fog, true);
-	
-	GRenderer->GetTextureStage(0)->setColorOp(TextureStage::OpModulate,
-	                                          TextureStage::ArgTexture,
-	                                          TextureStage::ArgDiffuse);
-	GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpModulate,
-	                                          TextureStage::ArgTexture,
-	                                          TextureStage::ArgDiffuse);
-	
 }
 
 static float LightRND;
@@ -399,7 +365,7 @@ void DrawGrille(CinematicBitmap * bitmap, Color col, int fx, CinematicLight * li
 	
 }
 /*---------------------------------------------------------------*/
-void Cinematic::Render(float FDIFF) {
+void Cinematic::Render(PlatformDuration frameDuration) {
 	
 	bool resized = (cinRenderSize != g_size.size());
 	cinRenderSize = g_size.size();
@@ -408,26 +374,23 @@ void Cinematic::Render(float FDIFF) {
 		return;
 	}
 	
+	
 	GRenderer->Clear(Renderer::ColorBuffer);
 	
-	GereTrack(this, FDIFF, resized, true);
+	GereTrack(this, frameDuration, resized, true);
 	
 	//sound
 	if(changekey && idsound >= 0)
 		PlaySoundKeyFramer(idsound);
 	
-	//draw
-	GRenderer->SetBlendFunc(BlendSrcAlpha, BlendInvSrcAlpha);
-	
-	GRenderer->GetTextureStage(0)->setColorOp(TextureStage::OpModulate, TextureStage::ArgTexture, TextureStage::ArgDiffuse);
-	GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpModulate, TextureStage::ArgTexture, TextureStage::ArgDiffuse);
-	
-	GRenderer->GetTextureStage(1)->disableAlpha();
-	
 	if(config.interface.cinematicWidescreenMode == CinematicLetterbox) {
 		float w = 640 * g_sizeRatio.y;
 		GRenderer->SetScissor(Rect(Vec2i((g_size.width() - w) / 2, 0), w, g_size.height()));
 	}
+	
+	UseRenderState state(render2D());
+	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
+	GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpModulate);
 	
 	//image key
 	CinematicBitmap * tb = m_bitmaps[numbitmap];
@@ -463,9 +426,10 @@ void Cinematic::Render(float FDIFF) {
 			break;
 	}
 	
+	arx_assert(isallfinite(pos));
 	m_camera.orgTrans.pos = pos;
-	m_camera.angle.setYaw(0);
 	m_camera.angle.setPitch(0);
+	m_camera.angle.setYaw(0);
 	m_camera.angle.setRoll(angz);
 	m_camera.clip = g_size;
 	m_camera.center = g_size.center();
@@ -479,9 +443,14 @@ void Cinematic::Render(float FDIFF) {
 	
 	col.a = alpha;
 	
-	CinematicLight lightt, *l = NULL;
+	
 	
 	static const float SPEEDINTENSITYRND = 60.f / 1000.f;
+	float FDIFF = float(toMs(frameDuration));
+	
+	{
+	CinematicLight *l = NULL;
+	CinematicLight lightt;
 	
 	if(m_light.intensity >= 0.f && m_lightd.intensity >= 0.f) {
 		lightt = m_light;
@@ -499,13 +468,17 @@ void Cinematic::Render(float FDIFF) {
 	if(tb->grid.m_nbvertexs)
 		DrawGrille(tb, col, fx, l, posgrille, angzgrille, fadegrille);
 	
+	}
+	
 	//PASS #2
 	if(force & 1) {
 		switch(ti) {
 			case INTERP_NO:
+				arx_assert(isallfinite(m_nextPos));
+				
 				m_camera.orgTrans.pos = m_nextPos;
-				m_camera.angle.setYaw(0);
 				m_camera.angle.setPitch(0);
+				m_camera.angle.setYaw(0);
 				m_camera.angle.setRoll(m_nextAngz);
 				PrepareCamera(&m_camera, g_size);
 				break;
@@ -520,7 +493,9 @@ void Cinematic::Render(float FDIFF) {
 		alpha = 255 - alpha;
 		col.a = alpha;
 		
-		l = NULL;
+		{
+		CinematicLight *l = NULL;
+		CinematicLight lightt;
 		
 		if(m_light.intensity >= 0.f && m_lightd.intensity >= 0.f) {
 			lightt = m_lightd;
@@ -537,7 +512,12 @@ void Cinematic::Render(float FDIFF) {
 		
 		if(tb->grid.m_nbvertexs)
 			DrawGrille(tb, col, fx, l, m_nextPosgrille, m_nextAngzgrille, m_nextFadegrille);
+		
+		}
 	}
+	
+	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
+	GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::ArgTexture);
 	
 	//effets qui continuent avec le temps
 	if(FlashBlancEnCours && (fx & CinematicFxPostMask) != FX_FLASH) {
@@ -589,4 +569,5 @@ void Cinematic::Render(float FDIFF) {
 		drawLine(Vec2f(c + x, 0.f), Vec2f(c + x, g_size.height()), 1.f, Color::red);
 		GRenderer->SetFillMode(Renderer::FillSolid);
 	}
+	
 }

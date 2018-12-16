@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -22,9 +22,7 @@
 #include <cppunit/TestResultCollector.h>
 #include <cppunit/extensions/HelperMacros.h>
 
-#include "graphics/ColorTest.h"
-#include "io/IniTest.h"
-#include "math/LegacyMathTest.h"
+#include "platform/Platform.h"
 
 int main(int argc, char *argv[]) {
 	ARX_UNUSED(argc);

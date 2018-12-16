@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -22,9 +22,12 @@
 
 #include <string>
 
+#include "platform/Platform.h"
+
 extern const std::string arx_name;
 extern const std::string arx_icon_name;
 extern const std::string arx_version;
+extern const u64 arx_version_number;
 extern const std::string arx_release_codename;
 
 extern const std::string arx_credits;

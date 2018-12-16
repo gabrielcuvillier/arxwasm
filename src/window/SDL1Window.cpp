@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -60,7 +60,7 @@ SDL1Window::~SDL1Window() {
 
 bool SDL1Window::initializeFramework() {
 	
-	arx_assert(s_mainWindow == NULL, "SDL only supports one window");
+	arx_assert_msg(s_mainWindow == NULL, "SDL only supports one window");
 	arx_assert(m_displayModes.empty());
 	
 	const char * headerVersion = ARX_STR(SDL_MAJOR_VERSION) "." ARX_STR(SDL_MINOR_VERSION)
@@ -208,11 +208,6 @@ bool SDL1Window::initialize() {
 				continue;
 			}
 		}
-		if(msaaEnabled) {
-			m_MSAALevel = msaaValue;
-		} else {
-			m_MSAALevel = 0;
-		}
 		
 		// Verify that we actually got an accelerated context
 		(void)glGetError(); // clear error flags
@@ -220,6 +215,7 @@ bool SDL1Window::initialize() {
 		glGetIntegerv(GL_MAX_TEXTURE_UNITS, &texunits);
 		if(glGetError() != GL_NO_ERROR || texunits < GLint(m_minTextureUnits)) {
 			if(lastTry) {
+				m_renderer->initialize(); // Log hardware information
 				LogError << "Not enough GL texture units available: have " << texunits
 				         << ", need at least " << m_minTextureUnits;
 				return false;
@@ -373,9 +369,9 @@ void SDL1Window::tick() {
 			case SDL_KEYDOWN: {
 				
 				// For some reason, release notes from SDL 1.2.12 says a SDL_QUIT message
-				// should be sent when Command+Q is pressed on Mac OS or ALT-F4 on other platforms
+				// should be sent when Command+Q is pressed on macOS or ALT-F4 on other platforms
 				// but it doesn't look like it's working as expected...
-				#if ARX_PLATFORM == ARX_PLATFORM_MACOSX
+				#if ARX_PLATFORM == ARX_PLATFORM_MACOS
 				int quitkey = SDLK_q, quitmod = KMOD_META;
 				#else
 				int quitkey = SDLK_F4, quitmod = KMOD_ALT;
@@ -449,6 +445,11 @@ void SDL1Window::setMinimizeOnFocusLost(bool enabled) {
 
 Window::MinimizeSetting SDL1Window::willMinimizeOnFocusLost() {
 	return AlwaysEnabled;
+}
+
+std::string SDL1Window::getClipboardText() {
+	// Clipboard not supported by SDL 1
+	return std::string();
 }
 
 InputBackend * SDL1Window::getInputBackend() {

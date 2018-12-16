@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -40,17 +40,17 @@ public:
 	
 	enum OperatingSystem {
 		OS_Linux = 100,   // Linux
-		OS_MacOSX = 200,  // Mac
+		OS_macOS = 200,   // macOS
 		OS_FreeBSD = 300, // FreeBSD
 		OS_BSD = 350,     // *BSD
 		OS_Windows = 400, // Windows
-		OS_Other = 0xFFFFFFFF
+		OS_Other = -1
 	};
 	
 	enum Architecture {
 		Arch_Amd64 = 3,
 		Arch_x86 = 2,
-		Arch_Other = 0xFFFFFFFF
+		Arch_Other = -1
 	};
 	
 	explicit Server(const QString & adress, const std::string & userAgent);

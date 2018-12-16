@@ -1,4 +1,4 @@
-# Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+# Copyright 2015-2017 Arx Libertatis Team (see the AUTHORS file)
 #
 # This file is part of Arx Libertatis.
 #
@@ -103,6 +103,7 @@ class Entities:
                 e = EntityData(root, mainScript, icon, instances)
                 self.data[key] = e
 
+
     def parseResourceReferences(self):
         for key in self.data:
             value = self.data[key]
@@ -117,7 +118,6 @@ class Entities:
 
 
 ModelData = namedtuple("ModelData", ["path", "model", "tweaks"])
-
 
 class Models:
     def __init__(self):
@@ -296,6 +296,7 @@ class Animations:
         self.paths = ["graph/obj3d/anims"]
         self.danglingPaths = []
         self.amins = []
+        self.data = {}
 
     def update(self, root):
         for root, dirs, files in os.walk(root):
@@ -305,6 +306,7 @@ class Animations:
                 name, ext = os.path.splitext(f)
                 if ext == ".tea":
                     self.amins.append(foo)
+                    self.data[name] = foo
                 else:
                     self.danglingPaths.append(foo)
 

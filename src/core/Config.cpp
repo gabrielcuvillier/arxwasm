@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -71,6 +71,7 @@ const std::string
 const int
 	levelOfDetail = 2,
 	fogDistance = 10,
+	vsync = -1,
 	maxAnisotropicFiltering = 9001,
 	cinematicWidescreenMode = CinematicFadeEdges,
 	hudScaleFilter = UIFilterBilinear,
@@ -78,6 +79,7 @@ const int
 	sfxVolume = 10,
 	speechVolume = 10,
 	ambianceVolume = 10,
+	hrtf = audio::HRTFDefault,
 	mouseSensitivity = 6,
 	mouseAcceleration = 0,
 	migration = Config::OriginalAssets,
@@ -93,11 +95,11 @@ const bool
 #endif
 	showCrosshair = true,
 	antialiasing = true,
-	vsync = true,
 	colorkeyAlphaToCoverage = true,
 	colorkeyAntialiasing = true,
 	limitSpeechWidth = true,
 	hudScaleInteger = true,
+	scaleCursorWithHud = true,
 	minimizeOnFocusLost = true,
 	eax = true,
 	muteOnFocusLost = false,
@@ -107,12 +109,19 @@ const bool
 	autoDescription = true,
 	forceToggle = false,
 	rawMouseInput = true,
-	borderTurning = true;
+	borderTurning = true,
+	useAltRuneRecognition = false;
+
+#ifdef ARX_DEBUG
+const bool allowConsole = true;
+#else
+const bool allowConsole = false;
+#endif
 
 const float
 	hudScale = 0.5f;
 
-ActionKey actions[NUM_ACTION_KEY] = {
+const ActionKey actions[NUM_ACTION_KEY] = {
 	ActionKey(Keyboard::Key_Spacebar), // JUMP
 	ActionKey(Keyboard::Key_LeftCtrl, Keyboard::Key_RightCtrl), // MAGICMODE
 	ActionKey(Keyboard::Key_LeftShift, Keyboard::Key_RightShift), // STEALTHMODE
@@ -133,6 +142,7 @@ ActionKey actions[NUM_ACTION_KEY] = {
 	ActionKey(Keyboard::Key_F4), // BOOKQUEST
 	ActionKey(Keyboard::Key_H), // DRINKPOTIONLIFE
 	ActionKey(Keyboard::Key_G), // DRINKPOTIONMANA
+	ActionKey(),                // DRINKPOTIONCURE
 	ActionKey(Keyboard::Key_T), // TORCH
 	ActionKey(Keyboard::Key_1), // PRECAST1
 	ActionKey(Keyboard::Key_2), // PRECAST2
@@ -154,6 +164,7 @@ ActionKey actions[NUM_ACTION_KEY] = {
 	ActionKey(Keyboard::Key_4), // CANCELCURSPELL
 	ActionKey(Keyboard::Key_R, Keyboard::Key_M), // MINIMAP
 	ActionKey((Keyboard::Key_LeftAlt << 16) | Keyboard::Key_Enter, (Keyboard::Key_RightAlt << 16) | Keyboard::Key_Enter), // TOGGLE_FULLSCREEN
+	ActionKey(Keyboard::Key_Grave), // CONSOLE
 };
 
 } // namespace Default
@@ -197,6 +208,7 @@ const std::string
 	cinematicWidescreenMode = "cinematic_widescreen_mode",
 	hudScale = "hud_scale",
 	hudScaleInteger = "hud_scale_integer",
+	scaleCursorWithHud = "scale_cursor_with_hud",
 	hudScaleFilter = "hud_scale_filter",
 	thumbnailSize = "save_thumbnail_size";
 
@@ -215,6 +227,7 @@ const std::string
 	speechVolume = "speech_volume",
 	ambianceVolume = "ambiance_volume",
 	eax = "eax",
+	hrtf = "hrtf",
 	muteOnFocusLost = "mute_on_focus_lost";
 
 // Input options
@@ -226,7 +239,9 @@ const std::string
 	mouseAcceleration = "mouse_acceleration",
 	rawMouseInput = "raw_mouse_input",
 	autoDescription = "auto_description",
-	borderTurning = "border_turning";
+	borderTurning = "border_turning",
+	useAltRuneRecognition = "use_alt_rune_recognition",
+	allowConsole = "allow_console";
 
 // Input key options
 const std::string actions[NUM_ACTION_KEY] = {
@@ -250,6 +265,7 @@ const std::string actions[NUM_ACTION_KEY] = {
 	"quest_book",
 	"drink_potion_life",
 	"drink_potion_mana",
+	"drink_potion_cure",
 	"torch",
 	"precast_1",
 	"precast_2",
@@ -270,7 +286,8 @@ const std::string actions[NUM_ACTION_KEY] = {
 	"unequip_weapon",
 	"cancel_current_spell",
 	"minimap",
-	"toggle_fullscreen"
+	"toggle_fullscreen",
+	"console"
 };
 
 // Misc options
@@ -316,7 +333,7 @@ ActionKey ConfigReader::getActionKey(const std::string & section, ControlAction 
 	const IniKey * k0 = getKey(section, key + "_k0");
 	if(k0) {
 		InputKeyId id = Input::getKeyId(k0->getValue());
-		if(id == -1 && !k0->getValue().empty() && k0->getValue() != Input::KEY_NONE) {
+		if(id == ActionKey::UNUSED && !k0->getValue().empty() && k0->getValue() != Input::KEY_NONE) {
 			LogWarning << "Error parsing key name for " <<  key << "_k0: \"" << k0->getValue() << "\", resetting to \"" << Input::getKeyName(action_key.key[0]) << "\"";
 		} else {
 			action_key.key[0] = id;
@@ -326,7 +343,7 @@ ActionKey ConfigReader::getActionKey(const std::string & section, ControlAction 
 	const IniKey * k1 = getKey(section, key + "_k1");
 	if(k1) {
 		InputKeyId id = Input::getKeyId(k1->getValue());
-		if(id == -1 && !k1->getValue().empty() && k1->getValue() != Input::KEY_NONE) {
+		if(id == ActionKey::UNUSED && !k1->getValue().empty() && k1->getValue() != Input::KEY_NONE) {
 			LogWarning << "Error parsing key name for " <<  key << "_k1: \"" << k1->getValue() << "\", resetting to \"" << Input::getKeyName(action_key.key[1]) << "\"";
 		} else {
 			action_key.key[1] = id;
@@ -349,44 +366,24 @@ void Config::setDefaultActionKeys() {
 	}
 }
 
-void Config::setActionKey(ControlAction actionId, int index, InputKeyId key) {
+void Config::setActionKey(ControlAction actionId, size_t index, InputKeyId key) {
 	
-	if(actionId < 0 || (size_t)actionId >= NUM_ACTION_KEY || index > 1 || index < 0) {
+	if(actionId < 0 || actionId >= NUM_ACTION_KEY || index > 1) {
 		arx_assert(false);
 		return;
 	}
 	
-	ActionKey & action = actions[actionId];
-	
-	InputKeyId oldKey = action.key[index];
-	action.key[index] = key;
-	
-	int otherIndex = 1 - index;
-	
-	if(action.key[otherIndex] == -1) {
-		action.key[otherIndex] = oldKey;
-		oldKey = -1;
-	}
-	
-	if(action.key[otherIndex] == key) {
-		action.key[otherIndex] = -1;
-	}
-	
-	// remove double key assignments
+	// remove existing key assignments
 	for(size_t i = 0; i < NUM_ACTION_KEY; i++) {
-		
-		if(i == (size_t)actionId) {
-			continue;
-		}
-		
 		for(int k = 0; k < 2; k++) {
 			if(actions[i].key[k] == key) {
-				actions[i].key[k] = oldKey;
-				oldKey = -1;
+				actions[i].key[k] = ActionKey::UNUSED;
 			}
 		}
-		
 	}
+
+	ActionKey & action = actions[actionId];
+	action.key[index] = key;
 }
 
 void Config::setOutputFile(const fs::path & _file) {
@@ -435,6 +432,7 @@ bool Config::save() {
 	writer.writeKey(Key::cinematicWidescreenMode, int(interface.cinematicWidescreenMode));
 	writer.writeKey(Key::hudScale, interface.hudScale);
 	writer.writeKey(Key::hudScaleInteger, interface.hudScaleInteger);
+	writer.writeKey(Key::scaleCursorWithHud, interface.scaleCursorWithHud);
 	writer.writeKey(Key::hudScaleFilter, interface.hudScaleFilter);
 	std::ostringstream osst;
 	osst << interface.thumbnailSize.x << 'x' << interface.thumbnailSize.y;
@@ -457,6 +455,7 @@ bool Config::save() {
 	writer.writeKey(Key::speechVolume, audio.speechVolume);
 	writer.writeKey(Key::ambianceVolume, audio.ambianceVolume);
 	writer.writeKey(Key::eax, audio.eax);
+	writer.writeKey(Key::hrtf, int(audio.hrtf));
 	writer.writeKey(Key::muteOnFocusLost, audio.muteOnFocusLost);
 	
 	// input
@@ -469,6 +468,11 @@ bool Config::save() {
 	writer.writeKey(Key::rawMouseInput, input.rawMouseInput);
 	writer.writeKey(Key::autoDescription, input.autoDescription);
 	writer.writeKey(Key::borderTurning, input.borderTurning);
+	writer.writeKey(Key::useAltRuneRecognition, input.useAltRuneRecognition);
+	if(input.allowConsole) {
+		// Only write this if true so that switching from release to debug builds enables the console
+		writer.writeKey(Key::allowConsole, input.allowConsole);
+	}
 	
 	// key
 	writer.beginSection(Section::Key);
@@ -546,10 +550,10 @@ bool Config::init(const fs::path & file) {
 	video.levelOfDetail = reader.getKey(Section::Video, Key::levelOfDetail, Default::levelOfDetail);
 	video.fogDistance = reader.getKey(Section::Video, Key::fogDistance, Default::fogDistance);;
 	video.antialiasing = reader.getKey(Section::Video, Key::antialiasing, Default::antialiasing);
-	video.vsync = reader.getKey(Section::Video, Key::vsync, Default::vsync);
+	int vsync = reader.getKey(Section::Video, Key::vsync, Default::vsync);
+	video.vsync = glm::clamp(vsync, -1, 1);
 	int anisoFiltering = reader.getKey(Section::Video, Key::maxAnisotropicFiltering, Default::maxAnisotropicFiltering);
 	video.maxAnisotropicFiltering = std::max(anisoFiltering, 1);
-	video.maxAnisotropicFiltering = std::max(0, video.maxAnisotropicFiltering);
 	video.colorkeyAlphaToCoverage = reader.getKey(Section::Video, Key::colorkeyAlphaToCoverage, Default::colorkeyAlphaToCoverage);
 	video.colorkeyAntialiasing = reader.getKey(Section::Video, Key::colorkeyAntialiasing, Default::colorkeyAntialiasing);
 	video.bufferSize = std::max(reader.getKey(Section::Video, Key::bufferSize, Default::bufferSize), 0);
@@ -564,6 +568,7 @@ bool Config::init(const fs::path & file) {
 	float hudScale = reader.getKey(Section::Interface, Key::hudScale, Default::hudScale);
 	interface.hudScale = glm::clamp(hudScale, 0.f, 1.f);
 	interface.hudScaleInteger = reader.getKey(Section::Interface, Key::hudScaleInteger, Default::hudScaleInteger);
+	interface.scaleCursorWithHud = reader.getKey(Section::Interface, Key::scaleCursorWithHud, Default::scaleCursorWithHud);
 	int hudScaleFilter = reader.getKey(Section::Interface, Key::hudScaleFilter, Default::hudScaleFilter);
 	interface.hudScaleFilter = UIScaleFilter(glm::clamp(hudScaleFilter, 0, 1));
 	std::string thumbnailSize = reader.getKey(Section::Interface, Key::thumbnailSize, Default::thumbnailSize);
@@ -584,6 +589,8 @@ bool Config::init(const fs::path & file) {
 	audio.speechVolume = reader.getKey(Section::Audio, Key::speechVolume, Default::speechVolume);
 	audio.ambianceVolume = reader.getKey(Section::Audio, Key::ambianceVolume, Default::ambianceVolume);
 	audio.eax = reader.getKey(Section::Audio, Key::eax, Default::eax);
+	int hrtf = reader.getKey(Section::Audio, Key::hrtf, int(Default::hrtf));
+	audio.hrtf = audio::HRTFAttribute(glm::clamp(hrtf, -1, 1));
 	audio.muteOnFocusLost = reader.getKey(Section::Audio, Key::muteOnFocusLost, Default::muteOnFocusLost);
 	
 	// Get input settings
@@ -595,6 +602,8 @@ bool Config::init(const fs::path & file) {
 	input.rawMouseInput = reader.getKey(Section::Input, Key::rawMouseInput, Default::rawMouseInput);
 	input.autoDescription = reader.getKey(Section::Input, Key::autoDescription, Default::autoDescription);
 	input.borderTurning = reader.getKey(Section::Input, Key::borderTurning, Default::borderTurning);
+	input.useAltRuneRecognition = reader.getKey(Section::Input, Key::useAltRuneRecognition, Default::useAltRuneRecognition);
+	input.allowConsole = reader.getKey(Section::Input, Key::allowConsole, Default::allowConsole);
 	
 	// Get action key settings
 	for(size_t i = 0; i < NUM_ACTION_KEY; i++) {

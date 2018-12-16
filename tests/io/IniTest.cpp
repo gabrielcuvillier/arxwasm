@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -19,7 +19,7 @@
 
 #include "tests/io/IniTest.h"
 
-#include "src/io/IniSection.h"
+#include "io/IniSection.h"
 
 CPPUNIT_TEST_SUITE_REGISTRATION(IniTest);
 

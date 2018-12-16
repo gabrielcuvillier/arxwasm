@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -42,6 +42,10 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 */
 
 #include "script/ScriptEvent.h"
+
+#include <boost/foreach.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include "core/GameTime.h"
 #include "core/Core.h"
@@ -268,7 +272,7 @@ ScriptResult ScriptEvent::send(EERIE_SCRIPT * es, ScriptMessage msg, const std::
 	}
 	
 	// Retrieves in esss script pointer to script holding variables.
-	EERIE_SCRIPT * esss = (EERIE_SCRIPT *)es->master;
+	EERIE_SCRIPT * esss = es->master;
 	if(esss == NULL) {
 		esss = es;
 	}
@@ -532,6 +536,36 @@ std::string ScriptEvent::getName(ScriptMessage msg, const std::string & eventnam
 	} else {
 		return "(no event)";
 	}
+}
+
+void ScriptEvent::autocomplete(const std::string & prefix, AutocompleteHandler handler, void * context) {
+	
+	std::string cmd = boost::to_lower_copy(prefix);
+	cmd.resize(std::remove(cmd.begin(), cmd.end(), '_') - cmd.begin());
+	
+	if(boost::starts_with("timer", cmd)) {
+		if(!handler(context, "timer")) {
+			return;
+		}
+	}
+	
+	BOOST_FOREACH(const Commands::value_type & v, commands) {
+		if(boost::starts_with(v.first, cmd)) {
+			if(!handler(context, v.first + " ")) {
+				return;
+			}
+		}
+	}
+	
+}
+
+bool ScriptEvent::isCommand(const std::string & command) {
+	
+	if(boost::starts_with(command, "timer")) {
+		return true;
+	}
+	
+	return commands.find(command) != commands.end();
 }
 
 ScriptEvent::Commands ScriptEvent::commands;

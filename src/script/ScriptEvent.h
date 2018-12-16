@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -21,6 +21,7 @@
 #define ARX_SCRIPT_SCRIPTEVENT_H
 
 #include <map>
+#include <string>
 
 #include "script/Script.h"
 
@@ -55,6 +56,11 @@ public:
 	
 	static void init();
 	static void shutdown();
+	
+	typedef bool (*AutocompleteHandler)(void * context, const std::string & suggestion);
+	static void autocomplete(const std::string & prefix, AutocompleteHandler handler, void * context);
+	
+	static bool isCommand(const std::string & command);
 	
 private:
 	

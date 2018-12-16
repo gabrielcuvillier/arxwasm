@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -37,7 +37,10 @@ public:
 	Vec3f getPosition();
 	
 private:
-	unsigned long m_lastupdate;
+	ArxInstant m_lastupdate;
+	
+	LightHandle m_light1;
+	LightHandle m_light2;
 };
 
 class FireFieldSpell : public SpellBase {

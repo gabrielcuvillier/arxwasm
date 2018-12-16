@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2014 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -88,11 +88,9 @@ private:
 	ARX_CHANGELEVEL_PLAYER_LEVEL_DATA * m_pld;
 };
 
-int main_rename(SaveBlock & save, int argc, char ** argv) {
+int main_rename(SaveBlock & save, const std::vector<std::string> & args) {
 	
-	(void)argv;
-	
-	if(argc != 1) {
+	if(args.size() != 1) {
 		return -1;
 	}
 	
@@ -109,7 +107,7 @@ int main_rename(SaveBlock & save, int argc, char ** argv) {
 	}
 	
 	std::string oldName = pld.getName();
-	std::string newName = argv[0];
+	const std::string & newName = args[0];
 	
 	std::cout << "Old Name: \"" << oldName << '"' << std::endl;
 	std::cout << "New Name: \"" << newName << '"' << std::endl;

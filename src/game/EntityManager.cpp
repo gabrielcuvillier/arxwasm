@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -46,7 +46,10 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <cstdlib>
 #include <algorithm>
 
+#include <boost/foreach.hpp>
 #include <boost/unordered_map.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include "game/Entity.h"
 #include "platform/Platform.h"
@@ -75,7 +78,7 @@ EntityManager::~EntityManager() {
 	
 #ifdef ARX_DEBUG
 	for(size_t i = 0; i < size(); i++) {
-		arx_assert(entries[i] == NULL, "object %lu not cleared", (unsigned long)i);
+		arx_assert_msg(entries[i] == NULL, "object %lu not cleared", (unsigned long)i);
 	}
 #endif
 	
@@ -107,9 +110,9 @@ EntityHandle EntityManager::getById(const std::string & idString) const {
 	if(idString.empty() || idString == "none") {
 		return EntityHandle();
 	} else if(idString == "self" || idString == "me") {
-		return EntityHandle(-2);
+		return EntityHandle_Self;
 	} else if(idString == "player") {
-		return PlayerEntityHandle;
+		return EntityHandle_Player;
 	}
 	
 	return m_impl->getById(idString);
@@ -121,9 +124,9 @@ EntityHandle EntityManager::getById(const EntityId & id) const {
 		if(id.className().empty()) {
 			return EntityHandle();
 		} else if(id.className() == "self" || id.className() == "me") {
-			return EntityHandle(-2);
+			return EntityHandle_Self;
 		} else if(id.className() == "player") {
-			return PlayerEntityHandle;
+			return EntityHandle_Player;
 		}
 	}
 	
@@ -131,8 +134,33 @@ EntityHandle EntityManager::getById(const EntityId & id) const {
 }
 
 Entity * EntityManager::getById(const std::string & name, Entity * self) const {
-	long index = getById(name).handleData();
-	return (index == -1) ? NULL : (index == -2) ? self : entries[index]; 
+	
+	EntityHandle handle = getById(name);
+	if(handle == EntityHandle()) {
+		return NULL;
+	} else if(handle == EntityHandle_Self) {
+		return self;
+	} else {
+		return entries[handle.handleData()];
+	}
+}
+
+void EntityManager::autocomplete(const std::string & prefix, AutocompleteHandler handler, void * context) {
+	
+	std::string check = boost::to_lower_copy(prefix);
+	
+	// TODO we don't need to iterate over all entities if we have per-class indices
+	BOOST_FOREACH(Entity * entity, entries) {
+		if(entity) {
+			std::string id = entity->idString();
+			if(boost::starts_with(id, check)) {
+				if(!handler(context, id)) {
+					return;
+				}
+			}
+		}
+	}
+	
 }
 
 size_t EntityManager::add(Entity * entity) {
@@ -155,8 +183,8 @@ size_t EntityManager::add(Entity * entity) {
 
 void EntityManager::remove(size_t index) {
 	
-	arx_assert(index < size() && entries[index] != NULL,
-	           "double free or memory corruption detected: index=%lu", (unsigned long)index);
+	arx_assert_msg(index < size() && entries[index] != NULL,
+	               "double free or memory corruption detected: index=%lu", (unsigned long)index);
 	
 	m_impl->m_index.erase(entries[index]->idString());
 	

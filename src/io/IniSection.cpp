@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -28,6 +28,11 @@
 #include "io/log/Logger.h"
 
 int IniKey::getValue(int defaultValue) const {
+	
+	if(value == "false")
+		return 0;
+	else if(value == "true")
+		return 1;
 	
 	std::istringstream iss(value);
 	

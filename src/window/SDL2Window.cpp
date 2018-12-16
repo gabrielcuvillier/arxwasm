@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -25,15 +25,9 @@
 
 #include "Configure.h"
 
-#if ARX_HAVE_SETENV || ARX_HAVE_UNSETENV
-#include <stdlib.h>
-#endif
-
 #ifdef ARX_DEBUG
 #include <signal.h>
 #endif
-
-#include <boost/scope_exit.hpp>
 
 #include "platform/Platform.h"
 
@@ -55,7 +49,9 @@
 #include "io/log/Logger.h"
 #include "math/Rectangle.h"
 #include "platform/CrashHandler.h"
+#include "platform/Environment.h"
 #include "platform/WindowsUtils.h"
+#include "window/SDL2X11Util.h"
 
 // Avoid including SDL_syswm.h without SDL_PROTOTYPES_ONLY on non-Windows systems
 // it includes X11 stuff which pullutes the namespace global namespace.
@@ -138,28 +134,22 @@ bool SDL2Window::initializeFramework() {
 		m_minimizeOnFocusLost = Enabled;
 	}
 	
-	arx_assert(s_mainWindow == NULL, "SDL only supports one window"); // TODO it supports multiple windows now!
+	arx_assert_msg(s_mainWindow == NULL, "SDL only supports one window"); // TODO it supports multiple windows now!
 	arx_assert(m_displayModes.empty());
 	
 	const char * headerVersion = ARX_STR(SDL_MAJOR_VERSION) "." ARX_STR(SDL_MINOR_VERSION)
 	                             "." ARX_STR(SDL_PATCHLEVEL);
 	CrashHandler::setVariable("SDL version (headers)", headerVersion);
 	
-	#if ARX_PLATFORM != ARX_PLATFORM_WIN32 && ARX_HAVE_SETENV && ARX_HAVE_UNSETENV
-	/*
-	 * We want the X11 WM_CLASS to match the .desktop file and icon name,
-	 * but SDL does not let us set it directly.
-	 */
-	const char * oldClass = std::getenv("SDL_VIDEO_X11_WMCLASS");
-	if(!oldClass) {
-		setenv("SDL_VIDEO_X11_WMCLASS", arx_icon_name.c_str(), 1);
-	}
-	BOOST_SCOPE_EXIT((oldClass)) {
-		if(!oldClass) {
-			// Don't overrride WM_CLASS for SDL child processes
-			unsetenv("SDL_VIDEO_X11_WMCLASS");
-		}
-	} BOOST_SCOPE_EXIT_END
+	#if ARX_PLATFORM != ARX_PLATFORM_WIN32 && ARX_PLATFORM != ARX_PLATFORM_MACOS
+	platform::EnvironmentOverride overrrides[] = {
+		/*
+		 * We want the X11 WM_CLASS to match the .desktop file and icon name,
+		 * but SDL does not let us set it directly.
+		 */
+		{ "SDL_VIDEO_X11_WMCLASS",  arx_icon_name.c_str() },
+	};
+	platform::EnvironmentLock environment(overrrides);
 	#endif
 	
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
@@ -315,11 +305,6 @@ bool SDL2Window::initialize() {
 				continue;
 			}
 		}
-		if(msaaEnabled) {
-			m_MSAALevel = msaaValue;
-		} else {
-			m_MSAALevel = 0;
-		}
 		
 		// Verify that we actually got an accelerated context
 		(void)glGetError(); // clear error flags
@@ -327,6 +312,7 @@ bool SDL2Window::initialize() {
 		glGetIntegerv(GL_MAX_TEXTURE_UNITS, &texunits);
 		if(glGetError() != GL_NO_ERROR || texunits < GLint(m_minTextureUnits)) {
 			if(lastTry) {
+				m_renderer->initialize(); // Log hardware information
 				LogError << "Not enough GL texture units available: have " << texunits
 				         << ", need at least " << m_minTextureUnits;
 				return false;
@@ -378,10 +364,12 @@ bool SDL2Window::initialize() {
 	
 	// Use the executable icon for the window
 	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+	u64 nativeWindow = 0;
 	{
 		SDL_SysWMinfo info;
 		SDL_VERSION(&info.version);
 		if(SDL_GetWindowWMInfo(m_window, &info) && info.subsystem == SDL_SYSWM_WINDOWS) {
+			nativeWindow = u64(info.info.win.window);
 			platform::WideString filename;
 			filename.allocate(filename.capacity());
 			while(true) {
@@ -403,7 +391,12 @@ bool SDL2Window::initialize() {
 			}
 		}
 	}
+	#elif ARX_PLATFORM != ARX_PLATFORM_MACOS && !defined __EMSCRIPTEN__
+	u64 nativeWindow = SDL2X11_getNativeWindowHandle(m_window);
+	#else
+	u64 nativeWindow = 0;
 	#endif
+	CrashHandler::setWindow(nativeWindow);
 	
 	setVSync(m_vsync);
 	
@@ -487,6 +480,9 @@ void SDL2Window::changeMode(DisplayMode mode, bool makeFullscreen) {
 	}
 	
 	if(!makeFullscreen) {
+		if(wasFullscreen) {
+			SDL_RestoreWindow(m_window);
+		}
 		SDL_SetWindowSize(m_window, mode.resolution.x, mode.resolution.y);
 	}
 	
@@ -627,6 +623,16 @@ void SDL2Window::setMinimizeOnFocusLost(bool enabled) {
 
 Window::MinimizeSetting SDL2Window::willMinimizeOnFocusLost() {
 	return m_minimizeOnFocusLost;
+}
+
+std::string SDL2Window::getClipboardText() {
+	char * text = SDL_GetClipboardText();
+	std::string result;
+	if(text) {
+		result = text;
+		SDL_free(text);
+	}
+	return result;
 }
 
 InputBackend * SDL2Window::getInputBackend() {

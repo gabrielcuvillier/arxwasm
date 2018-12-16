@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -16,10 +16,39 @@
  * You should have received a copy of the GNU General Public License
  * along with Arx Libertatis.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ARX_GRAPHICS_DATA_BACKGROUNDEDIT_H
-#define ARX_GRAPHICS_DATA_BACKGROUNDEDIT_H
 
+/*!
+ * \file
+ *
+ * MD5 hashing routines.
+ */
+#ifndef ARX_UTIL_MD5_H
+#define ARX_UTIL_MD5_H
 
-void ARX_PrepareBackgroundNRMLs();
+#include "platform/Endian.h"
+#include "platform/Platform.h"
+#include "util/IteratedHash.h"
 
-#endif // ARX_GRAPHICS_DATA_BACKGROUNDEDIT_H
+namespace util {
+
+class md5_transform {
+	
+public:
+	
+	typedef u32 hash_word;
+	typedef platform::little_endian byte_order;
+	static const size_t offset = 0;
+	static const size_t block_size = 64;
+	static const size_t hash_size = 16;
+	
+	static void init(hash_word * state);
+	
+	static void transform(hash_word * digest, const hash_word * data);
+};
+
+typedef iterated_hash<md5_transform> md5;
+
+} // namespace util
+
+#endif // ARX_UTIL_MD5_H
+

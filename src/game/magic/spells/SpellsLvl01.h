@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -43,7 +43,7 @@ public:
 	
 private:
 	bool m_mrCheat;
-	std::vector<CMagicMissile *> pTab;
+	std::vector<CMagicMissile *> m_missiles;
 };
 
 class IgnitSpell : public SpellBase {
@@ -56,7 +56,7 @@ public:
 	
 private:
 	Vec3f m_srcPos;
-	unsigned int m_elapsed;
+	ArxDuration m_elapsed;
 	
 	struct T_LINKLIGHTTOFX {
 		LightHandle m_effectLight;

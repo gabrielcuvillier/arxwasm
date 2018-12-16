@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -49,18 +49,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 struct EERIE_3DOBJ;
 
-namespace fs { class path; }
 namespace res { class path; }
-
-#if BUILD_EDIT_LOADSAVE
-
-/*!
- * Save a FTL File
- * Must pass the original name of the theo file
- */
-bool ARX_FTL_Save(const fs::path & file, const EERIE_3DOBJ * obj);
-
-#endif
 
 /*!
  * Load a FTL file

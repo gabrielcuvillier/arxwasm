@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -49,6 +49,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include <stddef.h>
 
+#include "core/TimeTypes.h"
 #include "game/GameTypes.h"
 #include "graphics/BaseGraphicsTypes.h"
 #include "math/Types.h"
@@ -102,7 +103,7 @@ struct DamageParameters {
 	Vec3f pos;
 	float damages;
 	float radius;
-	long duration;	// in milliseconds -1 for apply once else damage *=framediff
+	ArxDuration duration;	// in milliseconds -1 for apply once else damage *=framediff
 	DamageArea area; // damage area type
 	DamageFlags flags; // damages flags
 	DamageType type; // damages type
@@ -111,7 +112,7 @@ struct DamageParameters {
 	DamageParameters() {
 		damages = 0.f;
 		radius = 100.f;
-		duration = 1000;
+		duration = ArxDurationMs(1000);
 		area = DAMAGE_AREA;
 		flags = 0;
 		type = 0;
@@ -129,7 +130,7 @@ void DamageRequestEnd(DamageHandle handle);
  */
 void CheckForIgnition(const Sphere & sphere, bool mode, long flag);
 
-void DoSphericDamage(const Sphere & sphere, float dmg, DamageArea flags, DamageType typ = 0, EntityHandle numsource = EntityHandle());
+void DoSphericDamage(const Sphere & sphere, float dmg, DamageArea flags, DamageType typ, EntityHandle numsource);
 
 void ARX_DAMAGE_Reset_Blood_Info();
 void ARX_DAMAGE_Show_Hit_Blood();
@@ -141,7 +142,7 @@ void ARX_DAMAGES_DamageFIX(Entity * io, float dmg, EntityHandle source, bool isS
 float ARX_DAMAGES_DamageNPC(Entity * io, float dmg, EntityHandle source, bool isSpellHit, const Vec3f * pos);
 bool ARX_DAMAGES_TryToDoDamage(const Vec3f & pos, float dmg, float radius, EntityHandle source);
 void ARX_DAMAGES_ForceDeath(Entity * io_dead, Entity * io_killer);
-float ARX_DAMAGES_DealDamages(EntityHandle target, float dmg, EntityHandle source, DamageType flags, Vec3f * pos);
+void ARX_DAMAGES_DealDamages(EntityHandle target, float dmg, EntityHandle source, DamageType flags, Vec3f * pos);
 
 void ARX_DAMAGES_HealInter(Entity * io, float dmg);
 
@@ -149,7 +150,7 @@ void ARX_DAMAGES_DurabilityCheck(Entity * io, float ratio);
 void ARX_DAMAGES_DurabilityLoss(Entity * io, float loss);
 void ARX_DAMAGES_DurabilityRestore(Entity * io, float ratio);
 void ARX_DAMAGES_DamagePlayerEquipment(float damages);
-float ARX_DAMAGES_ComputeRepairPrice(Entity * torepair, Entity * blacksmith);
+float ARX_DAMAGES_ComputeRepairPrice(const Entity * torepair, const Entity * blacksmith);
 
 void ARX_DAMAGES_DrawDebug();
 

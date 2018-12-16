@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -46,6 +46,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include <list>
 
+#include "core/TimeTypes.h"
+
 class ParticleSystem;
 
 class ParticleManager {
@@ -63,7 +65,7 @@ public:
 	
 	void AddSystem(ParticleSystem * ps);
 	
-	void Update(long alTime);
+	void Update(ArxDuration delta);
 	void Render();
 	
 };

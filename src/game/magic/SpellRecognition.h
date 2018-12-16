@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -29,6 +29,7 @@ extern Rune SpellSymbol[MAX_SPELL_SYMBOLS];
 
 extern size_t CurrSpellSymbol;
 extern std::string SpellMoves;
+extern std::string LAST_FAILED_SEQUENCE;
 
 void spellRecognitionInit();
 
@@ -40,5 +41,7 @@ void ARX_SPELLS_AddPoint(const Vec2s & pos);
 void ARX_SPELLS_Analyse();
 void ARX_SPELLS_AnalyseSYMBOL();
 bool ARX_SPELLS_AnalyseSPELL();
+
+void ARX_SPELLS_Analyse_Alt();
 
 #endif // ARX_GAME_MAGIC_SPELLRECOGNITION_H

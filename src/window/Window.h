@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -94,6 +94,11 @@ public:
 	 * Return if fullscreen windows if they lose focus.
 	 */
 	virtual MinimizeSetting willMinimizeOnFocusLost() = 0;
+	
+	/*!
+	 * Get the current text contents of the clipboard.
+	 */
+	virtual std::string getClipboardText() = 0;
 
 	class Listener {
 		

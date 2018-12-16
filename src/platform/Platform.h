@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -34,7 +34,7 @@
 #define ARX_PLATFORM_UNKNOWN 0
 #define ARX_PLATFORM_WIN32   1
 #define ARX_PLATFORM_LINUX   2
-#define ARX_PLATFORM_MACOSX  3
+#define ARX_PLATFORM_MACOS   3
 #define ARX_PLATFORM_BSD     100 // Generic BSD system
 #define ARX_PLATFORM_UNIX    101 // Generic UNIX system
 
@@ -43,7 +43,7 @@
 #elif defined(_WIN32)
 	#define ARX_PLATFORM ARX_PLATFORM_WIN32
 #elif defined(__MACH__)
-	#define ARX_PLATFORM ARX_PLATFORM_MACOSX
+	#define ARX_PLATFORM ARX_PLATFORM_MACOS
 #elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) \
       || defined(__bsdi__) || defined(__DragonFly__)
 	#define ARX_PLATFORM ARX_PLATFORM_BSD
@@ -265,39 +265,47 @@ namespace ARX_ANONYMOUS_NAMESPACE {
                           Assertions
 ------------------------------------------------------------*/
 
-/*!
- * \brief Log that an assertion has failed
- *
- * This is a low-level implementation, use arx_assert() instead!
- */
-void assertionFailed(const char * expression, const char * file, unsigned line,
-                     const char * message = NULL, ...) ARX_FORMAT_PRINTF(4, 5);
-
-/*!
- * \def arx_assert(Expression, ...)
- * \brief Abort if \a Expression evaluates to false
- * You may provide a failure message in printf-like syntax and arguments for it as
- * as additional arguments after the expression.
- * Does nothing in release builds.
- */
 #ifdef ARX_DEBUG
-	#define arx_assert(Expression, ...)  do { \
+	/*!
+	 * \brief Log that an assertion has failed
+	 *
+	 * This is a low-level implementation, use arx_assert() instead!
+	 */
+	void assertionFailed(const char * expression, const char * file, unsigned line,
+	                     const char * message, ...) ARX_FORMAT_PRINTF(4, 5);
+	#define arx_assert_impl(Expression, ExpressionString, ...)  do { \
 			if(!(Expression)) { \
-				assertionFailed(#Expression, (ARX_FILE), __LINE__, ##__VA_ARGS__); \
+				assertionFailed(ExpressionString, (ARX_FILE), __LINE__, __VA_ARGS__); \
 				ARX_DEBUG_BREAK(); \
 			} \
 		} while(0)
 #else // ARX_DEBUG
-	#define arx_assert(Expression, ...) \
-		ARX_DISCARD(Expression, ##__VA_ARGS__)
+	#define arx_assert_impl(Expression, ExpressionString, ...) \
+		ARX_DISCARD(Expression, ExpressionString, __VA_ARGS__)
 #endif // ARX_DEBUG
+
+/*!
+ * \def arx_assert(Expression)
+ * \brief Abort if \a Expression evaluates to false
+ * Does nothing in release builds.
+ */
+#define arx_assert(Expression)          arx_assert_impl(Expression, #Expression, NULL)
+
+/*!
+ * \def arx_assert_msg(Expression, Message, MessageArguments...)
+ * \brief Abort and print a message if \a Expression evaluates to false
+ * You must provide a failure message in printf-like syntax and arguments for it as
+ * as additional arguments after the expression.
+ * Does nothing in release builds.
+ */
+#define arx_assert_msg(Expression, ...) arx_assert_impl(Expression, #Expression, __VA_ARGS__)
 
 /*!
  * \def ARX_DEAD_CODE()
  * \brief Assert that a code branch cannot be reached.
  */
 #ifdef ARX_DEBUG
-#define ARX_DEAD_CODE() arx_assert(false)
+#define ARX_DEAD_CODE() arx_assert_impl(false, "unreachable code", NULL)
 #elif ARX_COMPILER_MSVC
 #define ARX_DEAD_CODE() __assume(0)
 #elif ARX_HAVE_BUILTIN_UNREACHABLE

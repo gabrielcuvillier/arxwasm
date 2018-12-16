@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -47,9 +47,12 @@
 #include "scene/Interactive.h"
 #include "game/EntityManager.h"
 #include "game/NPC.h"
+#include "game/magic/SpellRecognition.h"
 
 #include "graphics/Renderer.h"
 #include "graphics/DrawLine.h"
+#include "graphics/effects/PolyBoom.h"
+#include "graphics/particle/Spark.h"
 
 #include "window/RenderWindow.h"
 #include "platform/profiler/Profiler.h"
@@ -126,36 +129,50 @@ const FlagName<Behaviour> BehaviourFlagNames[] = {
 	{BEHAVIOUR_STARE_AT      , "STARE_AT"}
 };
 
+const FlagName<AnimUseType> AnimUseFlagNames[] = {
+	{EA_LOOP       , "LOOP"},
+	{EA_REVERSE    , "REVERSE"},
+	{EA_PAUSED     , "PAUSED"},
+	{EA_ANIMEND    , "ANIMEND"},
+	{EA_STATICANIM , "STATICANIM"},
+	{EA_STOPEND    , "STOPEND"},
+	{EA_FORCEPLAY  , "FORCEPLAY"},
+	{EA_EXCONTROL  , "EXCONTROL"}
+};
 
 static const char * entityVisilibityToString(EntityVisilibity value) {
 	switch (value) {
-		case SHOW_FLAG_NOT_DRAWN:    return "NOT_DRAWN"; break;
-		case SHOW_FLAG_IN_SCENE:     return "IN_SCENE"; break;
-		case SHOW_FLAG_LINKED:       return "LINKED"; break;
-		case SHOW_FLAG_IN_INVENTORY: return "IN_INVENTORY"; break;
-		case SHOW_FLAG_HIDDEN:       return "HIDDEN"; break;
-		case SHOW_FLAG_TELEPORTING:  return "TELEPORTING"; break;
-		case SHOW_FLAG_KILLED:       return "KILLED"; break;
-		case SHOW_FLAG_MEGAHIDE:     return "MEGAHIDE"; break;
-		case SHOW_FLAG_ON_PLAYER:    return "ON_PLAYER"; break;
-		default:                     return "Unknown";
+		case SHOW_FLAG_NOT_DRAWN:    return "NOT_DRAWN";
+		case SHOW_FLAG_IN_SCENE:     return "IN_SCENE";
+		case SHOW_FLAG_LINKED:       return "LINKED";
+		case SHOW_FLAG_IN_INVENTORY: return "IN_INVENTORY";
+		case SHOW_FLAG_HIDDEN:       return "HIDDEN";
+		case SHOW_FLAG_TELEPORTING:  return "TELEPORTING";
+		case SHOW_FLAG_KILLED:       return "KILLED";
+		case SHOW_FLAG_MEGAHIDE:     return "MEGAHIDE";
+		case SHOW_FLAG_ON_PLAYER:    return "ON_PLAYER";
+		case SHOW_FLAG_DESTROYED:    return "DESTROYED";
 	}
+	return "Unknown";
 }
-
-
-std::string LAST_FAILED_SEQUENCE = "none";
-EntityHandle LastSelectedIONum = EntityHandle();
 
 void ShowInfoText() {
 	
 	DebugBox frameInfo = DebugBox(Vec2i(10, 10), "FrameInfo");
 	frameInfo.add("Prims", EERIEDrawnPolys);
 	frameInfo.add("Particles", getParticleCount());
-	frameInfo.add("Polybooms", long(polyboom.size()));
-	frameInfo.add("TIME", static_cast<long>(arxtime.now_ul() / 1000));
+	frameInfo.add("Sparks", ParticleSparkCount());
+	frameInfo.add("Polybooms", long(PolyBoomCount()));
+	frameInfo.add("TIME", static_cast<long>(toMs(arxtime.now()) / 1000));
 	frameInfo.print();
 	
-	DebugBox playerBox = DebugBox(Vec2i(10, frameInfo.size().y + 5), "Player");
+	DebugBox camBox = DebugBox(Vec2i(10, frameInfo.size().y + 5), "Camera");
+	camBox.add("Position", ACTIVECAM->orgTrans.pos);
+	camBox.add("Rotation", ACTIVECAM->angle);
+	camBox.add("Focal", ACTIVECAM->focal);
+	camBox.print();
+	
+	DebugBox playerBox = DebugBox(Vec2i(10, camBox.size().y + 5), "Player");
 	playerBox.add("Position", player.pos);
 	playerBox.add("AnchorPos", player.pos - Mscenepos);
 	playerBox.add("Rotation", player.angle);
@@ -197,7 +214,6 @@ void ShowInfoText() {
 	miscBox.add(arx_name + " version", arx_version);
 	miscBox.add("Level", LastLoadedScene.string().c_str());
 	miscBox.add("Spell failed seq", LAST_FAILED_SEQUENCE.c_str());
-	miscBox.add("Camera focal", ACTIVECAM->focal);
 	miscBox.add("Cinema", cinematicBorder.CINEMA_DECAL);
 	miscBox.add("Mouse", Vec2i(DANAEMouse));
 	miscBox.add("Pathfind queue", EERIE_PATHFINDER_Get_Queued_Number());
@@ -241,9 +257,7 @@ void ShowInfoText() {
 	scriptBox.print();
 	}
 	
-	if(ValidIONum(LastSelectedIONum)) {
-		Entity * io = entities[LastSelectedIONum];
-
+		Entity * io = entities.get(LastSelectedIONum);
 		if(io) {
 			DebugBox entityBox = DebugBox(Vec2i(500, 10), "Entity " + io->idString());
 			entityBox.add("Pos", io->pos);
@@ -291,8 +305,27 @@ void ShowInfoText() {
 				itemBox.add("Poisonous count", static_cast<long>(io->poisonous_count));
 				itemBox.print();
 			}
+			
+			long column2y = 400;
+			
+			for(size_t i = 0; i < MAX_ANIM_LAYERS; i++) {
+				AnimLayer & layer = io->animlayer[i];
+				
+				DebugBox animLayerBox = DebugBox(Vec2i(500, column2y), str(boost::format("Anim Layer %1%") % i));
+				animLayerBox.add("ctime", long(layer.ctime.t));
+				animLayerBox.add("flags", flagNames(AnimUseFlagNames, layer.flags));
+				
+				animLayerBox.add("currentFrame", long(layer.currentFrame));
+				if(layer.cur_anim) {
+					animLayerBox.add("cur_anim", layer.cur_anim->path.string());
+				} else {
+					animLayerBox.add("cur_anim", "none");
+				}
+				
+				animLayerBox.print();
+				column2y = animLayerBox.size().y + 5;
+			}
 		}
-	}
 	
 	ARX_SCRIPT_Init_Event_Stats();
 }
@@ -344,7 +377,7 @@ void ShowFpsGraph() {
 	GRenderer->ResetTexture(0);
 
 	static std::deque<float> lastFPSArray;
-	lastFPSArray.push_front(1000 / arxtime.get_frame_delay());
+	lastFPSArray.push_front(1.f / toS(g_platformTime.lastFrameDuration()));
 
 	Vec2i windowSize = mainApp->getWindow()->getSize();
 	if(lastFPSArray.size() == size_t(windowSize.x))
@@ -402,8 +435,8 @@ void ShowFpsGraph() {
 		oss << std::fixed << std::setprecision(2) << values[i] << " FPS";
 		texts[i] = oss.str();
 		// Calculate widths (could be done more efficiently for monospace fonts...)
-		labelWidth = std::max(labelWidth, float(font->getTextSize(labels[i]).x));
-		widths[i] = font->getTextSize(texts[i]).x;
+		labelWidth = std::max(labelWidth, float(font->getTextSize(labels[i]).width()));
+		widths[i] = font->getTextSize(texts[i]).width();
 		valueWidth = std::max(valueWidth, widths[i]);
 	}
 

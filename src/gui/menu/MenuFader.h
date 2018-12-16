@@ -23,9 +23,10 @@
 extern bool g_menuFadeActive;
 extern bool bFadeInOut;
 extern int iFadeAction;
-extern float fFadeInOut;
 
-bool ProcessFadeInOut(bool _bFadeIn);
+void MenuFader_reset();
+
+bool MenuFader_process(bool _bFadeIn);
 
 void MenuFader_start(bool fade, bool fadeInOut, int fadeAction);
 

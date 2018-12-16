@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -67,9 +67,10 @@ class TextureContainer;
 class Entity;
 struct EERIE_LIGHT;
 
-ARX_HANDLE_TYPEDEF(long, ActionPoint, -1)
-ARX_HANDLE_TYPEDEF(long, ObjSelection, -1)
-ARX_HANDLE_TYPEDEF(short, ObjVertGroup, -1)
+typedef HandleType<struct ActionPointTag,  long,  -1> ActionPoint;
+typedef HandleType<struct ObjSelectionTag, long,  -1> ObjSelection;
+typedef HandleType<struct ObjVertGroupTag, short, -1> ObjVertGroup;
+typedef HandleType<struct ObjVertHandleTag, s32,  -1> ObjVertHandle;
 
 struct EERIE_TRI {
 	Vec3f v[3];
@@ -151,75 +152,6 @@ struct EERIE_FACE {
 	
 	short ou[IOPOLYVERT];
 	short ov[IOPOLYVERT];
-};
-
-struct NEIGHBOURS_DATA {
-	short nb_Nvertex;
-	short nb_Nfaces;
-	short * Nvertex;
-	short * Nfaces;
-};
-
-struct PROGRESSIVE_DATA {
-	// ingame data
-	short actual_collapse; // -1 = no collapse
-	short need_computing;
-	float collapse_ratio;
-	// static data
-	float collapse_cost;
-	short collapse_candidate;
-	short padd;
-};
-
-struct EERIE_SPRINGS {
-	short startidx;
-	short endidx;
-	float restlength;
-	float constant; // spring constant
-	float damping; // spring damping
-	long type;
-};
-
-#define CLOTHES_FLAG_NORMAL	0
-#define CLOTHES_FLAG_FIX	1
-#define CLOTHES_FLAG_NOCOL	2
-
-struct CLOTHESVERTEX {
-	
-	short idx;
-	unsigned char flags;
-	char coll;
-	Vec3f pos;
-	Vec3f velocity;
-	Vec3f force;
-	float mass; // 1.f/mass
-	
-	Vec3f t_pos;
-	Vec3f t_velocity;
-	Vec3f t_force;
-	
-	Vec3f lastpos;
-	
-};
-
-struct CLOTHES_DATA {
-	
-	CLOTHESVERTEX * cvert;
-	CLOTHESVERTEX * backup;
-	short nb_cvert;
-	std::vector<EERIE_SPRINGS> springs;
-	
-	CLOTHES_DATA() : cvert(NULL), backup(NULL), nb_cvert(0) { }
-};
-
-struct COLLISION_SPHERE {
-	short idx;
-	short flags; // TODO not used?
-	float radius;
-};
-
-struct COLLISION_SPHERES_DATA {
-	std::vector<COLLISION_SPHERE> spheres;
 };
 
 struct PHYSVERT
@@ -307,7 +239,7 @@ struct EERIE_FASTACCESS
 		, left_attach()
 		, weapon_attach()
 		, secondary_attach()
-		, head_group_origin(0)
+		, head_group_origin()
 		, head_group()
 		, fire()
 		, sel_head()
@@ -320,7 +252,7 @@ struct EERIE_FASTACCESS
 	ActionPoint left_attach;
 	ActionPoint weapon_attach;
 	ActionPoint secondary_attach;
-	long head_group_origin;
+	ObjVertHandle head_group_origin;
 	ObjVertGroup head_group;
 	ActionPoint fire;
 	ObjSelection sel_head;
@@ -356,10 +288,7 @@ struct EERIE_3DOBJ
 		linked.clear();
 
 		pbox = NULL;
-		pdata = NULL;
-		ndata = NULL;
-		cdata = NULL;
-		sdata = NULL;
+		sdata = false;
 		
 		fastaccess = EERIE_FASTACCESS();
 		
@@ -392,46 +321,29 @@ struct EERIE_3DOBJ
 	std::vector<EERIE_LINKED> linked;
 	
 	PHYSICS_BOX_DATA * pbox;
-	PROGRESSIVE_DATA * pdata;
-	NEIGHBOURS_DATA * ndata;
-	CLOTHES_DATA * cdata;
-	COLLISION_SPHERES_DATA * sdata;
+	bool sdata;
 	EERIE_FASTACCESS fastaccess;
 	Skeleton * m_skeleton;
 	
 };
 
-
-struct EERIE_3DSCENE {
-	long nbobj;
-	EERIE_3DOBJ ** objs;
-	Vec3f pos;
-	Vec3f point0;
-	long nbtex;
-	TextureContainer ** texturecontainer;
-	long nblight;
-	EERIE_LIGHT ** light;
-	CUB3D cub;
-};
-
-
-#if BUILD_EDIT_LOADSAVE
-const size_t MAX_SCENES = 64;
-struct EERIE_MULTI3DSCENE {
-	long nb_scenes;
-	EERIE_3DSCENE * scenes[MAX_SCENES];
-	CUB3D cub;
-	Vec3f pos;
-	Vec3f point0;
-};
-#endif
-
 //-------------------------------------------------------------------------
 //Portal Data;
 
+struct PortalPoly {
+	Vec3f		min;
+	Vec3f		max;
+	Vec3f		norm;
+	TexturedVertex		v[4];
+	Vec3f		center;
+	
+	PortalPoly()
+	{ }
+};
+
 struct EERIE_PORTALS
 {
-	EERIEPOLY	poly;
+	PortalPoly	poly;
 	size_t		room_1; // facing normal
 	size_t		room_2;
 	short		useportal;
@@ -439,7 +351,7 @@ struct EERIE_PORTALS
 };
 
 struct EP_DATA {
-	Vec2s p;
+	Vec2s tile;
 	short idx;
 	short padd;
 };
@@ -467,23 +379,6 @@ struct EERIE_PORTAL_DATA
 {
 	std::vector<EERIE_ROOM_DATA> rooms;
 	std::vector<EERIE_PORTALS> portals;
-};
-
-struct SMY_ARXMAT
-{
-	unsigned long uslStartVertex;
-	unsigned long uslNbVertex;
-
-	enum TransparencyType {
-		Opaque = 0,
-		Blended,
-		Multiplicative,
-		Additive,
-		Subtractive
-	};
-
-	unsigned long offset[5];
-	unsigned long count[5];
 };
 
 extern EERIE_PORTAL_DATA * portals;

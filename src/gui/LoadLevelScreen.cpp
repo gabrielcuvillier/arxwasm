@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -88,11 +88,7 @@ void LoadLevelScreen(long num) {
 
 		GRenderer->Clear(Renderer::ColorBuffer | Renderer::DepthBuffer);
 		
-		GRenderer->SetRenderState(Renderer::DepthTest, true);
-		GRenderer->SetCulling(CullNone);
-		GRenderer->SetRenderState(Renderer::DepthWrite, true);
-		GRenderer->SetRenderState(Renderer::Fog, false);
-		GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+		UseRenderState state(render2D().noBlend());
 		
 		if (num == 10) {
 			pbar = TextureContainer::LoadUI("graph/interface/menus/load_full");
@@ -104,8 +100,7 @@ void LoadLevelScreen(long num) {
 			delete tc, tc = NULL;
 			lastloadednum = num;
 			char temp[256];
-			char tx[256];
-			GetLevelNameByNum(num, tx);
+			const char * tx = GetLevelNameByNum(num);
 			sprintf(temp, "graph/levels/level%s/loading", tx);
 			tc = TextureContainer::LoadUI(temp, TextureContainer::NoColorKey);
 		}
@@ -113,7 +108,6 @@ void LoadLevelScreen(long num) {
 		float scale = minSizeRatio();
 		
 		if(tc) {
-			GRenderer->SetRenderState(Renderer::ColorKey, false);
 			
 			Vec2f size = (num == 10) ? Vec2f(640, 480) : Vec2f(320, 390);
 			size *= scale;
@@ -123,7 +117,6 @@ void LoadLevelScreen(long num) {
 			
 			EERIEDrawBitmap2(Rectf(pos, size.x, size.y), 0.001f, tc, Color::white);
 			
-			GRenderer->SetRenderState(Renderer::ColorKey, true);
 		}
 		
 		if(pbar) {

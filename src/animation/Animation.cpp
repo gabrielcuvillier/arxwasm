@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -59,6 +59,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "util/String.h"
 
+#include "animation/AnimationFormat.h"
+
 #include "audio/Audio.h"
 
 #include "core/GameTime.h"
@@ -78,7 +80,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "platform/Platform.h"
 
 #include "scene/Object.h"
-#include "scene/ObjectFormat.h"
 #include "scene/GameSound.h"
 
 const size_t MAX_ANIMATIONS = 900;
@@ -120,7 +121,7 @@ void ANIM_Set(AnimLayer & layer, ANIM_HANDLE *anim)
 	if(layer.altidx_cur > layer.cur_anim->alt_nb)
 		layer.altidx_cur = 0;
 
-	layer.ctime = 0;
+	layer.ctime = AnimationDuration_ZERO;
 	layer.lastframe = -1;
 	layer.flags &= ~EA_PAUSED;
 	layer.flags &= ~EA_ANIMEND;
@@ -226,13 +227,13 @@ static float GetTimeBetweenKeyFrames(EERIE_ANIM * ea, long f1, long f2) {
 	if(!ea || f1 < 0 || f1 > ea->nb_key_frames - 1 || f2 < 0 || f2 > ea->nb_key_frames - 1)
 		return 0;
 
-	float time = 0;
+	AnimationDuration time = AnimationDuration_ZERO;
 
 	for(long kk = f1 + 1; kk <= f2; kk++) {
 		time += ea->frames[kk].time;
 	}
 
-	return time;
+	return toMsf(time);
 }
 
 static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path & file) {
@@ -264,7 +265,7 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 	eerie->groups = allocStructZero<EERIE_GROUP>(th->nb_key_frames * th->nb_groups);
 	eerie->voidgroups = allocStructZero<unsigned char>(th->nb_groups);
 
-	eerie->anim_time = 0;
+	eerie->anim_time = AnimationDuration_ZERO;
 
 	// Go For Keyframes read
 	for(long i = 0; i < th->nb_key_frames; i++) {
@@ -296,17 +297,15 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 
 		eerie->frames[i].f_rotate = (tkf2015->key_orient != 0);
 		eerie->frames[i].f_translate = (tkf2015->key_move != 0);
-
-		s32 time_frame = tkf2015->num_frame * 1000;
-		eerie->frames[i].time = time_frame * (1.f/24);
-		eerie->anim_time += time_frame;
+		
+		eerie->frames[i].time = AnimationDurationUs(s64(tkf2015->num_frame) * 1000 * 1000 / 24);
 		
 		arx_assert(tkf2015->flag_frame == -1 || tkf2015->flag_frame == 9);
 		eerie->frames[i].stepSound = (tkf2015->flag_frame == 9);
 
 		LogDebug(" pos " << pos << " - NumFr " << eerie->frames[i].num_frame
 				 << " MKF " << tkf2015->master_key_frame << " THEA_KEYFRAME " << sizeof(THEA_KEYFRAME_2014)
-				 << " TIME " << (float)(eerie->frames[i].time / 1000.f) << "s -Move " << tkf2015->key_move
+				 << " TIME " << toS(eerie->frames[i].time) << "s -Move " << tkf2015->key_move
 				 << " Orient " << tkf2015->key_orient << " Morph " << tkf2015->key_morph);
 
 		// Is There a Global translation ?
@@ -448,13 +447,13 @@ static EERIE_ANIM * TheaToEerie(const char * adr, size_t size, const res::path &
 			eerie->voidgroups[i] = 1;
 		}
 	}
-
-	eerie->anim_time = th->nb_frames * 1000.f * (1.f/24);
-	if(eerie->anim_time < 1) {
-		eerie->anim_time = 1;
+	
+	eerie->anim_time = AnimationDurationUs(s64(th->nb_frames) * 1000 * 1000 / 24);
+	if(eerie->anim_time < AnimationDurationMs(1)) {
+		eerie->anim_time = AnimationDurationMs(1);
 	}
 
-	LogDebug("Finished Conversion TEA -> EERIE - " << (eerie->anim_time / 1000) << " seconds");
+	LogDebug("Finished Conversion TEA -> EERIE - " << toS(eerie->anim_time) << " seconds");
 
 	return eerie;
 }
@@ -565,13 +564,13 @@ Vec3f GetAnimTotalTranslate(ANIM_HANDLE * eanim, long alt_idx) {
  * \param time Time increment to current animation in Ms
  * \param io Referrence to Interactive Object (NULL if no IO)
  */
-void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
+void PrepareAnim(AnimLayer & layer, AnimationDuration time, Entity *io) {
 
 	if(layer.flags & EA_PAUSED)
-		time = 0;
+		time = AnimationDuration_ZERO;
 
 	if(io && (io->ioflags & IO_FREEZESCRIPT))
-		time = 0;
+		time = AnimationDuration_ZERO;
 
 	if(layer.altidx_cur >= layer.cur_anim->alt_nb)
 		layer.altidx_cur = 0;
@@ -581,7 +580,7 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 
 	layer.flags &= ~EA_ANIMEND;
 
-	const long animTime = layer.cur_anim->anims[layer.altidx_cur]->anim_time;
+	AnimationDuration animTime = layer.cur_anim->anims[layer.altidx_cur]->anim_time;
 	
 	if(layer.ctime > animTime) {
 	
@@ -589,7 +588,7 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 			layer.ctime = animTime;
 		}
 		
-		long lost = layer.ctime - animTime;
+		AnimationDuration lost = layer.ctime - animTime;
 		
 		if((layer.flags & EA_LOOP)
 		   || (io && ((layer.cur_anim == io->anims[ANIM_WALK])
@@ -600,8 +599,7 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 					  || (layer.cur_anim == io->anims[ANIM_RUN3])))
 		) {
 				if(!layer.next_anim) {
-					long t = animTime;
-					layer.ctime = layer.ctime % t;
+					layer.ctime = AnimationDuration::ofRaw(layer.ctime.t % animTime.t);
 	
 					if(io)
 						FinishAnim(io, layer.cur_anim);
@@ -609,10 +607,10 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 					if(io) {
 						FinishAnim(io, layer.cur_anim);
 						
-						if(io->animBlend.lastanimtime != 0)
+						if(io->animBlend.lastanimtime != ArxInstant_ZERO)
 							AcquireLastAnim(io);
 						else
-							io->animBlend.lastanimtime = 1;
+							io->animBlend.lastanimtime = ArxInstantMs(1);
 					}
 					
 					layer.cur_anim = layer.next_anim;
@@ -627,10 +625,10 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 			if(io && layer.next_anim) {
 					FinishAnim(io, layer.cur_anim);
 					
-					if (io->animBlend.lastanimtime != 0)
+					if (io->animBlend.lastanimtime != ArxInstant_ZERO)
 						AcquireLastAnim(io);
 					else
-						io->animBlend.lastanimtime = 1;
+						io->animBlend.lastanimtime = ArxInstantMs(1);
 					
 					layer.cur_anim = layer.next_anim;
 					layer.altidx_cur = ANIM_GetAltIdx(layer.next_anim, layer.altidx_cur);
@@ -650,7 +648,7 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 	if (!layer.cur_anim)
 		return;
 
-	long tim;
+	AnimationDuration tim;
 	if(layer.flags & EA_REVERSE)
 		tim = animTime - layer.ctime;
 	else
@@ -662,8 +660,8 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 	layer.currentInterpolation = 1.f;
 	
 	for(long i = 1; i < anim->nb_key_frames; i++) {
-		long tcf = (long)anim->frames[i - 1].time;
-		long tnf = (long)anim->frames[i].time;
+		AnimationDuration tcf = anim->frames[i - 1].time;
+		AnimationDuration tnf = anim->frames[i].time;
 
 		if(tcf == tnf)
 			return;
@@ -671,10 +669,11 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 		if((tim < tnf && tim >= tcf) || (i == anim->nb_key_frames - 1 && tim == tnf)) {
 			long fr = i - 1;
 			tim -= tcf;
-			float pour = float(tim) / float(tnf - tcf);
+			float pour = toMsf(tim) / toMsf(tnf - tcf);
 			
 			// Frame Sound Management
-			if(!(layer.flags & EA_ANIMEND) && time
+			if(!(layer.flags & EA_ANIMEND)
+			   && time != AnimationDuration_ZERO
 			   && (anim->frames[fr].sample != -1)
 			   && (layer.lastframe != fr)) {
 
@@ -689,7 +688,8 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 			}
 
 			// Frame Flags Management
-			if(!(layer.flags & EA_ANIMEND) && time
+			if(!(layer.flags & EA_ANIMEND)
+			   && time != AnimationDuration_ZERO
 			   && (anim->frames[fr].stepSound)
 			   && (layer.lastframe != fr)) {
 				
@@ -717,7 +717,7 @@ void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io) {
 
 void ResetAnim(AnimLayer & layer) {
 	
-	layer.ctime=0;
+	layer.ctime = AnimationDuration_ZERO;
 	layer.lastframe=-1;
 	layer.flags&=~EA_PAUSED;
 	layer.flags&=~EA_ANIMEND;
@@ -760,7 +760,8 @@ void AcquireLastAnim(Entity * io)
 		return;
 
 	// Stores Frametime and number of vertex for later interpolation
-	io->animBlend.lastanimtime = checked_range_cast<unsigned long>(arxtime.get_frame_time());
+	// TODO Mixing of now() and get_frame_time()
+	io->animBlend.lastanimtime = ArxInstantMs(arxtime.get_frame_time());
 	io->animBlend.m_active = true;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -50,7 +50,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <limits>
 
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/euler_angles.hpp>
 
 #include "graphics/GraphicsTypes.h"
 
@@ -555,8 +554,8 @@ glm::quat Quat_Slerp(const glm::quat & from, glm::quat to, float ratio)
 //*************************************************************************************
 glm::quat QuatFromAngles(const Anglef & angle) {
 	float A, B;
-	A = glm::radians(angle.getYaw()) * ( 1.0f / 2 );
-	B = glm::radians(angle.getPitch()) * ( 1.0f / 2 );
+	A = glm::radians(angle.getPitch()) * ( 1.0f / 2 );
+	B = glm::radians(angle.getYaw()) * ( 1.0f / 2 );
 
 	float fSinYaw   = glm::sin(A);
 	float fCosYaw   = glm::cos(A);
@@ -577,19 +576,19 @@ glm::quat QuatFromAngles(const Anglef & angle) {
 }
 
 glm::mat4 toRotationMatrix(const Anglef & angle) {
-	float yaw = glm::radians(angle.getYaw());
 	float pitch = glm::radians(angle.getPitch());
+	float yaw = glm::radians(angle.getYaw());
 	float roll = glm::radians(angle.getRoll());
-	glm::mat4 rotateX = glm::eulerAngleX(yaw);
-	glm::mat4 rotateY = glm::eulerAngleY(pitch);
-	glm::mat4 rotateZ = glm::eulerAngleZ(-roll);
+	glm::mat4 rotateX = arx::eulerAngleX(pitch);
+	glm::mat4 rotateY = arx::eulerAngleY(yaw);
+	glm::mat4 rotateZ = arx::eulerAngleZ(-roll);
 	return rotateZ * rotateX * rotateY;
 }
 
 
 glm::quat angleToQuatForArrow(const Anglef & angle) {
-	float aa = angle.getYaw();
-	float ab = 90 - angle.getPitch();
+	float aa = angle.getPitch();
+	float ab = 90 - angle.getYaw();
 	
 	Vec3f front(0,0,1);
 	Vec3f up(0,-1,0);
@@ -601,14 +600,14 @@ glm::quat angleToQuatForArrow(const Anglef & angle) {
 	
 	glm::mat4x4 tmat;
 	MatrixSetByVectors(tmat, front, up);
-	return glm::toQuat(tmat);
+	return glm::quat_cast(tmat);
 }
 
 glm::quat angleToQuatForExtraRotation(const Anglef & angle) {
 	Anglef vt1;
-	vt1.setYaw(angle.getRoll());
-	vt1.setPitch(angle.getPitch());
-	vt1.setRoll(angle.getYaw());
+	vt1.setPitch(angle.getRoll());
+	vt1.setYaw(angle.getYaw());
+	vt1.setRoll(angle.getPitch());
 	
 	return QuatFromAngles(vt1);
 }
@@ -618,11 +617,11 @@ std::pair<Vec3f, Vec3f> angleToFrontUpVec(const Anglef & angle) {
 	Vec3f front = angleToVector(angle);
 	Vec3f up = angleToVector(angle + Anglef(90.f, 0, 0));
 	
-	arx_assert(glm::abs(glm::dot(front, up)) < 5.f * std::numeric_limits<float>::epsilon(),
-	           "front=(%f,%f,%f) and up=(%f,%f,%f) should be orthogonal; dot=%1f*epsilon",
-	           double(front.x), double(front.y), double(front.z),
-	           double(up.x), double(up.y), double(up.z),
-	           double(glm::dot(front, up) / std::numeric_limits<float>::epsilon()));
+	arx_assert_msg(glm::abs(glm::dot(front, up)) < 5.f * std::numeric_limits<float>::epsilon(),
+	               "front=(%f,%f,%f) and up=(%f,%f,%f) should be orthogonal; dot=%1f*epsilon",
+	               double(front.x), double(front.y), double(front.z),
+	               double(up.x), double(up.y), double(up.z),
+	               double(glm::dot(front, up) / std::numeric_limits<float>::epsilon()));
 	
 	return std::make_pair(front, up);
 }
@@ -666,12 +665,12 @@ Vec3f angleToVectorXZ_180offset(float angleDegrees) {
 }
 
 Vec3f angleToVector(const Anglef & angle) {
-	Vec3f cam_vector = angleToVectorXZ(angle.getPitch());
+	Vec3f cam_vector = angleToVectorXZ(angle.getYaw());
 	
-	float yaw = glm::radians(angle.getYaw());
-	cam_vector.x *= std::cos(yaw);
-	cam_vector.y = std::sin(yaw);
-	cam_vector.z *= std::cos(yaw);
+	float pitch = glm::radians(angle.getPitch());
+	cam_vector.x *= std::cos(pitch);
+	cam_vector.y = std::sin(pitch);
+	cam_vector.z *= std::cos(pitch);
 	
 	return cam_vector;
 }
@@ -681,14 +680,6 @@ Vec3f CalcFaceNormal(const TexturedVertex * v) {
 	
 	Vec3f A = v[1].p - v[0].p;
 	Vec3f B = v[2].p - v[0].p;
-	
-	return glm::normalize(Vec3f(A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x));
-}
-
-Vec3f CalcObjFaceNormal(const Vec3f & v0, const Vec3f & v1, const Vec3f & v2) {
-	
-	Vec3f A = v1 - v0;
-	Vec3f B = v2 - v0;
 	
 	return glm::normalize(Vec3f(A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x));
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -95,20 +95,19 @@ bool SliderWidget::OnMouseClick() {
 	
 	ARX_SOUND_PlayMenu(SND_MENU_CLICK);
 
-	const Vec2f cursor = Vec2f(GInput->getMousePosAbs());
+	const Vec2f cursor = Vec2f(GInput->getMousePosition());
 	
 	if(m_rect.contains(cursor)) {
 		if(pLeftButton->m_rect.contains(cursor)) {
 			m_value--;
-			if(m_value <= m_minimum)
-				m_value = m_minimum;
-		}
-		
-		if(pRightButton->m_rect.contains(cursor)) {
+		} else  if(pRightButton->m_rect.contains(cursor)) {
 			m_value++;
-			if(m_value >= 10)
-				m_value = 10;
+		} else {
+			float width = pRightButton->m_rect.left - pLeftButton->m_rect.right;
+			int value = int(glm::round((cursor.x - pLeftButton->m_rect.right ) / width * 10));
+			m_value = value;
 		}
+		m_value = arx::clamp(m_value, m_minimum, 10);
 	}
 	
 	if(valueChanged) {
@@ -140,8 +139,7 @@ void SliderWidget::Render() {
 
 	Vec2f pos(m_rect.left + pLeftButton->m_rect.width(), m_rect.top);
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
+	UseRenderState state(render2D().blendAdditive());
 	
 	for(int i = 0; i < 10; i++) {
 		TextureContainer * pTex = (i < m_value) ? pTex1 : pTex2;
@@ -151,8 +149,7 @@ void SliderWidget::Render() {
 		
 		pos.x += rect.width();
 	}
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+	
 }
 
 extern MenuCursor * pMenuCursor;
@@ -161,10 +158,9 @@ void SliderWidget::RenderMouseOver() {
 
 	pMenuCursor->SetMouseOver();
 
-	const Vec2f cursor = Vec2f(GInput->getMousePosAbs());
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
+	const Vec2f cursor = Vec2f(GInput->getMousePosition());
+	
+	UseRenderState state(render2D().blendAdditive());
 	
 	if(m_rect.contains(cursor)) {
 		if(pLeftButton->m_rect.contains(cursor)) {
@@ -176,5 +172,4 @@ void SliderWidget::RenderMouseOver() {
 		}
 	}
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 }

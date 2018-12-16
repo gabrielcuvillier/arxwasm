@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -34,6 +34,9 @@
 #if ARX_HAVE_OPENAL_EFX
 #include <efx.h>
 #endif
+#if ARX_HAVE_OPENAL_HRTF
+#include <alext.h>
+#endif
 
 #include "audio/AudioBackend.h"
 #include "audio/AudioTypes.h"
@@ -51,7 +54,7 @@ public:
 	OpenALBackend();
 	~OpenALBackend();
 	
-	aalError init(const char * device = NULL);
+	aalError init(const char * device = NULL, HRTFAttribute hrtf = HRTFDefault);
 	
 	std::vector<std::string> getDevices();
 	
@@ -61,6 +64,9 @@ public:
 	
 	aalError setReverbEnabled(bool enable);
 	bool isReverbSupported();
+	
+	aalError setHRTFEnabled(HRTFAttribute enable);
+	HRTFStatus getHRTFStatus();
 	
 	aalError setUnitFactor(float factor);
 	aalError setRolloffFactor(float factor);
@@ -77,6 +83,8 @@ public:
 private:
 	
 	static const char * shortenDeviceName(const char * deviceName);
+	
+	void fillDeviceAttributes(ALCint (&attrs)[3]);
 	
 	ALCdevice * device;
 	ALCcontext * context;
@@ -97,6 +105,16 @@ private:
 	bool effectEnabled;
 	ALuint effect;
 	ALuint effectSlot;
+	
+	#endif
+	
+	#if ARX_HAVE_OPENAL_HRTF
+	
+	bool m_hasHRTF;
+	
+	LPALCRESETDEVICESOFT alcResetDeviceSOFT;
+	
+	HRTFAttribute m_HRTFAttribute;
 	
 	#endif
 	

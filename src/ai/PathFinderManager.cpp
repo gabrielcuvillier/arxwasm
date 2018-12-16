@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -246,8 +246,9 @@ static bool EERIE_PATHFINDER_Get_Next_Request(PATHFINDER_REQUEST & request) {
 
 // Pathfinder Thread
 void PathFinderThread::run() {
-	EERIE_BACKGROUND * eb = ACTIVEBKG;
-	PathFinder pathfinder(eb->nbanchors, eb->anchors, MAX_LIGHTS, (EERIE_LIGHT **)GLight);
+	
+	BackgroundData * eb = ACTIVEBKG;
+	PathFinder pathfinder(eb->nbanchors, eb->anchors, g_staticLightsMax, (EERIE_LIGHT **)g_staticLights);
 
 #ifdef __EMSCRIPTEN__
 	// No more infinite loop on emscripten. The loop is simulated with emscripten_set_main_loop

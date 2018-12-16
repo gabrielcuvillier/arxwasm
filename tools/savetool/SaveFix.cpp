@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -25,37 +25,31 @@
 #include <map>
 #include <sstream>
 
+#include <boost/foreach.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/io/ios_state.hpp>
 
 #include "Configure.h"
 
 #include "io/SaveBlock.h"
+#include "io/fs/FilePath.h"
+#include "io/fs/SystemPaths.h"
 #include "io/log/Logger.h"
 #include "io/resource/PakReader.h"
 #include "scene/SaveFormat.h"
 #include "util/String.h"
 
-using std::stringstream;
-using std::setfill;
-using std::setw;
-using std::map;
-using std::string;
-using std::cout;
-using std::cerr;
-using std::endl;
-using std::hex;
+typedef std::map<std::string, std::string> Idents; // ident -> where
+typedef std::map<std::string, long> Remap; // ident -> newIdent
 
-typedef map<string, string> Idents; // ident -> where
-typedef map<string, long> Remap; // ident -> newIdent
-
-static string makeIdent(const string & file, long ident) {
-	stringstream name;
-	name << file << "_" << setw(4) << setfill('0') << ident;
+static std::string makeIdent(const std::string & file, long ident) {
+	std::stringstream name;
+	name << file << "_" << std::setw(4) << std::setfill('0') << ident;
 	return name.str();
 }
 
-static bool fix_ident(SaveBlock & save, char (&name)[SIZE_ID], Idents & idents, const string & where, Remap & remap);
+static bool fix_ident(SaveBlock & save, char (&name)[SIZE_ID], Idents & idents, const std::string & where, Remap & remap);
 
 static void skip_script_save(const char * dat, size_t & pos) {
 	const ARX_CHANGELEVEL_SCRIPT_SAVE * ass;
@@ -71,7 +65,7 @@ static void skip_script_save(const char * dat, size_t & pos) {
 	}
 }
 
-static bool fix_iodata(SaveBlock & save, Idents & idents, char * dat, const string & where, Remap & remap) {
+static bool fix_iodata(SaveBlock & save, Idents & idents, char * dat, const std::string & where, Remap & remap) {
 	
 	size_t pos = 0;
 	ARX_CHANGELEVEL_IO_SAVE & ais = *reinterpret_cast<ARX_CHANGELEVEL_IO_SAVE *>(dat + pos);
@@ -81,7 +75,7 @@ static bool fix_iodata(SaveBlock & save, Idents & idents, char * dat, const stri
 	
 	ioChanged |= fix_ident(save, ais.id_targetinfo, idents, where + ".id_targetinfo", remap);
 	for(long i = 0; i < ais.nb_linked; i++) {
-		stringstream where2;
+		std::stringstream where2;
 		where2 << where << ".linked_data[" << i << "].linked_id";
 		ioChanged |= fix_ident(save, ais.linked_data[i].linked_id, idents, where2.str(), remap);
 	}
@@ -102,7 +96,7 @@ static bool fix_iodata(SaveBlock & save, Idents & idents, char * dat, const stri
 			specificsChanged |= fix_ident(save, anis.id_weapon, idents, where + ".npc.id_weapon", remap);
 			specificsChanged |= fix_ident(save, anis.weapon, idents, where + ".npc.weapon", remap);
 			for(size_t i = 0; i < SAVED_MAX_STACKED_BEHAVIOR; i++) {
-				stringstream where2;
+				std::stringstream where2;
 				where2 << where << ".npc.stackedtarget[" << i << "]";
 				specificsChanged |= fix_ident(save, anis.stackedtarget[i], idents, where2.str(), remap);
 			}
@@ -135,7 +129,7 @@ static bool fix_iodata(SaveBlock & save, Idents & idents, char * dat, const stri
 		invChanged |= fix_ident(save, aids.io, idents, where + ".inventory.io", remap);
 		for(long m = 0; m < aids.sizex; m++) {
 			for(long n = 0; n < aids.sizey; n++) {
-				stringstream where2;
+				std::stringstream where2;
 				where2 << where << ".inventory[" << m << "][" << n << "]";
 				invChanged |= fix_ident(save, aids.slot_io[m][n], idents, where2.str(), remap);
 			}
@@ -143,12 +137,12 @@ static bool fix_iodata(SaveBlock & save, Idents & idents, char * dat, const stri
 		invChanged |= fix_ident(save, aids.weapon, idents, where + ".inventory.weapon", remap);
 		invChanged |= fix_ident(save, aids.targetinfo, idents, where + ".inventory.targetinfo", remap);
 		for(long i = 0; i < ais.nb_linked; i++) {
-			stringstream where2;
+			std::stringstream where2;
 			where2 << where << ".inventory.linked_id[" << i << "]";
 			invChanged |= fix_ident(save, aids.linked_id[i], idents, where2.str(), remap);
 		}
 		for(size_t i = 0; i < SAVED_MAX_STACKED_BEHAVIOR; i++) {
-			stringstream where2;
+			std::stringstream where2;
 			where2 << where << ".inventory.stackedtarget[" << i << "]";
 			invChanged |= fix_ident(save, aids.stackedtarget[i], idents, where2.str(), remap);
 		}
@@ -158,18 +152,18 @@ static bool fix_iodata(SaveBlock & save, Idents & idents, char * dat, const stri
 	return ioChanged || specificsChanged || invChanged;
 }
 
-static long copy_io(SaveBlock & save, const string & name, Idents & idents, const string & where, char * dat, size_t size) {
+static long copy_io(SaveBlock & save, const std::string & name, Idents & idents, const std::string & where, char * dat, size_t size) {
 	
 	ARX_CHANGELEVEL_IO_SAVE & ais = *reinterpret_cast<ARX_CHANGELEVEL_IO_SAVE *>(dat);
 	
 	size_t pos = name.find_last_of('_');
 	
-	string fname = name.substr(0, pos);
+	std::string fname = name.substr(0, pos);
 	
 	res::path dir = res::path::load(util::loadString(ais.filename)).parent();
 	
 	long i = 1;
-	string ident;
+	std::string ident;
 	for(; i < 10000; i++) {
 		
 		ident = makeIdent(fname, i);
@@ -199,14 +193,14 @@ static long copy_io(SaveBlock & save, const string & name, Idents & idents, cons
 	return i;
 }
 
-static long fix_io(SaveBlock & save, const string & name, Idents & idents, const string & where, Remap & remap) {
+static long fix_io(SaveBlock & save, const std::string & name, Idents & idents, const std::string & where, Remap & remap) {
 	
 	if(name == "none" || name.empty()) {
 		remap[name] = 0;
 		return 0;
 	}
 	
-	string savefile = name;
+	std::string savefile = name;
 	
 	size_t size = 0;
 	char * dat = save.load(savefile, size);
@@ -217,10 +211,10 @@ static long fix_io(SaveBlock & save, const string & name, Idents & idents, const
 	
 	Idents::iterator it = idents.find(name);
 	if(it != idents.end()) {
-		cout << "duplicate ident " << name << " detected: in " << it->second << " and " << where << endl;
+		std::cout << "duplicate ident " << name << " detected: in " << it->second << " and " << where << '\n';
 		// we already fixed this!
 		long newIdent = copy_io(save, name, idents, where, dat, size);
-		cout << " -> copied " << name << " as " << newIdent << " for " << where << endl;
+		std::cout << " -> copied " << name << " as " << newIdent << " for " << where << '\n';
 		free(dat);
 		remap[name] = newIdent;
 		return newIdent;
@@ -249,7 +243,9 @@ static long fix_io(SaveBlock & save, const string & name, Idents & idents, const
 		}
 		
 		if(flags != ais.ioflags) {
-			cout << " - fixing " << name << ": ioflags 0x" << hex << ais.ioflags << " -> 0x" << hex << flags << endl;
+			boost::io::ios_all_saver coutFlags(std::cout);
+			std::cout << " - fixing " << name << ": ioflags 0x" << std::hex << ais.ioflags << " -> 0x" << std::hex << flags << '\n';
+			coutFlags.restore();
 			ais.ioflags = flags;
 			changed = true;
 		}
@@ -261,7 +257,7 @@ static long fix_io(SaveBlock & save, const string & name, Idents & idents, const
 	if(changed) {
 		LogDebug("#saving fixed io " << savefile);
 		if(!save.save(savefile, dat, size)) {
-			cerr << "error saving " << savefile;
+			std::cerr << "error saving " << savefile;
 		}
 	}
 	
@@ -270,15 +266,15 @@ static long fix_io(SaveBlock & save, const string & name, Idents & idents, const
 	return 0;
 }
 
-static bool patch_ident(char (&name)[SIZE_ID], long newIdent, const string & where) {
+static bool patch_ident(char (&name)[SIZE_ID], long newIdent, const std::string & where) {
 	
 	if(newIdent <= 0) {
 		return false;
 	}
 	
-	cout << "fixing ident in " << where << ": " << name << " -> " << newIdent << endl;
+	std::cout << "fixing ident in " << where << ": " << name << " -> " << newIdent << '\n';
 	
-	string namestr = boost::to_lower_copy(util::loadString(name, SIZE_ID));
+	std::string namestr = boost::to_lower_copy(util::loadString(name, SIZE_ID));
 	
 	size_t pos = namestr.find_last_of('_');
 	
@@ -287,9 +283,9 @@ static bool patch_ident(char (&name)[SIZE_ID], long newIdent, const string & whe
 	return true;
 }
 
-static bool fix_ident(SaveBlock & save, char (&name)[SIZE_ID], Idents & idents, const string & where, Remap & remap) {
+static bool fix_ident(SaveBlock & save, char (&name)[SIZE_ID], Idents & idents, const std::string & where, Remap & remap) {
 	
-	string lname = boost::to_lower_copy(util::loadString(name, SIZE_ID));
+	std::string lname = boost::to_lower_copy(util::loadString(name, SIZE_ID));
 	
 	if(lname.empty() || lname == "none" || lname == "player" || lname == "self") {
 		return false;
@@ -307,7 +303,7 @@ static bool fix_ident(SaveBlock & save, char (&name)[SIZE_ID], Idents & idents, 
 
 static void fix_player(SaveBlock & save, Idents & idents) {
 	
-	cout << "player" << endl;
+	std::cout << "player\n";
 	
 	const std::string loadfile = "player";
 	
@@ -326,7 +322,7 @@ static void fix_player(SaveBlock & save, Idents & idents) {
 	for(size_t iNbBag = 0; iNbBag < SAVED_INVENTORY_BAGS; iNbBag++) {
 		for(size_t m = 0; m < SAVED_INVENTORY_Y; m++) {
 			for(size_t n = 0; n < SAVED_INVENTORY_X; n++) {
-				stringstream where;
+				std::stringstream where;
 				where << "player.inventory[" << iNbBag << "][" << n << "][" << m << "]"; 
 				changed |= fix_ident(save, asp.id_inventory[iNbBag][n][m], idents, where.str(), remap);
 			}
@@ -341,7 +337,7 @@ static void fix_player(SaveBlock & save, Idents & idents) {
 	changed |= fix_ident(save, asp.curtorch, idents, "player.torch", remap);
 	
 	for(size_t k = 0; k < SAVED_MAX_EQUIPED; k++) {
-		stringstream where;
+		std::stringstream where;
 		where << "player.equiped[" << k << "]"; 
 		changed |= fix_ident(save, asp.equiped[k], idents, where.str(), remap);
 	}
@@ -357,8 +353,8 @@ static void fix_player(SaveBlock & save, Idents & idents) {
 
 static void fix_level(SaveBlock & save, long num, Idents & idents) {
 	
-	stringstream ss;
-	ss << "lvl" << setfill('0') << setw(3) << num;
+	std::stringstream ss;
+	ss << "lvl" << std::setfill('0') << std::setw(3) << num;
 	
 	if(!save.hasFile(ss.str())) {
 		return;
@@ -370,7 +366,7 @@ static void fix_level(SaveBlock & save, long num, Idents & idents) {
 		return;
 	}
 	
-	cout << "level " << num << endl;
+	std::cout << "level " << num << '\n';
 	
 	size_t pos = 0;
 	
@@ -385,9 +381,9 @@ static void fix_level(SaveBlock & save, long num, Idents & idents) {
 	
 	for(long i = 0; i < asi.nb_inter; i++) {
 		long res;
-		string ident = makeIdent(res::path::load(util::loadString(idx_io[i].filename)).basename(), idx_io[i].ident);
+		std::string ident = makeIdent(res::path::load(util::loadString(idx_io[i].filename)).basename(), idx_io[i].ident);
 		Remap::const_iterator it = remap.find(ident);
-		stringstream where;
+		std::stringstream where;
 		where << "level" << num << "[" << i << "]";
 		if(it != remap.end()) {
 			res = it->second;
@@ -395,7 +391,7 @@ static void fix_level(SaveBlock & save, long num, Idents & idents) {
 			res = fix_io(save, ident, idents, where.str(), remap);
 		}
 		if(res != 0) {
-			cout << "fixing ident in " << where.str() << ": " << ident << " -> " << res << endl;
+			std::cout << "fixing ident in " << where.str() << ": " << ident << " -> " << res << '\n';
 			idx_io[i].ident = res;
 			changed = true;
 		}
@@ -410,22 +406,27 @@ static void fix_level(SaveBlock & save, long num, Idents & idents) {
 	
 }
 
-int main_fix(SaveBlock & save, int argc, char ** argv) {
+int main_fix(SaveBlock & save, const std::vector<std::string> & args) {
 	
-	(void)argv;
-	
-	if(argc != 0) {
+	if(!args.empty()) {
 		return -1;
 	}
 	
 	resources = new PakReader();
 	
-	if(!resources->addArchive("data.pak") || !resources->addArchive("data2.pak")) {
-		cerr << "could not open pak files, run 'savetool fix' from the game directory" << endl;
+	// TODO share this list with the game code
+	static const char * const default_paks[] = { "data.pak", "data2.pak" };
+	BOOST_FOREACH(const char * const filename, default_paks) {
+		if(resources->addArchive(fs::paths.find(filename))) {
+			continue;
+		}
+		LogError << "Missing required data file: \"" << filename << "\"";
 		return 3;
 	}
-	
-	resources->addFiles("graph", "graph");
+	BOOST_REVERSE_FOREACH(const fs::path & base, fs::paths.data) {
+		const char * dirname = "graph";
+		resources->addFiles(base / dirname, dirname);
+	}
 	
 	if(!save.open(true)) {
 		return 2;

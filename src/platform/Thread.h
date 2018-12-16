@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -109,6 +109,11 @@ public:
 	// Needed for thread simulation on emscripten
 	bool isStarted() { return started; }
 #endif
+
+    /*!
+	 * \brief Disable denormals for the current thread for faster floating point operations
+	 */
+    static void disableFloatDenormals();
 
 protected:
 

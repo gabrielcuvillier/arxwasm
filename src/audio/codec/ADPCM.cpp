@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -92,7 +92,7 @@ aalError CodecADPCM::setHeader(void * _header) {
 	padding = 0;
 	sample_i = 0xffffffff;
 	
-	size_t nb = 1 << shift;
+	size_t nb = size_t(1) << shift;
 	
 	predictor = new char[nb];
 	delta = new s16[nb];

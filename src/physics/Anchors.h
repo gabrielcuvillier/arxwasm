@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -50,7 +50,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "math/Vector.h"
 #include "util/Flags.h"
 
-struct EERIE_BACKGROUND;
+struct BackgroundData;
 struct Cylinder;
 
 enum AnchorFlag {
@@ -80,9 +80,6 @@ struct ANCHOR_DATA {
 /*!
  * Clears all Anchor data from a Background
  */
-void AnchorData_ClearAll(EERIE_BACKGROUND * eb);
-bool CylinderAboveInvalidZone(const Cylinder & cyl);
+void AnchorData_ClearAll(BackgroundData * eb);
 
-void AnchorData_Create(EERIE_BACKGROUND * eb);
- 
 #endif // ARX_PHYSICS_ANCHORS_H

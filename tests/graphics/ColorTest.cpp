@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -22,6 +22,24 @@
 #include <cppunit/TestAssert.h>
 
 #include "tests/math/AssertionTraits.h"
+
+#include "graphics/Color.h"
+
+namespace CppUnit {
+	template <typename TAG>
+	struct assertion_traits<IntegerColorType<TAG,  u32> > {
+		static bool equal(const IntegerColorType<TAG,  u32> & v, const IntegerColorType<TAG,  u32> & other) {
+			return v.t == other.t;
+		}
+		
+		static std::string toString(const IntegerColorType<TAG,  u32> & v) {
+			std::ostringstream ost;
+			ost << std::hex << "0x" << v.t;
+			return ost.str();
+		}
+	};
+}
+
 
 void ColorTest::ColorTypeConversionTests()
 {

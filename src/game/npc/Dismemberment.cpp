@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -176,10 +176,6 @@ static void ARX_NPC_SpawnMember(Entity * ioo, ObjSelection num) {
 	nouvo->point0 = Vec3f_ZERO;
 	
 	nouvo->pbox = NULL;
-	nouvo->pdata = NULL;
-	nouvo->cdata = NULL;
-	nouvo->sdata = NULL;
-	nouvo->ndata = NULL;
 	
 	size_t nfaces = 0;
 	for(size_t k = 0; k < from->facelist.size(); k++) {
@@ -260,8 +256,8 @@ static void ARX_NPC_SpawnMember(Entity * ioo, ObjSelection num) {
 	io->gameFlags = ioo->gameFlags;
 	io->halo = ioo->halo;
 	
-	io->angle.setYaw(Random::getf(340.f, 380.f));
-	io->angle.setPitch(Random::getf(0.f, 360.f));
+	io->angle.setPitch(Random::getf(340.f, 380.f));
+	io->angle.setYaw(Random::getf(0.f, 360.f));
 	io->angle.setRoll(0);
 	io->obj->pbox->active = 1;
 	io->obj->pbox->stopcount = 0;
@@ -270,17 +266,17 @@ static void ARX_NPC_SpawnMember(Entity * ioo, ObjSelection num) {
 	io->stopped = 1;
 	
 	Vec3f vector;
-	vector.x = -std::sin(glm::radians(io->angle.getPitch()));
-	vector.y = std::sin(glm::radians(io->angle.getYaw())) * 2.f;
-	vector.z = std::cos(glm::radians(io->angle.getPitch()));
+	vector.x = -std::sin(glm::radians(io->angle.getYaw()));
+	vector.y = std::sin(glm::radians(io->angle.getPitch())) * 2.f;
+	vector.z = std::cos(glm::radians(io->angle.getYaw()));
 	vector = glm::normalize(vector);
 	io->rubber = 0.6f;
 	
 	io->no_collide = ioo->index();
 	
 	io->gameFlags |= GFLAG_GOREEXPLODE;
-	io->animBlend.lastanimtime = arxtime.now_ul();
-	io->soundtime = 0;
+	io->animBlend.lastanimtime = arxtime.now();
+	io->soundtime = ArxInstant_ZERO;
 	io->soundcount = 0;
 
 	EERIE_PHYSICS_BOX_Launch(io->obj, io->pos, io->angle, vector);
@@ -479,7 +475,7 @@ void ARX_NPC_TryToCutSomething(Entity * target, const Vec3f * pos)
 			}
 
 			if(out < 3) {
-				float dist = glm::distance2(*pos, target->obj->vertexlist3[target->obj->selections[i].selected[0]].v);
+				float dist = arx::distance2(*pos, target->obj->vertexlist3[target->obj->selections[i].selected[0]].v);
 
 				if(dist < mindistSqr) {
 					mindistSqr = dist;
@@ -504,7 +500,8 @@ void ARX_NPC_TryToCutSomething(Entity * target, const Vec3f * pos)
 	}
 
 	if(hid) {
-		ARX_SOUND_PlayCinematic("flesh_critical", false); // TODO why play cinmeatic sound?
+		audio::SampleId sample = ARX_SOUND_Load("flesh_critical");
+		ARX_SOUND_PlaySFX(sample, &target->pos, 1.0f);
 		ARX_NPC_SpawnMember(target, numsel);
 	}
 }

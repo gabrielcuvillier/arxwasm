@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -18,38 +18,38 @@
  */
 
 #include <iostream>
+#include <vector>
+#include <string>
+
+#include <boost/foreach.hpp>
 
 #include "io/SaveBlock.h"
 #include "io/fs/Filesystem.h"
+#include "io/fs/SystemPaths.h"
 #include "io/log/Logger.h"
 
+#include "platform/ProgramOptions.h"
 #include "platform/WindowsMain.h"
 
 #include "savetool/SaveFix.h"
 #include "savetool/SaveRename.h"
 #include "savetool/SaveView.h"
 
-using std::vector;
-using std::string;
-using std::cout;
-using std::endl;
-using std::cerr;
+#include "util/cmdline/CommandLine.h"
 
 static void print_help() {
-	cout << "usage: savetool <command> <savefile> [<options>...]" << endl;
-	cout << "commands are:" << endl;
-	cout << " - extract <savefile>" << endl;
-	cout << " - add <savefile> [<files>...]" << endl;
-	cout << " - fix <savefile>" << endl;
-	cout << " - rename <savefile> <newname>" << endl;
-	cout << " - view <savefile> [<ident>]" << endl;
+	std::cout << "usage: savetool <command> <savefile> [<options>...]\n"
+	             "commands are:\n"
+	             " - extract <savefile>\n"
+	             " - add <savefile> [<files>...]\n"
+	             " - fix <savefile>\n"
+	             " - rename <savefile> <newname>\n"
+	             " - view <savefile> [<ident>]\n";
 }
 
-static int main_extract(SaveBlock & save, int argc, char ** argv) {
+static int main_extract(SaveBlock & save, const std::vector<std::string> & args) {
 	
-	(void)argv;
-	
-	if(argc != 0) {
+	if(!args.empty()) {
 		return -1;
 	}
 	
@@ -57,26 +57,26 @@ static int main_extract(SaveBlock & save, int argc, char ** argv) {
 		return 2;
 	}
 	
-	vector<string> files = save.getFiles();
+	std::vector<std::string> files = save.getFiles();
 	
-	for(vector<string>::iterator file = files.begin(); file != files.end(); ++file) {
+	for(std::vector<std::string>::iterator file = files.begin(); file != files.end(); ++file) {
 		
 		size_t size;
 		char * data = save.load(*file, size);
 		if(!data) {
-			cerr << "error loading " << *file << " from save" << endl;
+			std::cerr << "error loading " << *file << " from save\n";
 			continue;
 		}
 		
 		fs::ofstream h(*file, std::ios_base::out | std::ios_base::binary);
 		if(!h.is_open()) {
-			cerr << "error opening " << *file << " for writing" << endl;
+			std::cerr << "error opening " << *file << " for writing\n";
 			free(data);
 			continue;
 		}
 		
 		if(h.write(data, size).fail()) {
-			cerr << "error writing to " << *file << endl;
+			std::cerr << "error writing to " << *file << '\n';
 		}
 		
 		free(data);
@@ -85,34 +85,28 @@ static int main_extract(SaveBlock & save, int argc, char ** argv) {
 	return 0;
 }
 
-static int main_add(SaveBlock & save, int argc, char ** argv) {
+static int main_add(SaveBlock & save, const std::vector<std::string> & args) {
 	
 	if(!save.open(true)) {
 		return 2;
 	}
 	
-	for(int i = 0; i < argc; i++) {
+	BOOST_FOREACH(fs::path file, args) {
 		
 		size_t size;
-		char * data = fs::read_file(argv[i], size);
+		char * data = fs::read_file(file, size);
 		
 		if(!data) {
-			cerr << "error loading " << argv[i];
-		} else {
-			
-			string name = argv[i];
-			size_t pos = name.find_last_of("/\\");
-			if(pos != string::npos) {
-				name = name.substr(pos + 1);
-			}
-			
-			if(!save.save(name, data, size)) {
-				cerr << "error writing " << name << " to save";
-			}
-			
-			delete[] data;
+			std::cerr << "error loading " << file;
+			continue;
 		}
 		
+		std::string name = file.filename();
+		if(!save.save(name, data, size)) {
+			std::cerr << "error writing " << name << " to save";
+		}
+		
+		delete[] data;
 	}
 	
 	save.flush("pld");
@@ -120,44 +114,67 @@ static int main_add(SaveBlock & save, int argc, char ** argv) {
 	return 0;
 }
 
+static std::vector<std::string> g_args;
+
+static void handlePositionalArgument(const std::string & file) {
+	g_args.push_back(file);
+}
+
+ARX_PROGRAM_OPTION_ARG("", "", "savetool arguments", &handlePositionalArgument, "ARGS")
+
 int utf8_main(int argc, char ** argv) {
 	
 	Logger::initialize();
 	
-	if(argc < 3) {
+	// Parse the command line and process options
+	ExitStatus status = parseCommandLine(argc, argv);
+	
+	if(status == RunProgram) {
+		status = fs::paths.init();
+	}
+	
+	if(status == RunProgram && g_args.size() < 2) {
 		print_help();
-		return 1;
+		status = ExitFailure;
 	}
 	
-	string command = argv[1];
-	
-	fs::path savefile = argv[2];
-	
-	if(fs::is_directory(savefile)) {
-		savefile /= "gsave.sav";
+	if(status == RunProgram) {
+		
+		std::string command = g_args[0];
+		
+		fs::path savefile = g_args[1];
+		
+		if(fs::is_directory(savefile)) {
+			savefile /= "gsave.sav";
+		}
+		
+		SaveBlock save(savefile);
+		
+		g_args.erase(g_args.begin(), g_args.begin() + 2);
+		
+		int ret = -1;
+		if(command == "e" || command == "extract") {
+			ret = main_extract(save, g_args);
+		} else if(command == "a" || command == "add") {
+			ret = main_add(save, g_args);
+		} else if(command == "f" || command == "fix") {
+			ret = main_fix(save, g_args);
+		} else if(command == "r" || command == "rename") {
+			ret = main_rename(save, g_args);
+		} else if(command == "v" || command == "view") {
+			ret = main_view(save, g_args);
+		}
+		
+		if(ret != 0) {
+			if(ret == -1) {
+				print_help();
+			}
+			status = ExitFailure;
+		}
+		
 	}
 	
-	SaveBlock save(savefile);
+	Logger::shutdown();
 	
-	argc -= 3;
-	argv += 3;
-	
-	int ret = -1;
-	if(command == "e" || command == "extract") {
-		ret = main_extract(save, argc, argv);
-	} else if(command == "a" || command == "add") {
-		ret = main_add(save, argc, argv);
-	} else if(command == "f" || command == "fix") {
-		ret = main_fix(save, argc, argv);
-	} else if(command == "r" || command == "rename") {
-		ret = main_rename(save, argc, argv);
-	} else if(command == "v" || command == "view") {
-		ret = main_view(save, argc, argv);
-	}
-	
-	if(ret == -1) {
-		print_help();
-	}
-	
-	return ret;
+	return (status == ExitFailure) ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -59,7 +59,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 enum CollisionFlag {
 	CFLAG_LEVITATE          = (1<<0),
 	CFLAG_NO_INTERCOL       = (1<<1),
-	CFLAG_SPECIAL           = (1<<2),
 	CFLAG_EASY_SLIDING      = (1<<3),
 	CFLAG_CLIMBING          = (1<<4),
 	CFLAG_JUST_TEST         = (1<<5),
@@ -67,8 +66,6 @@ enum CollisionFlag {
 	CFLAG_PLAYER            = (1<<7),
 	CFLAG_RETURN_HEIGHT     = (1<<8),
 	CFLAG_EXTRA_PRECISION   = (1<<9),
-	CFLAG_CHECK_VALID_POS   = (1<<10),
-	CFLAG_ANCHOR_GENERATION = (1<<11),
 	CFLAG_COLLIDE_NOCOL     = (1<<12),
 	CFLAG_NO_NPC_COLLIDE    = (1<<13),
 	CFLAG_NO_HEIGHT_MOD     = (1<<14)
@@ -118,7 +115,7 @@ bool IO_Visible(const Vec3f & orgn, const Vec3f & dest, Vec3f * hit);
 
 void ANCHOR_BLOCK_By_IO(Entity * io, long status);
 void ANCHOR_BLOCK_Clear();
-float CylinderPlatformCollide(const Cylinder & cyl, Entity * io);
+bool CylinderPlatformCollide(const Cylinder & cyl, Entity * io);
 bool IsAnyNPCInPlatform(Entity * pfrm);
 void PushIO_ON_Top(Entity * ioo, float ydec);
 

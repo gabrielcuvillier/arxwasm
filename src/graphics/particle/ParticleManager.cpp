@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -70,7 +70,7 @@ void ParticleManager::AddSystem(ParticleSystem * _pPS) {
 	listParticleSystem.insert(listParticleSystem.end(), _pPS);
 }
 
-void ParticleManager::Update(long _lTime) {
+void ParticleManager::Update(ArxDuration delta) {
 	
 	ARX_PROFILE_FUNC();
 	
@@ -88,7 +88,7 @@ void ParticleManager::Update(long _lTime) {
 			delete p;
 			listParticleSystem.remove(p);
 		} else {
-			p->Update(_lTime);
+			p->Update(delta);
 		}
 	}
 }

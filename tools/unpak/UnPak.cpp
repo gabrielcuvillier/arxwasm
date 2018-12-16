@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -17,69 +17,226 @@
  * along with Arx Libertatis.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <vector>
 #include <string>
-#include <cstdio>
 #include <cstdlib>
 #include <sstream>
 #include <algorithm>
+#include <iostream>
+#include <iomanip>
+#include <map>
+
+#include <boost/foreach.hpp>
 
 #include "io/fs/FilePath.h"
 #include "io/fs/Filesystem.h"
 #include "io/fs/FileStream.h"
+#include "io/fs/SystemPaths.h"
 #include "io/resource/PakReader.h"
 #include "io/resource/PakEntry.h"
 #include "io/resource/ResourcePath.h"
 #include "io/log/Logger.h"
 
+#include "platform/ProgramOptions.h"
 #include "platform/WindowsMain.h"
 
+#include "util/MD5.h"
 #include "util/Unicode.h"
+#include "util/cmdline/CommandLine.h"
 
-using std::transform;
-using std::ostringstream;
-using std::string;
 
-static void dump(PakDirectory & dir, const fs::path & dirname = fs::path()) {
+enum UnpakAction {
+	UnpakExtract,
+	UnpakManifest,
+	UnpakList,
+};
+
+static void processDirectory(PakDirectory & dir, const fs::path & prefix,
+                             const res::path & dirname, UnpakAction action) {
 	
-	if(!fs::create_directories(dirname)) {
-		LogWarning << "Failed to create target directory";
+	if(action == UnpakExtract) {
+		fs::path dirpath = prefix / dirname.string();
+		if(!fs::create_directory(dirpath)) {
+			LogWarning << "Error creating directory: " << dirpath;
+		}
 	}
 	
-	for(PakDirectory::files_iterator i = dir.files_begin(); i != dir.files_end(); ++i) {
-		
-		fs::path filenameISO = dirname / i->first;
-		
-		PakFile * file = i->second;
-		
-		// TODO this should really be done when loading the pak file
-		std::string filename = util::convert<util::ISO_8859_1, util::UTF8>(filenameISO.string().c_str());
-		
-		printf("%s\n", filename.c_str());
-		
-		fs::ofstream ofs(filename, fs::fstream::out | fs::fstream::binary | fs::fstream::trunc);
-		if(!ofs.is_open()) {
-			printf("error opening file for writing: %s\n", filename.c_str());
-			exit(1);
+	{
+		// Copy to map to ensure filenames are sorted
+		typedef std::map<std::string, PakFile *> SortedFiles;
+		SortedFiles files;
+		for(PakDirectory::files_iterator i = dir.files_begin(); i != dir.files_end(); ++i) {
+			// TODO this should really be done when loading the pak file
+			std::string name = util::convert<util::ISO_8859_1, util::UTF8>(i->first);
+			files[name] = i->second;
 		}
-		
-		if(file->size() > 0) {
+		BOOST_FOREACH(const SortedFiles::value_type & entry, files) {
+			res::path path = dirname / entry.first;
 			
-			char * data = (char*)file->readAlloc();
-			arx_assert(data != NULL);
-			
-			if(ofs.write(data, file->size()).fail()) {
-				printf("error writing to file: %s\n", filename.c_str());
-				exit(1);
+			if(action == UnpakExtract || action == UnpakManifest) {
+				
+				PakFile * file = entry.second;
+				char * data = (char*)file->readAlloc();
+				arx_assert(file->size() == 0 || data != NULL);
+				
+				if(action == UnpakExtract) {
+					
+					fs::path filepath = prefix / path.string();
+					fs::ofstream ofs(filepath, fs::fstream::out | fs::fstream::binary | fs::fstream::trunc);
+					if(!ofs.is_open()) {
+						LogError << "Error opening file for writing: " << filepath;
+						std::exit(1);
+					}
+					
+					if(ofs.write(data, file->size()).fail()) {
+						LogError << "Error writing to file: " << filepath;
+						std::exit(1);
+					}
+					
+				}
+				
+				if(action == UnpakManifest) {
+					
+					util::md5 hash;
+					hash.init();
+					hash.update(data, file->size());
+					char checksum[hash.size];
+					hash.finalize(checksum);
+					
+					for(size_t i = 0; i < hash.size; i++) {
+						std::cout << std::setfill('0') << std::hex << std::setw(2) << int(u8(checksum[i]));
+					}
+					std::cout << " *";
+					
+				}
+				
+				std::free(data);
+				
 			}
 			
-			free(data);
-			
+			std::cout << path.string() << '\n';
 		}
-		
 	}
 	
-	for(PakDirectory::dirs_iterator i = dir.dirs_begin(); i != dir.dirs_end(); ++i) {
-		dump(i->second, dirname / i->first);
+	{
+		// Copy to map to ensure dirnames are sorted
+		typedef std::map<std::string, PakDirectory *> SortedDirs;
+		SortedDirs subdirs;
+		for(PakDirectory::dirs_iterator i = dir.dirs_begin(); i != dir.dirs_end(); ++i) {
+			// TODO this should really be done when loading the pak file
+			std::string name = util::convert<util::ISO_8859_1, util::UTF8>(i->first);
+			subdirs[name] = &i->second;
+		}
+		BOOST_FOREACH(const SortedDirs::value_type & entry, subdirs) {
+			res::path path = dirname / entry.first;
+			if(action == UnpakManifest) {
+				std::cout << "                                  ";
+			}
+			std::cout << path.string() << '/' << '\n';
+			processDirectory(*entry.second, prefix, path, action);
+		}
+	}
+	
+}
+
+static void processResources(PakReader & resources, const fs::path & prefix, UnpakAction action) {
+	
+	if(action == UnpakExtract && !prefix.empty()) {
+		if(!fs::create_directories(prefix)) {
+			LogWarning << "Error creating output directory: " << prefix;
+		}
+		LogInfo << "Extracting files to " << prefix;
+	}
+	
+	PakReader::ReleaseFlags release = resources.getReleaseType();
+	std::cout << "Type: ";
+	bool first = true;
+	if(release & PakReader::Demo) {
+		std::cout << "demo";
+		first = false;
+	}
+	if(release & PakReader::FullGame) {
+		if(!first) {
+			std::cout << ", ";
+		}
+		std::cout << "full game";
+		first = false;
+	}
+	if(release & PakReader::Unknown) {
+		if(!first) {
+			std::cout << ", ";
+		}
+		std::cout << "unknown";
+		first = false;
+	}
+	if(release & PakReader::External) {
+		if(!first) {
+			std::cout << ", ";
+		}
+		std::cout << "external";
+	}
+	std::cout << "\n";
+	
+	processDirectory(resources, prefix, res::path(), action);
+}
+
+static UnpakAction g_action = UnpakExtract;
+static fs::path g_outputDir;
+static bool g_addDefaultArchives = false;
+static std::vector<fs::path> g_archives;
+static bool g_quiet = false;
+
+static void handleExtractOption() {
+	g_action = UnpakExtract;
+}
+
+static void handleManifestOption() {
+	g_action = UnpakManifest;
+}
+
+static void handleListOption() {
+	g_action = UnpakList;
+}
+
+static void handleOutputDirOption(const std::string & outputDir) {
+	g_outputDir = outputDir;
+}
+
+static void handleAllOption() {
+	g_addDefaultArchives = true;
+}
+
+static void handleQuietOption() {
+	g_quiet = true;
+}
+
+static void handlePositionalArgument(const std::string & file) {
+	g_archives.push_back(file);
+}
+
+ARX_PROGRAM_OPTION("extract", "e", "Extract archive contents", &handleExtractOption)
+
+ARX_PROGRAM_OPTION("manifest", "m", "Print archive manifest", &handleManifestOption)
+
+ARX_PROGRAM_OPTION("list", "", "List archive contents", &handleListOption)
+
+ARX_PROGRAM_OPTION_ARG("output-dir", "o", "Directory to extract files to", &handleOutputDirOption, "DIR")
+
+ARX_PROGRAM_OPTION("all", "a", "Process all pak files loaded by the game", &handleAllOption)
+
+ARX_PROGRAM_OPTION("quiet", "q", "Don't print log output", &handleQuietOption)
+
+ARX_PROGRAM_OPTION_ARG("", "", "PAK archives to process", &handlePositionalArgument, "DIRS")
+
+static void addResourceDir(PakReader & resources, const fs::path & base) {
+	
+	// TODO share this list with the game code
+	static const char * const resource_dirs[] = {
+		"editor", "game", "graph", "localisation", "misc", "sfx", "speech",
+	};
+	
+	BOOST_FOREACH(const char * dirname, resource_dirs) {
+		resources.addFiles(base / dirname, dirname);
 	}
 	
 }
@@ -90,22 +247,81 @@ int utf8_main(int argc, char ** argv) {
 	
 	Logger::initialize();
 	
-	if(argc < 2) {
-		printf("usage: unpak <pakfile> [<pakfile>...]\n");
-		return 1;
+	// Parse the command line and process options
+	ExitStatus status = parseCommandLine(argc, argv);
+	
+	if(g_quiet) {
+		Logger::shutdown();
 	}
 	
-	for(int i = 1; i < argc; i++) {
-		
-		PakReader pak;
-		if(!pak.addArchive(argv[i])) {
-			printf("error opening PAK file\n");
-			return 1;
+	if(status == RunProgram && (g_addDefaultArchives || g_archives.empty())) {
+		status = fs::paths.init();
+	}
+	
+	// When no archives have been specified, extract all archives to a default location
+	// This is useful for (Windows) users to be able to extract everything by simply launching arxunpak
+	if(status == RunProgram && g_archives.empty() && !g_addDefaultArchives) {
+		g_addDefaultArchives = true;
+		if(g_outputDir.empty() && g_action == UnpakExtract) {
+			g_outputDir = fs::paths.user / "unpacked";
 		}
-		
-		dump(pak);
-		
 	}
 	
-	return 0;
+	PakReader resources;
+	
+	if(status == RunProgram && g_addDefaultArchives) {
+		// TODO share this list with the game code
+		static const char * const default_paks[][2] = {
+			{ "data.pak", NULL },
+			{ "loc.pak", "loc_default.pak" },
+			{ "data2.pak", NULL },
+			{ "sfx.pak", NULL },
+			{ "speech.pak", "speech_default.pak" },
+		};
+		BOOST_FOREACH(const char * const * const filenames, default_paks) {
+			if(resources.addArchive(fs::paths.find(filenames[0]))) {
+				continue;
+			}
+			if(filenames[1] && resources.addArchive(fs::paths.find(filenames[1]))) {
+				continue;
+			}
+			std::ostringstream oss;
+			oss << "Missing required data file: \"" << filenames[0] << "\"";
+			if(filenames[1]) {
+				oss << " (or \"" << filenames[1] << "\")";
+			}
+			LogError << oss.str();
+		}
+		BOOST_REVERSE_FOREACH(const fs::path & base, fs::paths.data) {
+			addResourceDir(resources, base);
+		}
+	}
+	
+	if(status == RunProgram) {
+		BOOST_FOREACH(const fs::path & archive, g_archives) {
+			if(fs::is_regular_file(archive)) {
+				if(!resources.addArchive(archive)) {
+					LogCritical << "Could not open archive " << archive << "!";
+					status = ExitFailure;
+					break;
+				}
+			} else if(fs::is_directory(archive)) {
+				addResourceDir(resources, archive);
+			} else {
+				LogCritical << "File or directory " << archive << " does not exist!";
+				status = ExitFailure;
+				break;
+			}
+		}
+	}
+	
+	if(status == RunProgram) {
+		processResources(resources, g_outputDir, g_action);
+	}
+	
+	if(!g_quiet) {
+		Logger::shutdown();
+	}
+	
+	return (status == ExitFailure) ? EXIT_FAILURE : EXIT_SUCCESS;
 }

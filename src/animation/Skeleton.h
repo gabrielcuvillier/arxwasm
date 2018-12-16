@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -30,7 +30,7 @@
 struct VertexGroup {
 	std::string       name;
 	size_t            origin;
-	std::vector<size_t> indexes;
+	std::vector<u32> indexes; // TODO use u16 here ?
 	float             siz;
 	
 	VertexGroup()
@@ -48,7 +48,7 @@ struct BoneTransform {
 };
 
 struct Bone {
-	std::vector<size_t> idxvertices;
+	std::vector<u32>  idxvertices; // TODO use u16 here ?
 	long              father;
 	
 	BoneTransform     anim;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -136,7 +136,7 @@ bool CycleTextWidget::OnMouseClick() {
 	if(iOldPos<0)
 		iOldPos=iPos;
 	
-	const Vec2f cursor = Vec2f(GInput->getMousePosAbs());
+	const Vec2f cursor = Vec2f(GInput->getMousePosition());
 
 	if(m_rect.contains(cursor)) {
 		if(pLeftButton->m_rect.contains(cursor)) {
@@ -179,9 +179,7 @@ void CycleTextWidget::Render() {
 	}
 	
 	if(iPos >= 0 && size_t(iPos) < vText.size() && vText[iPos]) {
-		GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 		vText[iPos]->Render();
-		GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 	}
 }
 
@@ -200,15 +198,14 @@ void CycleTextWidget::RenderMouseOver() {
 
 	pMenuCursor->SetMouseOver();
 
-	Vec2f cursor = Vec2f(GInput->getMousePosAbs());
+	Vec2f cursor = Vec2f(GInput->getMousePosition());
 	
 	if(!enabled) {
 		return;
 	}
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
-
+	
+	UseRenderState state(render2D().blendAdditive());
+	
 	if(m_rect.contains(cursor)) {
 		if(pLeftButton->m_rect.contains(cursor)) {
 			pLeftButton->Render();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -62,7 +62,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/Vertex.h"
 #include "graphics/data/Mesh.h"
 #include "graphics/data/TextureContainer.h"
-#include "graphics/effects/DrawEffects.h"
+#include "graphics/effects/PolyBoom.h"
 
 #include "io/resource/PakReader.h"
 #include "io/log/Logger.h"
@@ -760,9 +760,6 @@ void EERIE_MESH_TWEAK_Do(Entity * io, TweakType tw, const res::path & path) {
 			return;
 		}
 
-		result->pdata = NULL;
-		result->cdata = NULL;
-
 		if (io->tweaky == NULL) io->tweaky = io->obj;
 		else if (io->tweaky != io->obj)
 			delete io->obj;
@@ -773,7 +770,7 @@ void EERIE_MESH_TWEAK_Do(Entity * io, TweakType tw, const res::path & path) {
 
 	EERIE_CreateCedricData(io->obj);
 	
-	io->animBlend.lastanimtime = 0;
+	io->animBlend.lastanimtime = ArxInstant_ZERO;
 	io->animBlend.m_active = false;
 	
 	delete tobj;

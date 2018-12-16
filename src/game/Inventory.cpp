@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -97,8 +97,6 @@ INVENTORY_SLOT inventory[INVENTORY_BAGS][INVENTORY_X][INVENTORY_Y];
 INVENTORY_DATA * SecondaryInventory = NULL;
 Entity * DRAGINTER = NULL;
 Entity * ioSteal = NULL;
-long InventoryY = 100;
-long HERO_OR_SECONDARY = 0;
 
 // 1 player 2 secondary
 short sInventory = -1;
@@ -147,15 +145,15 @@ void CleanInventory() {
 		slot.show = true;
 	}
 	
-	g_currentInventoryBag = 0;
+	g_playerInventoryHud.setCurrentBag(0);
 }
 
-Entity * GetInventoryObj_INVENTORYUSE(const Vec2s & pos)
-{
-	Entity * io = GetFromInventory(pos);
-
-	if(io) {
-		if(HERO_OR_SECONDARY == 2) {
+Entity * GetInventoryObj_INVENTORYUSE(const Vec2s & pos) {
+	
+	std::pair<Entity *, int> result = GetFromInventory(pos);
+	
+	if(result.first) {
+		if(result.second == 2) {
 			if(SecondaryInventory) {
 				Entity *temp = SecondaryInventory->io;
 
@@ -163,16 +161,14 @@ Entity * GetInventoryObj_INVENTORYUSE(const Vec2s & pos)
 					return NULL;
 			}
 		}
-
-		return io;
+		
+		return result.first;
 	}
 
 	if(InInventoryPos(pos))
 		return NULL;
-
-	io = InterClick(pos);
-
-	return io;
+	
+	return InterClick(pos);
 }
 
 /*!
@@ -185,7 +181,7 @@ void PutInFrontOfPlayer(Entity * io)
 		return;
 	
 	io->pos = player.pos;
-	io->pos += angleToVectorXZ(player.angle.getPitch()) * 80.f;
+	io->pos += angleToVectorXZ(player.angle.getYaw()) * 80.f;
 	io->pos += Vec3f(0.f, 20.f, 0.f);
 	
 	io->velocity.y = 0.3f;
@@ -197,7 +193,7 @@ void PutInFrontOfPlayer(Entity * io)
 
 	if(io->obj && io->obj->pbox) {
 		Vec3f vector = Vec3f(0.f, 100.f, 0.f);
-		io->soundtime = 0;
+		io->soundtime = ArxInstant_ZERO;
 		io->soundcount = 0;
 		EERIE_PHYSICS_BOX_Launch(io->obj, io->pos, io->angle, vector);
 	}
@@ -720,7 +716,7 @@ InventoryPos locateInInventories(const Entity * item) {
 
 bool insertIntoInventory(Entity * item, const InventoryPos & pos) {
 	
-	if(pos.io == PlayerEntityHandle) {
+	if(pos.io == EntityHandle_Player) {
 		return giveToPlayer(item, pos);
 	}
 	
@@ -892,17 +888,23 @@ bool InInventoryPos(const Vec2s & pos) {
 /*!
  * \brief Returns IO under position xx,yy in any INVENTORY or NULL if no IO was found
  */
-Entity * GetFromInventory(const Vec2s & pos) {
-	HERO_OR_SECONDARY = 0;
-
-	if(!InInventoryPos(pos))
-		return NULL;
+std::pair<Entity *, int> GetFromInventory(const Vec2s & pos) {
+	
+	if(!InInventoryPos(pos)) {
+		return std::pair<Entity *, int>(NULL, 0);
+	}
 	
 	Entity * result = g_secondaryInventoryHud.getObj(pos);
-	if(result)
-		return result;
-
-	return g_playerInventoryHud.getObj(pos);
+	if(result) {
+		return std::pair<Entity *, int>(result, 2);
+	}
+	
+	result = g_playerInventoryHud.getObj(pos);
+	if(result) {
+		return std::pair<Entity *, int>(result, 1);
+	}
+	
+	return std::pair<Entity *, int>(NULL, 0);
 }
 
 /*!
@@ -912,7 +914,7 @@ Entity * GetFromInventory(const Vec2s & pos) {
  * Put the position in "pos". returns true if position was found
  * or false if object is invalid, or position not defined.
  */
-Vec3f GetItemWorldPosition(Entity * io) {
+Vec3f GetItemWorldPosition(const Entity * io) {
 	arx_assert(io);
 	
 	// Is this object being Dragged by player ?
@@ -1087,18 +1089,19 @@ void CheckForInventoryReplaceMe(Entity * io, Entity * old) {
  * \return true if an object was taken
  */
 bool TakeFromInventory(const Vec2s & pos) {
-	Entity * io = GetFromInventory(pos);
 	
-	if(io == NULL) {
+	std::pair<Entity *, int> result = GetFromInventory(pos);
+	
+	if(result.first == NULL) {
 		return false;
 	}
 	
-	switch(HERO_OR_SECONDARY) {
+	switch(result.second) {
 		case 1: //player inventory
-			g_playerInventoryHud.dragEntity(io, pos);
+			g_playerInventoryHud.dragEntity(result.first, pos);
 			break;
 		case 2: //secondary inventory
-			g_secondaryInventoryHud.dragEntity(io, pos);
+			g_secondaryInventoryHud.dragEntity(result.first, pos);
 			break;
 		default:
 			ARX_DEAD_CODE();
@@ -1281,7 +1284,7 @@ void ARX_INVENTORY_OpenClose(Entity * _io)
 		}
 
 		if(player.Interface & INTER_COMBATMODE) {
-			ARX_INTERFACE_Combat_Mode(0);
+			ARX_INTERFACE_setCombatMode(COMBAT_MODE_OFF);
 		}
 
 		if(!config.input.autoReadyWeapon) {
@@ -1296,7 +1299,7 @@ void ARX_INVENTORY_OpenClose(Entity * _io)
 
 	if(player.Interface & INTER_INVENTORYALL) {
 		ARX_SOUND_PlayInterface(SND_BACKPACK, Random::getf(0.9f, 1.1f));
-		bInventoryClosing = true;
+		g_playerInventoryHud.close();
 	}
 }
 

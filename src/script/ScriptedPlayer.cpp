@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -234,6 +234,7 @@ public:
 		DebugScript(' ' << name);
 		
 		ARX_PLAYER_Quest_Add(name);
+		g_hudRoot.bookIconGui.requestHalo();
 		
 		return Success;
 	}
@@ -333,7 +334,7 @@ public:
 				for(size_t i = 0; i < MAX_SPELLS; i++) {
 					SpellBase * spell = spells[SpellHandle(i)];
 					
-					if(spell && (spell->m_caster == PlayerEntityHandle || spell->m_target == PlayerEntityHandle)) {
+					if(spell && (spell->m_caster == EntityHandle_Player || spell->m_target == EntityHandle_Player)) {
 						switch(spell->m_type) {
 							case SPELL_MAGIC_SIGHT:
 							case SPELL_LEVITATE:
@@ -347,7 +348,7 @@ public:
 				}
 				
 				Stack_SendMsgToAllNPC_IO(SM_CONTROLS_OFF, "");
-				spells.endByCaster(PlayerEntityHandle);
+				spells.endByCaster(EntityHandle_Player);
 			}
 			BLOCK_PLAYER_CONTROLS = true;
 			player.Interface &= ~INTER_COMBATMODE;
@@ -579,7 +580,7 @@ public:
 			spflags |= SPELLCAST_FLAG_NOCHECKCANCAST;
 		}
 		
-		TryToCastSpell(entities.player(), spellid, level, EntityHandle(), spflags, duration);
+		TryToCastSpell(entities.player(), spellid, level, EntityHandle(), spflags, ArxDurationMs(duration));
 		
 		return Success;
 	}

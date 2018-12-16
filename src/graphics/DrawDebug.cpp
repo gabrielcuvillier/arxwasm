@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -71,8 +71,8 @@ const float DebugPhysicsMaxDistance = 2000.f;
 
 void drawDebugInitialize() {
 	g_lightSourceTexture = TextureContainer::LoadUI("graph/particles/light");
-	g_fogObject = LoadTheObj("editor/obj3d/fog_generator.teo", "node_teo maps");
-	g_nodeObject = LoadTheObj("editor/obj3d/node.teo", "node_teo maps");
+	g_fogObject = loadObject("editor/obj3d/fog_generator.teo");
+	g_nodeObject = loadObject("editor/obj3d/node.teo");
 }
 
 void drawDebugRelease() {
@@ -106,21 +106,18 @@ void drawDebugCycleViews() {
 }
 
 static void drawDebugBoundingBox(const Rectf & box, Color color = Color::white) {
-	if(box.valid()) {
+	if(box.isValid()) {
 		drawLineRectangle(box, 0.01f, color);
 	}
 }
 
 static void drawDebugLights() {
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetCulling(CullNone);
+	UseRenderState state(RenderState().blendAdditive());
 	
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
-	
-	for(size_t i = 0; i < MAX_LIGHTS; i++) {
+	for(size_t i = 0; i < g_staticLightsMax; i++) {
 		
-		EERIE_LIGHT * light = GLight[i];
+		EERIE_LIGHT * light = g_staticLights[i];
 		if(!light) {
 			continue;
 		}
@@ -136,7 +133,7 @@ static void drawDebugLights() {
 		);
 		
 		if(mouseTestRect.contains(Vec2i(DANAEMouse))) {
-			
+			UseRenderState state(RenderState().depthTest(true));
 			Sphere fallstart;
 			fallstart.origin = light->pos;
 			fallstart.radius = light->fallstart;
@@ -147,13 +144,13 @@ static void drawDebugLights() {
 			drawLineSphere(fallend, Color(Color3<u8>::red, 200));
 		}
 		
-		if(light->m_screenRect.valid())
+		if(light->m_screenRect.isValid())
 			drawDebugBoundingBox(light->m_screenRect);
 	}
 	
-	for(size_t i = 0; i < MAX_LIGHTS; i++) {
+	for(size_t i = 0; i < g_staticLightsMax; i++) {
 		
-		EERIE_LIGHT * light = GLight[i];
+		EERIE_LIGHT * light = g_staticLights[i];
 		if(!light) {
 			continue;
 		}
@@ -161,15 +158,9 @@ static void drawDebugLights() {
 		EERIEDrawSprite(light->pos, 11.f, g_lightSourceTexture, light->rgb.to<u8>(), 0.5f);
 	}
 	
-	GRenderer->SetCulling(CullCCW);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-	
 }
 
 static void drawDebugPortals() {
-	
-	GRenderer->SetRenderState(Renderer::Fog, false);
-	GRenderer->SetRenderState(Renderer::DepthTest, false);
 	
 	for(size_t i = 0; i < portals->portals.size(); i++) {
 		
@@ -180,23 +171,18 @@ static void drawDebugPortals() {
 			color = Color::green;
 		}
 		
-		EERIEPOLY & epp = po.poly;
+		PortalPoly & epp = po.poly;
 
 		drawLine(epp.v[0].p, epp.v[1].p, color);
 		drawLine(epp.v[1].p, epp.v[3].p, color);
-		drawLine(epp.v[2].p, epp.v[3].p, color);
+		drawLine(epp.v[2].p, epp.v[3].p, color, color * 0.5f);
 		drawLine(epp.v[0].p, epp.v[2].p, color);
 		
 	}
 	
-	GRenderer->SetRenderState(Renderer::DepthTest, true);
-	GRenderer->SetRenderState(Renderer::Fog, true);
-	
 }
 
 static void drawDebugPaths() {
-	
-	GRenderer->SetRenderState(Renderer::DepthTest, false);
 	
 	for(long i = 0; i < nbARXpaths; i++) {
 		
@@ -275,11 +261,11 @@ static void drawDebugPaths() {
 		
 	}
 	
-	GRenderer->SetRenderState(Renderer::DepthTest, true);
-	
 }
 
 static void drawDebugPathFinding() {
+	
+	UseRenderState state(RenderState().depthTest(true));
 	
 	if(!ACTIVEBKG || !ACTIVEBKG->anchors) {
 		return;
@@ -350,7 +336,6 @@ static void drawDebugPathFinding() {
 			if(k1 >= 0 && k1 < ACTIVEBKG->nbanchors) {
 				if(closerThan(ACTIVEBKG->anchors[k1].pos, player.pos, DebugTextMaxDistance)) {
 					drawTextAt(hFontDebug, ACTIVEBKG->anchors[k1].pos, entity->idString());
-					GRenderer->SetRenderState(Renderer::DepthTest, true);
 				}
 			}
 		}
@@ -360,6 +345,8 @@ static void drawDebugPathFinding() {
 }
 
 static void drawDebugFogs() {
+	
+	UseRenderState state(RenderState().depthTest(true));
 	
 	RenderMaterial mat;
 	mat.setBlendType(RenderMaterial::Opaque);
@@ -393,8 +380,6 @@ static void drawDebugCollisionShape(EERIE_3DOBJ * obj) {
 	sphere.origin = obj->pbox->vert[0].pos;
 	sphere.radius = obj->pbox->radius;
 	drawLineSphere(sphere, Color::white);
-	
-	GRenderer->SetRenderState(Renderer::DepthTest, false);
 	
 	Color shapeColor = Color::yellow;
 	
@@ -436,6 +421,7 @@ static void drawDebugEntityPhysicsCylinder(Entity * io) {
 }
 
 static void drawDebugEntityPhysicsCylinders() {
+	
 	for(size_t i = 1; i < entities.size(); i++) {
 		const EntityHandle handle = EntityHandle(i);
 		Entity * entity = entities[handle];
@@ -552,9 +538,9 @@ static void drawDebugMaterialTexture(Vec2f & textpos, const std::string & type,
 	oss << ")";
 	std::string format = oss.str();
 	
-	float type_s = hFontDebug->getTextSize(type).x + 10;
-	float name_s = hFontDebug->getTextSize(name).x + 10;
-	float format_s = hFontDebug->getTextSize(format).x;
+	float type_s = hFontDebug->getTextSize(type).width() + 10;
+	float name_s = hFontDebug->getTextSize(name).width() + 10;
+	float format_s = hFontDebug->getTextSize(format).width();
 	
 	Vec2i pos = Vec2i(textpos);
 	pos.x -= (type_s + name_s + format_s) * 0.5f;
@@ -688,9 +674,9 @@ static void drawDebugMaterials() {
 		}
 	}
 	
-	for(short z = 0; z < ACTIVEBKG->Zsize; z++)
-	for(short x = 0; x < ACTIVEBKG->Xsize; x++) {
-		const EERIE_BKG_INFO & feg = ACTIVEBKG->fastdata[x][z];
+	for(short z = 0; z < ACTIVEBKG->m_size.y; z++)
+	for(short x = 0; x < ACTIVEBKG->m_size.x; x++) {
+		const BackgroundTileData & feg = ACTIVEBKG->m_tileData[x][z];
 		
 		if(!feg.treat) {
 			continue;
@@ -707,20 +693,17 @@ static void drawDebugMaterials() {
 				continue;
 			}
 			
-			bool valid = true;
 			bool bvalid = false;
 			Vec3f p[4];
 			for(size_t i = 0; i < ((ep->type & POLY_QUAD) ? 4u : 3u); i++) {
 				TexturedVertex tv;
-				tv.p = EE_RT(ep->v[i].p);
-				valid = valid && (tv.p.z > 0.000001f);
-				EE_P(tv.p, tv);
+				EE_RTP(ep->v[i].p, tv);
 				bvalid = bvalid || (tv.p.x >= g_size.left && tv.p.x < g_size.right
 				                 && tv.p.y >= g_size.top && tv.p.y < g_size.bottom);
 				p[i] = tv.p;
 			}
 			
-			if(!valid || !bvalid) {
+			if(!bvalid) {
 				continue;
 			}
 			
@@ -745,8 +728,6 @@ static void drawDebugMaterials() {
 	}
 	
 	if(count) {
-		
-		GRenderer->SetRenderState(Renderer::DepthTest, false);
 		
 		drawLine(pp[0], pp[1], 0.1f, Color::magenta);
 		drawLine(pp[2], pp[0], 0.1f, Color::magenta);
@@ -812,20 +793,17 @@ static void drawDebugMaterials() {
 			oss << '(' << puv[i].x << ',' << puv[i].y << ')';
 			std::string text = oss.str();
 			
-			Vec2f textpos = pp[i];
+			Vec2i textpos = Vec2i(pp[i]);
 			if(pp[i].y < c.y) {
 				textpos.y -= hFontDebug->getLineHeight();
 			}
 			
 			if(pp[i].x < c.x) {
-				Vec2i size = hFontDebug->getTextSize(text);
-				textpos.x -= size.x;
+				textpos.x -= hFontDebug->getTextSize(text).width();
 			}
 			
 			hFontDebug->draw(textpos.x, textpos.y, text, Color::gray(0.7f));
 		}
-		
-		GRenderer->SetRenderState(Renderer::DepthTest, true);
 		
 	}
 	
@@ -846,7 +824,7 @@ struct DebugRay {
 	{}
 };
 
-std::vector<DebugRay> debugRays;
+static std::vector<DebugRay> debugRays;
 
 void debug::drawRay(Vec3f start, Vec3f dir, Color color, float duration) {
 	DebugRay ray = DebugRay(start, dir, color, arxtime.now_f() + duration * 1000);
@@ -880,6 +858,9 @@ void drawDebugRender() {
 	if(g_debugView == DebugView_None) {
 		return;
 	}
+	
+	RenderState nullState;
+	UseRenderState state(nullState);
 	
 	std::stringstream ss;
 	ss << "Debug Display: ";
@@ -930,10 +911,14 @@ void drawDebugRender() {
 			ARX_DAMAGES_DrawDebug();
 			break;
 		}
-		default: return;
+		case DebugView_None:
+		case DebugViewCount: {
+			arx_assert(false);
+			return;
+		}
 	}
 	
-	s32 width = hFontDebug->getTextSize(ss.str()).x;
+	s32 width = hFontDebug->getTextSize(ss.str()).width();
 	Vec2i pos = g_size.topRight();
 	pos += Vec2i(-10 , 10);
 	pos += Vec2i(-width, 0);

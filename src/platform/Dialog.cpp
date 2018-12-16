@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -76,7 +76,7 @@ static bool showDialog(DialogType type, const std::string & message,
 	return false;
 }
 
-#elif ARX_PLATFORM == ARX_PLATFORM_MACOSX
+#elif ARX_PLATFORM == ARX_PLATFORM_MACOS
 
 // See Dialog.mm for the implementation of showDialog
 bool showDialog(DialogType type, const std::string & message, const std::string & title);
@@ -148,7 +148,7 @@ static std::string formatAsHtml(const std::string & text, bool newline, bool ul 
 		
 		bool quote = false, link = false;
 		
-		size_t link_start;
+		size_t link_start = 0;
 		
 		for(; i < line.length(); i++) {
 			

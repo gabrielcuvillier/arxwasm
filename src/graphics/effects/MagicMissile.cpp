@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -80,8 +80,8 @@ CMagicMissile::CMagicMissile()
 	, fTrail()
 	, snd_loop()
 {
-	SetDuration(2000);
-	ulCurrentTime = ulDuration + 1;
+	SetDuration(ArxDurationMs(2000));
+	m_elapsed = m_duration + ArxDurationMs(1);
 	
 	m_trailColor = Color3f(0.9f, 0.9f, 0.7f) + Color3f(0.1f, 0.1f, 0.3f) * randomColor3f();
 	m_projectileColor = Color3f(0.3f, 0.3f, 0.5f);
@@ -97,14 +97,14 @@ CMagicMissile::~CMagicMissile() {
 
 void CMagicMissile::Create(const Vec3f & startPos, const Anglef & angles)
 {
-	SetDuration(ulDuration);
+	SetDuration(m_duration);
 	
 	eCurPos = startPos;
 	
 	short i = 40.f;
 	Vec3f endPos = startPos;
-	endPos += angleToVectorXZ(angles.getPitch()) * (50.f * i);
-	endPos.y += std::sin(glm::radians(MAKEANGLE(angles.getYaw()))) * (50.f * i);
+	endPos += angleToVectorXZ(angles.getYaw()) * (50.f * i);
+	endPos.y += std::sin(glm::radians(MAKEANGLE(angles.getPitch()))) * (50.f * i);
 	
 	pathways[0] = startPos;
 	pathways[5] = endPos;
@@ -128,23 +128,23 @@ void CMagicMissile::Create(const Vec3f & startPos, const Anglef & angles)
 	snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_MM_LOOP, &eCurPos, 1.0F, ARX_SOUND_PLAY_LOOPED);
 }
 
-void CMagicMissile::SetTTL(unsigned long aulTTL)
+void CMagicMissile::SetTTL(ArxDuration aulTTL)
 {
-	unsigned long t = ulCurrentTime;
-	ulDuration = std::min(ulCurrentTime + aulTTL, ulDuration);
-	SetDuration(ulDuration);
-	ulCurrentTime = t;
+	ArxDuration t = m_elapsed;
+	m_duration = std::min(m_elapsed + aulTTL, m_duration);
+	SetDuration(m_duration);
+	m_elapsed = t;
 	
 	lLightId = LightHandle();
 }
 
-void CMagicMissile::Update(float timeDelta)
+void CMagicMissile::Update(ArxDuration timeDelta)
 {
 	ARX_SOUND_RefreshPosition(snd_loop, eCurPos);
 
-	ulCurrentTime += timeDelta;
+	m_elapsed += timeDelta;
 
-	if(ulCurrentTime >= ulDuration)
+	if(m_elapsed >= m_duration)
 		lightIntensityFactor = 0.f;
 	else
 		lightIntensityFactor = Random::getf(0.5f, 1.0f);
@@ -153,9 +153,8 @@ void CMagicMissile::Update(float timeDelta)
 void CMagicMissile::Render()
 { 
 	Vec3f lastpos, newpos;
-	Vec3f v;
-
-	if(ulCurrentTime >= ulDuration)
+	
+	if(m_elapsed >= m_duration)
 		return;
 	
 	RenderMaterial mat;
@@ -167,8 +166,8 @@ void CMagicMissile::Render()
 		mat.setTexture(tex_mm);
 	
 	if(bMove) {
-		float fOneOnDuration = 1.f / (float)(ulDuration);
-		fTrail = (ulCurrentTime * fOneOnDuration) * (iBezierPrecision + 2) * 5;
+		float fOneOnDuration = 1.f / toMs(m_duration);
+		fTrail = (toMs(m_elapsed) * fOneOnDuration) * (iBezierPrecision + 2) * 5;
 	}
 	
 	newpos = lastpos = pathways[0];
@@ -186,9 +185,7 @@ void CMagicMissile::Render()
 
 			float t = toto * (1.0f / iBezierPrecision);
 			
-			v = glm::catmullRom(v1, v2, v3, v4, t);
-			
-			newpos = v;
+			newpos = arx::catmullRom(v1, v2, v3, v4, t);
 
 			if(!((fTrail - (i * iBezierPrecision + toto)) > iLength)) {
 				float c;
@@ -235,8 +232,8 @@ void CMagicMissile::Render()
 	eCurPos = lastpos;
 	
 	Anglef stiteangle;
-	stiteangle.setPitch(-glm::degrees(bubu));
-	stiteangle.setYaw(0);
+	stiteangle.setYaw(-glm::degrees(bubu));
+	stiteangle.setPitch(0);
 	stiteangle.setRoll(-(glm::degrees(bubu1)));
 
 	if(av.x < 0)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -53,9 +53,6 @@ public:
 	// Factory
 	Texture2D * CreateTexture2D();
 	
-	// Render states
-	void SetRenderState(RenderStateFlag renderState, bool enable);
-	
 	// Alphablending & Transparency
 	void SetAlphaFunc(PixelCompareFunc func, float fef); // Ref = [0.0f, 1.0f]
 	
@@ -88,8 +85,6 @@ public:
 	
 	bool getSnapshot(Image & image);
 	bool getSnapshot(Image & image, size_t width, size_t height);
-	
-	bool isFogInEyeCoordinates();
 	
 	GLTextureStage * GetTextureStage(unsigned int textureStage) {
 		return reinterpret_cast<GLTextureStage *>(Renderer::GetTextureStage(textureStage));
@@ -133,6 +128,7 @@ private:
 	RenderState m_glstate;
 	GLenum m_glcull;
 	
+	int m_MSAALevel;
 	bool m_hasMSAA;
 	bool m_hasTextureNPOT;
 	

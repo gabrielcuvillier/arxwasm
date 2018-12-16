@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -53,28 +53,13 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include <boost/numeric/conversion/cast.hpp>
 
-#include <glm/gtx/norm.hpp>
-#include <glm/gtx/spline.hpp>
+#include "math/GtxFunctions.h"
 
 #include "graphics/GraphicsTypes.h"
 #include "graphics/data/Mesh.h"
 #include "math/Random.h"
 #include "platform/Platform.h"
 
-/*!
- * Generate a random vertor with independently unform distributed components.
- *
- * \param min minimum value for all components (default: 0.f)
- * \param max maximum value for all components (default: 1.f)
- */
-inline Vec3f randomVec(float min = 0.f, float max = 1.f) {
-	float range = max - min;
-	return Vec3f(Random::getf() * range + min, Random::getf() * range + min, Random::getf() * range + min);
-}
-
-inline Vec3f randomVec3f() {
-	return Vec3f(Random::getf(), Random::getf(), Random::getf());
-}
 
 inline Color3f randomColor3f() {
 	return Color3f(Random::getf(), Random::getf(), Random::getf());
@@ -209,7 +194,6 @@ Vec3f angleToVectorXZ_180offset(float angleDegrees);
 Vec3f angleToVector(const Anglef & angle);
 
 Vec3f CalcFaceNormal(const TexturedVertex * v);
-Vec3f CalcObjFaceNormal(const Vec3f & v0, const Vec3f & v1, const Vec3f & v2);
 bool Triangles_Intersect(const EERIE_TRI & v, const EERIE_TRI & u);
 
 inline float square(float x) {
@@ -227,7 +211,7 @@ inline float focalToFov(float focal) {
  * may use an approximative way of computing sqrt !
  */
 inline float fdist(const Vec3f & from, const Vec3f & to) {
-	return ffsqrt(glm::distance2(from, to));
+	return ffsqrt(arx::distance2(from, to));
 }
 
 /*!
@@ -235,7 +219,7 @@ inline float fdist(const Vec3f & from, const Vec3f & to) {
  * may use an approximative way of computing sqrt !
  */
 inline float fdist(const Vec2f & from, const Vec2f & to) {
-	return ffsqrt(glm::distance2(from, to));
+	return ffsqrt(arx::distance2(from, to));
 }
 
 inline bool PointInCylinder(const Cylinder & cyl, const Vec3f & pt) {

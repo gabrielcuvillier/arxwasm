@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -34,8 +34,9 @@ EntityId::EntityId(const res::path & classPath, EntityInstance instance)
 	, m_instance(instance)
 { }
 
-EntityId::EntityId(const std::string & id) : m_instance(-1) {
-	
+EntityId::EntityId(const std::string & id)
+	: m_instance(-1)
+{
 	if(id.empty() || id == "none") {
 		
 		// empty className, instance = -1

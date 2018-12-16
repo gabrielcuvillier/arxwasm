@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -33,7 +33,10 @@
 struct CrashInfoBase {
 	
 	CrashInfoBase()
-		: architecture(0)
+		: processorDone(0)
+		, reporterStarted(0)
+		, exitLock(0)
+		, architecture(0)
 		, nbFilesAttached(0)
 		, nbVariables(0)
 		, processId(0)
@@ -51,10 +54,13 @@ struct CrashInfoBase {
 		, stack(0)
 		, frame(0)
 		, processorProcessId(0)
-		, processorDone(0)
-		, reporterStarted(0)
-		, exitLock(0)
 	{ }
+	
+	// Put these first to satisfy alignment restrictions even with #pragma pack(push,1)
+	boost::interprocess::interprocess_semaphore processorDone;
+	boost::interprocess::interprocess_semaphore reporterStarted;
+	// Once released, this lock will allow the crashed application to terminate.
+	boost::interprocess::interprocess_semaphore exitLock;
 	
 	enum Constants {
 		MaxNbFiles = 32,
@@ -82,6 +88,8 @@ struct CrashInfoBase {
 		char name[MaxVariableNameLen];
 		char value[MaxVariableValueLen];
 	} variables[MaxNbVariables];
+	
+	u64 window;
 	
 	// ID of the crashed process & thread
 	platform::process_id processId;
@@ -113,12 +121,6 @@ struct CrashInfoBase {
 	u64 frame;
 	
 	platform::process_id processorProcessId;
-	boost::interprocess::interprocess_semaphore processorDone;
-	
-	boost::interprocess::interprocess_semaphore reporterStarted;
-	
-	// Once released, this lock will allow the crashed application to terminate.
-	boost::interprocess::interprocess_semaphore exitLock;
 	
 };
 

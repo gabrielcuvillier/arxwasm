@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -195,14 +195,19 @@ enum ARX_INTERFACE_CURSOR_MODE
 	CURSOR_COMBINEOFF
 };
 
+enum ARX_INTERFACE_COMBAT_MODE {
+	COMBAT_MODE_OFF,
+	COMBAT_MODE_ON,
+	COMBAT_MODE_DRAW_WEAPON
+};
+
 //-----------------------------------------------------------------------------
 extern INTERFACE_TC g_bookResouces;
 extern Vec2s MemoMouse;
 
 extern long SpecialCursor;
 
-extern long lSLID_VALUE;
-extern bool bInventoryClosing;
+extern float lSLID_VALUE;
 extern E_ARX_STATE_MOUSE eMouseState;
 extern bool bInverseInventory;
 extern bool lOldTruePlayerMouseLook;
@@ -216,10 +221,10 @@ extern bool MAGICMODE;
 
 extern gui::Note openNote;
 
+extern EntityHandle LastSelectedIONum;
 
-void ARX_INTERFACE_Combat_Mode(long i);
+void ARX_INTERFACE_setCombatMode(ARX_INTERFACE_COMBAT_MODE i);
 
-long GetMainSpeakingIO();
 bool ARX_INTERFACE_MouseInBook();
 
 void ARX_INTERFACE_Reset();
@@ -232,12 +237,9 @@ void ARX_INTERFACE_NoteOpen(gui::Note::Type type, const std::string & tex);
 void ARX_INTERFACE_NoteClose();
 void ARX_INTERFACE_NoteClear();
 
-void ARX_INTERFACE_HALO_Flush();
 bool NeedHalo(Entity * io);
 
 void ARX_INTERFACE_HALO_Render(Color3f color, long _lHaloType, TextureContainer * haloTexture, Vec2f pos, Vec2f ratio);
-void ARX_INTERFACE_HALO_Draw(Entity * io, TextureContainer * tc, TextureContainer * tc2, Vec2f pos, Vec2f ratio);
-void ReleaseHalo();
 void ResetPlayerInterface();
 void Set_DragInter(Entity * io);
 void ARX_INTERFACE_DrawNumber(const Vec2f & pos, const long num, const int _iNb, const Color color, float scale);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -28,16 +28,16 @@
 struct PRECAST_STRUCT {
 	SpellType typ;
 	long level;
-	unsigned long launch_time;
+	ArxInstant launch_time;
 	SpellcastFlags flags;
-	long duration;
+	ArxDuration duration;
 };
 
 extern std::vector<PRECAST_STRUCT> Precast;
 
 void ARX_SPELLS_Precast_Reset();
 
-void ARX_SPELLS_Precast_Add(SpellType typ, long _level, SpellcastFlags flags, long duration);
+void ARX_SPELLS_Precast_Add(SpellType typ, long _level, SpellcastFlags flags, ArxDuration duration);
 void ARX_SPELLS_Precast_Launch(PrecastHandle num);
 void ARX_SPELLS_Precast_Check();
 

@@ -28,8 +28,6 @@ if(MSVC)
 		
 		# warning C4127: conditional expression is constant
 		add_definitions(/wd4127)
-		# warning C4201: nonstandard extension used : nameless struct/union
-		add_definitions(/wd4201)
 		# warning C4250: 'xxx' : inherits 'std::basic_{i,o}stream::...' via dominance
 		add_definitions(/wd4250) # harasses you when inheriting from std::basic_{i,o}stream
 		# warning C4503: 'xxx' : decorated name length exceeded, name was truncated
@@ -112,7 +110,7 @@ else(MSVC)
     #Exceptions must be enabled manualy on pnacl, and are required for Arx to function properly
     #add_ldflag("--pnacl-exceptions=sjlj")
   endif()
-	
+
 	if(SET_WARNING_FLAGS)
 		
 		# GCC (and compatible)
@@ -142,9 +140,10 @@ else(MSVC)
 		add_cxxflag("-Wbool-conversions")
 		add_cxxflag("-Wheader-guard")
 		add_cxxflag("-Wpessimizing-move")
-    
+		add_cxxflag("-Wextra-semi")
+
 		if(NOT DEBUG_EXTRA)
-		
+
       if (NACL) # too noisy on LLVM version of PNACL (occurs in Boost and GLM)
         add_cxxflag("-Wno-undef")
         add_cxxflag("-Wno-unused-local-typedef")
@@ -152,8 +151,9 @@ else(MSVC)
 
 	  if(EMSCRIPTEN)
 		  add_cxxflag("-Wno-unused-private-field") #too noisy
+		  add_cxxflag("-Wno-gnu-zero-variadic-macro-arguments") #because of EM_ASM macro
 	  endif()
-    	
+
 			# icc
 			if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 				# '... was declared but never referenced'
@@ -170,7 +170,7 @@ else(MSVC)
 			endif()
 			
 			# -Wuninitialized causes too many false positives in older gcc versions
-			if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+			if(CMAKE_COMPILER_IS_GNUCXX)
 				# GCC is 'clever' and silently accepts -Wno-*  - check for the non-negated variant
 				check_compiler_flag(FLAG_FOUND "-Wmaybe-uninitialized")
 				if(FLAG_FOUND)
@@ -182,7 +182,7 @@ else(MSVC)
 			endif()
 			
 			# Xcode does not support -isystem yet
-			if(MACOSX)
+			if(MACOS)
 				add_cxxflag("-Wno-undef")
 			endif()
 			
@@ -226,8 +226,8 @@ else(MSVC)
 		
 		add_cxxflag("-fno-rtti")
 		
-		if(MACOSX)
-			# TODO For some reason this check succeeds on OS X, but then
+		if(MACOS)
+			# TODO For some reason this check succeeds on macOS, but then
 			# flag causes the actual build to fail :(
 		else()
 			# Link as few libraries as possible
@@ -270,7 +270,7 @@ else(MSVC)
 	endif(SET_OPTIMIZATION_FLAGS)
 
 	  if(EMSCRIPTEN)
-		  #add_ldflag("-g")
+		  add_ldflag("-g")
 		  add_ldflag("-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
 		  add_ldflag("-s FORCE_FILESYSTEM=1")
 		  add_ldflag("-s BINARYEN_TRAP_MODE=clamp")

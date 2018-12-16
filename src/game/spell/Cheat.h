@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -21,8 +21,12 @@
 #define ARX_GAME_SPELL_CHEAT_H
 
 enum CheatRune {
+	CheatRune_AAM,
+	CheatRune_COMUNICATUM,
 	CheatRune_KAOM,
 	CheatRune_MEGA,
+	CheatRune_SPACIUM,
+	CheatRune_STREGUM,
 	CheatRune_U,
 	CheatRune_W,
 	CheatRune_S,
@@ -35,7 +39,9 @@ enum CheatRune {
 	CheatRune_R,
 	CheatRune_F,
 	CheatRune_Passwall,
-	CheatRune_ChangeSkin
+	CheatRune_ChangeSkin,
+
+	CheatRune_None = 255
 };
 
 void handleCheatRuneDetection(CheatRune rune);

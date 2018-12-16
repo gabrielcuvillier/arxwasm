@@ -1,4 +1,4 @@
-# Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+# Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
 #
 # This file is part of Arx Libertatis.
 #
@@ -22,10 +22,11 @@ bl_info = {
     "blender": (2, 74, 0),
     "location": "",
     "description": "Addon for managing Arx Libertatis assets",
-    "warning": "",
-    "wiki_url": "",
-    "tracker_url": "https://bugs.arx-libertatis.org/",
-    "category": "Import-Export"
+    "warning": "This is alpha software, read the documentation, keep your original blend files!",
+    "wiki_url": "http://wiki.arx-libertatis.org/Blender",
+    "tracker_url": "https://bugs.arx-libertatis.org/arx/issues/new",
+    "category": "Import-Export",
+    "support": "COMMUNITY",
 }
 
 import imp

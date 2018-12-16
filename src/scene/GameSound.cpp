@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -110,7 +110,6 @@ struct PlayingAmbiance {
 
 static const unsigned long ARX_SOUND_UPDATE_INTERVAL(100);  
 static const unsigned long ARX_SOUND_STREAMING_LIMIT(176400); 
-static const unsigned long MAX_MATERIALS(17);
 static const unsigned long MAX_VARIANTS(5);
 static const unsigned long AMBIANCE_FADE_TIME(2000);
 static const float ARX_SOUND_UNIT_FACTOR(0.01F);
@@ -128,7 +127,6 @@ static const res::path ARX_SOUND_PRESENCE_NAME = "presence";
 static const std::string ARX_SOUND_FILE_EXTENSION_WAV = ".wav";
 static const std::string ARX_SOUND_FILE_EXTENSION_INI = ".ini";
 
-static const unsigned long ARX_SOUND_COLLISION_MAP_COUNT = 3;
 static const res::path ARX_SOUND_COLLISION_MAP_NAMES[] = {
 	"snd_armor",
 	"snd_step",
@@ -141,7 +139,7 @@ static bool bIsActive(false);
 static AmbianceId ambiance_zone = AmbianceId();
 static AmbianceId ambiance_menu = AmbianceId();
 
-static long Inter_Materials[MAX_MATERIALS][MAX_MATERIALS][MAX_VARIANTS];
+static SampleId Inter_Materials[MAX_MATERIALS][MAX_MATERIALS][MAX_VARIANTS];
 
 namespace {
 
@@ -340,7 +338,7 @@ bool ARX_SOUND_Init() {
 	
 	if (bIsActive) ARX_SOUND_Release();
 	
-	if(audio::init(config.audio.backend, config.audio.device)) {
+	if(audio::init(config.audio.backend, config.audio.device, config.audio.hrtf)) {
 		audio::clean();
 		return false;
 	}
@@ -563,11 +561,11 @@ static void ARX_SOUND_IOFrontPos(const Entity * io, Vec3f & pos) {
 		pos = ARX_PLAYER_FrontPos();
 	} else if(io) {
 		pos = io->pos;
-		pos += angleToVectorXZ(io->angle.getPitch()) * 100.f;
+		pos += angleToVectorXZ(io->angle.getYaw()) * 100.f;
 		pos += Vec3f(0.f, -100.f, 0.f);
 	} else if(ACTIVECAM) {
 		pos = ACTIVECAM->orgTrans.pos;
-		pos += angleToVectorXZ(ACTIVECAM->angle.getPitch()) * 100.f;
+		pos += angleToVectorXZ(ACTIVECAM->angle.getYaw()) * 100.f;
 		pos += Vec3f(0.f, -100.f, 0.f);
 	} else {
 		pos = Vec3f_ZERO;
@@ -826,15 +824,15 @@ long ARX_SOUND_IsPlaying(SourceId & sample_id) {
 }
 
 
-float ARX_SOUND_GetDuration(SampleId & sample_id) {
+ArxDuration ARX_SOUND_GetDuration(SampleId & sample_id) {
 	
 	if(bIsActive && sample_id != INVALID_ID) {
 		size_t length;
 		audio::getSampleLength(sample_id, length);
-		return static_cast<float>(length);
+		return ArxDurationMs(length);
 	}
 
-	return 0.f;
+	return ArxDuration_ZERO;
 }
 
 void ARX_SOUND_RefreshVolume(SourceId & sample_id, float volume) {
@@ -1395,78 +1393,29 @@ static void ARX_SOUND_ReleaseStaticSamples() {
 	SND_SPELL_VISION_LOOP = INVALID_ID;
 }
 
-bool ARX_MATERIAL_GetNameById(long id, char * name)
-{
-	switch (id)
-	{
-		case MATERIAL_WEAPON:
-			strcpy(name, "weapon");
-			return true;
-			break;
-		case MATERIAL_FLESH:
-			strcpy(name, "flesh");
-			return true;
-			break;
-		case MATERIAL_METAL:
-			strcpy(name, "metal");
-			return true;
-			break;
-		case MATERIAL_GLASS:
-			strcpy(name, "glass");
-			return true;
-			break;
-		case MATERIAL_CLOTH:
-			strcpy(name, "cloth");
-			return true;
-			break;
-		case MATERIAL_WOOD:
-			strcpy(name, "wood");
-			return true;
-			break;
-		case MATERIAL_EARTH:
-			strcpy(name, "earth");
-			return true;
-			break;
-		case MATERIAL_WATER:
-			strcpy(name, "water");
-			return true;
-			break;
-		case MATERIAL_ICE:
-			strcpy(name, "ice");
-			return true;
-			break;
-		case MATERIAL_GRAVEL:
-			strcpy(name, "gravel");
-			return true;
-			break;
-		case MATERIAL_STONE:
-			strcpy(name, "stone");
-			return true;
-			break;
-		case MATERIAL_FOOT_LARGE:
-			strcpy(name, "foot_large");
-			return true;
-			break;
-		case MATERIAL_FOOT_BARE:
-			strcpy(name, "foot_bare");
-			return true;
-			break;
-		case MATERIAL_FOOT_SHOE:
-			strcpy(name, "foot_shoe");
-			return true;
-			break;
-		case MATERIAL_FOOT_METAL:
-			strcpy(name, "foot_metal");
-			return true;
-			break;
-		case MATERIAL_FOOT_STEALTH:
-			strcpy(name, "foot_stealth");
-			return true;
-			break;
+const char * ARX_MATERIAL_GetNameById(Material id) {
+	
+	switch(id) {
+		case MATERIAL_NONE:   return "none";
+		case MATERIAL_WEAPON: return "weapon";
+		case MATERIAL_FLESH:  return "flesh";
+		case MATERIAL_METAL:  return "metal";
+		case MATERIAL_GLASS:  return "glass";
+		case MATERIAL_CLOTH:  return "cloth";
+		case MATERIAL_WOOD:   return "wood";
+		case MATERIAL_EARTH:  return "earth";
+		case MATERIAL_WATER:  return "water";
+		case MATERIAL_ICE:    return "ice";
+		case MATERIAL_GRAVEL: return "gravel";
+		case MATERIAL_STONE:  return "stone";
+		case MATERIAL_FOOT_LARGE:   return "foot_large";
+		case MATERIAL_FOOT_BARE:    return "foot_bare";
+		case MATERIAL_FOOT_SHOE:    return "foot_shoe";
+		case MATERIAL_FOOT_METAL:   return "foot_metal";
+		case MATERIAL_FOOT_STEALTH: return "foot_stealth";
+		case MAX_MATERIALS: ARX_DEAD_CODE();
 	}
-
-	strcpy(name, "none");
-	return false;
+	return "none";
 }
 static void ARX_SOUND_LoadCollision(const long & mat1, const long & mat2, const char * name)
 {
@@ -1486,7 +1435,7 @@ static void ARX_SOUND_CreateCollisionMaps() {
 	
 	collisionMaps.clear();
 	
-	for(size_t i = 0; i < ARX_SOUND_COLLISION_MAP_COUNT; i++) {
+	for(size_t i = 0; i < ARRAY_SIZE(ARX_SOUND_COLLISION_MAP_NAMES); i++) {
 		
 		res::path file = ARX_SOUND_PATH_INI / ARX_SOUND_COLLISION_MAP_NAMES[i];
 		file.set_ext(ARX_SOUND_FILE_EXTENSION_INI);
@@ -1553,7 +1502,7 @@ static void ARX_SOUND_CreateCollisionMaps() {
 
 static void ARX_SOUND_CreateMaterials()
 {
-	memset(Inter_Materials, -1, sizeof(long) * MAX_MATERIALS * MAX_MATERIALS * MAX_VARIANTS);
+	memset(Inter_Materials, -1, sizeof(SampleId) * MAX_MATERIALS * MAX_MATERIALS * MAX_VARIANTS);
 
 	ARX_SOUND_LoadCollision(MATERIAL_WEAPON, MATERIAL_WEAPON,       "weapon_on_weapon");
 	ARX_SOUND_LoadCollision(MATERIAL_WEAPON, MATERIAL_FLESH,        "weapon_on_flesh");
@@ -1670,8 +1619,8 @@ static void ARX_SOUND_CreatePresenceMap() {
 
 static float GetSamplePresenceFactor(const res::path & name) {
 	
-	arx_assert(name.string().find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == std::string::npos,
-	           "bad sample name: \"%s\"", name.string().c_str());
+	arx_assert_msg(name.string().find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == std::string::npos,
+	               "bad sample name: \"%s\"", name.string().c_str());
 	
 	PresenceFactors::const_iterator it = presence.find(name);
 	if(it != presence.end()) {

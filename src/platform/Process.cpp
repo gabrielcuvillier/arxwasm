@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -468,7 +468,7 @@ void launchDefaultProgram(const std::string & uri) {
 	
 	CoUninitialize();
 	
-	#elif ARX_PLATFORM == ARX_PLATFORM_MACOSX
+	#elif ARX_PLATFORM == ARX_PLATFORM_MACOS
 	
 	const char * command[] = { "open", uri.c_str(), NULL };
 	runHelper(command);

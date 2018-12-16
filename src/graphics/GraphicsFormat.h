@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -75,7 +75,7 @@ struct SavedAnglef {
 	}
 	
 	SavedAnglef & operator=(const Anglef & o) {
-		a = o.getYaw(), b = o.getPitch(), g = o.getRoll();
+		a = o.getPitch(), b = o.getYaw(), g = o.getRoll();
 		return *this;
 	}
 	
@@ -103,7 +103,7 @@ struct SavedTextureVertex {
 	SavedTextureVertex & operator=(const TexturedVertex & b) {
 		pos.x = b.p.x, pos.y = b.p.y, pos.z = b.p.z;
 		rhw = b.rhw;
-		color = Color::fromRGBA(b.color).toBGRA();
+		color = Color::fromRGBA(b.color).toBGRA().t;
 		specular = 0xFF000000; // TODO unused
 		tu = b.uv.x;
 		tv = b.uv.y;

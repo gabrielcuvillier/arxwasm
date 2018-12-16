@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -21,7 +21,7 @@
 #define ARX_GAME_MAGIC_SPELLS_SPELLSLVL02_H
 
 #include "game/magic/Spell.h"
-
+#include "graphics/effects/Cabal.h"
 #include "graphics/particle/ParticleSystem.h"
 
 class HealSpell : public SpellBase {
@@ -37,7 +37,7 @@ private:
 	Vec3f m_pos;
 	LightHandle m_light;
 	ParticleSystem m_particles;
-	long m_currentTime;
+	ArxDuration m_elapsed;
 };
 
 class DetectTrapSpell : public SpellBase {
@@ -79,9 +79,8 @@ public:
 	void Update();
 	
 private:
-	LightHandle m_light;
 	DamageHandle m_damage;
-	float m_pitch;
+	CabalFx m_cabal;
 };
 
 #endif // ARX_GAME_MAGIC_SPELLS_SPELLSLVL02_H

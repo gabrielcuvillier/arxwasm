@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -29,6 +29,7 @@
 #include "gui/Interface.h"
 #include "graphics/data/TextureContainer.h"
 #include "graphics/Renderer.h"
+#include "input/Input.h"
 #include "scene/GameSound.h"
 #include "scene/Light.h"
 #include "scene/Object.h"
@@ -104,7 +105,7 @@ void ReleaseNecklace() {
 
 static void PlayerBookDrawRune(Rune rune) {
 	
-	ARX_SPELLS_RequestSymbolDraw2(entities.player(), rune, ARX_SOUND_GetDuration(SND_SYMB[rune]));
+	ARX_SPELLS_RequestSymbolDraw2(entities.player(), rune, toMs(ARX_SOUND_GetDuration(SND_SYMB[rune])));
 	ARX_SOUND_PlayInterface(SND_SYMB[rune]);
 }
 
@@ -112,7 +113,9 @@ static void PlayerBookDrawRune(Rune rune) {
 
 void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 {
-
+	
+	UseRenderState state(render3D().depthTest(false).fog(false));
+	
 	Vec3f pos = Vec3f(0.f, 0.f, 2100.f);
 	Anglef angle = Anglef::ZERO;
 	
@@ -130,10 +133,12 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 	
 	EERIE_CAMERA * oldcam = ACTIVECAM;
 	
-	PDL[0] = light;
-	TOTPDL=1;
+	g_culledDynamicLights[0] = light;
+	g_culledDynamicLightsCount = 1;
 	
 	Vec2i tmpPos = Vec2i_ZERO;
+	
+	GRenderer->SetAntialiasing(true);
 	
 	for(size_t i = 0; i < RUNE_COUNT; i++) {
 		if(!gui::necklace.runes[i])
@@ -147,37 +152,27 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 		SetActiveCamera(&bookcam);
 		PrepareCamera(&bookcam, g_size);
 		
-		// First draw the lace
-		angle.setPitch(0.f);
-		
 		if(player.hasRune((Rune)i)) {
 			
-			TransformInfo t1(pos, glm::toQuat(toRotationMatrix(angle)));
-			DrawEERIEInter(gui::necklace.lacet, t1, NULL, false, 0.f);
-			
-			if(rune->angle.getPitch() != 0.f) {
-				if(rune->angle.getPitch() > 300.f)
-					rune->angle.setPitch(300.f);
+			if(rune->angle.getYaw() != 0.f) {
+				if(rune->angle.getYaw() > 300.f)
+					rune->angle.setYaw(300.f);
 				
-				arxtime.update();
-				angle.setPitch(std::sin(arxtime.now_f() * (1.0f / 200)) * rune->angle.getPitch() * (1.0f / 40));
+				angle.setYaw(std::sin(arxtime.now_f() * (1.0f / 200)) * rune->angle.getYaw() * (1.0f / 40));
 			}
 			
-			rune->angle.setPitch(rune->angle.getPitch() - g_framedelay * 0.2f);
+			rune->angle.setYaw(rune->angle.getYaw() - g_framedelay * 0.2f);
 			
-			if(rune->angle.getPitch() < 0.f)
-				rune->angle.setPitch(0.f);
-			
-			GRenderer->SetRenderState(Renderer::DepthWrite, true);
-			GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+			if(rune->angle.getYaw() < 0.f)
+				rune->angle.setYaw(0.f);
 			
 			// Now draw the rune
-			TransformInfo t2(pos, glm::toQuat(toRotationMatrix(angle)));
+			TransformInfo t2(pos, glm::quat_cast(toRotationMatrix(angle)));
 			DrawEERIEInter(rune, t2, NULL, false, 0.f);
 			
 			Rectf runeBox = UpdateBbox2d(*rune).toRect();
 			
-			PopAllTriangleList();
+			PopAllTriangleListOpaque();
 			
 			tmpPos.x++;
 			
@@ -200,17 +195,15 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 				}
 				
 				if(r) {
-					GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-					GRenderer->SetBlendFunc(BlendOne, BlendOne);
 					
-					TransformInfo t(pos, glm::toQuat(toRotationMatrix(angle)));
+					UseRenderState state(render3D().depthTest(false).fog(false).blendAdditive());
+					
+					TransformInfo t(pos, glm::quat_cast(toRotationMatrix(angle)));
 					DrawEERIEInter(rune, t, NULL, false, 0.f);
 					
-					rune->angle.setPitch(rune->angle.getPitch() + g_framedelay*2.f);
+					rune->angle.setYaw(rune->angle.getYaw() + g_framedelay*2.f);
 					
-					PopAllTriangleList();
-					
-					GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+					PopAllTriangleListOpaque();
 					
 					SpecialCursor=CURSOR_INTERACTION_ON;
 					
@@ -219,15 +212,25 @@ void ARX_INTERFACE_ManageOpenedBook_Finish(const Vec2f & mousePos)
 					}
 				}
 			}
+			
+			// First draw the lace
+			angle.setYaw(0.f);
+			
+			TransformInfo t1(pos, glm::quat_cast(toRotationMatrix(angle)));
+			DrawEERIEInter(gui::necklace.lacet, t1, NULL, false, 0.f);
+			
+			PopAllTriangleListOpaque();
+			
 		}
 	}
-	
-	GRenderer->SetCulling(CullCCW);
 	
 	*light = tl;
 	
 	SetActiveCamera(oldcam);
 	PrepareCamera(oldcam, g_size);
+	
+	GRenderer->SetAntialiasing(false);
+	
 }
 
 }

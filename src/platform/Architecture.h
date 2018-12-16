@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -109,6 +109,49 @@ inline const char * getArchitectureName(unsigned arch) {
 		default: return ARX_ARCH_NAME_UNKNOWN;
 	}
 }
+
+/*!
+ * \def ARX_HAVE_SSE
+ * \brief x86-only: 1 if targeting CPUs with SSE support, 0 otherwise
+ */
+/*!
+ * \def ARX_HAVE_SSE2
+ * \brief x86-only: 1 if targeting CPUs with SSE2 support, 0 otherwise
+ */
+#if ARX_ARCH == ARX_ARCH_X86_64
+#define ARX_HAVE_SSE 1
+#define ARX_HAVE_SSE2 1
+#elif ARX_ARCH == ARX_ARCH_X86
+#if defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
+#define ARX_HAVE_SSE 1
+#else
+#define ARX_HAVE_SSE 0
+#endif
+#if defined(__SSE2__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+#define ARX_HAVE_SSE2 1
+#else
+#define ARX_HAVE_SSE2 0
+#endif
+#endif
+#if ARX_ARCH == ARX_ARCH_X86 || ARX_ARCH == ARX_ARCH_X86_64
+#if defined(__SSE3__)
+#define ARX_HAVE_SSE3 1
+#else
+#define ARX_HAVE_SSE3 0
+#endif
+#endif
+
+/*!
+ * \def ARX_HAVE_VFP
+ * \brief ARM-only: 1 if targeting CPUs with VFP support, 0 otherwise
+ */
+#if ARX_ARCH == ARX_ARCH_ARM
+#if defined(__VFP_FP__)
+#define ARX_HAVE_VFP 1
+#else
+#define ARX_HAVE_VFP 0
+#endif
+#endif
 
 } // namespace platform
 

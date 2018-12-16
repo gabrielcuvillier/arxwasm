@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -92,6 +92,7 @@ enum SavePlayerFlag {
 #pragma pack(push,1)
 
 
+const size_t SAVED_QUEST_SLOT_SIZE = 80;
 const size_t SAVED_KEYRING_SLOT_SIZE = 64;
 const size_t MAX_LINKED_SAVE = 16;
 const size_t SIZE_ID = 64;
@@ -290,18 +291,18 @@ struct SavedPrecast {
 		PRECAST_STRUCT a;
 		a.typ = (typ < 0) ? SPELL_NONE : (SpellType)typ; // TODO save/load enum
 		a.level = level;
-		a.launch_time = launch_time;
+		a.launch_time = ArxInstantMs(launch_time); // TODO save/load time
 		a.flags = SpellcastFlags::load(flags); // TODO save/load flags
-		a.duration = duration;
+		a.duration = ArxDurationMs(duration); // TODO save/load time
 		return a;
 	}
 	
 	SavedPrecast & operator=(const PRECAST_STRUCT & b) {
 		typ = (b.typ == SPELL_NONE) ? -1 : b.typ;
 		level = b.level;
-		launch_time = b.launch_time;
+		launch_time = toMs(b.launch_time); // TODO save/load time
 		flags = b.flags;
-		duration = b.duration;
+		duration = toMs(b.duration); // TODO save/load time
 		return *this;
 	}
 	
@@ -419,10 +420,10 @@ struct ARX_CHANGELEVEL_INVENTORY_DATA_SAVE {
 struct ARX_CHANGELEVEL_TIMERS_SAVE {
 	
 	char name[SIZE_ID];
-	s32 times;
-	s32 msecs;
+	s32 count;
+	s32 interval;
 	s32 pos;
-	s32 tim;
+	s32 remaining;
 	s32 script; // 0 = global ** 1 = local
 	s32 longinfo;
 	s32 flags;
@@ -485,7 +486,7 @@ struct SavedAnimUse {
 		a.cur_anim = NULL;
 		a.altidx_next = altidx_next;
 		a.altidx_cur = altidx_cur;
-		a.ctime = ctime;
+		a.ctime = AnimationDurationMs(ctime);
 		a.flags = AnimUseType::load(flags);
 		a.nextflags = AnimUseType::load(nextflags);
 		a.lastframe = lastframe;
@@ -499,7 +500,7 @@ struct SavedAnimUse {
 		cur_anim = 0;
 		altidx_next = b.altidx_next;
 		altidx_cur = b.altidx_cur;
-		ctime = b.ctime;
+		ctime = toMsi(b.ctime);
 		flags = b.flags;
 		nextflags = b.nextflags;
 		lastframe = b.lastframe;
@@ -530,7 +531,7 @@ struct SavedSpellcastData {
 		a.spell_flags = SpellcastFlags::load(spell_flags); // TODO save/load flags
 		a.spell_level = spell_level;
 		a.target = EntityHandle(target); // TODO saved internum not valid after loading
-		a.duration = duration;
+		a.duration = ArxDurationMs(duration); // TODO save/load time
 		return a;
 	}
 	
@@ -541,7 +542,7 @@ struct SavedSpellcastData {
 		spell_flags = b.spell_flags;
 		spell_level = b.spell_level;
 		target = b.target.handleData();
-		duration = b.duration;
+		duration = toMs(b.duration); // TODO save/load time
 		return *this;
 	}
 	
@@ -1128,7 +1129,7 @@ struct SavedCamera {
 		
 		clip3D = 0;
 		type = CAM_SUBJVIEW;
-		bkgcolor = b.bkgcolor.toBGRA();
+		bkgcolor = b.bkgcolor.toBGRA().t;
 		nbdrawn = 0;
 		cdepth = b.cdepth;
 		
@@ -1147,8 +1148,14 @@ struct ARX_CHANGELEVEL_PLAYER_LEVEL_DATA {
 	f32 version;
 	char name[256];
 	s32 level;
-	u32 time;
-	s32 padd[32];
+	s64 time; // 32-bit before Arx Libertatis 1.2
+	s64 playthroughStart; // new in Arx Libertatis 1.2
+	u64 playthroughId; // new in Arx Libertatis 1.2
+	u64 oldestALVersion; // new in Arx Libertatis 1.2
+	u64 newestALVersion; // new in Arx Libertatis 1.2
+	u64 lastALVersion; // new in Arx Libertatis 1.2
+	char lastEngineVersion[64]; // new in Arx Libertatis 1.2
+	s32 padd[5];
 };
 
 

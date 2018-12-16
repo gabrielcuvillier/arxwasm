@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -22,13 +22,16 @@
 
 #include <string>
 
-void cinematicPrepare(std::string name, bool preload);
+void cinematicInit();
+void cinematicDestroy();
+
+void cinematicPrepare(const std::string & name, bool preload);
 
 void cinematicRequestStart();
 
-void DANAE_KillCinematic();
+void cinematicKill();
 
-void LaunchWaitingCine();
+void cinematicLaunchWaiting();
 
 bool cinematicIsStopped();
 

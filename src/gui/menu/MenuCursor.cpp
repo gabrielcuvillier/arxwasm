@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,6 +20,7 @@
 #include "gui/menu/MenuCursor.h"
 
 #include "core/Core.h"
+#include "core/GameTime.h"
 
 #include "graphics/Draw.h"
 #include "graphics/DrawLine.h"
@@ -31,7 +32,7 @@
 extern TextureContainer * scursor[];
 
 CursorTrail::CursorTrail() {
-	m_storedTime = 0;
+	m_storedTime = PlatformDuration_ZERO;
 	iNbOldCoord = 0;
 	iMaxOldCoord = 40;
 }
@@ -40,12 +41,13 @@ void CursorTrail::reset() {
 	iNbOldCoord = 0;
 }
 
-void CursorTrail::add(float time, const Vec2s & pos)
+void CursorTrail::add(PlatformDuration time, const Vec2s & pos)
 {
 	iOldCoord[iNbOldCoord] = pos;
 	
-	const float targetFPS = 61.f;
-	const float targetDelay = 1000.f / targetFPS;
+	const s64 targetFPS = 61.0;
+	const PlatformDuration targetDelay = PlatformDurationUs((1000 * 1000) / targetFPS);
+	
 	m_storedTime += time;
 	if(m_storedTime > targetDelay) {
 		m_storedTime = std::min(targetDelay, m_storedTime - targetDelay);
@@ -99,9 +101,8 @@ void CursorTrail::DrawLine2D(float _fSize, Color3f color) {
 	
 	Color3f currentColor = incColor;
 	
-	GRenderer->SetBlendFunc(BlendDstColor, BlendInvDstColor);
+	UseRenderState state(render2D().blend(BlendDstColor, BlendInvDstColor));
 	GRenderer->ResetTexture(0);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 	
 	TexturedVertex v[4];
 	v[0].p.z = v[1].p.z = v[2].p.z = v[3].p.z = 0.f;
@@ -134,7 +135,6 @@ void CursorTrail::DrawLine2D(float _fSize, Color3f color) {
 		
 	}
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 }
 
 
@@ -146,7 +146,7 @@ MenuCursor::MenuCursor()
 	bMouseOver=false;
 	
 	m_currentFrame=0;
-	lFrameDiff = 0.f;
+	lFrameDiff = PlatformDuration_ZERO;
 }
 
 MenuCursor::~MenuCursor()
@@ -179,7 +179,7 @@ void MenuCursor::reset() {
 	trail.reset();
 }
 
-void MenuCursor::update(float time) {
+void MenuCursor::update(PlatformDuration time) {
 	
 	bool inWindow = GInput->isMouseInWindow();
 	if(inWindow && exited) {
@@ -190,21 +190,19 @@ void MenuCursor::update(float time) {
 	
 	Vec2s iDiff = m_size / Vec2s(2);
 	
-	trail.add(time, GInput->getMousePosAbs() + iDiff);
+	trail.add(time, GInput->getMousePosition() + iDiff);
 }
 
-
-extern float ARXDiffTimeMenu;
 
 void MenuCursor::DrawCursor() {
 	
 	trail.draw();
 	
-	DrawOneCursor(GInput->getMousePosAbs());
+	DrawOneCursor(GInput->getMousePosition());
 
-	lFrameDiff += ARXDiffTimeMenu;
+	lFrameDiff += g_platformTime.lastFrameDuration();
 
-	if(lFrameDiff > 70.f) {
+	if(lFrameDiff > PlatformDurationMs(70)) {
 		if(bMouseOver) {
 			if(m_currentFrame < 4) {
 				m_currentFrame++;
@@ -223,10 +221,9 @@ void MenuCursor::DrawCursor() {
 			}
 		}
 
-		lFrameDiff = 0.f;
+		lFrameDiff = PlatformDuration_ZERO;
 	}
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+	
 }
 
 ThumbnailCursor g_thumbnailCursor;

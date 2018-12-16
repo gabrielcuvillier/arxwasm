@@ -1,4 +1,4 @@
-# Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+# Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
 #
 # This file is part of Arx Libertatis.
 #
@@ -37,7 +37,7 @@ def getBlackTexture():
         return tex
 
 
-def createMaterial(rootDirectory, textureName):
+def createMaterial(rootDirectory, textureName) -> bpy.types.Material:
     relativePath, fileExtension = os.path.splitext(textureName.replace("\\", "/").lower())
     foo, fileName = os.path.split(relativePath)
     

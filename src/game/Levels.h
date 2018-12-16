@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -50,7 +50,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <string>
 
 long GetLevelNumByName(const std::string& name);
-void GetLevelNameByNum(long num, char * name);
+const char * GetLevelNameByNum(long num);
 long ARX_LEVELS_GetRealNum(long num);
 
 #endif // ARX_GAME_LEVELS_H

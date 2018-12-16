@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -32,24 +32,26 @@
 
 
 FissureFx::FissureFx()
-	: ulCurrentTime(0)
-	, ulDurationIntro(1000)
-	, ulDurationRender(1000)
-	, ulDurationOuttro(1000)
+	: m_elapsed(ArxDuration_ZERO)
+	, m_duration(ArxDuration_ZERO)
+	, m_durationIntro(ArxDurationMs(1000))
+	, m_durationRender(ArxDurationMs(1000))
+	, m_durationOuttro(ArxDurationMs(1000))
 	, m_colorBorder(Color3f::white)
 	, m_colorRays1(Color3f::white)
 	, m_colorRays2(Color3f::black)
 {
-	
+	m_duration = m_durationIntro + m_durationRender + m_durationOuttro;
 }
 
-void FissureFx::SetDuration(unsigned long alDurationIntro, unsigned long alDurationRender, unsigned long alDurationOuttro)
+void FissureFx::SetDuration(ArxDuration alDurationIntro, ArxDuration alDurationRender, ArxDuration alDurationOuttro)
 {
-	ulDurationIntro = glm::clamp(alDurationIntro, 100ul, 100000ul);
-	ulDurationRender = glm::clamp(alDurationRender, 100ul, 100000ul);
-	ulDurationOuttro = glm::clamp(alDurationOuttro, 100ul, 100000ul);
+	m_durationIntro  = arx::clamp(alDurationIntro,  ArxDurationMs(100), ArxDurationMs(100000));
+	m_durationRender = arx::clamp(alDurationRender, ArxDurationMs(100), ArxDurationMs(100000));
+	m_durationOuttro = arx::clamp(alDurationOuttro, ArxDurationMs(100), ArxDurationMs(100000));
 	
-	ulCurrentTime = 0;
+	m_elapsed = ArxDuration_ZERO;
+	m_duration = m_durationIntro + m_durationRender + m_durationOuttro;
 }
 
 void FissureFx::SetColorBorder(Color3f color)
@@ -85,7 +87,7 @@ CRiseDead::CRiseDead()
 	, sizeF(0)
 	, fSizeIntro(0.f)
 {
-	ulCurrentTime = ulDurationIntro + ulDurationRender + ulDurationOuttro + 1;
+	m_elapsed = m_duration + ArxDurationMs(1);
 	
 	tex_light = TextureContainer::Load("graph/obj3d/textures/(fx)_tsu4");
 }
@@ -94,7 +96,7 @@ CRiseDead::CRiseDead()
 
 void CRiseDead::Create(Vec3f aeSrc, float afBeta)
 {
-	SetDuration(ulDurationIntro, ulDurationRender, ulDurationOuttro);
+	SetDuration(m_durationIntro, m_durationRender, m_durationOuttro);
 
 	m_eSrc = aeSrc + Vec3f(0.f, -10.f, 0.f);
 	
@@ -139,9 +141,9 @@ void CRiseDead::Create(Vec3f aeSrc, float afBeta)
 	m_stones.Init(80.f);
 }
 
-unsigned long CRiseDead::GetDuration()
+ArxDuration CRiseDead::GetDuration()
 {
-	return (ulDurationIntro + ulDurationRender + ulDurationOuttro);
+	return m_duration;
 }
 
 
@@ -166,7 +168,7 @@ void CRiseDead::RenderFissure() {
 	
 	float ff;
 	Vec3f vt[4];
-	TexturedVertex vr[4];
+	TexturedVertexUntransformed vr[4];
 	Vec3f target;
 	
 	RenderMaterial mat;
@@ -210,19 +212,19 @@ void CRiseDead::RenderFissure() {
 
 	if(bIntro) {
 		for(int i = 0; i < std::min(end, (int)fSizeIntro); i++) {
-			vr[0].p = EE_RT(v1a[i]);
-			vr[1].p = EE_RT(v1b[i]);
-			vr[2].p = EE_RT(v1a[i+1]);
-			vr[3].p = EE_RT(v1b[i+1]);
+			vr[0].p = v1a[i];
+			vr[1].p = v1b[i];
+			vr[2].p = v1a[i+1];
+			vr[3].p = v1b[i+1];
 			drawTriangle(mat, &vr[0]);
 			drawTriangle(mat, &vr[1]);
 		}
 	} else {
 		for(int i = 0; i < std::min(end, (int)fSizeIntro); i++) {
-			vr[0].p = EE_RT(va[i]);
-			vr[1].p = EE_RT(vb[i]);
-			vr[2].p = EE_RT(va[i+1]);
-			vr[3].p = EE_RT(vb[i+1]);
+			vr[0].p = va[i];
+			vr[1].p = vb[i];
+			vr[2].p = va[i+1];
+			vr[3].p = vb[i+1];
 			drawTriangle(mat, &vr[0]);
 			drawTriangle(mat, &vr[1]);
 		}
@@ -238,20 +240,20 @@ void CRiseDead::RenderFissure() {
 		vt[2] = va[i] - (va[i] - m_eSrc) * 0.2f;
 		vt[3] = va[i + 1] - (va[i + 1] - m_eSrc) * 0.2f;
 		
-		vr[0].p = EE_RT(vt[3]);
-		vr[1].p = EE_RT(vt[2]);
-		vr[2].p = EE_RT(va[i+1]);
-		vr[3].p = EE_RT(va[i]);
+		vr[0].p = vt[3];
+		vr[1].p = vt[2];
+		vr[2].p = va[i+1];
+		vr[3].p = va[i];
 		drawTriangle(mat, &vr[0]);
 		drawTriangle(mat, &vr[1]);
 		
 		vt[2] = vb[i] - (vb[i] - m_eSrc) * 0.2f;
 		vt[3] = vb[i + 1] - (vb[i + 1] - m_eSrc) * 0.2f;
 		
-		vr[3].p = EE_RT(vb[i]);
-		vr[2].p = EE_RT(vb[i+1]);
-		vr[1].p = EE_RT(vt[2]);
-		vr[0].p = EE_RT(vt[3]);
+		vr[3].p = vb[i];
+		vr[2].p = vb[i+1];
+		vr[1].p = vt[2];
+		vr[0].p = vt[3];
 		drawTriangle(mat, &vr[0]);
 		drawTriangle(mat, &vr[1]);
 	}
@@ -268,18 +270,13 @@ void CRiseDead::RenderFissure() {
 	target.y = m_eSrc.y + 1.5f * sizeF; 
 	target.z = m_eSrc.z ;
 
-	EE_RTP(vt[1], vr[0]);
 	vr[0].color = vr[1].color = m_colorRays1.toRGB();
 	vr[2].color = vr[3].color = m_colorRays2.toRGB();
 
-	vr[0].uv.x = 0.f;
-	vr[0].uv.y = 1;
-	vr[1].uv.x = 1.0f;
-	vr[1].uv.y = 1;
-	vr[2].uv.x = 0.f;
-	vr[2].uv.y = 0;
-	vr[3].uv.x = 1.0f;
-	vr[3].uv.y = 0;
+	vr[0].uv = Vec2f(0, 1);
+	vr[1].uv = Vec2f(1, 1);
+	vr[2].uv = Vec2f(0, 0);
+	vr[3].uv = Vec2f(1, 0);
 
 	for(int i = 0; i < end - 1; i++) {
 		float t = Random::getf();
@@ -357,10 +354,10 @@ void CRiseDead::RenderFissure() {
 			vr[2].color = (m_colorRays2 * tfRaysa[i]).toRGB();
 			vr[3].color = (m_colorRays2 * tfRaysa[i + 1]).toRGB();
 			
-			vr[0].p = EE_RT(vt[0]);
-			vr[1].p = EE_RT(vt[1]);
-			vr[2].p = EE_RT(vt[2]);
-			vr[3].p = EE_RT(vt[3]);
+			vr[0].p = vt[0];
+			vr[1].p = vt[1];
+			vr[2].p = vt[2];
+			vr[3].p = vt[3];
 			drawTriangle(mat, &vr[0]);
 			drawTriangle(mat, &vr[1]);
 		}
@@ -380,10 +377,10 @@ void CRiseDead::RenderFissure() {
 			vr[2].color = (m_colorRays2 * tfRaysb[i]).toRGB();
 			vr[3].color = (m_colorRays2 * tfRaysb[i + 1]).toRGB();
 
-			vr[0].p = EE_RT(vt[0]);
-			vr[1].p = EE_RT(vt[1]);
-			vr[2].p = EE_RT(vt[2]);
-			vr[3].p = EE_RT(vt[3]);
+			vr[0].p = vt[0];
+			vr[1].p = vt[1];
+			vr[2].p = vt[2];
+			vr[3].p = vt[3];
 			drawTriangle(mat, &vr[0]);
 			drawTriangle(mat, &vr[1]);
 		}
@@ -392,7 +389,7 @@ void CRiseDead::RenderFissure() {
 
 void CRiseDead::Update(float timeDelta)
 {
-	ulCurrentTime += timeDelta;
+	m_elapsed += ArxDurationMs(timeDelta);
 	
 	m_stones.Update(timeDelta, m_eSrc);
 }
@@ -401,34 +398,34 @@ void CRiseDead::Update(float timeDelta)
 // render the space time tearing
 void CRiseDead::Render()
 {
-	if(ulCurrentTime >= (ulDurationIntro + ulDurationRender + ulDurationOuttro))
+	if(m_elapsed >= m_duration)
 		return;
 	
 	//-------------------------------------------------------------------------
 	// render intro (opening + rays)
-	if(ulCurrentTime < ulDurationIntro) {
-		float fOneOnDurationIntro = 1.f / (float)(ulDurationIntro);
+	if(m_elapsed < m_durationIntro) {
+		float fOneOnDurationIntro = 1.f / toMs(m_durationIntro);
 		
-		if(ulCurrentTime < ulDurationIntro * 0.666f) {
-			fSizeIntro = (end + 2) * fOneOnDurationIntro * (1.5f) * ulCurrentTime;
+		if(m_elapsed < ArxDurationMs(toMs(m_durationIntro) * 0.666f)) {
+			fSizeIntro = (end + 2) * fOneOnDurationIntro * (1.5f) * toMs(m_elapsed);
 			sizeF = 1;
 		} else {
 			if(bIntro != false)
 				bIntro = false;
 
-			sizeF = (iSize) * (fOneOnDurationIntro * 3) * (ulCurrentTime - ulDurationIntro * 0.666f);
+			sizeF = (iSize) * (fOneOnDurationIntro * 3) * (toMs(m_elapsed) - toMs(m_durationIntro) * 0.666f);
 		}
 	}
 	// do nothing just render
-	else if (ulCurrentTime < (ulDurationIntro + ulDurationRender))
+	else if (m_elapsed < (m_durationIntro + m_durationRender))
 	{
 	}
 	// close it all
-	else if (ulCurrentTime < (ulDurationIntro + ulDurationRender + ulDurationOuttro))
+	else if (m_elapsed < m_duration)
 	{
-		float fOneOnDurationOuttro = 1.f / (float)(ulDurationOuttro);
+		float fOneOnDurationOuttro = 1.f / toMs(m_durationOuttro);
 		
-		sizeF = iSize - (iSize) * fOneOnDurationOuttro * (ulCurrentTime - (ulDurationIntro + ulDurationRender));
+		sizeF = iSize - (iSize) * fOneOnDurationOuttro * toMs(m_elapsed - (m_durationIntro + m_durationRender));
 	}
 	
 	RenderFissure();
@@ -450,7 +447,7 @@ CSummonCreature::CSummonCreature()
 	
 	m_eSrc = Vec3f_ZERO;
 	
-	ulCurrentTime = ulDurationIntro + ulDurationRender + ulDurationOuttro + 1;
+	m_elapsed = m_duration + ArxDurationMs(1);
 	
 	iSize = 100;
 	fOneOniSize = 1.0f / ((float) iSize);
@@ -460,7 +457,7 @@ CSummonCreature::CSummonCreature()
 
 void CSummonCreature::Create(Vec3f aeSrc, float afBeta)
 {
-	SetDuration(ulDurationIntro, ulDurationRender, ulDurationOuttro);
+	SetDuration(m_durationIntro, m_durationRender, m_durationOuttro);
 
 	m_eSrc = aeSrc + Vec3f(0.f, -50.f, 0.f);
 	
@@ -543,7 +540,7 @@ void CSummonCreature::RenderFissure() {
 	
 	float ff;
 	Vec3f vt[4];
-	TexturedVertex vr[4];
+	TexturedVertexUntransformed vr[4];
 	Vec3f target;
 
 	Vec3f etarget;
@@ -593,19 +590,19 @@ void CSummonCreature::RenderFissure() {
 
 	if(bIntro) {
 		for(int i = 0; i < std::min(end, (int)fSizeIntro); i++) {
-			vr[0].p = EE_RT(v1a[i]);
-			vr[1].p = EE_RT(v1b[i]);
-			vr[2].p = EE_RT(v1a[i+1]);
-			vr[3].p = EE_RT(v1b[i+1]);
+			vr[0].p = v1a[i];
+			vr[1].p = v1b[i];
+			vr[2].p = v1a[i+1];
+			vr[3].p = v1b[i+1];
 			drawTriangle(mat, &vr[0]);
 			drawTriangle(mat, &vr[1]);
 		}
 	} else {
 		for(int i = 0; i < std::min(end, (int)fSizeIntro); i++) {
-			vr[0].p = EE_RT(va[i]);
-			vr[1].p = EE_RT(vb[i]);
-			vr[2].p = EE_RT(va[i+1]);
-			vr[3].p = EE_RT(vb[i+1]);
+			vr[0].p = va[i];
+			vr[1].p = vb[i];
+			vr[2].p = va[i+1];
+			vr[3].p = vb[i+1];
 			drawTriangle(mat, &vr[0]);
 			drawTriangle(mat, &vr[1]);
 		}
@@ -621,20 +618,20 @@ void CSummonCreature::RenderFissure() {
 		vt[2] = va[i] - (va[i] - m_eSrc) * 0.2f;
 		vt[3] = va[i + 1] - (va[i + 1] - m_eSrc) * 0.2f;
 		
-		vr[0].p = EE_RT(vt[3]);
-		vr[1].p = EE_RT(vt[2]);
-		vr[2].p = EE_RT(va[i+1]);
-		vr[3].p = EE_RT(va[i]);
+		vr[0].p = vt[3];
+		vr[1].p = vt[2];
+		vr[2].p = va[i+1];
+		vr[3].p = va[i];
 		drawTriangle(mat, &vr[0]);
 		drawTriangle(mat, &vr[1]);
 		
 		vt[2] = vb[i] - (vb[i] - m_eSrc) * 0.2f;
 		vt[3] = vb[i + 1] - (vb[i + 1] - m_eSrc) * 0.2f;
 		
-		vr[3].p = EE_RT(vb[i]);
-		vr[2].p = EE_RT(vb[i+1]);
-		vr[1].p = EE_RT(vt[2]);
-		vr[0].p = EE_RT(vt[3]);
+		vr[3].p = vb[i];
+		vr[2].p = vb[i+1];
+		vr[1].p = vt[2];
+		vr[0].p = vt[3];
 		drawTriangle(mat, &vr[0]);
 		drawTriangle(mat, &vr[1]);
 	}
@@ -651,7 +648,6 @@ void CSummonCreature::RenderFissure() {
 	target.y = m_eSrc.y;
 	target.z = m_eSrc.z + fBetaRadCos * (1.5f * sizeF); 
 
-	EE_RTP(vt[1], vr[0]);
 	vr[0].color = vr[1].color = m_colorRays1.toRGB();
 	vr[2].color = vr[3].color = m_colorRays2.toRGB();
 
@@ -677,10 +673,10 @@ void CSummonCreature::RenderFissure() {
 			vr[2].color = (m_colorRays2 * tfRaysa[i]).toRGB();
 			vr[3].color = (m_colorRays2 * tfRaysa[i + 1]).toRGB();
 			
-			vr[3].p = EE_RT(vt[0]);
-			vr[2].p = EE_RT(vt[1]);
-			vr[1].p = EE_RT(vt[2]);
-			vr[0].p = EE_RT(vt[3]);
+			vr[3].p = vt[0];
+			vr[2].p = vt[1];
+			vr[1].p = vt[2];
+			vr[0].p = vt[3];
 			drawTriangle(mat, &vr[0]);
 			drawTriangle(mat, &vr[1]);
 		}
@@ -696,10 +692,10 @@ void CSummonCreature::RenderFissure() {
 			vr[2].color = (m_colorRays2 * tfRaysb[i]).toRGB();
 			vr[3].color = (m_colorRays2 * tfRaysb[i + 1]).toRGB();
 			
-			vr[3].p = EE_RT(vt[0]);
-			vr[2].p = EE_RT(vt[1]);
-			vr[1].p = EE_RT(vt[2]);
-			vr[0].p = EE_RT(vt[3]);
+			vr[3].p = vt[0];
+			vr[2].p = vt[1];
+			vr[1].p = vt[2];
+			vr[0].p = vt[3];
 			drawTriangle(mat, &vr[0]);
 			drawTriangle(mat, &vr[1]);
 		}
@@ -708,41 +704,41 @@ void CSummonCreature::RenderFissure() {
 
 void CSummonCreature::Update(float timeDelta)
 {
-	ulCurrentTime += timeDelta;
+	m_elapsed += ArxDurationMs(timeDelta);
 }
 
 //-----------------------------------------------------------------------------
 // rendu de la déchirure spatio temporelle
 void CSummonCreature::Render()
 {
-	if(ulCurrentTime >= (ulDurationIntro + ulDurationRender + ulDurationOuttro))
+	if(m_elapsed >= m_duration)
 		return;
 	
 	//-------------------------------------------------------------------------
 	// render intro (opening + rays)
-	if(ulCurrentTime < ulDurationIntro) {
-		float fOneOnDurationIntro = 1.f / (float)(ulDurationIntro);
+	if(m_elapsed < m_durationIntro) {
+		float fOneOnDurationIntro = 1.f / toMs(m_durationIntro);
 		
-		if(ulCurrentTime < ulDurationIntro * 0.666f) {
-			fSizeIntro = (end + 2) * fOneOnDurationIntro * (1.5f) * ulCurrentTime;
+		if(m_elapsed < ArxDurationMs(toMs(m_durationIntro) * 0.666f)) {
+			fSizeIntro = (end + 2) * fOneOnDurationIntro * (1.5f) * toMs(m_elapsed);
 			sizeF = 1;
 		} else {
 			if(bIntro != false)
 				bIntro = false;
 
-			sizeF = (iSize) * (fOneOnDurationIntro * 3) * (ulCurrentTime - ulDurationIntro * 0.666f);
+			sizeF = (iSize) * (fOneOnDurationIntro * 3) * (toMs(m_elapsed) - toMs(m_durationIntro) * 0.666f);
 		}
 	}
 	// do nothing just render
-	else if (ulCurrentTime < (ulDurationIntro + ulDurationRender))
+	else if (m_elapsed < (m_durationIntro + m_durationRender))
 	{
 	}
 	// close it all
-	else if (ulCurrentTime < (ulDurationIntro + ulDurationRender + ulDurationOuttro))
+	else if (m_elapsed < m_duration)
 	{
-		float fOneOnDurationOuttro = 1.f / (float)(ulDurationOuttro);
+		float fOneOnDurationOuttro = 1.f / toMs(m_durationOuttro);
 		
-		sizeF = iSize - (iSize) * fOneOnDurationOuttro * (ulCurrentTime - (ulDurationIntro + ulDurationRender));
+		sizeF = iSize - (iSize) * fOneOnDurationOuttro * toMs(m_elapsed - (m_durationIntro + m_durationRender));
 	}
 	
 	RenderFissure();

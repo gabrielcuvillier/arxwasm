@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -40,7 +40,6 @@ bool CinematicBorder::isActive()
 }
 
 float CinematicBorder::elapsedTime() {
-	arxtime.update();
 	return arxtime.now_f() - m_startTime;
 }
 
@@ -53,7 +52,6 @@ void CinematicBorder::set(bool status, bool smooth)
 {
 	if(status) {
 		m_active = true;//++;
-		arxtime.update();
 		m_startTime = arxtime.now_f();
 	} else {
 		m_active = false;//--;
@@ -82,14 +80,14 @@ void CinematicBorder::set(bool status, bool smooth)
 void CinematicBorder::update() {
 	
 	if(m_direction == 1) {
-		CINEMA_DECAL += Original_framedelay * (1.0f/10);
+		CINEMA_DECAL += toMs(g_platformTime.lastFrameDuration()) * (1.0f/10);
 
 		if(CINEMA_DECAL > 100.f) {
 			CINEMA_DECAL = 100.f;
 			m_direction = 0;
 		}
 	} else if(m_direction == -1) {
-		CINEMA_DECAL -= Original_framedelay * (1.0f/10);
+		CINEMA_DECAL -= toMs(g_platformTime.lastFrameDuration()) * (1.0f/10);
 
 		if(CINEMA_DECAL < 0.f) {
 			CINEMA_DECAL = 0.f;

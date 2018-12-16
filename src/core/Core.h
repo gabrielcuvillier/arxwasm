@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -59,7 +59,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 class TextureContainer;
 struct EERIE_3DOBJ;
-struct EERIE_MULTI3DSCENE;
 
 const size_t MAX_GOLD_COINS_VISUALS = 7;
 extern TextureContainer * GoldCoinsTC[MAX_GOLD_COINS_VISUALS];
@@ -76,10 +75,6 @@ extern Vec3f g_moveto;
 extern Vec2s STARTDRAG;
 extern EERIE_3DOBJ * GoldCoinsObj[MAX_GOLD_COINS_VISUALS];
 extern Vec3f Mscenepos;
-#if BUILD_EDIT_LOADSAVE
-extern EERIE_MULTI3DSCENE * mse;
-extern long ADDED_IO_NOT_SAVED;
-#endif
 extern Entity * COMBINE;
 extern res::path LastLoadedScene;
 
@@ -115,7 +110,6 @@ inline Vec2f RATIO_2(const Vec2f & in) {
 class Image;
 extern Image savegame_thumbnail;
 
-extern float Original_framedelay;
 extern bool LOADEDD;
 
 extern bool g_debugToggles[10];
@@ -126,10 +120,13 @@ extern float g_debugValues[10];
 
 extern long		CHANGE_LEVEL_ICON;
 
+extern Vec3f LastValidPlayerPos;
+extern Vec3f WILL_RESTORE_PLAYER_POSITION;
+extern bool WILL_RESTORE_PLAYER_POSITION_FLAG;
+
 void SetEditMode(long ed, const bool stop_sound = true);
 
 void SendGameReadyMsg();
-void ARX_SetAntiAliasing();
 void DANAE_StartNewQuest();
 void DanaeRestoreFullScreen();
 bool AdjustUI();
@@ -145,6 +142,5 @@ void ManageNONCombatModeAnimations();
 Entity * FlyingOverObject(const Vec2s & pos);
 
 void runGame();
-
 
 #endif // ARX_CORE_CORE_H

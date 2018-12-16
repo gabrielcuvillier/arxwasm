@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -22,6 +22,7 @@
 #include "core/Application.h"
 #include "core/Config.h"
 #include "core/Core.h"
+#include "core/GameTime.h"
 #include "game/Inventory.h"
 #include "game/Item.h"
 #include "game/Player.h"
@@ -170,15 +171,19 @@ void SecondaryInventoryHud::update() {
 		// Pick All/Close Secondary Inventory
 		if(TSecondaryInventory) {
 			//These have to be calculated on each frame (to make them move).
-			Rectf parent = Rectf(Vec2f(m_fadePosition, 0), m_defaultBackground->m_size.x * m_scale, m_defaultBackground->m_size.y * m_scale);
 			
 			m_pickAllButton.setScale(m_scale);
 			m_closeButton.setScale(m_scale);
 			
-			m_pickAllButton.update(parent);
-			m_closeButton.update(parent);
+			m_pickAllButton.update(m_rect);
+			m_closeButton.update(m_rect);
 		}
 	}
+}
+
+void SecondaryInventoryHud::updateRect() {
+	
+	m_rect = Rectf(Vec2f(m_fadePosition * m_scale, 0.f), m_size.x * m_scale, m_size.y * m_scale);
 }
 
 void SecondaryInventoryHud::draw() {
@@ -199,8 +204,7 @@ void SecondaryInventoryHud::draw() {
 			ingame_inventory = tc;
 	}
 	
-	Rectf rect = Rectf(Vec2f(m_fadePosition * m_scale, 0.f), m_size.x * m_scale, m_size.y * m_scale);
-	EERIEDrawBitmap(rect, 0.001f, ingame_inventory, Color::white);
+	EERIEDrawBitmap(m_rect, 0.001f, ingame_inventory, Color::white);
 	
 	for(long y = 0; y < inventory->m_size.y; y++) {
 		for(long x = 0; x < inventory->m_size.x; x++) {
@@ -227,7 +231,7 @@ void SecondaryInventoryHud::draw() {
 				UpdateGoldObject(io);
 				
 				Vec2f p = Vec2f(
-				(m_fadePosition * m_scale) + (float)x*(32 * m_scale) + (2 * m_scale),
+				m_rect.left + (float)x*(32 * m_scale) + (2 * m_scale),
 				(float)y*(32 * m_scale) + (13 * m_scale)
 				);
 				
@@ -235,8 +239,11 @@ void SecondaryInventoryHud::draw() {
 				
 				Color color = (io->poisonous && io->poisonous_count!=0) ? Color::green : Color::white;
 				
+				if(tc2) {
+					ARX_INTERFACE_HALO_Render(io->halo.color, io->halo.flags, tc2, p, Vec2f(m_scale));
+				}
+				
 				Rectf rect(p, size.x * m_scale, size.y * m_scale);
-				// TODO use alpha blending so this will be anti-aliased even w/o alpha to coverage
 				EERIEDrawBitmap(rect, 0.001f, tc, color);
 				
 				Color overlayColor = Color::black;
@@ -248,16 +255,8 @@ void SecondaryInventoryHud::draw() {
 				}
 				
 				if(overlayColor != Color::black) {
-					GRenderer->SetBlendFunc(BlendSrcAlpha, BlendOne);
-					GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-					
+					UseRenderState state(render2D().blendAdditive());
 					EERIEDrawBitmap(rect, 0.001f, tc, overlayColor);
-					
-					GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-				}
-				
-				if(tc2) {
-					ARX_INTERFACE_HALO_Draw(io, tc, tc2, p, Vec2f(m_scale));
 				}
 				
 				if((io->ioflags & IO_ITEM) && io->_itemdata->count != 1)
@@ -313,8 +312,6 @@ bool SecondaryInventoryHud::containsPos(const Vec2s & pos) {
 	return false;
 }
 
-extern long HERO_OR_SECONDARY;
-
 Entity * SecondaryInventoryHud::getObj(const Vec2s & pos) {
 	
 	if(SecondaryInventory != NULL) {
@@ -344,7 +341,6 @@ Entity * SecondaryInventoryHud::getObj(const Vec2s & pos) {
 				if(!(io->gameFlags & GFLAG_INTERACTIVITY))
 					return NULL;
 
-				HERO_OR_SECONDARY = 2;
 				return io;
 			}
 		}
@@ -466,7 +462,7 @@ void SecondaryInventoryHud::dropEntity() {
 			
 			// SHOP
 			if(io->ioflags & IO_SHOP) {
-				player.gold += price;
+				ARX_PLAYER_AddGold(price);
 				ARX_SOUND_PlayInterface(SND_GOLD);
 			}
 
@@ -584,12 +580,13 @@ void SecondaryInventoryHud::close() {
 void SecondaryInventoryHud::updateFader() {
 	
 	if(m_fadeDirection != Fade_stable) {
+		float frameDelay = toMs(g_platformTime.lastFrameDuration());
 		if((player.Interface & INTER_COMBATMODE) || player.doingmagic >= 2 || m_fadeDirection == Fade_left) {
 			if(m_fadePosition > -160)
-				m_fadePosition -= (g_framedelay * ( 1.0f / 3 )) * m_scale;
+				m_fadePosition -= (frameDelay * ( 1.0f / 3 )) * m_scale;
 		} else {
 			if(m_fadePosition < 0)
-				m_fadePosition += m_fadeDirection * (g_framedelay * ( 1.0f / 3 )) * m_scale;
+				m_fadePosition += m_fadeDirection * (frameDelay * ( 1.0f / 3 )) * m_scale;
 		}
 		
 		if(m_fadePosition <= -160) {

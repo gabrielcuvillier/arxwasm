@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -51,6 +51,7 @@
 #include "scene/Interactive.h"
 #include "scene/GameSound.h"
 
+#include "gui/Hud.h"
 #include "gui/Interface.h"
 #include "gui/Text.h"
 #include "gui/Menu.h"
@@ -116,7 +117,7 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 	if(BLOCK_PLAYER_CONTROLS)
 		return false;
 
-	float ag = player.angle.getYaw();
+	float ag = player.angle.getPitch();
 
 	if(ag > 180)
 		ag = ag - 360;
@@ -126,13 +127,13 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 	if(DANAEMouse.y < drop_miny)
 		return false;
 	
-	Anglef temp = Anglef::ZERO;
+	Anglef angle = Anglef::ZERO;
 
 	if(io->ioflags & IO_INVERTED) {
-		temp.setYaw(180.f);
-		temp.setPitch(-MAKEANGLE(270.f - io->angle.getPitch() - (player.angle.getPitch() - STARTED_ANGLE)));
+		angle.setPitch(180.f);
+		angle.setYaw(-MAKEANGLE(270.f - io->angle.getYaw() - (player.angle.getYaw() - STARTED_ANGLE)));
 	} else {
-		temp.setPitch(MAKEANGLE(270.f - io->angle.getPitch() - (player.angle.getPitch() - STARTED_ANGLE)));
+		angle.setYaw(MAKEANGLE(270.f - io->angle.getYaw() - (player.angle.getYaw() - STARTED_ANGLE)));
 	}
 	
 	EERIE_3D_BBOX bbox;
@@ -140,7 +141,7 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 		bbox.add(io->obj->vertexlist[i].v);
 	}
 	
-	Vec3f mvectx = angleToVectorXZ(player.angle.getPitch() - 90.f);
+	Vec3f mvectx = angleToVectorXZ(player.angle.getYaw() - 90.f);
 	
 	Vec2f mod = Vec2f(Vec2i(DANAEMouse) - g_size.center()) / Vec2f(g_size.center()) * Vec2f(160.f, 220.f);
 	mvectx *= mod.x;
@@ -228,7 +229,7 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 	
 	}
 	
-	objcenter = VRotateY(objcenter, temp.getPitch());
+	objcenter = VRotateY(objcenter, angle.getYaw());
 	
 	collidpos.x -= objcenter.x;
 	collidpos.z -= objcenter.z;
@@ -247,7 +248,7 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 
 			io->gameFlags &= ~GFLAG_NOCOMPUTATION;
 			
-			glm::quat rotation = glm::toQuat(toRotationMatrix(temp));
+			glm::quat rotation = glm::quat_cast(toRotationMatrix(angle));
 			
 			if(SPECIAL_DRAGINTER_RENDER) {
 			if(glm::abs(lastanything) > glm::abs(height)) {
@@ -280,8 +281,7 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 				movev.z *= 0.0001f;
 				Vec3f viewvector = movev;
 
-				Anglef angle = temp;
-				io->soundtime = 0;
+				io->soundtime = ArxInstant_ZERO;
 				io->soundcount = 0;
 				EERIE_PHYSICS_BOX_Launch(io->obj, io->pos, angle, viewvector);
 				ARX_SOUND_PlaySFX(SND_WHOOSH, &pos);
@@ -292,9 +292,9 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 				ARX_SOUND_PlayInterface(SND_INVSTD);
 				ARX_INTERACTIVE_Teleport(io, pos, true);
 
-				io->angle.setYaw(temp.getYaw());
-				io->angle.setPitch(270.f - temp.getPitch());
-				io->angle.setRoll(temp.getRoll());
+				io->angle.setPitch(angle.getPitch());
+				io->angle.setYaw(270.f - angle.getYaw());
+				io->angle.setRoll(angle.getRoll());
 
 				io->stopped = 0;
 				io->show = SHOW_FLAG_IN_SCENE;
@@ -303,7 +303,6 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 			}
 		}
 
-		GRenderer->SetCulling(CullNone);
 		return true;
 	} else {
 		CANNOT_PUT_IT_HERE = EntityMoveCursor_Throw;
@@ -313,8 +312,8 @@ bool Manage3DCursor(Entity * io, bool simulate) {
 }
 
 extern long LOOKING_FOR_SPELL_TARGET;
-extern unsigned long LOOKING_FOR_SPELL_TARGET_TIME;
-extern bool PLAYER_INTERFACE_HIDE_COUNT;
+extern ArxInstant LOOKING_FOR_SPELL_TARGET_TIME;
+extern bool PLAYER_INTERFACE_SHOW;
 extern long lCursorRedistValue;
 
 int iHighLight=0;
@@ -325,8 +324,8 @@ static bool SelectSpellTargetCursorRender() {
 	if(   !SPECIAL_DRAGINTER_RENDER
 	   && LOOKING_FOR_SPELL_TARGET
 	) {
-		float elapsed = arxtime.now_f() - LOOKING_FOR_SPELL_TARGET_TIME;
-		if(elapsed > 7000) {
+		ArxDuration elapsed = arxtime.now() - LOOKING_FOR_SPELL_TARGET_TIME;
+		if(elapsed > ArxDurationMs(7000)) {
 			ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE, &player.pos);
 			ARX_SPELLS_CancelSpellTarget();
 		}
@@ -370,15 +369,15 @@ static bool SelectSpellTargetCursorRender() {
 
 class CursorAnimatedHand {
 private:
-	long m_time;
+	PlatformDuration m_time;
 	long m_frame;
-	long m_delay;
+	PlatformDuration m_delay;
 	
 public:
 	CursorAnimatedHand()
-		: m_time(0)
+		: m_time(PlatformDuration_ZERO)
 		, m_frame(0)
-		, m_delay(70)
+		, m_delay(PlatformDurationMs(70))
 	{}
 	
 	void reset() {
@@ -386,7 +385,7 @@ public:
 	}
 	
 	void update1() {
-		m_time += checked_range_cast<long>(Original_framedelay);
+		m_time += g_platformTime.lastFrameDuration();
 		
 		if(m_frame!=3) {
 			while(m_time > m_delay) {
@@ -401,7 +400,7 @@ public:
 	
 	void update2() {
 		if(m_frame) {
-			m_time += checked_range_cast<long>(Original_framedelay);
+			m_time += g_platformTime.lastFrameDuration();
 
 			while(m_time > m_delay) {
 				m_time -= m_delay;
@@ -425,17 +424,16 @@ CursorAnimatedHand cursorAnimatedHand = CursorAnimatedHand();
 
 static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 	
+	UseRenderState state(render2D());
+	
 	if(SelectSpellTargetCursorRender()) {
 		return;
 	}
 	
-	if(!(flag || (!BLOCK_PLAYER_CONTROLS && PLAYER_INTERFACE_HIDE_COUNT))) {
+	if(!(flag || (!BLOCK_PLAYER_CONTROLS && PLAYER_INTERFACE_SHOW))) {
 		return;
 	}
 		
-	if(!SPECIAL_DRAGINTER_RENDER)
-		GRenderer->SetCulling(CullNone);
-	
 	if(COMBINE || COMBINEGOLD) {
 		if(SpecialCursor == CURSOR_INTERACTION_ON)
 			SpecialCursor = CURSOR_COMBINEON;
@@ -445,7 +443,7 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 	
 	if(!SPECIAL_DRAGINTER_RENDER) {
 		if(FlyingOverIO || DRAGINTER) {
-			fHighLightAng += g_framedelay * 0.5f;
+			fHighLightAng += toMs(g_platformTime.lastFrameDuration()) * 0.5f;
 			
 			if(fHighLightAng > 90.f)
 				fHighLightAng = 90.f;
@@ -457,6 +455,13 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 			fHighLightAng = 0.f;
 			iHighLight = 0;
 		}
+	}
+
+	float iconScale = g_hudRoot.getScale();
+	float cursorScale = 1.0f;
+	
+	if(config.interface.scaleCursorWithHud) {
+		cursorScale = g_hudRoot.getScale();
 	}
 	
 	if(   SpecialCursor
@@ -472,7 +477,7 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 	   || (MAGICMODE && PLAYER_MOUSELOOK_ON)
 	) {
 		CANNOT_PUT_IT_HERE = EntityMoveCursor_Ok;
-		float ag=player.angle.getYaw();
+		float ag=player.angle.getPitch();
 		
 		if(ag > 180)
 			ag = ag - 360;
@@ -514,6 +519,20 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 					tc = COMBINE->m_icon;
 				
 				Vec2f size(tc->m_size.x, tc->m_size.y);
+				size *= iconScale;
+				
+				TextureContainer * haloTc = NULL;
+				
+				if(COMBINE && NeedHalo(COMBINE))
+					haloTc = tc->getHalo();
+				
+				if(haloTc) {
+					Color3f haloColor = COMBINE->halo.color;
+					if(SpecialCursor != CURSOR_COMBINEON) {
+						haloColor *= Color(255, 170, 102).to<float>();
+					}
+					ARX_INTERFACE_HALO_Render(haloColor, COMBINE->halo.flags, haloTc, mousePos, Vec2f(iconScale));
+				}
 				
 				if(SpecialCursor == CURSOR_COMBINEON) {
 					EERIEDrawBitmap(Rectf(mousePos, size.x, size.y), .00001f, tc, Color::white);
@@ -523,7 +542,7 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 						
 						if(v > 0.f) {
 							long t = long(v);
-							Vec2f nuberOffset = Vec2f(-16, -10);
+							Vec2f nuberOffset = Vec2f(-16, -10) * iconScale;
 							ARX_INTERFACE_DrawNumber(mousePos + nuberOffset, t, 6, Color::cyan, 1.f);
 						}
 					}
@@ -581,8 +600,8 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 				
 				UNICODE_ARXDrawTextCenter(hFontInBook, textPos, ss.str(), Color::black);
 			} else {
-				
-				EERIEDrawBitmap(Rectf(mousePos, float(surf->m_size.x), float(surf->m_size.y)), 0.f, surf, Color::white);
+				Vec2f size = Vec2f(surf->m_size) * cursorScale;
+				EERIEDrawBitmap(Rectf(mousePos, size.x, size.y), 0.f, surf, Color::white);
 			}
 			
 			SpecialCursor = 0;
@@ -608,6 +627,7 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 				}
 				
 				Vec2f size(surf->m_size.x, surf->m_size.y);
+				size *= cursorScale;
 				
 				pos += -size * 0.5f;
 				
@@ -633,13 +653,18 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 						pos = MemoMouse;
 					}
 					
-					Rectf rect(pos, float(tc->m_size.x), float(tc->m_size.y));
+					Vec2f size = Vec2f(tc->m_size) * iconScale;
+					Rectf rect(pos, size.x, size.y);
+					
+					if(haloTc) {
+						ARX_INTERFACE_HALO_Render(DRAGINTER->halo.color, DRAGINTER->halo.flags, haloTc, pos, Vec2f(iconScale));
+					}
 					
 					if(!(DRAGINTER->ioflags & IO_MOVABLE)) {
 						EERIEDrawBitmap(rect, .00001f, tc, color);
 						
 						if((DRAGINTER->ioflags & IO_ITEM) && DRAGINTER->_itemdata->count != 1) {
-							Vec2f nuberOffset = Vec2f(2.f, 13.f);
+							Vec2f nuberOffset = Vec2f(2.f, 13.f) * iconScale;
 							ARX_INTERFACE_DrawNumber(pos + nuberOffset, DRAGINTER->_itemdata->count, 3, Color::white, 1.f);
 						}
 					} else {
@@ -659,19 +684,19 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 						if(CANNOT_PUT_IT_HERE == EntityMoveCursor_Throw)
 							tcc = cursorThrowObject;
 						
-						if(tcc && tcc != tc) // to avoid movable double red cross...
-							EERIEDrawBitmap(Rectf(Vec2f(pos.x + 16, pos.y), float(tcc->m_size.x), float(tcc->m_size.y)), 0.00001f, tcc, Color::white);
+						if(tcc && tcc != tc) { // to avoid movable double red cross...
+							Vec2f size = Vec2f(tcc->m_size) * cursorScale;
+							EERIEDrawBitmap(Rectf(Vec2f(pos.x + 16, pos.y), size.x, size.y), 0.00001f, tcc, Color::white);
+						}
 					}
 					
-					if(haloTc) {
-						ARX_INTERFACE_HALO_Draw(DRAGINTER, tc, haloTc, pos, Vec2f(1));
-					}
 				} else {
 					cursorAnimatedHand.update2();
 					TextureContainer * surf = cursorAnimatedHand.getCurrentTexture();
 					
 					if(surf) {
-						EERIEDrawBitmap(Rectf(mousePos, float(surf->m_size.x), float(surf->m_size.y)), 0.f, surf, Color::white);
+						Vec2f size = Vec2f(surf->m_size) * cursorScale;
+						EERIEDrawBitmap(Rectf(mousePos, size.x, size.y), 0.f, surf, Color::white);
 					}
 				}
 			}
@@ -689,14 +714,14 @@ static void ARX_INTERFACE_RenderCursorInternal(bool flag) {
 			TextureContainer * surf = cursorCrossHair;
 			arx_assert(surf);
 			
-			GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-			GRenderer->SetBlendFunc(BlendOne, BlendOne);
+			
+			UseRenderState state(render2D().blendAdditive());
 			
 			Vec2f pos = Vec2f(g_size.center()) - Vec2f(surf->m_size) * .5f;
 			
-			EERIEDrawBitmap(Rectf(pos, float(surf->m_size.x), float(surf->m_size.y)), 0.f, surf, Color3f::gray(.5f).to<u8>());
+			Vec2f size = Vec2f(surf->m_size) * cursorScale;
+			EERIEDrawBitmap(Rectf(pos, size.x, size.y), 0.f, surf, Color3f::gray(.5f).to<u8>());
 			
-			GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 		}
 	}
 }
@@ -707,8 +732,13 @@ void ARX_INTERFACE_RenderCursor(bool flag) {
 	
 	if (!SPECIAL_DRAGINTER_RENDER)
 	{
-		GRenderer->GetTextureStage(0)->setMinFilter(TextureStage::FilterNearest);
-		GRenderer->GetTextureStage(0)->setMagFilter(TextureStage::FilterNearest);
+		
+		TextureStage::FilterMode filter = TextureStage::FilterLinear;
+		if(config.interface.hudScaleFilter == UIFilterNearest) {
+			filter = TextureStage::FilterNearest;
+		}
+		GRenderer->GetTextureStage(0)->setMinFilter(filter);
+		GRenderer->GetTextureStage(0)->setMagFilter(filter);
 		GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
 	}
 

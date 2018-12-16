@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -19,14 +19,17 @@
 
 #include "input/SDL2InputBackend.h"
 
+#include <glm/glm.hpp>
+
 #include "io/log/Logger.h"
+#include "math/Rectangle.h"
 #include "platform/PlatformConfig.h"
 
-static int sdlToArxKey[SDL_NUM_SCANCODES];
+static Keyboard::Key sdlToArxKey[SDL_NUM_SCANCODES];
 
-static int sdlToArxButton[10];
+static Mouse::Button sdlToArxButton[10];
 
-SDL2InputBackend::SDL2InputBackend(SDL2Window * window) : m_window(window) {
+SDL2InputBackend::SDL2InputBackend(SDL2Window * window) : m_window(window), m_textHandler(NULL) {
 	
 	arx_assert(window != NULL);
 	
@@ -35,11 +38,13 @@ SDL2InputBackend::SDL2InputBackend(SDL2Window * window) : m_window(window) {
 	SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
 	SDL_EventState(SDL_KEYDOWN, SDL_ENABLE);
 	SDL_EventState(SDL_KEYUP, SDL_ENABLE);
+	SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
+	SDL_EventState(SDL_TEXTEDITING, SDL_ENABLE);
 	SDL_EventState(SDL_MOUSEMOTION, SDL_ENABLE);
 	SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_ENABLE);
 	SDL_EventState(SDL_MOUSEBUTTONUP, SDL_ENABLE);
 	
-	std::fill_n(sdlToArxKey, ARRAY_SIZE(sdlToArxKey), -1);
+	std::fill_n(sdlToArxKey, ARRAY_SIZE(sdlToArxKey), Keyboard::Key_Invalid);
 	
 	sdlToArxKey[SDL_SCANCODE_BACKSPACE] = Keyboard::Key_Backspace;
 	sdlToArxKey[SDL_SCANCODE_TAB] = Keyboard::Key_Tab;
@@ -152,7 +157,7 @@ SDL2InputBackend::SDL2InputBackend(SDL2Window * window) : m_window(window) {
 	sdlToArxKey[SDL_SCANCODE_APPLICATION] = Keyboard::Key_Apps;
 	sdlToArxKey[SDL_SCANCODE_PRINTSCREEN] = Keyboard::Key_PrintScreen;
 	
-	std::fill_n(sdlToArxButton, ARRAY_SIZE(sdlToArxButton), -1);
+	std::fill_n(sdlToArxButton, ARRAY_SIZE(sdlToArxButton), Mouse::Button_Invalid);
 	
 	ARX_STATIC_ASSERT(9 < ARRAY_SIZE(sdlToArxButton), "array size mismatch");
 	sdlToArxButton[8] = Mouse::Button_5;
@@ -241,6 +246,33 @@ bool SDL2InputBackend::isKeyboardKeyPressed(int keyId) const {
 	return keyStates[keyId - Keyboard::KeyBase];
 }
 
+void SDL2InputBackend::startTextInput(const Rect & box, TextInputHandler * handler) {
+	SDL_Rect rect;
+	rect.x = box.left;
+	rect.y = box.right;
+	rect.w = box.width();
+	rect.h = box.height();
+	SDL_SetTextInputRect(&rect);
+	if(!m_textHandler) {
+		SDL_StartTextInput();
+	} else if(handler != m_textHandler && !m_editText.empty()) {
+		m_textHandler->editingText(std::string(), 0, 0);
+		handler->editingText(m_editText, m_editCursorPos, m_editCursorLength);
+	}
+	m_textHandler = handler;
+}
+
+void SDL2InputBackend::stopTextInput() {
+	if(m_textHandler) {
+		if(!m_editText.empty()) {
+			m_textHandler->editingText(std::string(), 0, 0);
+			m_editText.clear();
+		}
+		SDL_StopTextInput();
+	}
+	m_textHandler = NULL;
+}
+
 void SDL2InputBackend::onEvent(const SDL_Event & event) {
 	
 	switch(event.type) {
@@ -257,10 +289,41 @@ void SDL2InputBackend::onEvent(const SDL_Event & event) {
 		case SDL_KEYDOWN:
 		case SDL_KEYUP: {
 			SDL_Scancode key = event.key.keysym.scancode;
-			if(key >= 0 && size_t(key) < ARRAY_SIZE(sdlToArxKey) && sdlToArxKey[key] >= 0) {
-				keyStates[sdlToArxKey[key] - Keyboard::KeyBase] = (event.key.state == SDL_PRESSED);
+			if(key >= 0 && size_t(key) < ARRAY_SIZE(sdlToArxKey) && sdlToArxKey[key] != Keyboard::Key_Invalid) {
+				Keyboard::Key arxkey = sdlToArxKey[key];
+				if(m_textHandler && event.key.state == SDL_PRESSED) {
+					KeyModifiers mod;
+					mod.shift = (event.key.keysym.mod & KMOD_SHIFT) != 0;
+					mod.control = (event.key.keysym.mod & KMOD_CTRL) != 0;
+					mod.alt = (event.key.keysym.mod & KMOD_ALT) != 0;
+					mod.gui = (event.key.keysym.mod & KMOD_GUI) != 0;
+					mod.num = (event.key.keysym.mod & KMOD_NUM) != 0;
+					if(m_textHandler->keyPressed(arxkey, mod)) {
+						break;
+					}
+				}
+				keyStates[arxkey - Keyboard::KeyBase] = (event.key.state == SDL_PRESSED);
 			} else {
 				LogWarning << "Unmapped SDL key: " << (int)key << " = " << SDL_GetScancodeName(key);
+			}
+			break;
+		}
+		
+		case SDL_TEXTINPUT: {
+			if(m_textHandler) {
+				m_editText.clear();
+				m_textHandler->newText(event.text.text);
+			}
+			break;
+		}
+		
+		case SDL_TEXTEDITING: {
+			if(m_textHandler) {
+				// TODO do we need to convert from characters to bytes here?
+				m_editText = event.edit.text;
+				m_editCursorPos = glm::clamp(size_t(event.edit.start), size_t(0), m_editText.size());
+				m_editCursorLength = glm::clamp(size_t(event.edit.length), size_t(0), m_editText.size() - m_editCursorPos);
+				m_textHandler->editingText(m_editText, m_editCursorPos, m_editCursorLength);
 			}
 			break;
 		}
@@ -274,12 +337,13 @@ void SDL2InputBackend::onEvent(const SDL_Event & event) {
 		
 		case SDL_MOUSEWHEEL: {
 			wheel += event.wheel.y;
+			break;
 		}
 		
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP: {
 			Uint8 button = event.button.button;
-			if(button < ARRAY_SIZE(sdlToArxButton) && sdlToArxButton[button] >= 0) {
+			if(button < ARRAY_SIZE(sdlToArxButton) && sdlToArxButton[button] != Mouse::Button_Invalid) {
 				size_t i = sdlToArxButton[button] - Mouse::ButtonBase;
 				if((event.button.state == SDL_PRESSED)) {
 					buttonStates[i] = true, clickCount[i]++;

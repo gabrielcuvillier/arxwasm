@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -44,27 +44,19 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 //
 // Copyright (c) 1999 ARKANE Studios SA. All rights reserved
 
-#ifndef ARX_IO_IO_H
-#define ARX_IO_IO_H
+#ifndef ARX_GRAPHICS_EFFECTS_POLYBOOM_H
+#define ARX_GRAPHICS_EFFECTS_POLYBOOM_H
 
-#include <stddef.h>
+#include "graphics/BaseGraphicsTypes.h"
+#include "graphics/Color.h"
+#include "math/Types.h"
 
-#include "Configure.h"
+void PolyBoomClear();
+size_t PolyBoomCount();
 
-#if BUILD_EDIT_LOADSAVE
+void PolyBoomAddScorch(const Vec3f & pos);
+void PolyBoomAddSplat(const Sphere & sp, const Color3f & col, long flags);
 
-namespace fs { class path; }
+void PolyBoomDraw();
 
-/*!
- * Create a hash of the file.
- * \param name Name of the file to hash. Must be on the local filesystem and not in a PAK.
- * \param scheck The destination buffer to which the hash is written.
- * \param size The size of the destination buffer scheck.
- * \param id An ID that contributes to the hash.
- * \return false if the hash was created, true if the file could not be read
- */
-void HERMES_CreateFileCheck(const fs::path & name, char * scheck, size_t size, float id);
-
-#endif // BUILD_EDIT_LOADSAVE
-
-#endif // ARX_IO_IO_H
+#endif // ARX_GRAPHICS_EFFECTS_POLYBOOM_H

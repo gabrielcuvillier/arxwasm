@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -47,7 +47,6 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <cstring>
 
 #include <boost/foreach.hpp>
-#include <glm/gtc/random.hpp>
 
 #include "core/GameTime.h"
 
@@ -60,6 +59,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/particle/Particle.h"
 
 #include "math/Random.h"
+#include "math/RandomVector.h"
 
 
 ParticleSystem::ParticleSystem() {
@@ -165,7 +165,7 @@ void ParticleSystem::SetParticleParams(Particle * pP) {
 	
 	if((m_parameters.m_spawnFlags & PARTICLE_CIRCULAR) == PARTICLE_CIRCULAR) {
 		
-		Vec2f pos = glm::circularRand(1.f);
+		Vec2f pos = arx::circularRand(1.f);
 		pP->p3Pos.x = pos.x;
 		pP->p3Pos.z = pos.y;
 		
@@ -175,14 +175,14 @@ void ParticleSystem::SetParticleParams(Particle * pP) {
 			pP->p3Pos *= Vec3f(Random::getf(), 1.f, Random::getf());
 		}
 	} else {
-		pP->p3Pos = randomVec(-1.f, 1.f);
+		pP->p3Pos = arx::randomVec(-1.f, 1.f);
 	}
 	
 	pP->p3Pos *= m_parameters.m_pos;
 	
 	float fTTL = m_parameters.m_life + Random::getf() * m_parameters.m_lifeRandom;
-	pP->m_timeToLive = checked_range_cast<long>(fTTL);
-	pP->fOneOnTTL = 1.0f / pP->m_timeToLive;
+	pP->m_timeToLive = ArxDurationMs(fTTL);
+	pP->fOneOnTTL = 1.0f / toMs(pP->m_timeToLive);
 
 	float fAngleX = Random::getf() * m_parameters.m_angle; //*0.5f;
  
@@ -246,12 +246,12 @@ bool ParticleSystem::IsAlive() {
 	return true;
 }
 
-void ParticleSystem::Update(long _lTime) {
+void ParticleSystem::Update(ArxDuration delta) {
 
 	if(arxtime.is_paused())
 		return;
 
-	float fTimeSec = _lTime * ( 1.0f / 1000 );
+	float fTimeSec = toMs(delta) * ( 1.0f / 1000 );
 	
 	iParticleNbAlive = 0;
 	
@@ -260,7 +260,7 @@ void ParticleSystem::Update(long _lTime) {
 		Particle * pP = *i;
 		
 		if(pP->isAlive()) {
-			pP->Update(_lTime);
+			pP->Update(delta);
 			pP->p3Velocity += m_parameters.m_gravity * fTimeSec;
 			iParticleNbAlive ++;
 			++i;
@@ -272,7 +272,7 @@ void ParticleSystem::Update(long _lTime) {
 				pP->Regen();
 				SetParticleParams(pP);
 				pP->Validate();
-				pP->Update(0);
+				pP->Update(ArxDuration_ZERO);
 				iParticleNbAlive++;
 				++i;
 			}
@@ -291,7 +291,7 @@ void ParticleSystem::Update(long _lTime) {
 			Particle * pP  = new Particle();
 			SetParticleParams(pP);
 			pP->Validate();
-			pP->Update(0);
+			pP->Update(ArxDuration_ZERO);
 			listParticle.insert(listParticle.end(), pP);
 			iParticleNbAlive++;
 		}
@@ -325,7 +325,7 @@ void ParticleSystem::Render() {
 				inumtex = p->iTexNum;
 
 				if(iTexTime == 0) {
-					float fNbTex	= (p->m_age * p->fOneOnTTL) * (iNbTex);
+					float fNbTex = (toMs(p->m_age) * p->fOneOnTTL) * (iNbTex);
 
 					inumtex = checked_range_cast<int>(fNbTex);
 					if(inumtex >= iNbTex) {
@@ -358,9 +358,9 @@ void ParticleSystem::Render() {
 			if(m_parameters.m_rotation != 0) {
 				float fRot;
 				if(p->iRot == 1)
-					fRot = (m_parameters.m_rotation) * p->m_age + p->fRotStart;
+					fRot = (m_parameters.m_rotation) * toMs(p->m_age) + p->fRotStart;
 				else
-					fRot = (-m_parameters.m_rotation) * p->m_age + p->fRotStart;
+					fRot = (-m_parameters.m_rotation) * toMs(p->m_age) + p->fRotStart;
 
 				float size = std::max(p->fSize, 0.f);
 				

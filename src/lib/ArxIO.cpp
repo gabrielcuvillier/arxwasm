@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -47,6 +47,7 @@ public:
 		switch(level) {
 		case Logger::Debug:    levelName = "Debug"; break;
 		case Logger::Info:     levelName = "Info"; break;
+		case Logger::Console:  levelName = "Console"; break;
 		case Logger::Warning:  levelName = "Warning"; break;
 		case Logger::Error:    levelName = "Error"; break;
 		case Logger::Critical: levelName = "Critical"; break;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -140,14 +140,14 @@ struct IO_SPELLCAST_DATA {
 	SpellcastFlags spell_flags;
 	short spell_level;
 	EntityHandle target;
-	long duration;
+	ArxDuration duration;
 	
 	IO_SPELLCAST_DATA()
 		: castingspell(SPELL_NONE)
 		, spell_flags()
 		, spell_level(0)
 		, target()
-		, duration(0)
+		, duration(ArxDuration_ZERO)
 	{
 		for(unsigned long j(0); j < 4; j++)
 			symb[j] = RUNE_NONE;
@@ -235,7 +235,7 @@ enum EntityVisilibity {
 
 struct AnimationBlendStatus {
 	bool m_active;
-	unsigned long lastanimtime;
+	ArxInstant lastanimtime;
 };
 
 class Entity {
@@ -319,19 +319,18 @@ public:
 	
 	std::set<std::string> groups;
 	Vec2s m_inventorySize;// Inventory Icon size
-	unsigned long soundtime;
+	ArxInstant soundtime;
 	unsigned long soundcount;
 	
-	unsigned long sfx_time;
-	unsigned long collide_door_time;
-	unsigned long ouch_time;
+	ArxInstant sfx_time;
+	ArxInstant collide_door_time;
+	ArxInstant ouch_time;
 	float dmg_sum;
 	
 	IO_SPELLCAST_DATA spellcast_data;
 	short flarecount;
 	EntityHandle no_collide;
 	float invisibility;
-	float frameloss;
 	float basespeed;
 	
 	float speed_modif;

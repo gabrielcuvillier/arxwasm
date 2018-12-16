@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -63,7 +63,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 Input * GInput = NULL;
 
 // TODO-input: Clean me!
-extern long EERIEMouseButton;
+long EERIEMouseButton = 0;
+long LastMouseClick = 0;
 
 // All standard keys
 // "+" should not appear in names as it is used as a separator
@@ -214,16 +215,20 @@ bool Input::init(Window * window) {
 	arx_assert(backend == NULL);
 	
 	backend = window->getInputBackend();
+	if(backend == NULL) {
+		return false;
+	}
 	
 	int x, y;
 	backend->getAbsoluteMouseCoords(x, y);
 	m_lastMousePosition = Vec2s(x, y);
 	
-	return (backend != NULL);
+	return true;
 }
 
 void Input::reset() {
-	iMouseR = Vec2s_ZERO;
+	
+	m_mouseMovement = Vec2f_ZERO;
 
 	for(size_t i = 0; i < Mouse::ButtonCount; i++) {
 		iMouseTime[i] = 0;
@@ -292,7 +297,7 @@ void Input::setMousePosAbs(const Vec2s & mousePos) {
 	m_lastMousePosition = iMouseA = mousePos;
 }
 
-void Input::update() {
+void Input::update(float time) {
 
 	backend->update();
 
@@ -373,50 +378,48 @@ void Input::update() {
 		}
 	}
 	
-	arxtime.update(false);
-	const unsigned long now = arxtime.now_ul();
-
+	const s64 now = platform::getTimeMs();
+	
 	for(int buttonId = Mouse::ButtonBase; buttonId < Mouse::ButtonMax; buttonId++) {
 		int i = buttonId - Mouse::ButtonBase;
-
+		
 		int iNumClick;
 		int iNumUnClick;
 		backend->getMouseButtonClickCount(buttonId, iNumClick, iNumUnClick);
-
-		iOldNumClick[i]+=iNumClick+iNumUnClick;
-
+		
+		iOldNumClick[i] += iNumClick + iNumUnClick;
+		
 		if(!bMouseButton[i] && iOldNumClick[i] == iNumUnClick) {
-			iOldNumClick[i]=0;
+			iOldNumClick[i] = 0;
 		}
-
-		bOldMouseButton[i]=bMouseButton[i];
-
+		
+		bOldMouseButton[i] = bMouseButton[i];
+		
 		if(bMouseButton[i]) {
 			if(iOldNumClick[i]) {
-				bMouseButton[i]=false;
+				bMouseButton[i] = false;
 			}
 		} else {
 			if(iOldNumClick[i]) {
-				bMouseButton[i]=true;
+				bMouseButton[i] = true;
 			}
 		}
-
+		
 		if(iOldNumClick[i]) 
 			iOldNumClick[i]--;
 		
 		int iDTime;
-		backend->isMouseButtonPressed(buttonId,iDTime);
-
+		backend->isMouseButtonPressed(buttonId, iDTime);
+		
 		if(iDTime) {
-			iMouseTime[i]=iDTime;
-			iMouseTimeSet[i]=2;
+			iMouseTime[i] = iDTime;
+			iMouseTimeSet[i] = 2;
 		} else {
-			arxtime.update(false);
-			if(iMouseTimeSet[i] > 0 && (arxtime.now_f() - iMouseTime[i]) > 300) {
-				iMouseTime[i]=0;
-				iMouseTimeSet[i]=0;
+			if(iMouseTimeSet[i] > 0 && (now - iMouseTime[i]) > 300) {
+				iMouseTime[i] = 0;
+				iMouseTimeSet[i] = 0;
 			}
-
+			
 			if(getMouseButtonNowPressed(buttonId)) {
 				switch(iMouseTimeSet[i]) {
 				case 0:
@@ -457,21 +460,31 @@ void Input::update() {
 	if(m_mouseMode == Mouse::Relative) {
 		
 		if(m_useRawMouseInput) {
-			iMouseR = Vec2s(relX * 2, relY * 2);
+			m_mouseMovement = Vec2f(relX * 2, relY * 2);
 		} else {
-			iMouseR = newMousePosition - m_lastMousePosition;
-			m_lastMousePosition = newMousePosition;
-			if(iMouseR != Vec2s_ZERO) {
+			m_mouseMovement = Vec2f(newMousePosition - m_lastMousePosition);
+			if(newMousePosition != m_lastMousePosition) {
 				centerMouse();
+			} else {
+				m_lastMousePosition = newMousePosition;
 			}
 		}
 		
 		// Use the sensitivity config value to adjust relative mouse mouvements
-		float fSensMax = 1.f / 6.f;
-		float fSensMin = 2.f;
-		float fSens = ( ( fSensMax - fSensMin ) * ( (float)iSensibility ) / 10.f ) + fSensMin;
-		fSens = std::pow(0.7f, fSens) * 2.f;
-		iMouseR *= fSens;
+		m_mouseMovement *= m_mouseSensitivity;
+		
+		if(m_mouseAcceleration > 0 && time > 0.0f) {
+			Vec2f speed = m_mouseMovement / (time * 0.14f);
+			Vec2f sign(speed.x < 0 ? -1.f : 1.f, speed.y < 0 ? -1.f : 1.f);
+			float exponent = 1.f + m_mouseAcceleration * 0.05f;
+			speed.x = (std::pow(speed.x * sign.x + 1.f, exponent) - 1.f) * sign.x;
+			speed.y = (std::pow(speed.y * sign.y + 1.f, exponent) - 1.f) * sign.y;
+			m_mouseMovement = speed * (time * 0.14f);
+		}
+		
+		if(m_invertMouseY) {
+			m_mouseMovement.y *= -1.f;
+		}
 		
 		if(!mouseInWindow) {
 			LogWarning << "Cursor escaped the window while in relative input mode";
@@ -479,13 +492,16 @@ void Input::update() {
 		}
 		
 	} else {
-		iMouseR = Vec2s_ZERO;
-		m_lastMousePosition = newMousePosition;
+		m_mouseMovement = Vec2f_ZERO;
+		if(!m_useRawMouseInput) {
+			m_lastMousePosition = newMousePosition;
+		}
 	}
+	
 	
 }
 
-std::map<std::string, InputKeyId> keyNames;
+static std::map<std::string, InputKeyId> keyNames;
 
 std::string Input::getKeyName(InputKeyId key, bool localizedName) {
 	
@@ -502,20 +518,20 @@ std::string Input::getKeyName(InputKeyId key, bool localizedName) {
 		key &= INPUT_MASK;
 	}
 	
-	if(key >= (InputKeyId)Mouse::ButtonBase && key < (InputKeyId)Mouse::ButtonMax) {
+	if(key >= InputKeyId(Mouse::ButtonBase) && key < InputKeyId(Mouse::ButtonMax)) {
 		
 		std::ostringstream oss;
-		oss << PREFIX_BUTTON << (int)(key - Mouse::ButtonBase + 1);
+		oss << PREFIX_BUTTON << int(key - Mouse::ButtonBase + 1);
 		name = oss.str();
 	
-	} else if(key == (InputKeyId)Mouse::Wheel_Up) {
+	} else if(key == InputKeyId(Mouse::Wheel_Up)) {
 		name = "WheelUp";
 
-	} else if(key == (InputKeyId)Mouse::Wheel_Down) {
+	} else if(key == InputKeyId(Mouse::Wheel_Down)) {
 		name = "WheelDown";
 
 	} else {
-		arx_assert(key >= 0 && key < (int)ARRAY_SIZE(keysDescriptions));
+		arx_assert(key >= 0 && key < int(ARRAY_SIZE(keysDescriptions)));
 		const KeyDescription & entity = keysDescriptions[key];
 		
 		arx_assert(entity.id == key);
@@ -524,7 +540,7 @@ std::string Input::getKeyName(InputKeyId key, bool localizedName) {
 	
 	if(name.empty()) {
 		std::ostringstream oss;
-		oss << PREFIX_KEY << (int)key;
+		oss << PREFIX_KEY << int(key);
 		name = oss.str();
 	}
 	
@@ -570,8 +586,8 @@ InputKeyId Input::getKeyId(const std::string & name) {
 		for(size_t i = 0; i < ARRAY_SIZE(keysDescriptions); i++) {
 			keyNames[keysDescriptions[i].name] = keysDescriptions[i].id;
 		}
-		keyNames["WheelUp"] = (InputKeyId)Mouse::Wheel_Up;
-		keyNames["WheelDown"] = (InputKeyId)Mouse::Wheel_Down;
+		keyNames["WheelUp"] = InputKeyId(Mouse::Wheel_Up);
+		keyNames["WheelDown"] = InputKeyId(Mouse::Wheel_Down);
 	}
 	
 	std::map<std::string, InputKeyId>::const_iterator it = keyNames.find(name);
@@ -582,8 +598,19 @@ InputKeyId Input::getKeyId(const std::string & name) {
 	return -1;
 }
 
-void Input::setMouseSensitivity(int _iSensibility) {
-	iSensibility = _iSensibility;
+void Input::setMouseSensitivity(int sensitivity) {
+	const float maxExponent = 1.f / 6.f;
+	const float minExponent = 2.f;
+	float exponent = (maxExponent - minExponent) * float(sensitivity) * 0.1f + minExponent;
+	m_mouseSensitivity = std::pow(0.7f, exponent) * (float(sensitivity) + 1.f) * 0.04f;
+}
+
+void Input::setMouseAcceleration(int acceleration) {
+	m_mouseAcceleration = acceleration;
+}
+
+void Input::setInvertMouseY(bool invert) {
+	m_invertMouseY = invert;
 }
 
 bool Input::isKeyPressed(int keyId) const {
@@ -750,6 +777,14 @@ bool Input::getKeyAsText(int keyId, char & result) const {
 	return false;
 }
 
+void Input::startTextInput(const Rect & box, TextInputHandler * handler) {
+	backend->startTextInput(box, handler);
+}
+
+void Input::stopTextInput() {
+	backend->stopTextInput();
+}
+
 bool Input::getMouseButton(int buttonId) const {
 	arx_assert(buttonId >= Mouse::ButtonBase && buttonId < Mouse::ButtonMax);
 
@@ -778,9 +813,11 @@ bool Input::getMouseButtonNowUnPressed(int buttonId) const {
 	return !bMouseButton[buttonIdx] && bOldMouseButton[buttonIdx];
 }
 
-bool Input::getMouseButtonDoubleClick(int buttonId, int timeMs) const {
+bool Input::getMouseButtonDoubleClick(int buttonId) const {
 	arx_assert(buttonId >= Mouse::ButtonBase && buttonId < Mouse::ButtonMax);
-
+	
+	int timeMs = 300;
+	
 	int buttonIdx = buttonId - Mouse::ButtonBase;
 	return (iMouseTimeSet[buttonIdx] == 2) && (iMouseTime[buttonIdx] < timeMs);
 }

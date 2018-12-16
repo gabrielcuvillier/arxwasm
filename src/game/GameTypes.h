@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -22,12 +22,13 @@
 
 #include "util/HandleType.h"
 
-ARX_HANDLE_TYPEDEF(long, EntityHandle,  -1)
-ARX_HANDLE_TYPEDEF(long, SpellHandle,   -1)
-ARX_HANDLE_TYPEDEF(long, PrecastHandle, -1)
-ARX_HANDLE_TYPEDEF(long, DamageHandle,  -1)
+typedef HandleType<struct EntityHandleTag,  long, -1> EntityHandle;
+typedef HandleType<struct SpellHandleTag,   long, -1> SpellHandle;
+typedef HandleType<struct PrecastHandleTag, long, -1> PrecastHandle;
+typedef HandleType<struct DamageHandleTag,  long, -1> DamageHandle;
 
-static const EntityHandle PlayerEntityHandle = EntityHandle(0);
+static const EntityHandle EntityHandle_Player = EntityHandle(0);
+static const EntityHandle EntityHandle_Self   = EntityHandle(-2);
 
 struct ResourcePool {
 	float current;
@@ -56,7 +57,9 @@ enum Material {
 	MATERIAL_FOOT_BARE,
 	MATERIAL_FOOT_SHOE,
 	MATERIAL_FOOT_METAL,
-	MATERIAL_FOOT_STEALTH
+	MATERIAL_FOOT_STEALTH,
+	
+	MAX_MATERIALS
 };
 
 #endif // ARX_GAME_GAMETYPES_H

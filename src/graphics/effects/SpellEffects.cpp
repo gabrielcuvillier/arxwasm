@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -48,30 +48,27 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "game/Player.h"
 #include "graphics/Math.h"
 #include "graphics/RenderBatcher.h"
+#include "math/RandomVector.h"
 #include "scene/Object.h"
 
 
 CSpellFx::CSpellFx()
 {
-	SetDuration(1000);
+	SetDuration(ArxDurationMs(1000));
 }
 
-void CSpellFx::SetDuration(const unsigned long ulaDuration) {
-	ulDuration = ulaDuration;
+void CSpellFx::SetDuration(ArxDuration ulaDuration) {
+	m_duration = ulaDuration;
 
-	if(ulDuration <= 0)
-		ulDuration = 100;
+	if(m_duration <= ArxDuration_ZERO)
+		m_duration = ArxDurationMs(100);
 	
-	ulCurrentTime = 0;
-}
-
-unsigned long CSpellFx::GetDuration() {
-	return ulDuration;
+	m_elapsed = ArxDuration_ZERO;
 }
 
 void Draw3DLineTexNew(const RenderMaterial & mat, Vec3f startPos, Vec3f endPos, Color startColor, Color endColor, float startSize, float endSize) {
 	
-	float fBeta = MAKEANGLE(player.angle.getPitch());
+	float fBeta = MAKEANGLE(player.angle.getYaw());
 	float xxs = startSize * glm::cos(glm::radians(fBeta));
 	float xxe = endSize * glm::cos(glm::radians(fBeta));
 	float zzs = startSize;
@@ -144,7 +141,7 @@ void Split(Vec3f * v, int a, int b, float yo, float fMul)
 
 		if ((i != a) && (i != b))
 		{
-			v[i] = (v[a] + v[b]) * 0.5f + randomVec(-yo, yo);
+			v[i] = (v[a] + v[b]) * 0.5f + arx::randomVec(-yo, yo);
 			Split(v, a, i, yo * fMul);
 			Split(v, i, b, yo * fMul);
 		}
@@ -165,15 +162,15 @@ EERIE_3DOBJ * stone1 = NULL;
 
 void LoadSpellModels() {
 	// TODO Load dynamically
-	cabal = LoadTheObj("editor/obj3d/cabal.teo", "cabal_teo maps");
-	ssol = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard.teo");
-	slight = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard02.teo");
-	srune = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard03.teo");
-	smotte = LoadTheObj("graph/obj3d/interactive/fix_inter/stalagmite/motte.teo");
-	stite = LoadTheObj("graph/obj3d/interactive/fix_inter/stalagmite/stalagmite.teo");
-	smissile = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_magic_missile/fx_magic_missile.teo");
-	spapi = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_papivolle/fx_papivolle.teo");
-	svoodoo = LoadTheObj("graph/obj3d/interactive/fix_inter/fx_voodoodoll/fx_voodoodoll.teo");
+	cabal = loadObject("editor/obj3d/cabal.teo");
+	ssol = loadObject("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard.teo");
+	slight = loadObject("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard02.teo");
+	srune = loadObject("graph/obj3d/interactive/fix_inter/fx_rune_guard/fx_rune_guard03.teo");
+	smotte = loadObject("graph/obj3d/interactive/fix_inter/stalagmite/motte.teo");
+	stite = loadObject("graph/obj3d/interactive/fix_inter/stalagmite/stalagmite.teo");
+	smissile = loadObject("graph/obj3d/interactive/fix_inter/fx_magic_missile/fx_magic_missile.teo");
+	spapi = loadObject("graph/obj3d/interactive/fix_inter/fx_papivolle/fx_papivolle.teo");
+	svoodoo = loadObject("graph/obj3d/interactive/fix_inter/fx_voodoodoll/fx_voodoodoll.teo");
 	stone0 = loadObject("graph/obj3d/interactive/fix_inter/fx_raise_dead/stone01.teo");
 	stone1 = loadObject("graph/obj3d/interactive/fix_inter/fx_raise_dead/stone02.teo");
 }
@@ -191,14 +188,3 @@ void ReleaseSpellModels() {
 	delete stone0, stone0 = NULL;
 	delete stone1, stone1 = NULL;
 }
-
-
-
-Vec3f randomOffsetXZ(float range) {
-	return Vec3f(Random::getf(-range, range), 0.f, Random::getf(-range, range));
-}
-
-
-
-
-

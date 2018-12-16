@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -93,7 +93,6 @@ static const size_t MAX_FOG = 100;
 extern FOG_DEF fogs[MAX_FOG];
 
 void ARX_FOGS_Render();
-long ARX_FOGS_Count();
 long ARX_FOGS_GetFree();
 void ARX_FOGS_Clear();
 

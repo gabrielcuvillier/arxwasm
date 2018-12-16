@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,6 +20,7 @@
 #include "game/effect/Quake.h"
 
 #include "core/GameTime.h"
+#include "math/RandomVector.h"
 #include "scene/GameSound.h"
 
 struct QUAKE_FX_STRUCT {
@@ -88,9 +89,9 @@ void ManageQuakeFX(EERIE_CAMERA * cam) {
 
 		float truepower = periodicity * QuakeFx.intensity * itmod * 0.01f;
 		float halfpower = truepower * .5f;
-		cam->orgTrans.pos += randomVec(-halfpower, halfpower);
-		cam->angle.setYaw(cam->angle.getYaw() + Random::getf() * truepower - halfpower);
+		cam->orgTrans.pos += arx::randomVec(-halfpower, halfpower);
 		cam->angle.setPitch(cam->angle.getPitch() + Random::getf() * truepower - halfpower);
+		cam->angle.setYaw(cam->angle.getYaw() + Random::getf() * truepower - halfpower);
 		cam->angle.setRoll(cam->angle.getRoll() + Random::getf() * truepower - halfpower);
 	}
 }

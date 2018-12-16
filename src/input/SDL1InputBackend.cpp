@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -21,6 +21,7 @@
 
 #include "io/log/Logger.h"
 #include "platform/Platform.h"
+#include "util/Unicode.h"
 
 #ifndef SDL_BUTTON_X1
 #define SDL_BUTTON_X1 6
@@ -29,11 +30,11 @@
 #define SDL_BUTTON_X2 7
 #endif
 
-static int sdlToArxKey[SDLK_LAST];
+static Keyboard::Key sdlToArxKey[SDLK_LAST];
 
-static int sdlToArxButton[10];
+static Mouse::Button sdlToArxButton[10];
 
-SDL1InputBackend::SDL1InputBackend() {
+SDL1InputBackend::SDL1InputBackend() : m_textHandler(NULL) {
 	
 	cursorInWindow = false;
 	
@@ -44,7 +45,7 @@ SDL1InputBackend::SDL1InputBackend() {
 	SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_ENABLE);
 	SDL_EventState(SDL_MOUSEBUTTONUP, SDL_ENABLE);
 	
-	std::fill_n(sdlToArxKey, ARRAY_SIZE(sdlToArxKey), -1);
+	std::fill_n(sdlToArxKey, ARRAY_SIZE(sdlToArxKey), Keyboard::Key_Invalid);
 	
 	sdlToArxKey[SDLK_BACKSPACE] = Keyboard::Key_Backspace;
 	sdlToArxKey[SDLK_TAB] = Keyboard::Key_Tab;
@@ -174,7 +175,7 @@ SDL1InputBackend::SDL1InputBackend() {
 	sdlToArxKey[SDLK_COMPOSE] = Keyboard::Key_Apps;
 	sdlToArxKey[SDLK_PRINT] = Keyboard::Key_PrintScreen;
 	
-	std::fill_n(sdlToArxButton, ARRAY_SIZE(sdlToArxButton), -1);
+	std::fill_n(sdlToArxButton, ARRAY_SIZE(sdlToArxButton), Mouse::Button_Invalid);
 	
 	ARX_STATIC_ASSERT(9 < ARRAY_SIZE(sdlToArxButton), "array size mismatch");
 	sdlToArxButton[8] = Mouse::Button_5;
@@ -253,6 +254,21 @@ bool SDL1InputBackend::isKeyboardKeyPressed(int keyId) const {
 	return keyStates[keyId - Keyboard::KeyBase];
 }
 
+void SDL1InputBackend::startTextInput(const Rect & box, TextInputHandler * handler) {
+	ARX_UNUSED(box);
+	if(!m_textHandler) {
+		SDL_EnableUNICODE(1);
+	}
+	m_textHandler = handler;
+}
+
+void SDL1InputBackend::stopTextInput() {
+	if(m_textHandler) {
+		SDL_EnableUNICODE(0);
+	}
+	m_textHandler = NULL;
+}
+
 void SDL1InputBackend::onEvent(const SDL_Event & event) {
 	
 	switch(event.type) {
@@ -266,11 +282,33 @@ void SDL1InputBackend::onEvent(const SDL_Event & event) {
 			break;
 		}
 		
-		case SDL_KEYDOWN:
+		case SDL_KEYDOWN: {
+			if(m_textHandler && event.key.keysym.unicode >= 0x20 && event.key.keysym.unicode != 0x7f) {
+				std::string text;
+				text.resize(util::UTF8::length(event.key.keysym.unicode));
+				std::string::iterator end = util::UTF8::write(text.begin(), event.key.keysym.unicode);
+				arx_assert(end == text.end());
+				ARX_UNUSED(end);
+				m_textHandler->newText(text);
+			}
+			// fall-through
+		}
 		case SDL_KEYUP: {
 			SDLKey key = event.key.keysym.sym;
-			if(key >= 0 && size_t(key) < ARRAY_SIZE(sdlToArxKey) && sdlToArxKey[key] >= 0) {
-				keyStates[sdlToArxKey[key] - Keyboard::KeyBase] = (event.key.state == SDL_PRESSED);
+			if(key >= 0 && size_t(key) < ARRAY_SIZE(sdlToArxKey) && sdlToArxKey[key] != Keyboard::Key_Invalid) {
+				Keyboard::Key arxkey = sdlToArxKey[key];
+				if(m_textHandler && event.key.state == SDL_PRESSED) {
+					KeyModifiers mod;
+					mod.shift = (event.key.keysym.mod & KMOD_SHIFT) != 0;
+					mod.control = (event.key.keysym.mod & KMOD_CTRL) != 0;
+					mod.alt = (event.key.keysym.mod & KMOD_ALT) != 0;
+					mod.gui = (event.key.keysym.mod & KMOD_META) != 0;
+					mod.num = (event.key.keysym.mod & KMOD_NUM) != 0;
+					if(m_textHandler->keyPressed(arxkey, mod)) {
+						break;
+					}
+				}
+				keyStates[arxkey - Keyboard::KeyBase] = (event.key.state == SDL_PRESSED);
 			} else {
 				LogWarning << "Unmapped SDL key: " << (int)key << " = " << SDL_GetKeyName(key);
 			}
@@ -290,7 +328,7 @@ void SDL1InputBackend::onEvent(const SDL_Event & event) {
 				wheel++;
 			} else if(button == SDL_BUTTON_WHEELDOWN) {
 				wheel--;
-			} else if(button < ARRAY_SIZE(sdlToArxButton) && sdlToArxButton[button] >= 0) {
+			} else if(button < ARRAY_SIZE(sdlToArxButton) && sdlToArxButton[button] != Mouse::Button_Invalid) {
 				size_t i = sdlToArxButton[button] - Mouse::ButtonBase;
 				if((event.button.state == SDL_PRESSED)) {
 					buttonStates[i] = true, clickCount[i]++;

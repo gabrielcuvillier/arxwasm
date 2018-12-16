@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,6 +20,7 @@
 #ifndef ARX_GUI_MENU_MENUCURSOR_H
 #define ARX_GUI_MENU_MENUCURSOR_H
 
+#include "core/TimeTypes.h"
 #include "graphics/Color.h"
 #include "math/Vector.h"
 
@@ -30,11 +31,11 @@ public:
 	CursorTrail();
 	
 	void reset();
-	void add(float time, const Vec2s & pos);
+	void add(PlatformDuration time, const Vec2s & pos);
 	void draw();
 	
 private:
-	float m_storedTime;
+	PlatformDuration m_storedTime;
 	int   iNbOldCoord;
 	int   iMaxOldCoord;
 	Vec2s iOldCoord[256];
@@ -50,7 +51,7 @@ public:
 	virtual ~MenuCursor();
 	
 	void reset();
-	void update(float time);
+	void update(PlatformDuration time);
 	void SetMouseOver();
 	void DrawCursor();
 	
@@ -59,7 +60,7 @@ private:
 	
 	Vec2s m_size;
 	bool exited; //! Has the mouse exited the window
-	float				lFrameDiff;
+	PlatformDuration lFrameDiff;
 	int					m_currentFrame;
 	bool				bMouseOver;
 	CursorTrail trail;

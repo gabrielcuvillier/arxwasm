@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -21,6 +21,7 @@
 #define ARX_GAME_MAGIC_SPELLS_SPELLSLVL08_H
 
 #include "game/magic/Spell.h"
+#include "graphics/effects/Cabal.h"
 
 class InvisibilitySpell : public SpellBase {
 public:
@@ -44,9 +45,8 @@ public:
 	Vec3f getPosition();
 	
 private:
-	LightHandle m_light;
 	DamageHandle m_damage;
-	float m_pitch;
+	CabalFx m_cabal;
 };
 
 class ExplosionSpell : public SpellBase {
@@ -80,9 +80,8 @@ public:
 	Vec3f getPosition();
 	
 private:
-	LightHandle m_light;
 	DamageHandle m_damage;
-	float m_pitch;
+	CabalFx m_cabal;
 };
 
 #endif // ARX_GAME_MAGIC_SPELLS_SPELLSLVL08_H

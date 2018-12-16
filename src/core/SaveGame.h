@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -30,7 +30,7 @@
 #include "io/resource/ResourcePath.h"
 #include "util/HandleType.h"
 
-ARX_HANDLE_TYPEDEF(long, SavegameHandle, -1);
+typedef HandleType<struct SavegameHandleTag, long, -1> SavegameHandle;
 
 struct SaveGame {
 	

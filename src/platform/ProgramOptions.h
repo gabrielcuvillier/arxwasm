@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -89,13 +89,16 @@ class Option : public BaseOption {
 	
 public:
 	
-	explicit Option(ARX_PROGRAM_OPTION_ARGS = NULL)
+	explicit Option(ARX_PROGRAM_OPTION_ARGS)
 		: BaseOption(longName, shortName, description)
 		, m_handler(handler), m_argNames(args) { }
 	
 	virtual void registerOption(util::cmdline::interpreter<std::string> & l) {
 		std::string shortName = (m_shortName == NULL || *m_shortName == 0) ? "" : std::string("-") + m_shortName;
 		std::string longName = (m_longName == NULL || *m_longName == 0) ? "" : std::string("--") + m_longName;
+		if(shortName.empty() && longName.empty()) {
+			longName = "--";
+		}
 		
 		l.add(m_handler,
 			  util::cmdline::interpreter<std::string>::op_name_t(shortName)(longName)
@@ -120,15 +123,15 @@ private:
  */
 #if ARX_HAVE_CXX11_AUTO
 	template <typename Handler>
-	Option<Handler> makeProgramOption(ARX_PROGRAM_OPTION_ARGS = NULL) {
+	Option<Handler> makeProgramOption(ARX_PROGRAM_OPTION_ARGS) {
 		return Option<Handler>(longName, shortName, description, handler, args);
 	}
-	#define ARX_PROGRAM_OPTION(longName, shortName, description, handler, ...) \
+	#define ARX_PROGRAM_OPTION_ARG(longName, shortName, description, handler, args) \
 		static auto ARX_UNIQUE_SYMBOL(programOptionRegistrator) = makeProgramOption( \
-			longName, shortName, description, handler, ##__VA_ARGS__ \
+			longName, shortName, description, handler, args \
 		);
 #else
-	#define ARX_PROGRAM_OPTION(longName, shortName, description, handler, ...) \
+	#define ARX_PROGRAM_OPTION_ARG(longName, shortName, description, handler, args) \
 		template <typename Handler> \
 		static BaseOption * ARX_UNIQUE_SYMBOL(makeProgramOption)(const Handler &); \
 		static BaseOption * ARX_UNIQUE_SYMBOL(programOptionRegistrator) \
@@ -137,11 +140,13 @@ private:
 		static BaseOption * ARX_UNIQUE_SYMBOL(makeProgramOption)(const Handler &) { \
 			ARX_UNUSED(ARX_UNIQUE_SYMBOL(programOptionRegistrator)); \
 			static Option<Handler> s_handler( \
-				longName, shortName, description, handler, ##__VA_ARGS__ \
+				longName, shortName, description, handler, args \
 			); \
 			return &s_handler; \
 		}
 #endif
+#define ARX_PROGRAM_OPTION(longName, shortName, description, handler) \
+	ARX_PROGRAM_OPTION_ARG(longName, shortName, description, handler, NULL)
 
 #undef ARX_PROGRAM_OPTION_ARGS
 

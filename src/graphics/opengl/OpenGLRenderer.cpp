@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -72,6 +72,7 @@ OpenGLRenderer::OpenGLRenderer()
 	, m_maximumAnisotropy(1.f)
 	, m_maximumSupportedAnisotropy(1.f)
 	, m_glcull(GL_NONE)
+	, m_MSAALevel(0)
 	, m_hasMSAA(false)
 	, m_hasTextureNPOT(false)
 { }
@@ -87,7 +88,7 @@ OpenGLRenderer::~OpenGLRenderer() {
 	//	LogWarning << "Texture still loaded: " << it->getFileName();
 	//}
 	
-};
+}
 
 enum GLTransformMode {
 	GL_UnsetTransform,
@@ -316,6 +317,21 @@ void OpenGLRenderer::reinit() {
 
 	// Synchronize GL state cache
 	
+	m_MSAALevel = 0;
+	{
+		GLint buffers = 0;
+		glGetIntegerv(GL_SAMPLE_BUFFERS, &buffers);
+		if(buffers) {
+			GLint samples = 0;
+			glGetIntegerv(GL_SAMPLE_BUFFERS, &samples);
+			m_MSAALevel = samples;
+		}
+	}
+	if(m_MSAALevel > 0) {
+		glDisable(GL_MULTISAMPLE);
+	}
+	m_hasMSAA = false;
+	
 	m_glcull = GL_BACK;
 	m_glstate.setCull(CullNone);
 	
@@ -408,7 +424,7 @@ void OpenGLRenderer::enableTransform() {
 	}
 	
 	if(shader) {
-		glUseProgram(0);
+		glUseProgramObjectARB(0);
 	}
 	
 	glMatrixMode(GL_MODELVIEW);
@@ -430,7 +446,7 @@ void OpenGLRenderer::disableTransform() {
 	// but we still need to change from D3D to OpenGL coordinates
 	
 	if(shader) {
-		glUseProgram(shader);
+		glUseProgramObjectARB(shader);
 	} else {
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
@@ -518,6 +534,10 @@ void OpenGLRenderer::SetAlphaFunc(PixelCompareFunc func, float ref) {
 
 void OpenGLRenderer::SetViewport(const Rect & _viewport) {
 	
+	if(_viewport == viewport) {
+		return;
+	}
+	
 	viewport = _viewport;
 	
 	// TODO maybe it's better to always have the viewport cover the whole window and use glScissor instead?
@@ -599,6 +619,14 @@ void OpenGLRenderer::SetFogParams(float fogStart, float fogEnd) {
 
 void OpenGLRenderer::SetAntialiasing(bool enable) {
 	
+	if(m_MSAALevel <= 0) {
+		return;
+	}
+	
+	if(enable && !config.video.antialiasing) {
+		return;
+	}
+	
 	if(enable == m_hasMSAA) {
 		return;
 	}
@@ -660,25 +688,25 @@ static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
 			
 			if(setting.empty() || setting == "persistent-orphan") {
 				if(usage != Renderer::Static) {
-					return new GLPersistentOrphanVertexBuffer<Vertex>(renderer, capacity);
+					return new GLPersistentOrphanVertexBuffer<Vertex>(renderer, capacity, usage);
 				}
 				matched = true;
 			}
 			if(setting.empty() || setting == "persistent-x3") {
 				if(usage == Renderer::Stream) {
-					return new GLPersistentFenceVertexBuffer<Vertex, 3>(renderer, capacity, 3);
+					return new GLPersistentFenceVertexBuffer<Vertex, 3>(renderer, capacity, usage, 3);
 				}
 				matched = true;
 			}
 			if(setting.empty() || setting == "persistent-x2") {
 				if(usage == Renderer::Stream) {
-					return new GLPersistentFenceVertexBuffer<Vertex, 3>(renderer, capacity, 2);
+					return new GLPersistentFenceVertexBuffer<Vertex, 3>(renderer, capacity, usage, 2);
 				}
 				matched = true;
 			}
 			if(setting == "persistent-nosync") {
 				if(usage != Renderer::Static) {
-					return new GLPersistentUnsynchronizedVertexBuffer<Vertex>(renderer, capacity);
+					return new GLPersistentUnsynchronizedVertexBuffer<Vertex>(renderer, capacity, usage);
 				}
 				matched = true;
 			}
@@ -896,8 +924,4 @@ void OpenGLRenderer::flushState() {
 		GetTextureStage(i)->apply();
 	}
 	
-}
-
-bool OpenGLRenderer::isFogInEyeCoordinates() {
-	return true;
 }

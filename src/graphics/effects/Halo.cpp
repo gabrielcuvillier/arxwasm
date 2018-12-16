@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -30,7 +30,7 @@ static size_t HALOCUR[2] = {};
 static TexturedVertex LATERDRAWHALO[2][HALOMAX * 6];
 
 void Halo_AddVertices(TexturedVertex (&inVerts)[4]) {
-	int blendType = inVerts[2].color == 0 ? 0 : 1;
+	int blendType = inVerts[2].color == ColorRGBA_ZERO ? 0 : 1;
 
 	TexturedVertex *vert = &LATERDRAWHALO[blendType][(HALOCUR[blendType] * 6)];
 	if(HALOCUR[blendType] < HALOMAX - 1) {
@@ -50,24 +50,21 @@ void Halo_Render() {
 	
 	if(HALOCUR[0] == 0 && HALOCUR[1] == 0)
 		return;
-
+	
 	GRenderer->ResetTexture(0);
-	GRenderer->SetBlendFunc(BlendSrcColor, BlendOne);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetCulling(CullNone);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-
+	
+	RenderState baseState = render3D().depthWrite(false);
+	
 	if(HALOCUR[0] > 0) {
-		GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
+		UseRenderState state(baseState.blend(BlendZero, BlendInvSrcColor));
 		EERIEDRAWPRIM(Renderer::TriangleList, LATERDRAWHALO[0], HALOCUR[0] * 6);
 		HALOCUR[0] = 0;
 	}
-
+	
 	if(HALOCUR[1] > 0) {
-		GRenderer->SetBlendFunc(BlendSrcColor, BlendOne);
+		UseRenderState state(baseState.blend(BlendSrcColor, BlendOne));
 		EERIEDRAWPRIM(Renderer::TriangleList, LATERDRAWHALO[1], HALOCUR[1] * 6);
 		HALOCUR[1] = 0;
 	}
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+	
 }

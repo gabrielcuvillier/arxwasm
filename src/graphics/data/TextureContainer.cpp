@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -79,61 +79,54 @@ TextureContainer * GetTextureList() {
 	return g_ptcTextureList;
 }
 
-TextureContainer * GetAnyTexture() {
-	return g_ptcTextureList;
-}
-
-static void ResetVertexLists(TextureContainer * tex) {
+static void ResetModelBatch(ModelBatch * tex) {
 	
 	if(!tex) {
 		return;
 	}
 	
-	tex->count[TextureContainer::Opaque] = 0;
-	tex->count[TextureContainer::Blended] = 0;
-	tex->count[TextureContainer::Additive] = 0;
-	tex->count[TextureContainer::Subtractive] = 0;
-	tex->count[TextureContainer::Multiplicative] = 0;
+	tex->count[BatchBucket_Opaque] = 0;
+	tex->count[BatchBucket_Blended] = 0;
+	tex->count[BatchBucket_Additive] = 0;
+	tex->count[BatchBucket_Subtractive] = 0;
+	tex->count[BatchBucket_Multiplicative] = 0;
 	
-	tex->max[TextureContainer::Opaque] = 0;
-	tex->max[TextureContainer::Blended] = 0;
-	tex->max[TextureContainer::Additive] = 0;
-	tex->max[TextureContainer::Subtractive] = 0;
-	tex->max[TextureContainer::Multiplicative] = 0;
+	tex->max[BatchBucket_Opaque] = 0;
+	tex->max[BatchBucket_Blended] = 0;
+	tex->max[BatchBucket_Additive] = 0;
+	tex->max[BatchBucket_Subtractive] = 0;
+	tex->max[BatchBucket_Multiplicative] = 0;
 	
-	free(tex->list[TextureContainer::Opaque]);
-	tex->list[TextureContainer::Opaque] = NULL;
-	free(tex->list[TextureContainer::Blended]);
-	tex->list[TextureContainer::Blended] = NULL;
-	free(tex->list[TextureContainer::Additive]);
-	tex->list[TextureContainer::Additive] = NULL;
-	free(tex->list[TextureContainer::Subtractive]);
-	tex->list[TextureContainer::Subtractive] = NULL;
-	free(tex->list[TextureContainer::Multiplicative]);
-	tex->list[TextureContainer::Multiplicative] = NULL;
-
-	tex->tMatRoomSize = 0;
-	free(tex->tMatRoom);
-	tex->tMatRoom = NULL;
+	free(tex->list[BatchBucket_Opaque]);
+	tex->list[BatchBucket_Opaque] = NULL;
+	free(tex->list[BatchBucket_Blended]);
+	tex->list[BatchBucket_Blended] = NULL;
+	free(tex->list[BatchBucket_Additive]);
+	tex->list[BatchBucket_Additive] = NULL;
+	free(tex->list[BatchBucket_Subtractive]);
+	tex->list[BatchBucket_Subtractive] = NULL;
+	free(tex->list[BatchBucket_Multiplicative]);
+	tex->list[BatchBucket_Multiplicative] = NULL;
 }
 
-//-----------------------------------------------------------------------------
-// Name: TextureContainer()
-// Desc: Constructor for a texture object
-//-----------------------------------------------------------------------------
-TextureContainer::TextureContainer(const res::path & strName, TCFlags flags) : m_texName(strName) {
+static void ResetRoomBatches(RoomBatches & roomBatches) {
+	roomBatches.tMatRoomSize = 0;
+	free(roomBatches.tMatRoom);
+	roomBatches.tMatRoom = NULL;
+}
+
+TextureContainer::TextureContainer(const res::path & strName, TCFlags flags)
+	: m_texName(strName)
+{
+	arx_assert_msg(!strName.has_ext("bmp") && !strName.has_ext("tga"),
+	               "bad texture name: \"%s\"", strName.string().c_str());
 	
-	arx_assert(!strName.has_ext("bmp") && !strName.has_ext("tga"),
-	           "bad texture name: \"%s\"", strName.string().c_str());
-	
-	m_size.x = 0;
-	m_size.y = 0;
+	m_size = Vec2i_ZERO;
 	m_dwFlags = flags;
 
 	m_pTexture = NULL;
 
 	userflags = 0;
-	TextureRefinement = NULL;
 	TextureHalo = NULL;
 	
 	m_pNext = NULL;
@@ -146,29 +139,8 @@ TextureContainer::TextureContainer(const res::path & strName, TCFlags flags) : m
 
 	systemflags = 0;
 
-	max[TextureContainer::Opaque] = 0;
-	count[TextureContainer::Opaque] = 0;
-	list[TextureContainer::Opaque] = NULL;
-
-	max[TextureContainer::Blended] = 0;
-	count[TextureContainer::Blended] = 0;
-	list[TextureContainer::Blended] = NULL;
-
-	max[TextureContainer::Additive] = 0;
-	count[TextureContainer::Additive] = 0;
-	list[TextureContainer::Additive] = NULL;
-
-	max[TextureContainer::Subtractive] = 0;
-	count[TextureContainer::Subtractive] = 0;
-	list[TextureContainer::Subtractive] = NULL;
-
-	max[TextureContainer::Multiplicative] = 0;
-	count[TextureContainer::Multiplicative] = 0;
-	list[TextureContainer::Multiplicative] = NULL;
-
-	tMatRoomSize = 0;
-	tMatRoom = NULL;
-
+	m_roomBatches = RoomBatches();
+	m_modelBatch = ModelBatch();
 }
 
 TextureContainer::~TextureContainer() {
@@ -187,7 +159,8 @@ TextureContainer::~TextureContainer() {
 		}
 	}
 	
-	ResetVertexLists(this);
+	ResetModelBatch(&m_modelBatch);
+	ResetRoomBatches(m_roomBatches);
 }
 
 bool TextureContainer::LoadFile(const res::path & strPathname) {
@@ -229,12 +202,11 @@ bool TextureContainer::LoadFile(const res::path & strPathname) {
 		return false;
 	}
 	
-	m_size.x = m_pTexture->getSize().x;
-	m_size.y = m_pTexture->getSize().y;
+	m_size = m_pTexture->getSize();
 	
-	Vec2i storedSize = m_pTexture->getStoredSize();
-	uv = Vec2f(float(m_size.x) / storedSize.x, float(m_size.y) / storedSize.y);
-	hd = Vec2f(.5f / storedSize.x, .5f / storedSize.y);
+	Vec2f storedSize = Vec2f(m_pTexture->getStoredSize());
+	uv = Vec2f(m_size) / storedSize;
+	hd = Vec2f(.5f, .5f) / storedSize;
 	
 	return true;
 }

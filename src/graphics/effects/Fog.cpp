@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -57,6 +57,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/particle/ParticleEffects.h"
 
 #include "math/Random.h"
+#include "math/RandomVector.h"
 
 FOG_DEF fogs[MAX_FOG];
 
@@ -75,18 +76,6 @@ long ARX_FOGS_GetFree()
 	}
 
 	return -1;
-}
-
-long ARX_FOGS_Count()
-{
-	long count = 0;
-
-	for(size_t i = 0; i < MAX_FOG; i++) {
-		if(fogs[i].exist)
-			count++;
-	}
-
-	return count;
 }
 
 void ARX_FOGS_Render() {
@@ -117,13 +106,13 @@ void ARX_FOGS_Render() {
 				break;
 			}
 			
-			pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
+			pd->m_flags = FADE_IN_AND_OUT | ROTATING | DISSIPATING;
 			if(fog.special & FOG_DIRECTIONAL) {
 				pd->ov = fog.pos;
 				pd->move = fog.move * (fog.speed * 0.1f);
 			} else {
-				pd->ov = fog.pos + randomVec(-100.f, 100.f);
-				pd->move = Vec3f(fog.speed) - randomVec(0.f, 2.f);
+				pd->ov = fog.pos + arx::randomVec(-100.f, 100.f);
+				pd->move = Vec3f(fog.speed) - arx::randomVec(0.f, 2.f);
 				pd->move *= Vec3f(fog.speed * 0.2f,  1.f / 15, fog.speed * 0.2f);
 			}
 			pd->scale = Vec3f(fog.scale);
@@ -131,7 +120,7 @@ void ARX_FOGS_Render() {
 			pd->tc = TC_smoke;
 			pd->siz = (fog.size + Random::getf(0.f, 2.f) * fog.size) * (1.0f / 3);
 			pd->rgb = fog.rgb;
-			pd->fparam = fog.rotatespeed;
+			pd->m_rotation = fog.rotatespeed;
 		}
 	}
 }

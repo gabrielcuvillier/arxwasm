@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2014 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -80,7 +80,6 @@ struct GLTexEnvParam {
 	GLenum operands[2];
 	
 	GLint normal;
-	GLint complement;
 	
 	GLenum scale;
 	
@@ -92,23 +91,20 @@ static const GLTexEnvParam glTexEnv[] = {
 		{ GL_SOURCE0_RGB, GL_SOURCE1_RGB },
 		{ GL_OPERAND0_RGB, GL_OPERAND1_RGB },
 		GL_SRC_COLOR,
-		GL_ONE_MINUS_SRC_COLOR,
 		GL_RGB_SCALE
 	}, {
 		GL_COMBINE_ALPHA,
 		{ GL_SOURCE0_ALPHA, GL_SOURCE1_ALPHA },
 		{ GL_OPERAND0_ALPHA, GL_OPERAND1_ALPHA },
 		GL_SRC_ALPHA,
-		GL_ONE_MINUS_SRC_ALPHA,
 		GL_ALPHA_SCALE
 	}
 };
 
 void GLTextureStage::setArg(OpType alpha, Arg idx, TextureArg arg) {
 	
-	setTexEnv(GL_TEXTURE_ENV, glTexEnv[alpha].sources[idx], glTexSource[arg & ArgMask]);
-	GLint op = (arg & ArgComplement) ? glTexEnv[alpha].complement : glTexEnv[alpha].normal;
-	setTexEnv(GL_TEXTURE_ENV, glTexEnv[alpha].operands[idx], op);
+	setTexEnv(GL_TEXTURE_ENV, glTexEnv[alpha].sources[idx], glTexSource[arg]);
+	setTexEnv(GL_TEXTURE_ENV, glTexEnv[alpha].operands[idx], glTexEnv[alpha].normal);
 }
 
 void GLTextureStage::setOp(OpType alpha, GLint op, GLfloat scale) {
@@ -161,12 +157,6 @@ void GLTextureStage::setOp(OpType alpha, TextureOp op) {
 			break;
 		}
 		
-		case OpSelectArg2: {
-			setOp(alpha, GL_REPLACE, 1);
-			setArg(alpha, Arg0, args[alpha][Arg1]);
-			break;
-		}
-		
 		case OpModulate: {
 			setOp(alpha, GL_MODULATE, 1);
 			setArg(alpha, Arg0, args[alpha][Arg0]);
@@ -188,13 +178,6 @@ void GLTextureStage::setOp(OpType alpha, TextureOp op) {
 			break;
 		}
 		
-		case OpAddSigned: {
-			setOp(alpha, GL_ADD_SIGNED, 1);
-			setArg(alpha, Arg0, args[alpha][Arg0]);
-			setArg(alpha, Arg1, args[alpha][Arg1]);
-			break;
-		}
-		
 	}
 
 	if(mStage != 0) {
@@ -205,9 +188,7 @@ void GLTextureStage::setOp(OpType alpha, TextureOp op) {
 void GLTextureStage::setOp(OpType alpha, TextureOp op, TextureArg arg0, TextureArg arg1) {
 	
 	if(op != OpDisable) {
-		if(op != OpSelectArg2) {
-			args[alpha][0] = arg0;
-		}
+		args[alpha][0] = arg0;
 		if(op != OpSelectArg1) {
 			args[alpha][1] = arg1;
 		}

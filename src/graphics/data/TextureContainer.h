@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -67,12 +67,53 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "math/Vector.h"
 #include "util/Flags.h"
 
-struct SMY_ARXMAT;
 struct EERIEPOLY;
 struct TexturedVertex;
 class Texture2D;
 
 extern long GLOBAL_EERIETEXTUREFLAG_LOADSCENE_RELEASE;
+
+enum BatchBucket {
+	BatchBucket_Opaque = 0,
+	BatchBucket_Blended,
+	BatchBucket_Multiplicative,
+	BatchBucket_Additive,
+	BatchBucket_Subtractive
+};
+
+struct SMY_ARXMAT
+{
+	unsigned long uslStartVertex;
+	unsigned long uslNbVertex;
+
+	unsigned long offset[5];
+	unsigned long count[5];
+};
+
+struct RoomBatches {
+	size_t tMatRoomSize;
+	SMY_ARXMAT * tMatRoom;
+	
+	RoomBatches()
+		: tMatRoomSize(0)
+		, tMatRoom(NULL)
+	{ }
+};
+
+// TODO This RenderBatch class should contain a pointer to the TextureContainer used by the batch
+struct ModelBatch {
+	unsigned long max[5];
+	unsigned long count[5];
+	TexturedVertex * list[5];
+	
+	ModelBatch() {
+		for(size_t i = 0; i < ARRAY_SIZE(max); i++) {
+			max[i] = 0;
+			count[i] = 0;
+			list[i] = NULL;
+		}
+	}
+};
 
 /*!
  * Linked list structure to hold info per texture.
@@ -142,7 +183,7 @@ public:
 	const res::path m_texName; // Name of texture
 	
 	Vec2i m_size;
-	Vec2i size() { return Vec2i(m_size.x, m_size.y); }
+	Vec2i size() { return m_size; }
 	
 	TCFlags m_dwFlags;
 	u32 userflags;
@@ -158,28 +199,11 @@ public:
 	//! Size of half a pixel in normalized texture coordinates.
 	Vec2f hd;
 	
-	TextureContainer * TextureRefinement;
 	TextureContainer * m_pNext; // Linked list ptr
 	TCFlags systemflags;
 	
-	// BEGIN TODO: Move to a RenderBatch class... This RenderBatch class should contain a pointer to the TextureContainer used by the batch
-	
-	size_t tMatRoomSize;
-	SMY_ARXMAT * tMatRoom;
-	
-	enum TransparencyType {
-		Opaque = 0,
-		Blended,
-		Multiplicative,
-		Additive,
-		Subtractive
-	};
-
-	unsigned long max[5];
-	unsigned long count[5];
-	TexturedVertex * list[5];
-
-	// END TODO
+	RoomBatches m_roomBatches;
+	ModelBatch m_modelBatch;
 	
 	bool hasColorKey();
 	
@@ -192,9 +216,5 @@ DECLARE_FLAGS_OPERATORS(TextureContainer::TCFlags)
 // ASCII name.
  
 TextureContainer * GetTextureList();
-
-// Texture creation and deletion functions
-
-TextureContainer * GetAnyTexture();
 
 #endif // ARX_GRAPHICS_DATA_TEXTURECONTAINER_H

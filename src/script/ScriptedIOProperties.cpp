@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -99,7 +99,7 @@ class GameFlagCommand : public Command {
 	
 public:
 	
-	GameFlagCommand(std::string name, GameFlag _flag, bool _inv = false)
+	GameFlagCommand(const std::string & name, GameFlag _flag, bool _inv = false)
 		: Command(name, AnyEntity), flag(_flag), inv(_inv) { }
 	
 	Result execute(Context & context) {
@@ -110,7 +110,7 @@ public:
 		
 		Entity * io = context.getEntity();
 		
-		if(enable ^ inv) {
+		if(enable != inv) {
 			io->gameFlags |= flag;
 		} else {
 			io->gameFlags &= ~flag;
@@ -128,7 +128,7 @@ class IOFlagCommand : public Command {
 	
 public:
 	
-	IOFlagCommand(std::string name, EntityFlag _flag, bool _inv = false)
+	IOFlagCommand(const std::string & name, EntityFlag _flag, bool _inv = false)
 		: Command(name, AnyEntity), flag(_flag), inv(_inv) { }
 	
 	Result execute(Context & context) {
@@ -139,7 +139,7 @@ public:
 		
 		Entity * io = context.getEntity();
 		
-		if(enable ^ inv) {
+		if(enable != inv) {
 			io->ioflags |= flag;
 		} else {
 			io->ioflags &= ~flag;

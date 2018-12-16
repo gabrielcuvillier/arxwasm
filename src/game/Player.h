@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -65,12 +65,12 @@ static const size_t MAX_EQUIPED = 12;
 
 struct ARX_INTERFACE_MEMORIZE_SPELL {
 	bool bSpell;
-	unsigned long lTimeCreation;
+	ArxInstant lTimeCreation;
 	Rune iSpellSymbols[6];
 	
 	ARX_INTERFACE_MEMORIZE_SPELL()
 		: bSpell(false)
-		, lTimeCreation(0)
+		, lTimeCreation(ArxInstant_ZERO)
 	{
 		for(size_t i = 0; i < ARRAY_SIZE(iSpellSymbols); i++) {
 			iSpellSymbols[i] = RUNE_NONE;
@@ -243,10 +243,10 @@ struct ARXCHARACTER {
 	AnimLayer bookAnimation[MAX_ANIM_LAYERS];
 	
 	long m_strikeDirection;
-	long m_weaponBlocked;
+	AnimationDuration m_weaponBlocked;
 	
 	// Jump Sub-data
-	unsigned long jumpstarttime;
+	ArxInstant jumpstarttime;
 	float jumplastposition;
 	JumpPhase jumpphase;
 	
@@ -268,7 +268,7 @@ struct ARXCHARACTER {
 	PlayerInterfaceFlags Interface;
 	
 	PlayerMovement m_currentMovement;
-	PlayerMovement Last_Movement;
+	PlayerMovement m_lastMovement;
 	bool onfirmground;
 	
 	Color3f m_torchColor;
@@ -289,7 +289,7 @@ struct ARXCHARACTER {
 	float m_bowAimRatio;
 	
 	float m_strikeAimRatio;
-	long Full_AimTime;
+	PlatformDuration Full_AimTime;
 	
 	float Full_life;
 	float Full_maxlife;
@@ -300,9 +300,9 @@ struct ARXCHARACTER {
 	PlayerSkill m_skill;
 	PlayerMisc m_misc;
 	
-	long AimTime;
+	PlatformDuration AimTime;
 	
-	unsigned long m_aimTime;
+	PlatformDuration m_aimTime;
 	
 	ResourcePool lifePool;
 	ResourcePool manaPool;
@@ -341,8 +341,8 @@ struct ARXCHARACTER {
 	
 	ARXCHARACTER()
 		: m_strikeDirection(0)
-		, m_weaponBlocked(0)
-		, jumpstarttime(0u)
+		, m_weaponBlocked(AnimationDuration::ofRaw(-1)) // FIXME inband signaling
+		, jumpstarttime(ArxInstant_ZERO)
 		, jumplastposition(0.f)
 		, jumpphase(NotJumping)
 		, climbing(false)
@@ -357,12 +357,12 @@ struct ARXCHARACTER {
 		, torch(NULL)
 		, m_bowAimRatio(0.f)
 		, m_strikeAimRatio(0.f)
-		, Full_AimTime(0)
+		, Full_AimTime(PlatformDuration_ZERO)
 		, Full_life(0)
 		, Full_maxlife(0)
 		, Full_maxmana(0)
-		, AimTime(0)
-		, m_aimTime(0)
+		, AimTime(PlatformDuration_ZERO)
+		, m_aimTime(PlatformDuration_ZERO)
 		, Attribute_Redistribute(0)
 		, Skill_Redistribute(0)
 		, level(0)
@@ -398,31 +398,23 @@ struct ARXCHARACTER {
 		return Cylinder(basePosition(), baseRadius(), baseHeight());
 	}
 	
+	bool isAiming() { return m_aimTime > PlatformDuration_ZERO; }
+	
 };
 
 extern float CURRENT_PLAYER_COLOR;
-
-struct KEYRING_SLOT {
-	char slot[64];
-};
-
-
-// Quests Management (QuestLogBook)
-
-struct STRUCT_QUEST {
-	std::string ident;
-};
 
 extern ARXCHARACTER player;
 extern EERIE_3DOBJ * hero;
 extern ANIM_HANDLE * herowaitbook;
 extern ANIM_HANDLE * herowait_2h;
-extern std::vector<STRUCT_QUEST> PlayerQuest;
-extern std::vector<KEYRING_SLOT> Keyring;
+extern std::vector<std::string> g_playerQuestLogEntries;
+extern std::vector<std::string> g_playerKeyring;
 
 extern bool BLOCK_PLAYER_CONTROLS;
 extern bool USE_PLAYERCOLLISIONS;
 extern bool WILLRETURNTOCOMBATMODE;
+extern ArxInstant LAST_JUMP_ENDTIME;
 
 void ARX_PLAYER_MakeSpHero();
 void ARX_PLAYER_LoadHeroAnimsAndMesh();
@@ -433,7 +425,7 @@ void ARX_PLAYER_RectifyPosition();
 void ARX_PLAYER_Frame_Update();
 void ARX_PLAYER_Manage_Movement();
 void ARX_PLAYER_Manage_Death();
-void ARX_PLAYER_Quest_Add(const std::string & quest, bool _bLoad = false);
+void ARX_PLAYER_Quest_Add(const std::string & quest);
 void ARX_PLAYER_Quest_Init();
 Vec3f ARX_PLAYER_FrontPos();
 void ARX_PLAYER_ComputePlayerFullStats();
@@ -441,7 +433,7 @@ void ARX_PLAYER_MakeFreshHero();
 void ARX_PLAYER_QuickGeneration();
 void ARX_PLAYER_MakeAverageHero();
 void ARX_PLAYER_Modify_XP(long val);
-void ARX_PLAYER_FrameCheck(float Framedelay);
+void ARX_PLAYER_FrameCheck(PlatformDuration delta);
 void ARX_PLAYER_Poison(float val);
 void ARX_PLAYER_Manage_Visual();
 void ARX_PLAYER_Remove_Invisibility();

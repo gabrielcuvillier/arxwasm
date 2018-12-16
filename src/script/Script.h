@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -52,6 +52,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <string>
 #include <vector>
 
+#include "core/TimeTypes.h"
 #include "util/Flags.h"
 
 class PakFile;
@@ -84,8 +85,11 @@ struct SCRIPT_VAR {
 	std::string text;
 	std::string name;
 
-	SCRIPT_VAR() : type(TYPE_UNKNOWN), ival(), fval() {
-	}
+	SCRIPT_VAR()
+		: type(TYPE_UNKNOWN)
+		, ival()
+		, fval()
+	{ }
 };
 
 struct LABEL_INFO {
@@ -115,14 +119,22 @@ struct EERIE_SCRIPT {
 	char * data;
 	SCRIPT_VARIABLES lvar;
 	unsigned long lastcall;
-	unsigned long timers[MAX_SCRIPTTIMERS];
+	ArxInstant timers[MAX_SCRIPTTIMERS];
 	DisabledEvents allowevents;
 	EERIE_SCRIPT * master;
 	long shortcut[MAX_SHORTCUT];
 	long nb_labels;
 	LABEL_INFO * labels;
 
-	EERIE_SCRIPT() : size(), data(), lastcall(), allowevents(), master(), nb_labels(), labels() {
+	EERIE_SCRIPT()
+		: size()
+		, data()
+		, lastcall()
+		, allowevents()
+		, master()
+		, nb_labels()
+		, labels()
+	{
 		memset(&timers, 0, sizeof(timers));
 		memset(&shortcut, 0, sizeof(shortcut));
 	}
@@ -133,11 +145,11 @@ struct SCR_TIMER {
 	std::string name;
 	short exist;
 	short flags;
-	long times;
-	long msecs;
+	long count;
+	ArxDuration interval;
 	long pos;
 	long longinfo;
-	unsigned long tim;
+	ArxInstant start;
 	Entity * io;
 	EERIE_SCRIPT * es;
 	
@@ -145,11 +157,11 @@ struct SCR_TIMER {
 		: name()
 		, exist(0)
 		, flags(0)
-		, times(0)
-		, msecs(0)
+		, count(0)
+		, interval(ArxDuration_ZERO)
 		, pos(0)
 		, longinfo(0)
-		, tim(0)
+		, start(ArxInstant_ZERO)
 		, io(NULL)
 		, es(NULL)
 	{ }
@@ -158,11 +170,11 @@ struct SCR_TIMER {
 		name.clear();
 		exist = 0;
 		flags = 0;
-		times = 0;
-		msecs = 0;
+		count = 0;
+		interval = ArxDuration_ZERO;
 		pos = 0;
 		longinfo = 0;
-		tim = 0;
+		start = ArxInstant_ZERO;
 		io = NULL;
 		es = NULL;
 	}

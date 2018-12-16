@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -22,15 +22,15 @@
 
 #include <string>
 
+#include "core/TimeTypes.h"
 #include "game/magic/Rune.h"
 
 class Entity;
 
 struct SYMBOL_DRAW {
-	unsigned long	starttime;
-	Vec3f		lastpos;
-	short lastElapsed;
-	short			duration;
+	ArxInstant starttime;
+	AnimationDuration elapsed;
+	AnimationDuration duration;
 	std::string sequence;
 	Vec2s cPosStart;
 };
@@ -38,6 +38,7 @@ struct SYMBOL_DRAW {
 void ARX_SPELLS_Init_Rects();
 
 void ARX_SPELLS_UpdateSymbolDraw();
+void ARX_SPELLS_UpdateBookSymbolDraw(Rect bookRect);
 void ARX_SPELLS_ClearAllSymbolDraw();
 
 void ARX_SPELLS_RequestSymbolDraw(Entity *io, const std::string & name, float duration);

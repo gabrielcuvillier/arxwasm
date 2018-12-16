@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -65,13 +65,13 @@ public:
 private:
 	LightHandle m_light;
 	
-	long ulCurrentTime;
+	ArxDuration m_elapsed;
 
 	Vec3f eCurPos;
 	Vec3f eMove;
 	bool bExplo;
 	
-	long m_createBallDuration;
+	ArxDuration m_createBallDuration;
 };
 
 class CreateFoodSpell : public SpellBase {
@@ -85,18 +85,20 @@ public:
 private:
 	Vec3f m_pos;
 	ParticleSystem m_particles;
-	long m_currentTime;
+	ArxDuration m_elapsed;
 };
 
 
 class IceProjectileSpell : public SpellBase {
 public:
+	IceProjectileSpell();
+	
 	void Launch();
 	void End();
 	void Update();
 	
 private:
-	unsigned long ulCurrentTime;
+	ArxDuration m_elapsed;
 	int iNumber;
 	int iMax;
 	float fColor;

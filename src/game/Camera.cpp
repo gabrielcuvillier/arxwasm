@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -19,25 +19,23 @@
 
 #include "game/Camera.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "graphics/Math.h"
 #include "graphics/Renderer.h"
 
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtx/transform.hpp>
-
 void EERIE_TRANSFORM::updateFromAngle(const Anglef &angle) {
-	float yaw, pitch, roll;
-	yaw = glm::radians(angle.getYaw());
-	xcos = std::cos(yaw);
-	xsin = std::sin(yaw);
-	pitch = glm::radians(angle.getPitch());
-	ycos = std::cos(pitch);
-	ysin = std::sin(pitch);
-	roll = glm::radians(angle.getRoll());
+	float pitch = glm::radians(angle.getPitch());
+	xcos = std::cos(pitch);
+	xsin = std::sin(pitch);
+	float yaw = glm::radians(angle.getYaw());
+	ycos = std::cos(yaw);
+	ysin = std::sin(yaw);
+	float roll = glm::radians(angle.getRoll());
 	zcos = std::cos(roll);
 	zsin = std::sin(roll);
 	
-	glm::mat4 translation = glm::translate(-pos);
+	glm::mat4 translation = glm::translate(glm::mat4(1), -pos);
 	worldToView = toRotationMatrix(angle) * translation;
 }
 
@@ -162,7 +160,7 @@ static void EERIE_CreateMatriceProj(float width, float height, EERIE_CAMERA * ca
 
 void SP_PrepareCamera(EERIE_CAMERA * cam) {
 	cam->orgTrans.updateFromAngle(cam->angle);
-	cam->orgTrans.mod = Vec2f(cam->center + cam->clip.origin.toVec2());
+	cam->orgTrans.mod = Vec2f(cam->center + cam->clip.topLeft());
 }
 
 void PrepareCamera(EERIE_CAMERA * cam, const Rect & size) {

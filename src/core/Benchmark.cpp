@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -157,7 +157,7 @@ static void display(Status type, const Result & result, bool summary = false, bo
 			break;
 	}
 	
-};
+}
 
 static bool isNormalFrame(Status type) {
 	switch(type) {
@@ -317,6 +317,6 @@ static void enable(util::cmdline::optional<std::string> limit) {
 	g_enabled = true;
 }
 
-ARX_PROGRAM_OPTION("benchmark", "", "Log loading times and framerates", &enable, "TIMELIMIT");
+ARX_PROGRAM_OPTION_ARG("benchmark", "", "Log loading times and framerates", &enable, "TIMELIMIT")
 
 } // namespace benchmark

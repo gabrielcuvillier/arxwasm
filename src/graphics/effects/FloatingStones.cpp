@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -23,6 +23,7 @@
 #include "graphics/RenderBatcher.h"
 #include "graphics/particle/ParticleEffects.h"
 #include "math/Random.h"
+#include "math/RandomVector.h"
 
 void FloatingStones::Init(float radius) {
 	
@@ -46,7 +47,7 @@ void FloatingStones::Update(float timeDelta, Vec3f pos) {
 	if(m_timestone <= 0) {
 		m_timestone = Random::get(50, 150);
 		
-		AddStone(pos + randomOffsetXZ(m_baseRadius));
+		AddStone(pos + arx::randomOffsetXZ(m_baseRadius));
 	}
 }
 
@@ -104,10 +105,9 @@ void FloatingStones::DrawStone()
 				pd->move = Vec3f(0.f, Random::getf(0.f, 3.f), 0.f);
 				pd->siz = Random::getf(3.f, 6.f);
 				pd->tolive = 1000;
-				pd->timcreation = -(long(arxtime.now_ul()) + 1000l); // TODO WTF
-				pd->special = FIRE_TO_SMOKE | FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION
-				| DISSIPATING;
-				pd->fparam = 0.0000001f;
+				pd->timcreation = -(toMs(arxtime.now()) + 1000l); // TODO WTF
+				pd->m_flags = FIRE_TO_SMOKE | FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+				pd->m_rotation = 0.0000001f;
 			}
 			
 			//update mvt

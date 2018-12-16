@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -175,7 +175,7 @@ private:
 			case Multiply: return left * right;
 			case Divide: return (right == 0.f) ? 0.f : left / right;
 		}
-		arx_assert(false, "Invalid op used in ArithmeticCommand: %d", (int)op);
+		arx_assert_msg(false, "Invalid op used in ArithmeticCommand: %d", (int)op);
 		return 0.f;
 	}
 	

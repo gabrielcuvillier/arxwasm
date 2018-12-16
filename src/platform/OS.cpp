@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,32 +20,42 @@
 #include "platform/OS.h"
 
 #include "Configure.h"
+#include "platform/Architecture.h"
 #include "platform/Platform.h"
 
+#include <algorithm>
 #include <sstream>
 #include <vector>
+#include <cstring>
+
+#include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
 #if ARX_PLATFORM == ARX_PLATFORM_WIN32
 #include <windows.h>
-#include <cstring>
+#if ARX_COMPILER_MSVC && (ARX_ARCH == ARX_ARCH_X86 || ARX_ARCH == ARX_ARCH_X86_64)
+#include <intrin.h>
+#endif
 #endif
 
 #if ARX_HAVE_UNAME
 #include <sys/utsname.h>
 #endif
 
-// yes, we need stdio.h, POSIX doesn't know about cstdio
-#if ARX_HAVE_POPEN
-#include <stdio.h>
+#if ARX_HAVE_GET_CPUID && !defined(ARX_INCLUDED_CPUID_H)
+#define ARX_INCLUDED_CPUID_H
+#include <cpuid.h>
+#endif
+
+#if ARX_HAVE_SYSCONF
+#include <unistd.h>
 #endif
 
 #include "io/fs/FilePath.h"
 #include "io/fs/Filesystem.h"
 #include "io/fs/FileStream.h"
 
-#include "platform/Architecture.h"
 #include "platform/Process.h"
 #include "platform/WindowsUtils.h"
 
@@ -172,8 +182,8 @@ std::string getOSName() {
 	return "Linux";
 	#elif ARX_PLATFORM == ARX_PLATFORM_WIN32
 	return "Windows";
-	#elif ARX_PLATFORM == ARX_PLATFORM_MACOSX
-	return "Darwin";
+	#elif ARX_PLATFORM == ARX_PLATFORM_MACOS
+	return "macOS";
 	#elif ARX_PLATFORM == ARX_PLATFORM_BSD
 	return "BSD";
 	#elif ARX_PLATFORM == ARX_PLATFORM_UNIX
@@ -326,7 +336,6 @@ std::string getOSDistribution() {
 	// Get distribution information from `lsb_release -a` output.
 	// Don't parse /etc/lsb-release ourselves unless there is no other way
 	// because lsb_release may have distro-specific patches
-	#if ARX_HAVE_POPEN && ARX_HAVE_PCLOSE
 	{
 		const char * args[] = { "lsb_release", "-a", NULL };
 		std::istringstream iss(getOutputOf(args));
@@ -336,7 +345,6 @@ std::string getOSDistribution() {
 			return distro;
 		}
 	}
-	#endif
 	
 	// Fallback for older / non-LSB-compliant distros.
 	// Release file list taken from http://linuxmafia.com/faq/Admin/release-files.html
@@ -423,5 +431,156 @@ std::string getOSDistribution() {
 	return std::string();
 }
 
+std::string getCPUName() {
+	
+	#if (ARX_ARCH == ARX_ARCH_X86 || ARX_ARCH == ARX_ARCH_X86_64) \
+	    && (ARX_COMPILER_MSVC || ARX_HAVE_GET_CPUID)
+	
+	#if ARX_COMPILER_MSVC
+	int cpuinfo[4] = { 0 };
+	__cpuid(cpuinfo, 0x80000000);
+	int max = cpuinfo[0];
+	#elif ARX_HAVE_GET_CPUID_MAX
+	unsigned cpuinfo[4] = { 0 };
+	int max = __get_cpuid_max(0x80000000, NULL);
+	#else
+	unsigned cpuinfo[4] = { 0 };
+	__get_cpuid(0x80000000, &cpuinfo[0], &cpuinfo[1], &cpuinfo[2], &cpuinfo[3]);
+	int max = cpuinfo[0];
+	#endif
+	
+	const int first = 0x80000002;
+	int count = std::min(std::max(max + 1, first) - first, 3);
+	
+	std::string name;
+	name.resize(count * sizeof(cpuinfo));
+	
+	for(int i = 0; i < count; i++) {
+		#if ARX_COMPILER_MSVC
+		__cpuid(cpuinfo, first + i);
+		#else
+		__get_cpuid(first + i, &cpuinfo[0], &cpuinfo[1], &cpuinfo[2], &cpuinfo[3]);
+		#endif
+		std::memcpy(&*name.begin() + i * sizeof(cpuinfo), cpuinfo, sizeof(cpuinfo));
+	}
+	
+	size_t p = name.find('\0');
+	if(p != std::string::npos) {
+		name.resize(p);
+	}
+	boost::trim(name);
+	return name;
+	
+	#elif ARX_PLATFORM == ARX_PLATFORM_LINUX
+	
+	fs::ifstream ifs("/proc/cpuinfo");
+	
+	std::string line;
+	while(std::getline(ifs, line).good()) {
+		
+		size_t sep = line.find(':');
+		if(sep == std::string::npos) {
+			continue;
+		}
+		
+		std::string label = line.substr(0, sep);
+		boost::trim(label);
+		if(label != "model name" && label != "Processor") {
+			continue;
+		}
+		
+		std::string name = line.substr(sep + 1);
+		boost::trim(name);
+		if(!name.empty()) {
+			return name;
+		}
+		
+	}
+	
+	#endif
+	
+	return std::string();
+}
+
+MemoryInfo getMemoryInfo() {
+	
+	MemoryInfo memory = { 0, 0 };
+	
+	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+	{
+		MEMORYSTATUSEX status;
+		status.dwLength = sizeof(status);
+		if(GlobalMemoryStatusEx(&status)) {
+			memory.total = status.ullTotalPhys;
+			memory.available = status.ullAvailPhys;
+			return memory;
+		}
+	}
+	#endif
+	
+	#if ARX_PLATFORM == ARX_PLATFORM_LINUX
+	{
+		// sysinfo(2) does not report memory used for cache :/ - parse /proc/meminfo instead
+		fs::ifstream ifs("/proc/meminfo");
+		u64 total = u64(-1), free = u64(-1), buffers = u64(-1), cached = u64(-1);
+		std::string line;
+		while(std::getline(ifs, line).good()) {
+			
+			size_t sep = line.find(':');
+			if(sep == std::string::npos) {
+				continue;
+			}
+			
+			size_t end = line.find("kB", sep + 1);
+			if(end == std::string::npos) {
+				continue;
+			}
+			
+			std::string value = line.substr(sep + 1, end - sep - 1);
+			boost::trim(value);
+			
+			u64 number = 0;
+			try {
+				number = boost::lexical_cast<u64>(value) * u64(1024);
+			} catch(...) {
+				continue;
+			}
+			
+			std::string label = line.substr(0, sep);
+			boost::trim(label);
+			if(label == "MemTotal") {
+				total = number;
+			} else if(label == "MemFree") {
+				free = number;
+			} else if(label == "Buffers") {
+				buffers = number;
+			} else if(label == "Cached") {
+				cached = number;
+			} else {
+				continue;
+			}
+			
+			if(total != u64(-1) && free != u64(-1) && buffers != u64(-1) && cached != u64(-1)) {
+				memory.total = total;
+				memory.available = free + buffers + cached;
+				return memory;
+			}
+			
+		}
+	}
+	#endif
+	
+	#if ARX_HAVE_SYSCONF && defined(_SC_PHYS_PAGES) && defined(_SC_PAGESIZE)
+	{
+		long pages = sysconf(_SC_PHYS_PAGES);
+		long pagesize = sysconf(_SC_PAGESIZE);
+		if(pages > 0 && pagesize > 0) {
+			memory.total = u64(pages) * u64(pagesize);
+		}
+	}
+	#endif
+	
+	return memory;
+}
 
 } // namespace platform

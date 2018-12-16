@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -102,7 +102,16 @@ void PrepareIOTreatZone(long flag = 0);
 
 void LinkObjToMe(Entity * io, Entity * io2, const std::string & attach);
 
-void ARX_INTERACTIVE_DestroyIOdelayed(Entity * entity);
+/*!
+ * Destroy an entity at the end of the current frame
+ *
+ * For items with a count over 1 the count is (immediately) descreased
+ * and the entity is not destroyed.
+ *
+ * \return true if the entity will be destroyed.
+ */
+bool ARX_INTERACTIVE_DestroyIOdelayed(Entity * entity);
+void ARX_INTERACTIVE_DestroyIOdelayedRemove(Entity * entity);
 void ARX_INTERACTIVE_DestroyIOdelayedExecute();
 
 /* TODO remove
@@ -121,8 +130,6 @@ void SetWeapon_Back(Entity * io);
 bool ForceNPC_Above_Ground(Entity * io);
 
 void RestoreInitialIOStatus();
-
-long GetNumberInterWithOutScriptLoad();
 
 void UnlinkAllLinkedObjects();
 EntityHandle IsCollidingAnyInter(const Vec3f & pos, const Vec3f & size);

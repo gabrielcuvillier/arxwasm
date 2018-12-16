@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -67,7 +67,6 @@ public:
 	void shutdownGame();
 	
 	void doFrame();
-	void update();
 	void render();
 
 	void manageKeyMouse();
@@ -75,9 +74,6 @@ public:
 	void manageEditorControls();
 	void managePlayerControls();
 	void updateAllInterface();
-
-	void update2DFX();
-	void goFor2DFX();
 	
 public:
 	

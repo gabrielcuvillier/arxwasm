@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -104,6 +104,20 @@ enum aalError {
 	AAL_ERROR_HANDLE // Invalid resource handle
 };
 
+enum HRTFAttribute {
+	HRTFDisable = 0,
+	HRTFEnable = 1,
+	HRTFDefault = -1,
+};
+
+enum HRTFStatus {
+	HRTFDisabled,
+	HRTFEnabled,
+	HRTFRequired,
+	HRTFForbidden,
+	HRTFUnavailable
+};
+
 // Output format
 struct PCMFormat {
 	size_t frequency; // Samples per second
@@ -128,9 +142,10 @@ const s32 INVALID_ID = -1;
 
 typedef s32 SourceId;
 typedef s32 SampleId;
-ARX_HANDLE_TYPEDEF(s32, MixerId, -1)
-ARX_HANDLE_TYPEDEF(s32, EnvId, -1)
-ARX_HANDLE_TYPEDEF(s32, AmbianceId, -1)
+
+typedef HandleType<struct MixerIdTag,    s32, -1> MixerId;
+typedef HandleType<struct EnvIdTag,      s32, -1> EnvId;
+typedef HandleType<struct AmbianceIdTag, s32, -1> AmbianceId;
 
 // Play channel initialization parameters
 struct Channel {

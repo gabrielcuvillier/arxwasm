@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -18,6 +18,8 @@
  */
 
 #include "graphics/image/Image.h"
+
+#include <algorithm>
 
 /*!
  * Morphological antialisaing algorithm for black-white channels.
@@ -70,8 +72,8 @@ private:
 			return; // (x + ix, y + iy) is out of bounds.
 		}
 		
-		const size_t sx = Channels;
-		size_t sy = w * sx;
+		const int sx = Channels;
+		int sy = w * sx;
 		
 		u8 * n = p + sx * ix + sy * iy;
 		if(*n == 0) {
@@ -180,14 +182,14 @@ private:
 			n++;
 		}
 		
-		u8 area = u8(n * 0.5f * 0.5f / 2 * 255);
+		unsigned area = unsigned(n * 0.5f * 0.5f / 2 * 255);
 		for(unsigned i = 0; i < n; i += 2) {
 			
-			u8 remaining = u8((n - i - 2) * 0.5f * float(n - i - 2) / n * 0.5f / 2 * 255);
-			u8 current = area - remaining;
-			if(current > 127) {
-				// ensure (pixel > 127) remains constant
-				current = 127;
+			u8 current = std::min(area, 127u);
+			if(i + 2 < n) {
+				unsigned remaining = unsigned((n - i - 2) * 0.5f * float(n - i - 2) / n * 0.5f / 2 * 255);
+				current = std::min(area - remaining, 127u);
+				area = remaining;
 			}
 			
 			*p = (filled ? 255 - current : current);
@@ -197,7 +199,6 @@ private:
 			}
 			
 			p += sx * dx + sy * dy;
-			area = remaining;
 		}
 		
 	}
@@ -296,11 +297,11 @@ static bool sampleColorKey(const u8 * src, int w, int h, int x, int y, u8 * dst,
 
 void Image::ApplyColorKeyToAlpha(Color key, bool antialias) {
 	
-	arx_assert(!IsCompressed(), "ApplyColorKeyToAlpha Not supported for compressed textures!");
-	arx_assert(!IsVolume(), "ApplyColorKeyToAlpha Not supported for 3d textures!");
+	arx_assert_msg(!IsCompressed(), "ApplyColorKeyToAlpha Not supported for compressed textures!");
+	arx_assert_msg(!IsVolume(), "ApplyColorKeyToAlpha Not supported for 3d textures!");
 	
 	if(mFormat != Format_R8G8B8 && mFormat != Format_B8G8R8) {
-		arx_assert(false, "ApplyColorKeyToAlpha not supported for format %d", mFormat);
+		arx_assert_msg(false, "ApplyColorKeyToAlpha not supported for format %d", mFormat);
 		return;
 	}
 	

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -69,7 +69,7 @@ namespace {
 static Lock * mutex = NULL;
 }
 
-aalError init(const std::string & backendName, const std::string & deviceName) {
+aalError init(const std::string & backendName, const std::string & deviceName, HRTFAttribute hrtf) {
 	
 	// Clean any initialized data
 	clean();
@@ -92,14 +92,14 @@ aalError init(const std::string & backendName, const std::string & deviceName) {
 			LogDebug("initializing OpenAL backend");
 			OpenALBackend * _backend = new OpenALBackend();
 			if(!deviceName.empty() && deviceName != "auto") {
-				error = _backend->init(deviceName.c_str());
+				error = _backend->init(deviceName.c_str(), hrtf);
 				if(error) {
 					LogWarning << "Could not open device \"" << deviceName
 					           << "\", retrying with default device";
 				}
 			}
 			if(error) {
-				error = _backend->init();
+				error = _backend->init(NULL, hrtf);
 			}
 			if(!error) {
 				backend = _backend;
@@ -223,6 +223,20 @@ bool isReverbSupported() {
 	return backend->isReverbSupported();
 }
 
+aalError setHRTFEnabled(HRTFAttribute enable) {
+	
+	AAL_ENTRY
+	
+	return backend->setHRTFEnabled(enable);
+}
+
+HRTFStatus getHRTFStatus() {
+	
+	AAL_ENTRY_V(HRTFUnavailable)
+	
+	return backend->getHRTFStatus();
+}
+
 aalError update() {
 	
 	ARX_PROFILE_FUNC();
@@ -343,6 +357,10 @@ aalError deleteAmbiance(AmbianceId a_id) {
 	
 	AAL_ENTRY
 	
+	if(a_id == AmbianceId()) {
+		return AAL_ERROR_HANDLE;
+	}
+	
 	_amb.remove(a_id.handleData());
 	
 	return AAL_OK;
@@ -380,7 +398,8 @@ AmbianceId getNextAmbiance(AmbianceId ambiance_id) {
 	
 	AAL_ENTRY_V(AmbianceId())
 	
-	size_t i = _amb.isValid(ambiance_id.handleData()) ? ambiance_id.handleData() + 1 : 0;
+	size_t i = (ambiance_id != AmbianceId() && _amb.isValid(ambiance_id.handleData()))
+	           ? ambiance_id.handleData() + 1 : 0;
 	
 	for(; i < _amb.size(); i++) {
 		if(_amb[i]) {
@@ -673,6 +692,10 @@ aalError setAmbianceUserData(AmbianceId a_id, void * data) {
 	
 	AAL_ENTRY
 	
+	if(a_id == AmbianceId()) {
+		return AAL_ERROR_HANDLE;
+	}
+	
 	if(!_amb.isValid(a_id.handleData())) {
 		return AAL_ERROR_HANDLE;
 	}
@@ -687,6 +710,10 @@ aalError setAmbianceUserData(AmbianceId a_id, void * data) {
 aalError setAmbianceVolume(AmbianceId a_id, float volume) {
 	
 	AAL_ENTRY
+	
+	if(a_id == AmbianceId()) {
+		return AAL_ERROR_HANDLE;
+	}
 	
 	if(!_amb.isValid(a_id.handleData())) {
 		return AAL_ERROR_HANDLE;
@@ -705,6 +732,10 @@ aalError getAmbianceName(AmbianceId a_id, res::path & name) {
 	
 	AAL_ENTRY
 	
+	if(a_id == AmbianceId()) {
+		return AAL_ERROR_HANDLE;
+	}
+	
 	if(!_amb.isValid(a_id.handleData())) {
 		return AAL_ERROR_HANDLE;
 	}
@@ -717,6 +748,10 @@ aalError getAmbianceName(AmbianceId a_id, res::path & name) {
 aalError getAmbianceUserData(AmbianceId a_id, void ** data) {
 	
 	AAL_ENTRY
+	
+	if(a_id == AmbianceId()) {
+		return AAL_ERROR_HANDLE;
+	}
 	
 	if(!_amb.isValid(a_id.handleData())) {
 		return AAL_ERROR_HANDLE;
@@ -732,6 +767,10 @@ aalError getAmbianceVolume(AmbianceId a_id, float & _volume) {
 	_volume = DEFAULT_VOLUME;
 	
 	AAL_ENTRY
+	
+	if(a_id == AmbianceId()) {
+		return AAL_ERROR_HANDLE;
+	}
 	
 	if(!_amb.isValid(a_id.handleData())) {
 		return AAL_ERROR_HANDLE;
@@ -750,6 +789,10 @@ bool isAmbianceLooped(AmbianceId a_id) {
 	
 	AAL_ENTRY_V(false)
 	
+	if(a_id == AmbianceId()) {
+		return false;
+	}
+	
 	if(!_amb.isValid(a_id.handleData())) {
 		return false;
 	}
@@ -763,6 +806,10 @@ aalError ambiancePlay(AmbianceId a_id, const Channel & channel, bool loop, size_
 	
 	AAL_ENTRY
 	
+	if(a_id == AmbianceId()) {
+		return AAL_ERROR_HANDLE;
+	}
+	
 	if(!_amb.isValid(a_id.handleData()) || !_mixer.isValid(channel.mixer.handleData())) {
 		return AAL_ERROR_HANDLE;
 	}
@@ -775,6 +822,10 @@ aalError ambiancePlay(AmbianceId a_id, const Channel & channel, bool loop, size_
 aalError ambianceStop(AmbianceId a_id, size_t fade_interval) {
 	
 	AAL_ENTRY
+	
+	if(a_id == AmbianceId()) {
+		return AAL_ERROR_HANDLE;
+	}
 	
 	if(!_amb.isValid(a_id.handleData())) {
 		return AAL_ERROR_HANDLE;

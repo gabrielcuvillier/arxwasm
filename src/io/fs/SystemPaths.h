@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2012-2015 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -24,12 +24,7 @@
 #include <ostream>
 
 #include "io/fs/FilePath.h"
-
-enum ExitStatus {
-	ExitSuccess,
-	ExitFailure,
-	RunProgram
-};
+#include "util/cmdline/CommandLine.h"
 
 namespace fs {
 

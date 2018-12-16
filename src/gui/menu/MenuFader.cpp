@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2016-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,6 +20,7 @@
 #include "gui/menu/MenuFader.h"
 
 #include "core/Core.h"
+#include "core/GameTime.h"
 #include "graphics/Draw.h"
 #include "graphics/Renderer.h"
 #include "gui/MenuWidgets.h"
@@ -28,7 +29,13 @@ bool g_menuFadeActive=false;
 bool bFadeInOut=false;
 int iFadeAction=-1;
 
-float fFadeInOut=0.f;
+static PlatformDuration menuFadeElapsed = PlatformDuration_ZERO;
+
+void MenuFader_reset() {
+	iFadeAction = -1;
+	g_menuFadeActive = false;
+	menuFadeElapsed = PlatformDuration_ZERO;
+}
 
 static void FadeInOut(float _fVal) {
 
@@ -58,44 +65,35 @@ static void FadeInOut(float _fVal) {
 	d3dvertex[3].p.z=0.f;
 	d3dvertex[3].rhw=1.f;
 	d3dvertex[3].color=iColor;
-
+	
+	UseRenderState state(render2D().blend(BlendZero, BlendInvSrcColor));
 	GRenderer->ResetTexture(0);
-	GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetRenderState(Renderer::DepthTest, false);
-	GRenderer->SetCulling(CullNone);
-
 	EERIEDRAWPRIM(Renderer::TriangleStrip, d3dvertex, 4, true);
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-	GRenderer->SetRenderState(Renderer::DepthWrite, true);
-	GRenderer->SetRenderState(Renderer::DepthTest, true);
-	GRenderer->SetCulling(CullCCW);
+	
 }
 
-bool ProcessFadeInOut(bool _bFadeIn) {
+bool MenuFader_process(bool _bFadeIn) {
 	
-	static const float _fspeed = 0.1f;
+	const PlatformDuration fadeDuration = PlatformDurationMs(1000);
 	
-	FadeInOut(fFadeInOut);
+	float alpha = menuFadeElapsed / fadeDuration;
+	FadeInOut(alpha);
 
 	if(!g_menuFadeActive)
 		return true;
 
 	if(_bFadeIn) {
-		fFadeInOut += _fspeed * ARXDiffTimeMenu * (1.f/100);
-
-		if(fFadeInOut > 1.f) {
-			fFadeInOut = 1.f;
+		menuFadeElapsed = menuFadeElapsed + g_platformTime.lastFrameDuration();
+		
+		if(menuFadeElapsed > fadeDuration) {
+			menuFadeElapsed = fadeDuration;
 			g_menuFadeActive = false;
 		}
 	} else {
-		fFadeInOut -= _fspeed * ARXDiffTimeMenu * (1.f/100);
-
-		if(fFadeInOut < 0.f) {
-			fFadeInOut = 0.f;
+		menuFadeElapsed = menuFadeElapsed - g_platformTime.lastFrameDuration();
+		
+		if(menuFadeElapsed < PlatformDuration_ZERO) {
+			menuFadeElapsed = PlatformDuration_ZERO;
 			g_menuFadeActive = false;
 		}
 	}

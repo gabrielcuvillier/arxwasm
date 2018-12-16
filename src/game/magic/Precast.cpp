@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -32,16 +32,16 @@
 
 const size_t MAX_PRECAST = 3;
 
-unsigned long LAST_PRECAST_TIME = 0;
+ArxInstant LAST_PRECAST_TIME = ArxInstant_ZERO;
 
 std::vector<PRECAST_STRUCT> Precast;
 
 void ARX_SPELLS_Precast_Reset() {
-	LAST_PRECAST_TIME = 0;
+	LAST_PRECAST_TIME = ArxInstant_ZERO;
 	Precast.clear();
 }
 
-void ARX_SPELLS_Precast_Add(SpellType typ, long _level, SpellcastFlags flags, long duration) {
+void ARX_SPELLS_Precast_Add(SpellType typ, long _level, SpellcastFlags flags, ArxDuration duration) {
 	
 	if(Precast.size() >= MAX_PRECAST) {
 		Precast.erase(Precast.begin());
@@ -53,7 +53,7 @@ void ARX_SPELLS_Precast_Add(SpellType typ, long _level, SpellcastFlags flags, lo
 	PRECAST_STRUCT precast;
 	precast.typ = typ;
 	precast.level = _level;
-	precast.launch_time = 0;
+	precast.launch_time = ArxInstant_ZERO;
 	precast.flags = flags;
 	precast.duration = duration;
 	
@@ -71,8 +71,8 @@ void ARX_SPELLS_Precast_Launch(PrecastHandle num) {
 		return;
 	}
 	
-	float elapsed = arxtime.now_f() - LAST_PRECAST_TIME;
-	if(elapsed < 1000) {
+	ArxDuration elapsed = arxtime.now() - LAST_PRECAST_TIME;
+	if(elapsed < ArxDurationMs(1000)) {
 		return;
 	}
 	
@@ -91,10 +91,10 @@ void ARX_SPELLS_Precast_Launch(PrecastHandle num) {
 	if(   (precast.flags & SPELLCAST_FLAG_NOMANA)
 	   || player.manaPool.current >= cost
 	) {
-		LAST_PRECAST_TIME = arxtime.now_ul();
+		LAST_PRECAST_TIME = arxtime.now();
 		
-		if(precast.launch_time == 0) {
-			precast.launch_time = arxtime.now_ul();
+		if(precast.launch_time == ArxInstant_ZERO) {
+			precast.launch_time = arxtime.now();
 			ARX_SOUND_PlaySFX(SND_SPELL_CREATE_FIELD);
 		}
 	} else {
@@ -107,21 +107,21 @@ void ARX_SPELLS_Precast_Launch(PrecastHandle num) {
 
 void ARX_SPELLS_Precast_Check() {
 	for(size_t i = 0; i < Precast.size(); i++) {
-		if(Precast[i].launch_time > 0 && arxtime.now_f() >= Precast[i].launch_time) {
+		if(Precast[i].launch_time > ArxInstant_ZERO && arxtime.now() >= Precast[i].launch_time) {
 			AnimLayer & layer1 = entities.player()->animlayer[1];
 			
 			if(player.Interface & INTER_COMBATMODE) {
 				WILLRETURNTOCOMBATMODE = true;
-				ARX_INTERFACE_Combat_Mode(0);
+				ARX_INTERFACE_setCombatMode(COMBAT_MODE_OFF);
 				ResetAnim(layer1);
 				layer1.flags &= ~EA_LOOP;
 			}
 
 			if(layer1.cur_anim && layer1.cur_anim == entities.player()->anims[ANIM_CAST]) {
-				if(layer1.ctime + 550 > layer1.cur_anim->anims[layer1.altidx_cur]->anim_time)
+				if(layer1.ctime + AnimationDurationMs(550) > layer1.cur_anim->anims[layer1.altidx_cur]->anim_time)
 				{
 					ARX_SPELLS_Launch(Precast[i].typ,
-					                  PlayerEntityHandle,
+					                  EntityHandle_Player,
 					                  Precast[i].flags | SPELLCAST_FLAG_LAUNCHPRECAST,
 					                  Precast[i].level,
 					                  EntityHandle(),

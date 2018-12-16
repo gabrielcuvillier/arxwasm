@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -389,7 +389,7 @@ public:
 	explicit  PlainFileHandle(const fs::path & path)
 		: ifs(path, fs::fstream::in | fs::fstream::binary) {
 		arx_assert(ifs.is_open());
-	};
+	}
 	
 	size_t read(void * buf, size_t size);
 	
@@ -610,6 +610,7 @@ bool PakReader::addFiles(const fs::path & path, const res::path & mount) {
 		bool ret = addFiles(addDirectory(mount), path);
 	
 		if(ret) {
+			release |= External;
 			LogInfo << "Added dir " << path;
 		}
 		

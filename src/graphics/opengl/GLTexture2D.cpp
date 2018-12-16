@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -41,7 +41,7 @@ GLTexture2D::~GLTexture2D() {
 
 bool GLTexture2D::Create() {
 	
-	arx_assert(!tex, "leaking OpenGL texture");
+	arx_assert_msg(tex == GL_NONE, "leaking OpenGL texture");
 	
 	glGenTextures(1, &tex);
 	
@@ -88,7 +88,7 @@ void GLTexture2D::Upload() {
 	} else if(mFormat == Image::Format_B8G8R8A8) {
 		internal = GL_RGBA8, format = GL_BGRA;
 	} else {
-		arx_assert(false, "Unsupported image format: %ld", long(mFormat));
+		arx_assert_msg(false, "Unsupported image format: %ld", long(mFormat));
 		return;
 	}
 
@@ -97,19 +97,20 @@ void GLTexture2D::Upload() {
 	}
   
 #if defined __native_client__ || defined __EMSCRIPTEN__
-#pragma message( "Disabled Mimaps with OpenGL ES 2, as there is some issues in Regal" )
+#pragma message( "Disabled Mimaps with OpenGL ES 2 / WebGL, as it is not supported by Regal" )
+	// To be tested again with REGAL_EMU_TEXC enabled
     flags &= ~HasMipmaps;
-#endif
-
+#else
 	if(hasMipmaps()) {
 		glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 		if(renderer->getMaxAnisotropy() > 1.f) {
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, renderer->getMaxAnisotropy());
 		}
 	} else {
-		  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	}
-  
+#endif
+
 	// TODO handle GL_MAX_TEXTURE_SIZE
 	
 	if(storedSize != size) {

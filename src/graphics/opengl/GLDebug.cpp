@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -33,6 +33,8 @@
 #include "platform/ProgramOptions.h"
 
 #include "util/cmdline/Optional.h"
+
+#include "Configure.h"
 
 namespace gldebug {
 
@@ -166,7 +168,7 @@ void initialize() {
 
 #endif
 
-#ifdef ARX_DEBUG
+#if ARX_DEBUG_GL
 static bool g_enable = true;
 #else
 static bool g_enable = false;
@@ -180,7 +182,7 @@ static void enable() {
 	g_enable = true;
 }
 
-ARX_PROGRAM_OPTION("debug-gl", NULL, "Enable OpenGL debug output", &enable);
+ARX_PROGRAM_OPTION("debug-gl", NULL, "Enable OpenGL debug output", &enable)
 
 static const char * getGLErrorString(GLenum error) {
 	

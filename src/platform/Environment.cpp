@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -49,7 +49,7 @@
 #include <errno.h>
 #endif
 
-#if ARX_PLATFORM == ARX_PLATFORM_MACOSX
+#if ARX_PLATFORM == ARX_PLATFORM_MACOS
 #include <mach-o/dyld.h>
 #include <sys/param.h>
 #endif
@@ -68,6 +68,7 @@
 #include "io/fs/FilePath.h"
 #include "io/fs/Filesystem.h"
 
+#include "platform/Lock.h"
 #include "platform/WindowsUtils.h"
 
 #include "util/String.h"
@@ -263,23 +264,13 @@ std::vector<fs::path> getSystemPaths(SystemPathId id) {
 
 #endif
 
-#if ARX_PLATFORM == ARX_PLATFORM_WIN32 || ARX_PLATFORM == ARX_PLATFORM_MACOSX
-
-void initializeEnvironment(const char * argv0) {
-	ARX_UNUSED(argv0);
-}
-
-#else
-
 static const char * executablePath = NULL;
 
 void initializeEnvironment(const char * argv0) {
 	executablePath = argv0;
 }
 
-#endif
-
-#if ARX_HAVE_READLINK && ARX_PLATFORM != ARX_PLATFORM_MACOSX
+#if ARX_HAVE_READLINK && ARX_PLATFORM != ARX_PLATFORM_MACOS
 static bool try_readlink(std::vector<char> & buffer, const char * path) {
 	
 	int ret = readlink(path, &buffer.front(), buffer.size());
@@ -299,7 +290,7 @@ static bool try_readlink(std::vector<char> & buffer, const char * path) {
 
 fs::path getExecutablePath() {
 	
-#if ARX_PLATFORM == ARX_PLATFORM_MACOSX
+#if ARX_PLATFORM == ARX_PLATFORM_MACOS
 	
 	uint32_t bufsize = 0;
 	
@@ -363,8 +354,12 @@ fs::path getExecutablePath() {
 	if(try_readlink(buffer, "/proc/self/exe")) {
 		return fs::path(&*buffer.begin(), &*buffer.end());
 	}
-	// BSD
+	// FreeBSD, DragonFly BSD
 	if(try_readlink(buffer, "/proc/curproc/file")) {
+		return fs::path(&*buffer.begin(), &*buffer.end());
+	}
+	// NetBSD
+	if(try_readlink(buffer, "/proc/curproc/exe")) {
 		return fs::path(&*buffer.begin(), &*buffer.end());
 	}
 	// Solaris
@@ -372,6 +367,8 @@ fs::path getExecutablePath() {
 		return fs::path(&*buffer.begin(), &*buffer.end());
 	}
 	#endif
+	
+#endif
 	
 	// Fall back to argv[0] if possible
 	if(executablePath != NULL) {
@@ -381,10 +378,22 @@ fs::path getExecutablePath() {
 		}
 	}
 	
-#endif
-	
 	// Give up - we couldn't determine the exe path.
 	return fs::path();
+}
+
+std::string getCommandName() {
+	
+	// Prefer the name passed on the command-line to the actual executable name
+	fs::path path = executablePath ? fs::path(executablePath) : getExecutablePath();
+	
+	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+	if(path.ext() == ".exe") {
+		return path.basename();
+	}
+	#endif
+	
+	return path.filename();
 }
 
 fs::path getHelperExecutable(const std::string & name) {
@@ -469,7 +478,7 @@ bool isFileDescriptorDisabled(int fd) {
 	
 	bool valid = false;
 	#if ARX_HAVE_FCNTL && defined(F_GETPATH) && defined(MAXPATHLEN)
-	// OS X
+	// macOS
 	valid = (fcntl(fd, F_GETPATH, path) != -1 && path[9] == '\0');
 	#elif ARX_HAVE_READLINK
 	// Linux
@@ -486,6 +495,57 @@ bool isFileDescriptorDisabled(int fd) {
 	#endif
 	
 	return false;
+}
+
+static Lock g_environmentLock;
+
+bool hasEnvironmentVariable(const char * name) {
+	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+	return GetEnvironmentVariable(platform::WideString(name), NULL, 0) != 0;
+	#else
+	return std::getenv(name) != NULL;
+	#endif
+}
+
+void setEnvironmentVariable(const char * name, const char * value) {
+	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+	SetEnvironmentVariableW(platform::WideString(name), platform::WideString(value));
+	#elif ARX_HAVE_SETENV
+	setenv(name, value, 1);
+	#endif
+}
+
+void unsetEnvironmentVariable(const char * name) {
+	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+	SetEnvironmentVariableW(platform::WideString(name), NULL);
+	#elif ARX_HAVE_UNSETENV
+	unsetenv(name);
+	#endif
+}
+
+void EnvironmentLock::lock() {
+	g_environmentLock.lock();
+	for(size_t i = 0; i < m_count; i++) {
+		if(m_overrides[i].name) {
+			if(hasEnvironmentVariable(m_overrides[i].name)) {
+				// Don't override variables already set by the user
+				m_overrides[i].name = NULL;
+			} else if(m_overrides[i].value) {
+				setEnvironmentVariable(m_overrides[i].name, m_overrides[i].value);
+			} else {
+				unsetEnvironmentVariable(m_overrides[i].name);
+			}
+		}
+	}
+}
+
+void EnvironmentLock::unlock() {
+	for(size_t i = 0; i < m_count; i++) {
+		if(m_overrides[i].name) {
+			unsetEnvironmentVariable(m_overrides[i].name);
+		}
+	}
+	g_environmentLock.unlock();
 }
 
 } // namespace platform

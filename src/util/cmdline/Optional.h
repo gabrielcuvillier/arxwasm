@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -98,7 +98,7 @@ struct optional {
 	
 private:
 	
-	struct dummy { void nonnull() {}; };
+	struct dummy { void nonnull() {} };
 	typedef void (dummy::*safe_bool)();
 	
 public:

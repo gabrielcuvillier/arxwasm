@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -75,7 +75,9 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/data/Mesh.h"
 #include "graphics/data/MeshManipulation.h"
 #include "graphics/data/TextureContainer.h"
+#include "graphics/effects/PolyBoom.h"
 #include "graphics/particle/ParticleEffects.h"
+#include "graphics/particle/Spark.h"
 
 #include "io/resource/ResourcePath.h"
 
@@ -94,9 +96,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "script/Script.h"
 
-struct EQUIP_INFO
-{
-	char name[64];
+struct EQUIP_INFO {
+	const char * name;
 };
 
 #define SP_SPARKING 1
@@ -474,7 +475,7 @@ float ARX_EQUIPMENT_ComputeDamages(Entity * io_source, Entity * io_target, float
 	if(!(io_target->ioflags & IO_NPC)) {
 		if(io_target->ioflags & IO_FIX) {
 			if (io_source == entities.player())
-				ARX_DAMAGES_DamageFIX(io_target, player.m_miscFull.damages, PlayerEntityHandle, false);
+				ARX_DAMAGES_DamageFIX(io_target, player.m_miscFull.damages, EntityHandle_Player, false);
 			else if (io_source->ioflags & IO_NPC)
 				ARX_DAMAGES_DamageFIX(io_target, io_source->_npcdata->damages, io_source->index(), false);
 			else
@@ -666,8 +667,7 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 	bool ret = false;
 	EntityHandle source = io_source->index();
 	EntityHandle weapon = io_weapon->index();
-	Sphere sphere;
-
+	
 	EXCEPTIONS_LIST_Pos = 0;
 
 	float drain_life = ARX_EQUIPMENT_GetSpecialValue(io_weapon, IO_SPECIAL_ELEM_DRAIN_LIFE);
@@ -680,10 +680,11 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 		if(rad == -1)
 			continue;
 		
+		Sphere sphere;
 		sphere.origin = actionPointPosition(io_weapon->obj, action.idx);
 		sphere.radius = rad; 
 
-		if(source != PlayerEntityHandle)
+		if(source != EntityHandle_Player)
 			sphere.radius += 15.f;
 
 		std::vector<EntityHandle> sphereContent;
@@ -693,7 +694,7 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 				if(ValidIONum(content)
 						&& !(entities[content]->ioflags & IO_BODY_CHUNK))
 				{
-					long HIT_SPARK = 0;
+					bool HIT_SPARK = false;
 					EXCEPTIONS_LIST[EXCEPTIONS_LIST_Pos] = content;
 					EXCEPTIONS_LIST_Pos++;
 
@@ -752,7 +753,7 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 							}
 
 							if(paralyse > 0.f) {
-								long ptime = long(std::min(dmgs * 1000.f, paralyse));
+								ArxDuration ptime = ArxDurationMs(std::min(dmgs * 1000.f, paralyse));
 								ARX_SPELLS_Launch(SPELL_PARALYSE,
 								                  weapon,
 								                  SPELLCAST_FLAG_NOMANA | SPELLCAST_FLAG_NOCHECKCANCAST,
@@ -765,50 +766,51 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 						if(io_source == entities.player())
 							ARX_DAMAGES_DurabilityCheck(io_weapon, 0.2f);
 					}
-
-					if(dmgs > 0.f || ((target->ioflags & IO_NPC) && target->spark_n_blood == SP_BLOODY)) {
-						if(target->ioflags & IO_NPC) {
-							target->spark_n_blood = SP_BLOODY;
-
-							if(!(flags & 1)) {
-								ARX_PARTICLES_Spawn_Splat(pos, dmgs, color);
-
-								Sphere sp;
-								float power;
-								power = (dmgs * ( 1.0f / 40 )) + 0.7f;
-								Vec3f vect;
-								vect.x = target->obj->vertexlist3[hitpoint].v.x - io_source->pos.x;
-								vect.y = 0;
-								vect.z = target->obj->vertexlist3[hitpoint].v.z - io_source->pos.z;
-								vect = glm::normalize(vect);
-								sp.origin.x = target->obj->vertexlist3[hitpoint].v.x + vect.x * 30.f;
-								sp.origin.y = target->obj->vertexlist3[hitpoint].v.y;
-								sp.origin.z = target->obj->vertexlist3[hitpoint].v.z + vect.z * 30.f;
-								sp.radius = 3.5f * power * 20;
-
-								if(CheckAnythingInSphere(sp, PlayerEntityHandle, CAS_NO_NPC_COL)) {
-									Color3f rgb = color.to<float>();
-									
-									Sphere splatSphere;
-									splatSphere.origin = sp.origin;
-									splatSphere.radius = 30.f;
-									SpawnGroundSplat(splatSphere, rgb, 1);
-								}
+					
+					if((target->ioflags & IO_NPC) && (dmgs > 0.f || target->spark_n_blood == SP_BLOODY)) {
+						target->spark_n_blood = SP_BLOODY;
+						
+						if(!(flags & 1)) {
+							ARX_PARTICLES_Spawn_Splat(pos, dmgs, color);
+							
+							Vec3f vertPos = target->obj->vertexlist3[hitpoint].v;
+							
+							float power = (dmgs * ( 1.0f / 40 )) + 0.7f;
+							
+							Vec3f vect;
+							vect.x = vertPos.x - io_source->pos.x;
+							vect.y = 0;
+							vect.z = vertPos.z - io_source->pos.z;
+							vect = glm::normalize(vect);
+							
+							Sphere sp;
+							sp.origin.x = vertPos.x + vect.x * 30.f;
+							sp.origin.y = vertPos.y;
+							sp.origin.z = vertPos.z + vect.z * 30.f;
+							sp.radius = 3.5f * power * 20;
+							
+							if(CheckAnythingInSphere(sp, EntityHandle_Player, CAS_NO_NPC_COL)) {
+								Color3f rgb = color.to<float>();
+								
+								Sphere splatSphere;
+								splatSphere.origin = sp.origin;
+								splatSphere.radius = 30.f;
+								PolyBoomAddSplat(splatSphere, rgb, 1);
 							}
-
-							ARX_PARTICLES_Spawn_Blood2(pos, dmgs, color, target);
-						} else {
-							if(target->ioflags & IO_ITEM)
-								ARX_PARTICLES_Spawn_Spark(pos, Random::getu(0, 3), SpawnSparkType_Default);
-							else
-								ARX_PARTICLES_Spawn_Spark(pos, Random::getu(0, 30), SpawnSparkType_Default);
-
-							ARX_NPC_SpawnAudibleSound(pos, io_source);
-
-							if(io_source == entities.player())
-								HIT_SPARK = 1;
 						}
-					} else if((target->ioflags & IO_NPC) && (dmgs <= 0.f || target->spark_n_blood == SP_SPARKING)) {
+						
+						ARX_PARTICLES_Spawn_Blood2(pos, dmgs, color, target);
+					} else if(!(target->ioflags & IO_NPC) && dmgs > 0.f) {
+						if(target->ioflags & IO_ITEM)
+							ParticleSparkSpawnContinous(pos, Random::getu(0, 3), SpawnSparkType_Default);
+						else
+							ParticleSparkSpawnContinous(pos, Random::getu(0, 30), SpawnSparkType_Default);
+						
+						ARX_NPC_SpawnAudibleSound(pos, io_source);
+						
+						if(io_source == entities.player())
+							HIT_SPARK = true;
+					} else if(target->ioflags & IO_NPC) {
 						unsigned int nb;
 
 						if(target->spark_n_blood == SP_SPARKING)
@@ -819,13 +821,13 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 						if(target->ioflags & IO_ITEM)
 							nb = 1;
 
-						ARX_PARTICLES_Spawn_Spark(pos, nb, SpawnSparkType_Default);
+						ParticleSparkSpawnContinous(pos, nb, SpawnSparkType_Default);
 						ARX_NPC_SpawnAudibleSound(pos, io_source);
 						target->spark_n_blood = SP_SPARKING;
 
 						if(!(target->ioflags & IO_NPC))
-							HIT_SPARK = 1;
-					} else if(dmgs <= 0.f && ((target->ioflags & IO_FIX) || (target->ioflags & IO_ITEM))) {
+							HIT_SPARK = true;
+					} else if((target->ioflags & IO_FIX) || (target->ioflags & IO_ITEM)) {
 						unsigned int nb;
 
 						if(target->spark_n_blood == SP_SPARKING)
@@ -836,12 +838,12 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 						if(target->ioflags & IO_ITEM)
 							nb = 1;
 
-						ARX_PARTICLES_Spawn_Spark(pos, nb, SpawnSparkType_Default);
+						ParticleSparkSpawnContinous(pos, nb, SpawnSparkType_Default);
 						ARX_NPC_SpawnAudibleSound(pos, io_source);
 						target->spark_n_blood = SP_SPARKING;
 
 						if (!(target->ioflags & IO_NPC))
-							HIT_SPARK = 1;
+							HIT_SPARK = true;
 					}
 
 					if(HIT_SPARK) {
@@ -849,17 +851,17 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 							ARX_DAMAGES_DurabilityCheck(io_weapon, 1.f);
 							io_source->isHit = true;
 							
-								std::string _weapon_material = "metal";
-								const std::string * weapon_material = &_weapon_material;
-
-								if(!io_weapon->weaponmaterial.empty()) {
-									weapon_material = &io_weapon->weaponmaterial;
-								}
-
-								char bkg_material[128];
-
-								if(ARX_MATERIAL_GetNameById(target->material, bkg_material))
-									ARX_SOUND_PlayCollision(*weapon_material, bkg_material, 1.f, 1.f, sphere.origin, NULL);
+							std::string _weapon_material = "metal";
+							const std::string * weapon_material = &_weapon_material;
+							
+							if(!io_weapon->weaponmaterial.empty()) {
+								weapon_material = &io_weapon->weaponmaterial;
+							}
+							
+							if(target->material != MATERIAL_NONE) {
+								const char * matStr = ARX_MATERIAL_GetNameById(target->material);
+								ARX_SOUND_PlayCollision(*weapon_material, matStr, 1.f, 1.f, sphere.origin, NULL);
+							}
 						}
 					}
 				}
@@ -873,22 +875,22 @@ bool ARX_EQUIPMENT_Strike_Check(Entity * io_source, Entity * io_weapon, float ra
 					ARX_DAMAGES_DurabilityCheck(io_weapon, 1.f);
 					io_source->isHit = true;
 					
-						std::string _weapon_material = "metal";
-						const std::string * weapon_material = &_weapon_material;
-						if(!io_weapon->weaponmaterial.empty()) {
-							weapon_material = &io_weapon->weaponmaterial;
-						}
-
-						std::string bkg_material = "earth";
-
-						if(ep && ep->tex && !ep->tex->m_texName.empty())
-							bkg_material = GetMaterialString(ep->tex->m_texName);
-
-						ARX_SOUND_PlayCollision(*weapon_material, bkg_material, 1.f, 1.f, sphere.origin, io_source);
+					std::string _weapon_material = "metal";
+					const std::string * weapon_material = &_weapon_material;
+					if(!io_weapon->weaponmaterial.empty()) {
+						weapon_material = &io_weapon->weaponmaterial;
+					}
+					
+					std::string bkg_material = "earth";
+					
+					if(ep && ep->tex && !ep->tex->m_texName.empty())
+						bkg_material = GetMaterialString(ep->tex->m_texName);
+					
+					ARX_SOUND_PlayCollision(*weapon_material, bkg_material, 1.f, 1.f, sphere.origin, io_source);
 				}
 			}
 
-			ARX_PARTICLES_Spawn_Spark(sphere.origin, Random::getu(0, 10), SpawnSparkType_Default);
+			ParticleSparkSpawnContinous(sphere.origin, Random::getu(0, 10), SpawnSparkType_Default);
 			ARX_NPC_SpawnAudibleSound(sphere.origin, io_source);
 		}
 	}
@@ -931,8 +933,7 @@ void ARX_EQUIPMENT_LaunchPlayerReadyWeapon() {
 void ARX_EQUIPMENT_UnEquipPlayerWeapon()
 {
 	if(ValidIONum(player.equiped[EQUIP_SLOT_WEAPON])) {
-		Entity * pioOldDragInter;
-		pioOldDragInter = DRAGINTER;
+		Entity * pioOldDragInter = DRAGINTER;
 		DRAGINTER = entities[player.equiped[EQUIP_SLOT_WEAPON]];
 
 		if(DRAGINTER)
@@ -1065,36 +1066,35 @@ bool ARX_EQUIPMENT_SetObjectType(Entity & io, const std::string & temp, bool set
 //! \brief Initializes Equipment infos
 void ARX_EQUIPMENT_Init()
 {
-	// IO_EQUIPITEM_ELEMENT_... are Defined in EERIEPOLY.h
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_STRENGTH].name, "strength");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_DEXTERITY].name, "dexterity");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_CONSTITUTION].name, "constitution");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_MIND].name, "intelligence");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Stealth].name, "stealth");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Mecanism].name, "mecanism");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Intuition].name, "intuition");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Etheral_Link].name, "etheral_link");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Object_Knowledge].name, "object_knowledge");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Casting].name, "casting");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Projectile].name, "projectile");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Close_Combat].name, "close_combat");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Defense].name, "defense");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Armor_Class].name, "armor_class");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Resist_Magic].name, "resist_magic");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Resist_Poison].name, "resist_poison");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Critical_Hit].name, "critical_hit");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Damages].name, "damages");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Duration].name, "duration");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_AimTime].name, "aim_time");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Identify_Value].name, "identify_value");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Life].name, "life");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_Mana].name, "mana");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_MaxLife].name, "maxlife");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_MaxMana].name, "maxmana");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_SPECIAL_1].name, "special1");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_SPECIAL_2].name, "special2");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_SPECIAL_3].name, "special3");
-	strcpy(equipinfo[IO_EQUIPITEM_ELEMENT_SPECIAL_4].name, "special4");
+	equipinfo[IO_EQUIPITEM_ELEMENT_STRENGTH].name = "strength";
+	equipinfo[IO_EQUIPITEM_ELEMENT_DEXTERITY].name = "dexterity";
+	equipinfo[IO_EQUIPITEM_ELEMENT_CONSTITUTION].name = "constitution";
+	equipinfo[IO_EQUIPITEM_ELEMENT_MIND].name = "intelligence";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Stealth].name = "stealth";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Mecanism].name = "mecanism";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Intuition].name = "intuition";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Etheral_Link].name = "etheral_link";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Object_Knowledge].name = "object_knowledge";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Casting].name = "casting";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Projectile].name = "projectile";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Close_Combat].name = "close_combat";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Defense].name = "defense";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Armor_Class].name = "armor_class";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Resist_Magic].name = "resist_magic";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Resist_Poison].name = "resist_poison";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Critical_Hit].name = "critical_hit";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Damages].name = "damages";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Duration].name = "duration";
+	equipinfo[IO_EQUIPITEM_ELEMENT_AimTime].name = "aim_time";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Identify_Value].name = "identify_value";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Life].name = "life";
+	equipinfo[IO_EQUIPITEM_ELEMENT_Mana].name = "mana";
+	equipinfo[IO_EQUIPITEM_ELEMENT_MaxLife].name = "maxlife";
+	equipinfo[IO_EQUIPITEM_ELEMENT_MaxMana].name = "maxmana";
+	equipinfo[IO_EQUIPITEM_ELEMENT_SPECIAL_1].name = "special1";
+	equipinfo[IO_EQUIPITEM_ELEMENT_SPECIAL_2].name = "special2";
+	equipinfo[IO_EQUIPITEM_ELEMENT_SPECIAL_3].name = "special3";
+	equipinfo[IO_EQUIPITEM_ELEMENT_SPECIAL_4].name = "special4";
 }
 
 //! \brief Removes All special equipement properties
@@ -1141,7 +1141,7 @@ float getEquipmentModifier(EquipmentModifierType modifier, float baseval) {
 }
 
 void ARX_EQUIPMENT_SetEquip(Entity * io, bool special,
-                            const std::string & param2, float val,
+                            const std::string & modifierName, float val,
                             EquipmentModifierFlags flags) {
 	
 	if (io == NULL) return;
@@ -1166,9 +1166,9 @@ void ARX_EQUIPMENT_SetEquip(Entity * io, bool special,
 		{
 			if (io->_itemdata->equipitem->elements[i].special == IO_SPECIAL_ELEM_NONE)
 			{
-				if(param2 == "paralyse") {
+				if(modifierName == "paralyse") {
 					io->_itemdata->equipitem->elements[i].special = IO_SPECIAL_ELEM_PARALYZE;
-				} else if(param2 == "drainlife") {
+				} else if(modifierName == "drainlife") {
 					io->_itemdata->equipitem->elements[i].special = IO_SPECIAL_ELEM_DRAIN_LIFE;
 				}
 
@@ -1182,7 +1182,7 @@ void ARX_EQUIPMENT_SetEquip(Entity * io, bool special,
 		
 	} else {
 		for(long i = 0; i < IO_EQUIPITEM_ELEMENT_Number; i++) {
-			if(param2 == equipinfo[i].name) {
+			if(modifierName == equipinfo[i].name) {
 				io->_itemdata->equipitem->elements[i].value = val;
 				io->_itemdata->equipitem->elements[i].special = IO_SPECIAL_ELEM_NONE;
 				io->_itemdata->equipitem->elements[i].flags = flags;

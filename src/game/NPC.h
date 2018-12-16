@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -161,7 +161,7 @@ struct IO_NPCDATA {
 	ResourcePool lifePool;
 	ResourcePool manaPool;
 	
-	unsigned long reachedtime;
+	ArxInstant reachedtime;
 	long reachedtarget;	//Is target in REACHZONE ?
 	Entity * weapon; // Linked Weapon (r-hand)
 	long detect;
@@ -170,7 +170,7 @@ struct IO_NPCDATA {
 	float absorb;
 	float damages;
 	float tohit;
-	unsigned int aimtime;
+	ArxDuration aimtime;
 	float critical;
 	float reach;
 	float backstab_skill;
@@ -201,7 +201,7 @@ struct IO_NPCDATA {
 	
 	short strike_time;
 	short walk_start_time;
-	unsigned long aiming_start;
+	ArxInstant aiming_start;
 	NPCFlags npcflags;
 	IO_PATHFIND pathfind;
 	EERIE_EXTRA_ROTATE * ex_rotate;

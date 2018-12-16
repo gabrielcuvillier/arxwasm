@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -47,6 +47,8 @@ public:
 	
 	void setMinimizeOnFocusLost(bool enabled);
 	MinimizeSetting willMinimizeOnFocusLost();
+	
+	std::string getClipboardText();
 	
 	InputBackend * getInputBackend();
 	

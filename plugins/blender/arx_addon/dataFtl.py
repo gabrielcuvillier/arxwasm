@@ -1,4 +1,4 @@
-# Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+# Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
 #
 # This file is part of Arx Libertatis.
 #
@@ -153,11 +153,13 @@ def comp(a, b):
     return True
 
 
-import logging
 from collections import namedtuple
 
 from ctypes import sizeof
 import itertools
+
+import logging
+logging.basicConfig(level=logging.INFO)
 
 FtlData = namedtuple("FtlData", ["metadata", "verts", "faces", "mats", "groups", "actions", "sels"])
 FtlMetadata = namedtuple("FtlMetadata", ["name", "org"])
@@ -180,7 +182,7 @@ class FtlSerializer(object):
     def __init__(self):
         self.log = logging.getLogger('FtlSerializer')
 
-    def read(self, data):
+    def read(self, data) -> FtlData:
         pos = 0
 
         primaryHeader = ARX_FTL_PRIMARY_HEADER.from_buffer_copy(data, pos)
@@ -315,7 +317,7 @@ class FtlSerializer(object):
             sels=sels
         )
 
-    def write(self, data):
+    def write(self, data: FtlData) -> bytearray:
 
         result = bytearray()
 
@@ -360,7 +362,13 @@ class FtlSerializer(object):
             face = EERIE_FACE_FTL()
             face.vid = (c_uint16 * 3)(*f.vids)
             face.u, face.v = zip(*f.uvs)
-            face.texid = f[2]
+            
+            if f[2] < len(data.mats):
+                face.texid = f[2]
+            else:
+                face.texid = -1
+            
+            #face.texid = f[2]
             face.facetype.asUInt = f[3]
             face.transval = f[4]
             # face.norm.x = f.normal[0]

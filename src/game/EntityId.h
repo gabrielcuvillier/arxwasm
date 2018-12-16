@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -34,12 +34,19 @@ namespace res { class path; }
  */
 struct EntityId {
 	
-	EntityId() : m_instance(-1) { }
+	EntityId()
+		: m_instance(-1)
+	{ }
 	
 	EntityId(const std::string & className, EntityInstance instance)
-		: m_className(className), m_instance(instance) { }
+		: m_className(className)
+		, m_instance(instance)
+	{ }
+	
 	EntityId(const char * className, EntityInstance instance)
-		: m_className(className), m_instance(instance) { }
+		: m_className(className)
+		, m_instance(instance)
+	{ }
 	
 	EntityId(const res::path & classPath, EntityInstance instance);
 	

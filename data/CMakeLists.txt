@@ -2,17 +2,19 @@
 if(NOT NACL)
 include(Icons)
 
-set(ICON_BINARY_DIR "${CMAKE_BINARY_DIR}/data.generated/icons")
-set(ICON_SOURCE_DIRS "${CMAKE_SOURCE_DIR}/data/icons")
+set(ICON_BINARY_DIR "${PROJECT_BINARY_DIR}/data.generated/icons")
+set(ICON_SOURCE_DIRS "${PROJECT_SOURCE_DIR}/data/icons")
 set(data_sources)
 foreach(dir IN LISTS DATA_FILES)
-	list(APPEND data_sources "${dir}")
-	if(NOT IS_DIRECTORY "${dir}")
-		message(WARNING "DATA_FILES points to non-existent directory '${dir}'")
+	get_filename_component(abs_dir "${dir}" ABSOLUTE)
+	list(APPEND data_sources "${abs_dir}")
+	if(NOT IS_DIRECTORY "${abs_dir}")
+		message(WARNING "DATA_FILES points to non-existent directory '${abs_dir}'")
 	endif()
 endforeach()
-list(APPEND data_sources "${CMAKE_BINARY_DIR}/arx-libertatis-data-${DATA_VERSION}")
-list(APPEND data_sources "${CMAKE_BINARY_DIR}/arx-libertatis-data")
+list(APPEND data_sources "${PROJECT_BINARY_DIR}/arx-libertatis-data-${DATA_VERSION}")
+list(APPEND data_sources "${PROJECT_BINARY_DIR}/arx-libertatis-data")
+list(REMOVE_DUPLICATES data_sources)
 foreach(dir IN LISTS data_sources)
 	if(IS_DIRECTORY "${dir}")
 		if(EXISTS "${dir}/VERSION")
@@ -51,7 +53,7 @@ set(ico_sizes
 	256
 )
 
-# Sizes in the Mac OS X .icns file
+# Sizes in the macOS .icns file
 set(icns_sizes
 	16
 	16@2x

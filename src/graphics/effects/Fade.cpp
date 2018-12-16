@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2013-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -25,17 +25,17 @@
 #include "graphics/Draw.h"
 #include "graphics/Renderer.h"
 
-static unsigned long FADEDURATION = 0;
+static PlatformDuration FADEDURATION = PlatformDuration_ZERO;
 long FADEDIR = 0;
-unsigned long FADESTART = 0;
+static PlatformInstant FADESTART = PlatformInstant_ZERO;
 float LAST_FADEVALUE = 1.f;
-Color3f FADECOLOR;
+static Color3f FADECOLOR;
 
 
 void fadeReset() {
 	FADEDIR = 0;
-	FADEDURATION = 0;
-	FADESTART = 0;
+	FADEDURATION = PlatformDuration_ZERO;
+	FADESTART = PlatformInstant_ZERO;
 	FADECOLOR = Color3f::black;
 }
 
@@ -43,7 +43,7 @@ void fadeSetColor(Color3f color) {
 	FADECOLOR = color;
 }
 
-void fadeRequestStart(FadeType type, const unsigned long duration) {
+void fadeRequestStart(FadeType type, const PlatformDuration duration) {
 	switch(type) {
 		case FadeType_In:
 			FADEDIR = 1;
@@ -54,20 +54,16 @@ void fadeRequestStart(FadeType type, const unsigned long duration) {
 	}
 	
 	FADEDURATION = duration;
-	arxtime.update();
-	FADESTART = arxtime.now_ul();
+	FADESTART = g_platformTime.frameStart();
 }
 
-void ManageFade()
-{
-	arxtime.update();
+void ManageFade() {
 	
-	// TODO can this really become negative ?
-	long elapsed = long(arxtime.now_ul() - FADESTART);
-	if(elapsed <= 0)
+	PlatformDuration elapsed = g_platformTime.frameStart() - FADESTART;
+	if(elapsed < PlatformDuration_ZERO)
 		return;
 
-	float Visibility = elapsed / (float)FADEDURATION;
+	float Visibility = elapsed / FADEDURATION;
 
 	if(FADEDIR > 0)
 		Visibility = 1.f - Visibility;
@@ -81,13 +77,10 @@ void ManageFade()
 	}
 
 	LAST_FADEVALUE=Visibility;
-	GRenderer->SetBlendFunc(BlendSrcAlpha, BlendInvSrcAlpha);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
+	
+	UseRenderState state(render2D());
 	
 	Color color = Color4f(FADECOLOR, Visibility).to<u8>();
 	EERIEDrawBitmap(Rectf(g_size), 0.0001f, NULL, color);
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-	GRenderer->SetRenderState(Renderer::DepthWrite, true);
+	
 }

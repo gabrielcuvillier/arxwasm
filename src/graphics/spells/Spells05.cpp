@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -56,8 +56,10 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "game/EntityManager.h"
 #include "game/Player.h"
 #include "game/Spells.h"
+#include "game/effect/ParticleSystems.h"
 
 #include "graphics/Math.h"
+#include "graphics/Raycast.h"
 #include "graphics/data/TextureContainer.h"
 #include "graphics/effects/SpellEffects.h"
 #include "graphics/effects/Fog.h"
@@ -80,40 +82,10 @@ static void LaunchPoisonExplosion(const Vec3f & aePos) {
 	
 	// système de partoches pour l'explosion
 	ParticleSystem * pPS = new ParticleSystem();
-	ParticleParams cp = ParticleParams();
-	cp.m_nbMax = 80; 
-	cp.m_life = 1500;
-	cp.m_lifeRandom = 500;
-	cp.m_pos = Vec3f(5);
-	cp.m_direction = Vec3f(0.f, 1.f, 0.f);
-	cp.m_angle = glm::radians(360.f);
-	cp.m_speed = 200;
-	cp.m_speedRandom = 0;
-	cp.m_gravity = Vec3f(0, 17, 0);
-	cp.m_flash = 0;
-	cp.m_rotation = 1.0f / (101 - 80);
-	cp.m_rotationRandomDirection = true;
-	cp.m_rotationRandomStart = true;
-
-	cp.m_startSegment.m_size = 5;
-	cp.m_startSegment.m_sizeRandom = 3;
-	cp.m_startSegment.m_color = Color(0, 76, 0, 0).to<float>();
-	cp.m_startSegment.m_colorRandom = Color(0, 0, 0, 150).to<float>();
-
-	cp.m_endSegment.m_size = 30;
-	cp.m_endSegment.m_sizeRandom = 5;
-	cp.m_endSegment.m_color = Color(0, 0, 0, 0).to<float>();
-	cp.m_endSegment.m_colorRandom = Color(0, 25, 0, 20).to<float>();
-
-	cp.m_blendMode = RenderMaterial::AlphaAdditive;
-	cp.m_freq = -1;
-	cp.m_texture.set("graph/particles/big_greypouf", 0, 200);
-	cp.m_spawnFlags = 0;
-	cp.m_looping = false;
 	
-	pPS->SetParams(cp);
+	pPS->SetParams(g_particleParameters[ParticleParam_Poison1]);
 	pPS->SetPos(aePos);
-	pPS->Update(0);
+	pPS->Update(ArxDuration_ZERO);
 
 	std::list<Particle *>::iterator i;
 
@@ -138,13 +110,13 @@ CPoisonProjectile::CPoisonProjectile()
 	, bOk(false)
 	, fTrail(-1.f)
 {
-	SetDuration(2000);
-	ulCurrentTime = ulDuration + 1;
+	SetDuration(ArxDurationMs(2000));
+	m_elapsed = m_duration + ArxDurationMs(1);
 }
 
 void CPoisonProjectile::Create(Vec3f _eSrc, float _fBeta)
 {
-	SetDuration(ulDuration);
+	SetDuration(m_duration);
 	
 	float fBetaRad = glm::radians(_fBeta);
 	fBetaRadCos = glm::cos(fBetaRad);
@@ -155,112 +127,49 @@ void CPoisonProjectile::Create(Vec3f _eSrc, float _fBeta)
 	bOk = false;
 
 	eMove = Vec3f(-fBetaRadSin * 2, 0.f, fBetaRadCos * 2); 
-
-	Vec3f tempHit;
-	Vec3f dest = eSrc;
-
-	int i = 0;
-	while(Visible(eSrc, dest, &tempHit) && i < 20) {
-		dest.x -= fBetaRadSin * 50;
-		dest.z += fBetaRadCos * 50;
-
-		i++;
-	}
-
-	dest.y += 0.f;
-
+	
+	Vec3f rayEnd = eSrc;
+	rayEnd.x -= fBetaRadSin * (50 * 20);
+	rayEnd.z += fBetaRadCos * (50 * 20);
+	
+	RaycastResult ray = RaycastLine(eSrc, rayEnd);
+	Vec3f dest = ray.hit ? ray.pos : rayEnd;
+	
 	pathways[0] = eSrc;
 	pathways[9] = dest;
 	
 	Split(pathways, 0, 9, Vec3f(10 * fBetaRadCos, 10, 10 * fBetaRadSin));
 	
 	fTrail = -1;
-
-	//-------------------------------------------------------------------------
-	// système de partoches
-	ParticleParams cp = ParticleParams();
-	cp.m_nbMax = 5;
-	cp.m_life = 2000;
-	cp.m_lifeRandom = 1000;
-	cp.m_pos = Vec3f_ZERO;
-	cp.m_direction = -eMove * 0.1f;
-	cp.m_angle = 0;
-	cp.m_speed = 10;
-	cp.m_speedRandom = 10;
-	cp.m_gravity = Vec3f_ZERO;
-	cp.m_flash = 21 * (1.f/100);
-	cp.m_rotation = 1.0f / (101 - 80);
-	cp.m_rotationRandomDirection = true;
-	cp.m_rotationRandomStart = true;
-
-	cp.m_startSegment.m_size = 5;
-	cp.m_startSegment.m_sizeRandom = 3;
-	cp.m_startSegment.m_color = Color(0, 50, 0, 40).to<float>();
-	cp.m_startSegment.m_colorRandom = Color(0, 100, 0, 50).to<float>();
-
-	cp.m_endSegment.m_size = 8;
-	cp.m_endSegment.m_sizeRandom = 13;
-	cp.m_endSegment.m_color = Color(0, 60, 0, 40).to<float>();
-	cp.m_endSegment.m_colorRandom = Color(0, 100, 0, 50).to<float>();
-
-	cp.m_blendMode = RenderMaterial::Screen;
-	cp.m_freq = -1;
-	cp.m_texture.set("graph/particles/big_greypouf", 0, 200);
-	cp.m_spawnFlags = 0;
 	
-	pPS.SetParams(cp);
+	ParticleParams pp = g_particleParameters[ParticleParam_Poison2];
+	pp.m_direction *= -eMove;
+	
+	pPS.SetParams(pp);
 	pPS.SetPos(eSrc);
-	pPS.Update(0);
+	pPS.Update(ArxDuration_ZERO);
 }
 
-void CPoisonProjectile::Update(float timeDelta)
+void CPoisonProjectile::Update(ArxDuration timeDelta)
 {
-	if(ulCurrentTime <= 2000) {
-		ulCurrentTime += timeDelta;
+	if(m_elapsed <= ArxDurationMs(2000)) {
+		m_elapsed += timeDelta;
 	}
 
 	// on passe de 5 à 100 partoches en 1.5secs
-	if(ulCurrentTime < 750) {
+	if(m_elapsed < ArxDurationMs(750)) {
 		pPS.m_parameters.m_nbMax = 2;
 		pPS.Update(timeDelta);
 	} else {
 		if(!bOk) {
 			bOk = true;
-
 			// go
-			ParticleParams cp = ParticleParams();
-			cp.m_nbMax = 100;
-			cp.m_life = 500;
-			cp.m_lifeRandom = 300;
-			cp.m_pos = Vec3f(fBetaRadSin * 20, 0.f, fBetaRadCos * 20);
-
-			cp.m_direction = -eMove * 0.1f;
-
-			cp.m_angle = glm::radians(4.f);
-			cp.m_speed = 150;
-			cp.m_speedRandom = 50;//15;
-			cp.m_gravity = Vec3f(0, 10, 0);
-			cp.m_flash = 0;
-			cp.m_rotation = 1.0f / (101 - 80);
-			cp.m_rotationRandomDirection = true;
-			cp.m_rotationRandomStart = true;
-
-			cp.m_startSegment.m_size = 2;
-			cp.m_startSegment.m_sizeRandom = 2;
-			cp.m_startSegment.m_color = Color(0, 39, 0, 100).to<float>();
-			cp.m_startSegment.m_colorRandom = Color(50, 21, 0, 0).to<float>();
-
-			cp.m_endSegment.m_size = 7;
-			cp.m_endSegment.m_sizeRandom = 5;
-			cp.m_endSegment.m_color = Color(0, 25, 0, 100).to<float>();
-			cp.m_endSegment.m_colorRandom = Color(50, 20, 0, 0).to<float>();
-
-			cp.m_blendMode = RenderMaterial::Screen;
-			cp.m_freq = 80;
-			cp.m_texture.set("graph/particles/big_greypouf", 0, 200);
-			cp.m_spawnFlags = 0;
 			
-			pPSStream.SetParams(cp);
+			ParticleParams pp = g_particleParameters[ParticleParam_Poison3];
+			pp.m_pos = Vec3f(fBetaRadSin * 20, 0.f, fBetaRadCos * 20);
+			pp.m_direction = -eMove * 0.1f;
+			
+			pPSStream.SetParams(pp);
 		}
 
 		pPSStream.Update(timeDelta);
@@ -269,10 +178,10 @@ void CPoisonProjectile::Update(float timeDelta)
 		pPS.Update(timeDelta);
 		pPS.SetPos(eCurPos);
 
-		fTrail = ((ulCurrentTime - 750) * (1.0f / (ulDuration - 750.0f))) * 9 * (BEZIERPrecision + 2);
+		fTrail = ((toMs(m_elapsed) - 750) * (1.0f / (toMs(m_duration) - 750.0f))) * 9 * (BEZIERPrecision + 2);
 	}
 
-	if(ulCurrentTime >= ulDuration)
+	if(m_elapsed >= m_duration)
 		lightIntensityFactor = 0.f;
 	else
 		lightIntensityFactor = 1.f;
@@ -280,13 +189,8 @@ void CPoisonProjectile::Update(float timeDelta)
 
 void CPoisonProjectile::Render() {
 	
-	if(ulCurrentTime >= ulDuration)
+	if(m_elapsed >= m_duration)
 		return;
-	
-	GRenderer->SetCulling(CullNone);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 	
 	int n = BEZIERPrecision;
 	float delta = 1.0f / n;
@@ -313,7 +217,7 @@ void CPoisonProjectile::Render() {
 			const Vec3f nextPos = pathways[kpsuiv];
 			const Vec3f next2Pos = pathways[kpsuivsuiv];
 			
-			lastpos = glm::catmullRom(prevPos, currentPos, nextPos, next2Pos, t);
+			lastpos = arx::catmullRom(prevPos, currentPos, nextPos, next2Pos, t);
 		}
 	}
 	
@@ -323,7 +227,4 @@ void CPoisonProjectile::Render() {
 		LaunchPoisonExplosion(lastpos);
 	}
 	
-	GRenderer->SetCulling(CullNone);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 }

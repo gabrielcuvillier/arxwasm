@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -28,12 +28,12 @@ SpellBase::SpellBase()
 	: m_level(1.f)
 	, m_hand_group()
 	, m_type(SPELL_NONE)
-	, m_timcreation(0)
+	, m_timcreation(ArxInstant_ZERO)
 	, m_hasDuration(false)
-	, m_duration(0)
+	, m_duration(ArxDuration_ZERO)
 	, m_fManaCostPerSecond(0.f)
 	, m_snd_loop(audio::INVALID_ID)
-	, m_launchDuration(-1)
+	, m_launchDuration(ArxDuration::ofRaw(-1))
 {
 	
 	m_targets.clear();
@@ -64,7 +64,7 @@ Vec3f SpellBase::getTargetPosition() {
 void SpellBase::updateCasterHand() {
 	
 	// Create hand position if a hand is defined
-	if(m_caster == PlayerEntityHandle) {
+	if(m_caster == EntityHandle_Player) {
 		m_hand_group = entities[m_caster]->obj->fastaccess.primary_attach;
 	} else {
 		m_hand_group = entities[m_caster]->obj->fastaccess.left_attach;
@@ -77,7 +77,7 @@ void SpellBase::updateCasterHand() {
 
 void SpellBase::updateCasterPosition() {
 	
-	if(m_caster == PlayerEntityHandle) {
+	if(m_caster == EntityHandle_Player) {
 		m_caster_pos = player.pos;
 	} else {
 		m_caster_pos = entities[m_caster]->pos;
@@ -89,18 +89,18 @@ Vec3f SpellBase::getTargetPos(EntityHandle source, EntityHandle target)
 	Vec3f targetPos;
 	if(target == EntityHandle()) {
 		// no target... targeted by sight
-		if(source == PlayerEntityHandle) {
+		if(source == EntityHandle_Player) {
 			// no target... player spell targeted by sight
 			targetPos = player.pos;
-			targetPos += angleToVectorXZ(player.angle.getPitch()) * 60.f;
-			targetPos.y += std::sin(glm::radians(player.angle.getYaw())) * 60.f;
+			targetPos += angleToVectorXZ(player.angle.getYaw()) * 60.f;
+			targetPos.y += std::sin(glm::radians(player.angle.getPitch())) * 60.f;
 		} else {
 			// TODO entities[target] with target < 0 ??? - uh oh!
 			targetPos = entities[target]->pos;
-			targetPos += angleToVectorXZ(entities[target]->angle.getPitch()) * 60.f;
+			targetPos += angleToVectorXZ(entities[target]->angle.getYaw()) * 60.f;
 			targetPos += Vec3f(0.f, -120.f, 0.f);
 		}
-	} else if(target == PlayerEntityHandle) {
+	} else if(target == EntityHandle_Player) {
 		// player target
 		targetPos = player.pos;
 	} else {

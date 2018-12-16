@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -19,7 +19,9 @@
 
 #include "LegacyMathTest.h"
 
-#include <glm/gtx/euler_angles.hpp>
+#include <sstream>
+
+#include "src/math/GtxFunctions.h"
 
 #include "graphics/Math.h"
 
@@ -98,8 +100,8 @@ void LegacyMathTest::rotationTestDataTest() {
 	typedef std::vector<TestRotation>::iterator Itr;
 	for(Itr i = rotations.begin(); i != rotations.end(); ++i) {
 		
-		CPPUNIT_ASSERT_EQUAL(i->quat, glm::toQuat(i->mat));
-		CPPUNIT_ASSERT_EQUAL(glm::toMat4(i->quat), glm::mat4(i->mat));
+		CPPUNIT_ASSERT_EQUAL(i->quat, glm::quat_cast(i->mat));
+		CPPUNIT_ASSERT_EQUAL(glm::mat4_cast(i->quat), glm::mat4(i->mat));
 	}
 }
 
@@ -127,7 +129,7 @@ void LegacyMathTest::quaternionTests() {
 		glm::mat4x4 matrixA;
 		MatrixFromQuat(matrixA, A);
 		
-		glm::mat4x4 matrixB = glm::toMat4(B);
+		glm::mat4x4 matrixB = glm::mat4_cast(B);
 		
 		CPPUNIT_ASSERT_EQUAL(matrixA, matrixB);
 	}
@@ -182,11 +184,11 @@ void LegacyMathTest::quatMatrixConversionTest() {
 	typedef std::vector<TestRotation>::iterator Itr;
 	
 	for(Itr it = rotations.begin(); it != rotations.end(); ++it) {
-		CPPUNIT_ASSERT_EQUAL(glm::toMat4(it->quat), glm::mat4(it->mat));
+		CPPUNIT_ASSERT_EQUAL(glm::mat4_cast(it->quat), glm::mat4(it->mat));
 		
 		glm::quat q;
 		QuatFromMatrix(q, glm::mat4(it->mat));
-		CPPUNIT_ASSERT_EQUAL(glm::toQuat(it->mat), q);
+		CPPUNIT_ASSERT_EQUAL(glm::quat_cast(it->mat), q);
 	}
 }
 
@@ -237,7 +239,7 @@ void LegacyMathTest::angleConversionTest()
 		
 		glm::quat q = toNonNpcRotation(it->angle);
 		
-		glm::quat q2 = glm::toQuat(toRotationMatrix(it->angle));
+		glm::quat q2 = glm::quat_cast(toRotationMatrix(it->angle));
 		
 		CPPUNIT_ASSERT_EQUAL(q, q2);
 	}
@@ -262,7 +264,7 @@ void LegacyMathTest::cameraRotationTest() {
 }
 
 // TODO copy-paste
-Vec2s inventorySizeFromTextureSize(Vec2i size) {
+static Vec2s inventorySizeFromTextureSize(Vec2i size) {
 	return Vec2s(glm::clamp((size + Vec2i(31, 31)) / Vec2i(32, 32), Vec2i(1, 1), Vec2i(3, 3)));
 }
 
@@ -276,14 +278,14 @@ void LegacyMathTest::inventorySizeTest() {
 		Vec2s result1 = inventorySizeFromTextureSize_1(i, j);
 		Vec2s result2 = inventorySizeFromTextureSize_2(i, j);
 		
-		CPPUNIT_ASSERT_EQUAL_MESSAGE(glm::to_string(Vec2i(i, j)), expected, result1);
-		CPPUNIT_ASSERT_EQUAL_MESSAGE(glm::to_string(Vec2i(i, j)), expected, result2);
+		CPPUNIT_ASSERT_EQUAL_MESSAGE(CPPUNIT_NS::assertion_traits<Vec2i>::toString(Vec2i(i, j)), expected, result1);
+		CPPUNIT_ASSERT_EQUAL_MESSAGE(CPPUNIT_NS::assertion_traits<Vec2i>::toString(Vec2i(i, j)), expected, result2);
 	}
 }
 
 void LegacyMathTest::angleToVectorXZ_Test() {
 	
-	for(float angle = -1000; angle < 1000; angle += 0.01) {
+	for(float angle = -1000; angle < 1000; angle += 0.01f) {
 		Vec3f expected = angleToVectorXZ(angle);
 		Vec3f result = angleToVectorXZ_180offset(angle + 180);
 		
@@ -329,8 +331,11 @@ void LegacyMathTest::focalToFovTest() {
 		float expected = glm::radians(focalToFovLegacy(focal));
 		float result = focalToFov(focal);
 		
-		std::string msg = "In: " + glm::to_string(focal) + " Expected: " + glm::to_string(expected) + ", Result: " + glm::to_string(result);
-		CPPUNIT_ASSERT_MESSAGE(msg, glm::epsilonEqual(expected, result, 2.f));
+		std::ostringstream ss;
+		ss << "In: " << focal;
+		ss << " Expected: " << expected;
+		ss << ", Result: " << result;
+		CPPUNIT_ASSERT_MESSAGE(ss.str(), glm::epsilonEqual(expected, result, 2.f));
 	}
 }
 
@@ -346,7 +351,7 @@ void LegacyMathTest::pointInerpolationTest() {
 			float f = u / 1000.f;
 			
 			Vec3f res1 = interpolatePos(f, v0, v1, v2, v3);
-			Vec3f res2 = glm::catmullRom(v0, v1, v2, v3, f);
+			Vec3f res2 = arx::catmullRom(v0, v1, v2, v3, f);
 			
 			CPPUNIT_ASSERT_EQUAL(res1, res2);
 		}

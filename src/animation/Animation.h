@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -50,6 +50,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <stddef.h>
 #include <string>
 
+#include "core/TimeTypes.h"
 #include "math/Types.h"
 #include "graphics/BaseGraphicsTypes.h"
 #include "graphics/GraphicsTypes.h"
@@ -62,7 +63,7 @@ struct EERIE_FRAME
 	bool  stepSound;
 	bool  f_translate;
 	bool  f_rotate;
-	float		time;
+	AnimationDuration time;
 	Vec3f	translate;
 	glm::quat	quat;
 	audio::SampleId	sample;
@@ -78,7 +79,7 @@ struct EERIE_GROUP
 
 struct EERIE_ANIM
 {
-	long		anim_time;
+	AnimationDuration anim_time;
 	long		nb_groups;
 	long		nb_key_frames;
 	EERIE_FRAME *	frames;
@@ -86,7 +87,7 @@ struct EERIE_ANIM
 	unsigned char *	voidgroups;
 	
 	EERIE_ANIM()
-		: anim_time(0)
+		: anim_time(AnimationDuration_ZERO)
 		, nb_groups(0)
 		, nb_key_frames(0)
 		, frames(NULL)
@@ -126,7 +127,7 @@ struct AnimLayer {
 		, cur_anim(NULL)
 		, altidx_next(0)
 		, altidx_cur(0)
-		, ctime(0)
+		, ctime(AnimationDuration_ZERO)
 		, flags(0)
 		, nextflags(0)
 		, lastframe(-1)
@@ -138,7 +139,7 @@ struct AnimLayer {
 	ANIM_HANDLE * cur_anim;
 	short altidx_next; // idx to alternate anims...
 	short altidx_cur; // idx to alternate anims...
-	long ctime;
+	AnimationDuration ctime;
 	AnimUseType flags;
 	AnimUseType nextflags;
 	long lastframe;
@@ -199,7 +200,7 @@ void EERIE_ANIMMANAGER_ReleaseHandle(ANIM_HANDLE * anim);
 ANIM_HANDLE * EERIE_ANIMMANAGER_Load(const res::path & path);
 ANIM_HANDLE * EERIE_ANIMMANAGER_Load_NoWarning(const res::path & path);
 
-void PrepareAnim(AnimLayer & layer, unsigned long time, Entity *io);
+void PrepareAnim(AnimLayer & layer, AnimationDuration time, Entity *io);
 void ResetAnim(AnimLayer & layer);
 
 void AcquireLastAnim(Entity * io);

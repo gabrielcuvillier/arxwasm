@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -47,6 +47,9 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <vector>
 #include <string>
 
+#include <boost/noncopyable.hpp>
+
+#include "core/TimeTypes.h"
 #include "graphics/Color.h"
 #include "gui/widget/ButtonWidget.h"
 #include "gui/widget/TextWidget.h"
@@ -60,10 +63,11 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 class TextureContainer;
 class Font;
 
-class MenuPage {
+class MenuPage : private boost::noncopyable {
 	
 public:
 	MenuPage(const Vec2f & pos, const Vec2f & size, MENUSTATE state);
+	virtual ~MenuPage();
 	
 	void add(Widget * widget);
 	void addCenter(Widget * widget, bool centerX = false);
@@ -74,6 +78,7 @@ public:
 	
 	TextWidget *GetTouch(bool keyTouched, int keyId, InputKeyId* pInputKeyId, bool _bValidateTest);
 	void ReInitActionKey();
+	MENUSTATE checkShortcuts();
 	
 	Vec2f m_pos;
 	Vec2f m_oldPos;
@@ -89,18 +94,16 @@ protected:
 private:
 	void updateTextRect(TextWidget * widget);
 	void UpdateText();
-	
-	Widget		*	m_selected;
-	bool					bEdit;
-	
-	bool				bMouseAttack;
-	
-	static const int m_blinkDuration = 300;
-	float m_blinkTime;
+
+	Widget * m_selected;
+	bool bEdit;
+	bool bMouseAttack;
+	bool m_disableShortcuts;
+	PlatformDuration m_blinkTime;
 	bool m_blink;
 };
 
-class CWindowMenu {
+class CWindowMenu : private boost::noncopyable {
 	
 private:
 	Vec2f m_pos;
@@ -113,7 +116,7 @@ public:
 	virtual ~CWindowMenu();
 	
 	void add(MenuPage * page);
-	void Update(float time);
+	void Update(PlatformDuration time);
 	MENUSTATE Render();
 	
 	std::vector<MenuPage *>	m_pages;
@@ -126,8 +129,6 @@ private:
 };
 
 struct TexturedVertex;
-
-extern float ARXDiffTimeMenu;
 
 void MenuReInitAll();
 

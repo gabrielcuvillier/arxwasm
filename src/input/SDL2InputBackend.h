@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,12 +20,17 @@
 #ifndef ARX_INPUT_SDL2INPUTBACKEND_H
 #define ARX_INPUT_SDL2INPUTBACKEND_H
 
+#include <string>
+#include <stddef.h>
+
 #include <SDL.h>
 
 #include "input/InputBackend.h"
 #include "input/Keyboard.h"
 #include "input/Mouse.h"
+#include "input/TextInput.h"
 #include "math/Vector.h"
+#include "math/Types.h"
 #include "window/SDL2Window.h"
 
 class SDL2InputBackend : public InputBackend {
@@ -46,12 +51,19 @@ public:
 	
 	// Keyboard
 	bool isKeyboardKeyPressed(int dikkey) const;
+	void startTextInput(const Rect & box, TextInputHandler * handler);
+	void stopTextInput();
 	
 	void onEvent(const SDL_Event & event);
 	
 private:
 	
 	SDL2Window * m_window;
+	
+	TextInputHandler * m_textHandler;
+	std::string m_editText;
+	size_t m_editCursorPos;
+	size_t m_editCursorLength;
 	
 	int wheel;
 	Vec2i cursorAbs;

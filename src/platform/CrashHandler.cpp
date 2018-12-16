@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -46,6 +46,8 @@
 static CrashHandlerImpl * gCrashHandlerImpl = 0;
 static int gCrashHandlerInitCount = 0;
 
+#ifdef ARX_DEBUG
+
 typedef void(*AssertHandler)(const char * expr, const char * file, unsigned int line,
                              const char * msg);
 extern AssertHandler g_assertHandler;
@@ -77,7 +79,9 @@ static void crashAssertHandler(const char * expr, const char * file, unsigned in
 	
 }
 
-#endif
+#endif // ARX_DEBUG
+
+#endif // ARX_HAVE_CRASHHANDLER
 
 bool CrashHandler::initialize(int argc, char ** argv) {
 	
@@ -119,7 +123,9 @@ bool CrashHandler::initialize(int argc, char ** argv) {
 			return false;
 		}
 		
+		#ifdef ARX_DEBUG
 		g_assertHandler = crashAssertHandler;
+		#endif
 	}
 	
 	gCrashHandlerInitCount++;
@@ -135,7 +141,9 @@ void CrashHandler::shutdown() {
 #if ARX_HAVE_CRASHHANDLER
 	gCrashHandlerInitCount--;
 	if(gCrashHandlerInitCount == 0) {
+		#ifdef ARX_DEBUG
 		g_assertHandler = NULL;
+		#endif
 		gCrashHandlerImpl->shutdown();
 		delete gCrashHandlerImpl;
 		gCrashHandlerImpl = 0;
@@ -171,6 +179,19 @@ bool CrashHandler::setVariable(const std::string & name, const std::string & val
 	return gCrashHandlerImpl->setVariable(name, value);
 #else
 	ARX_UNUSED(name), ARX_UNUSED(value);
+	return false;
+#endif
+}
+
+bool CrashHandler::setWindow(u64 window) {
+#if ARX_HAVE_CRASHHANDLER
+	if(!isInitialized()) {
+		return false;
+	}
+	gCrashHandlerImpl->setWindow(window);
+	return true;
+#else
+	ARX_UNUSED(window);
 	return false;
 #endif
 }

@@ -36,20 +36,17 @@ HudIconBase::HudIconBase()
 void HudIconBase::draw() {
 	arx_assert(m_tex);
 	
-	EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
-	
-	if(m_isSelected) {
-		GRenderer->SetBlendFunc(BlendOne, BlendOne);
-		GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-		
-		EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
-		
-		GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-	}
-	
 	if(m_haloActive && m_tex->getHalo()) {
 		ARX_INTERFACE_HALO_Render(m_haloColor, HALO_ACTIVE, m_tex->getHalo(), m_rect.topLeft(), Vec2f(m_scale));
 	}
+	
+	EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
+	
+	if(m_isSelected) {
+		UseRenderState state(render2D().blendAdditive());
+		EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
+	}
+	
 }
 
 

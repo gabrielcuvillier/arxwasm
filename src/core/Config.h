@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -21,6 +21,8 @@
 #define ARX_CORE_CONFIG_H
 
 #include <string>
+
+#include "audio/AudioTypes.h"
 
 #include "input/InputKey.h"
 
@@ -51,6 +53,7 @@ enum ControlAction {
 	CONTROLS_CUST_BOOKQUEST,
 	CONTROLS_CUST_DRINKPOTIONLIFE,
 	CONTROLS_CUST_DRINKPOTIONMANA,
+	CONTROLS_CUST_DRINKPOTIONCURE,
 	CONTROLS_CUST_TORCH,
 	CONTROLS_CUST_PRECAST1,
 	CONTROLS_CUST_PRECAST2,
@@ -72,6 +75,7 @@ enum ControlAction {
 	CONTROLS_CUST_CANCELCURSPELL,
 	CONTROLS_CUST_MINIMAP,
 	CONTROLS_CUST_TOGGLE_FULLSCREEN,
+	CONTROLS_CUST_CONSOLE,
 	NUM_ACTION_KEY
 };
 
@@ -88,13 +92,17 @@ enum UIScaleFilter {
 
 struct ActionKey {
 	
-	explicit ActionKey(InputKeyId key_0 = -1, InputKeyId key_1 = -1) {
+	explicit ActionKey(InputKeyId key_0 = UNUSED,
+	                   InputKeyId key_1 = UNUSED) {
+		if(key_0 != UNUSED && key_0 == key_1) {
+			key_1 = UNUSED;
+		}
 		key[0] = key_0;
 		key[1] = key_1;
 	}
 	
 	InputKeyId key[2];
-	
+	static const InputKeyId UNUSED = -1;
 };
 
 class Config {
@@ -113,7 +121,7 @@ public:
 		int levelOfDetail;
 		float fogDistance;
 		bool antialiasing;
-		bool vsync;
+		int vsync;
 		int maxAnisotropicFiltering;
 		bool colorkeyAlphaToCoverage;
 		bool colorkeyAntialiasing;
@@ -133,6 +141,7 @@ public:
 		
 		float hudScale;
 		bool hudScaleInteger;
+		bool scaleCursorWithHud;
 		UIScaleFilter hudScaleFilter;
 		
 		Vec2i thumbnailSize;
@@ -162,8 +171,9 @@ public:
 		float ambianceVolume;
 		
 		bool eax;
+		audio::HRTFAttribute hrtf;
 		bool muteOnFocusLost;
-	
+		
 	} audio;
 	
 	// section 'input'
@@ -177,6 +187,8 @@ public:
 		int mouseAcceleration;
 		bool rawMouseInput;
 		bool borderTurning;
+		bool useAltRuneRecognition;
+		bool allowConsole;
 		
 	} input;
 	
@@ -203,7 +215,7 @@ public:
 	
 public:
 	
-	void setActionKey(ControlAction action, int index, InputKeyId key);
+	void setActionKey(ControlAction action, size_t index, InputKeyId key);
 	void setDefaultActionKeys();
 	
 	/*!

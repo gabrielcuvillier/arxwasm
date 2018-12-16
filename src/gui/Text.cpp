@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -218,18 +218,13 @@ long ARX_UNICODE_DrawTextInRect(Font* font,
 }
 
 
-long UNICODE_ARXDrawTextCenter(Font* font, const Vec2f & pos, const std::string& str, Color col) {
-
+void UNICODE_ARXDrawTextCenter(Font* font, const Vec2f & pos, const std::string& str, Color col) {
+	
 	Vec2i size = font->getTextSize(str);
-	int drawX = ((int)pos.x) - (size.x / 2);
-	int drawY = (int)pos.y;
-
-	font->draw(drawX, drawY, str, col);
-
-	return size.x;
+	font->draw(Vec2i(pos.x - (size.x / 2), pos.y), str, col);
 }
 
-long UNICODE_ARXDrawTextCenteredScroll(Font* font, float x, float y, float x2, const std::string& str, Color col, int iTimeScroll, float fSpeed, int iNbLigne, int iTimeOut) {
+void UNICODE_ARXDrawTextCenteredScroll(Font* font, float x, float y, float x2, const std::string& str, Color col, PlatformDuration iTimeScroll, float fSpeed, int iNbLigne, PlatformDuration iTimeOut) {
 	
 	Rect::Num _x = checked_range_cast<Rect::Num>(x - x2);
 	Rect::Num _y = checked_range_cast<Rect::Num>(y);
@@ -247,11 +242,7 @@ long UNICODE_ARXDrawTextCenteredScroll(Font* font, float x, float y, float x2, c
 							 fSpeed,
 							 iNbLigne
 							);
-
-		return static_cast<long>(x2);
 	}
-
-	return 0;
 }
 
 static Font * createFont(const res::path & fontFace,

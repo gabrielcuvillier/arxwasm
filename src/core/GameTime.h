@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -47,9 +47,50 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #ifndef ARX_CORE_GAMETIME_H
 #define ARX_CORE_GAMETIME_H
 
+#include "core/TimeTypes.h"
 #include "graphics/Math.h"
 
 #include "platform/Time.h"
+
+
+class PlatformTime {
+	
+	u64 m_frameStartTime;
+	u64 m_lastFrameStartTime;
+	u64 m_lastFrameDuration;
+	
+public:
+	PlatformTime()
+		: m_frameStartTime(0)
+		, m_lastFrameStartTime(0)
+		, m_lastFrameDuration(0)
+	{ }
+	
+	inline void updateFrame() {
+		u64 currentTime = platform::getTimeUs();
+		
+		m_frameStartTime = currentTime;
+		if(m_lastFrameStartTime == 0) {
+			m_lastFrameStartTime = currentTime;
+		}
+		arx_assert(m_frameStartTime >= m_lastFrameStartTime);
+		
+		m_lastFrameDuration = m_frameStartTime - m_lastFrameStartTime;
+		
+		m_lastFrameStartTime = currentTime;
+	}
+	
+	inline PlatformInstant frameStart() {
+		return PlatformInstant::ofRaw(s64(m_frameStartTime));
+	}
+
+	inline PlatformDuration lastFrameDuration() {
+		return PlatformDuration::ofRaw(s64(m_lastFrameDuration));
+	}
+};
+
+extern PlatformTime g_platformTime;
+
 
 class GameTime {
 	
@@ -63,28 +104,30 @@ public:
 	void pause();
 	void resume();
 	
-	void force_time_restore(const unsigned long time);
+	void force_time_restore(ArxInstant time);
 	
 	// TODO probably the source of the need to clip frame_delay
-	void force_frame_time_restore(const unsigned long v) {
-		frame_time_us = v * 1000;
-		last_frame_time_us = v * 1000;
+	void force_frame_time_restore(const ArxInstant v) {
+		frame_time_us = u64(toMs(v) * 1000);
+		last_frame_time_us = u64(toMs(v) * 1000);
 	}
 	
 	float now_f() const {
-		return m_now_us / 1000.0f;
+		return float(m_now_us) / 1000.0f;
 	}
 	
-	unsigned long now_ul() const {
-		return checked_range_cast<unsigned long>(m_now_us / 1000);
+	ArxInstant now() const {
+		return ArxInstant::ofRaw(m_now_us / 1000);
 	}
 	
-	void update(const bool & use_pause = true) {
-		if (is_paused() && use_pause) {
+	void update() {
+		if (is_paused()) {
 			m_now_us = platform::getElapsedUs(start_time, pause_time);
 		} else {
 			m_now_us = platform::getElapsedUs(start_time);
 		}
+		frame_time_us = m_now_us;
+		frame_delay_ms = float(frame_time_us - last_frame_time_us) / 1000.f;
 	}
 	
 	bool is_paused() const { 
@@ -92,26 +135,16 @@ public:
 	}
 	
 	// used only for "slow time" spell
-	void increment_start_time(const u64 & inc) {
+	void increment_start_time(u64 inc) {
 		start_time += inc;
 	}
 	
 	float get_frame_time() const { 
-		return frame_time_us / 1000.0f; 
-	}
-	
-	float get_last_frame_time() const {
-		return last_frame_time_us / 1000.0f;
+		return float(frame_time_us) / 1000.0f;
 	}
 	
 	float get_frame_delay() const {
 		return frame_delay_ms;
-	}
-	
-	void update_frame_time() {
-		update();
-		frame_time_us = m_now_us;
-		frame_delay_ms = (frame_time_us - last_frame_time_us) / 1000.0f;
 	}
 	
 	void update_last_frame_time() {

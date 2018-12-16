@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -26,7 +26,7 @@
 
 #include "platform/Platform.h"
 
-#if ARX_PLATFORM == ARX_PLATFORM_BSD || ARX_PLATFORM == ARX_PLATFORM_MACOSX
+#if ARX_PLATFORM == ARX_PLATFORM_BSD || ARX_PLATFORM == ARX_PLATFORM_MACOS
 // Some versions of boost/interprocess/shared_memory_object.hpp are
 // missing includes needed for BSD-kernel-specific code:
 #include <sys/types.h>
@@ -55,6 +55,7 @@ public:
 
 	bool addAttachedFile(const fs::path& file);
 	bool setVariable(const std::string& name, const std::string& value);
+	void setWindow(u64 window);
 	
 	bool addText(const char * text);
 

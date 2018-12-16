@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -47,6 +47,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <stddef.h>
 #include <string>
 #include <ostream>
+#include <utility>
 
 #include "game/GameTypes.h"
 #include "math/Types.h"
@@ -87,7 +88,6 @@ extern INVENTORY_DATA * SecondaryInventory;
 extern INVENTORY_DATA * TSecondaryInventory;
 extern Entity * DRAGINTER;
 extern Entity * ioSteal;
-extern long InventoryY;
 
 inline Vec2s inventorySizeFromTextureSize(Vec2i size) {
 	return Vec2s(glm::clamp((size + Vec2i(31, 31)) / Vec2i(32, 32), Vec2i(1, 1), Vec2i(3, 3)));
@@ -251,7 +251,7 @@ void ARX_INVENTORY_Declare_InventoryIn(Entity * io);
 
 void PutInFrontOfPlayer(Entity * io);
 
-Vec3f GetItemWorldPosition(Entity * io);
+Vec3f GetItemWorldPosition(const Entity *io);
 Vec3f GetItemWorldPositionSound(const Entity * io);
 
 Entity * GetInventoryObj_INVENTORYUSE(const Vec2s & pos);
@@ -263,7 +263,7 @@ void CleanInventory();
 void SendInventoryObjectCommand(const std::string & _lpszText, ScriptMessage _lCommand);
 void PutInInventory();
 bool TakeFromInventory(const Vec2s & pos);
-Entity * GetFromInventory(const Vec2s & pos);
+std::pair<Entity *, int> GetFromInventory(const Vec2s & pos);
 bool IsInPlayerInventory(Entity * io);
 bool IsInSecondaryInventory(Entity * io);
 bool InInventoryPos(const Vec2s & pos);

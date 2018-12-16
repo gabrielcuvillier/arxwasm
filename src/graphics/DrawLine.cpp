@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,8 +20,6 @@
 #include "graphics/DrawLine.h"
 
 #include <cstring>
-
-#include <glm/gtx/norm.hpp>
 
 #include "math/Angle.h"
 
@@ -106,8 +104,7 @@ void drawLineSphere(const Sphere & sphere, Color color) {
 			pos += sphere.origin;
 			
 			TexturedVertex out;
-			Vec3f temp = EE_RT(pos);
-			EE_P(temp, out);
+			EE_RTP(pos, out);
 
 			if(skip) {
 				skip = false;
@@ -176,4 +173,16 @@ void drawLine(const Vec3f & orgn, const Vec3f & dest, Color color1, Color color2
 
 void drawLine(const Vec3f & orgn, const Vec3f & dest, Color color, float zbias) {
 	drawLine(orgn, dest, color, color, zbias);
+}
+
+void drawLineCross(Vec2f v, float z, Color color, float size) {
+	float halfSize = size / 2.0f;
+	drawLine(Vec2f(v.x, v.y - halfSize), Vec2f(v.x, v.y + halfSize), z, color);
+	drawLine(Vec2f(v.x - halfSize, v.y), Vec2f(v.x + halfSize, v.y), z, color);
+}
+
+void drawLineCross(Vec3f v, Color c, float size) {
+	drawLine(v - Vec3f(size, 0, 0), v + Vec3f(size, 0, 0), c);
+	drawLine(v - Vec3f(0, size, 0), v + Vec3f(0, size, 0), c);
+	drawLine(v - Vec3f(0, 0, size), v + Vec3f(0, 0, size), c);
 }

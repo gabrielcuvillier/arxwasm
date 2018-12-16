@@ -3,11 +3,16 @@
 import argparse
 import os
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 import bpy
 
 from arx_addon.dataFtl import FtlFace
 from arx_addon.files import ArxFiles
 from arx_addon import dataFtl, lib
+
+from arx_addon.managers import InconsistentStateException
 
 # ======================================================================================================================
 
@@ -187,54 +192,74 @@ def formatError(errorId, file, message):
 
 class RoundtripTester(object):
     def __init__(self, dataDirectory):
+        self.log = logging.getLogger('RoundtripTester')
         self.dataDirectory = dataDirectory
         self.skipExport = False
         self.skipCompare = False
         self.comparer = FtlDiff()
 
-    def loadAddon(self, name, version):
-        import addon_utils
+        self.arxFiles = ArxFiles(self.dataDirectory)
+        self.arxFiles.updateAll()
 
+    def setupCleanBlenderEnvironment(self):
+        name = 'arx_addon'
+
+        import addon_utils
+        from bpy import context
+
+        # Disable the module first to prevent log spam
         for module in addon_utils.modules():
             if module.__name__ == name:
-                if version == module.bl_info['version']:
-                    print("Enabling addon: {0}".format(name))
+                is_enabled, is_loaded = addon_utils.check(name)
+                if is_loaded:
+                    addon_utils.disable(name)
+
+        #bpy.ops.wm.read_homefile()
+        bpy.ops.wm.read_factory_settings()
+
+        #addon_utils.modules_refresh()
+
+        moduleFound = False
+        for module in addon_utils.modules():
+            if module.__name__ == name:
+                default, enable = addon_utils.check(name)
+                if not enable:
                     addon_utils.enable(name, default_set=True, persistent=False, handle_error=None)
-                    return
-                else:
-                    raise Exception("Unexpected addon version: {0}".format(str(module.bl_info['version'])))
+                    context.user_preferences.addons[name].preferences.arxAssetPath = self.dataDirectory
+                moduleFound = True
 
-        raise Exception("Addon not found: {0}".format(name))
+        if not moduleFound:
+            raise Exception("Addon not found: {0}".format(name))
 
+        # Cleanup the default scene
+        def removeObj(name):
+            defaultCube = bpy.context.scene.objects.get(name)
+            if defaultCube:
+                defaultCube.select = True
+                bpy.ops.object.delete()
 
-    def doImport(self, import_file_path):
-        bpy.ops.arx.import_ftl(filepath=import_file_path)
+        removeObj('Cube')
+        removeObj('Camera')
+        removeObj('Lamp')
 
-    def doExport(self, export_file_path):
-        bpy.ops.arx.export_ftl(filepath=export_file_path)
-
-    def run(self):
-        self.loadAddon('arx_addon', (0, 0, 1))
-
-        arxFiles = ArxFiles(args.data)
-        arxFiles.updateAll()
+    def roundtripModels(self):
+        print("Roundtrip Models")
 
         result_file = open("test_files.txt", "w")
         result_file.write(formatColumns(["Import", "Export", "Compare", "File"]))
-
         error_file = open("test_errors.txt", "w")
 
         current_error_id = 0
 
-        for key, val in sorted(arxFiles.models.data.items()):
+        for key, val in sorted(self.arxFiles.models.data.items()):
             import_file = os.path.join(val.path, val.model)
             import_file_relative = os.path.relpath(import_file, self.dataDirectory)
             export_file = "test.ftl"
 
-            bpy.ops.wm.read_homefile()
+            self.setupCleanBlenderEnvironment()
 
             try:
-                self.doImport(import_file)
+                bpy.ops.arx.import_ftl(filepath=import_file)
                 import_status = "Ok"
                 import_ok = True
             except RuntimeError as e:
@@ -246,7 +271,7 @@ class RoundtripTester(object):
 
             if not self.skipExport and import_ok:
                 try:
-                    self.doExport(export_file)
+                    bpy.ops.arx.export_ftl(filepath=export_file)
                     export_ok = True
                     export_status = "Ok"
                 except RuntimeError as e:
@@ -277,16 +302,76 @@ class RoundtripTester(object):
         result_file.close()
         error_file.close()
 
+    def loadAnimations(self):
+        print("Load Animations")
+
+        for key, val in sorted(self.arxFiles.entities.data.items()):
+            usedAnimations = []
+
+            scriptPath = os.path.join(val.path, val.script)
+            with open(scriptPath, 'rt', encoding='iso-8859-1') as scriptData:
+                for line in scriptData:
+                    line = line.strip().lower()
+                    commentSplit = line.split("//", 2)
+                    if commentSplit[0]:
+                        commandSplit = commentSplit[0].split()
+                        if commandSplit[0] == "loadanim":
+                            # anim slot name is in [1]
+                            animName = commandSplit[2].strip("\"")
+                            # we can't resolve variable values here, ignore ...
+                            if not animName.startswith("~"):
+                                usedAnimations.append(animName)
+                            else:
+                                #print("Ignored anim variable: {}".format(animName))
+                                pass
+
+            if not usedAnimations:
+                self.log.debug("No used animations for {}".format(key))
+                pass
+            else:
+                if not key in self.arxFiles.models.data:
+                    self.log.info("No model found for entity: {}".format(key))
+                    pass
+                else:
+                    model = self.arxFiles.models.data[key]
+                    import_file = os.path.join(model.path, model.model)
+
+                    for anim in usedAnimations:
+                        if not anim in self.arxFiles.animations.data:
+                            self.log.warning("Animation {} not found for model {}".format(anim, key))
+                            continue
+
+                        animFileName = self.arxFiles.animations.data[anim]
+                        self.log.info("Checking model [{}] anim [{}] ".format(key, anim))
+
+                        self.setupCleanBlenderEnvironment()
+                        bpy.ops.arx.import_ftl(filepath=import_file)
+                        bpy.ops.object.mode_set(mode='OBJECT')
+
+                        #Find root object
+                        root = None
+                        for o in bpy.data.objects:
+                            if not o.parent:
+                                root = o
+
+                        root.select = True
+                        bpy.context.scene.objects.active = root
+
+                        try:
+                            bpy.ops.arx.import_tea(filepath=animFileName)
+                        except:
+                        #except InconsistentStateException as ise:
+                            pass
+                            #self.log.error("Failed to import animation {} for model {}".format(anim, key))
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-data')
+    parser.add_argument('-d', '--data-dir', help='Where to find the data files', required=True)
     args = parser.parse_args()
+    print("Using data dir: " + args.data_dir)
 
-    if args.data:
-        print("Using data dir: " + args.data)
-    else:
-        print("Data parameter missing")
-        exit()
-
-    tester = RoundtripTester(args.data)
-    tester.run()
+    tester = RoundtripTester(args.data_dir)
+    tester.roundtripModels()
+    tester.loadAnimations()

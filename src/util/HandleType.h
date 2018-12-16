@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -33,17 +33,17 @@
 #ifndef ARX_UTIL_HANDLETYPE_H
 #define ARX_UTIL_HANDLETYPE_H
 
-#define ARX_HANDLE_TYPEDEF(T, D, INVALID_VALUE)                 \
-struct D                                                        \
-{                                                               \
-    T t;                                                        \
-    explicit D(const T t_) : t(t_) {}                           \
-    D() : t(INVALID_VALUE) {}                                   \
-    D(const D & t_) : t(t_.t){}                                 \
-    D & operator=(const D & rhs) { t = rhs.t; return *this;}    \
-    bool operator==(const D & rhs) const { return t == rhs.t; } \
-    bool operator!=(const D & rhs) const { return t != rhs.t; } \
-    const T & handleData() const { return t; }                  \
+template <typename TAG, typename T, int INVALID_VALUE>
+class HandleType {
+	T t;
+public:
+	explicit HandleType(const T t_) : t(t_) {}
+	HandleType() : t(INVALID_VALUE) {}
+	HandleType(const HandleType & t_) : t(t_.t){}
+	HandleType & operator=(const HandleType & rhs) { t = rhs.t; return *this;}
+	bool operator==(const HandleType & rhs) const { return t == rhs.t; }
+	bool operator!=(const HandleType & rhs) const { return t != rhs.t; }
+	const T & handleData() const { return t; }
 };
 
 #endif // ARX_UTIL_HANDLETYPE_H

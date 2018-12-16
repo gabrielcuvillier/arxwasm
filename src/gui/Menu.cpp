@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -95,10 +95,6 @@ extern ARX_INTERFACE_BOOK_MODE g_guiBookCurrentTopTab;
 extern bool START_NEW_QUEST;
 extern long OLD_FLYING_OVER;
 extern long FLYING_OVER;
-
-
-
-extern float ARXTimeMenu;
 
 extern bool REQUEST_SPEECH_SKIP;
 
@@ -224,9 +220,6 @@ void ARX_MENU_Clicked_CREDITS() {
 
 void ARX_MENU_Launch(bool allowResume) {
 	
-	arxtime.update();
-	ARXTimeMenu = arxtime.now_f();
-	
 	g_canResumeGame = allowResume;
 
 	arxtime.pause();
@@ -331,15 +324,9 @@ void ARX_Menu_Render() {
 	
 	if(ARXmenu.currentmode == AMCM_NEWQUEST && ARXmenu.mda) {
 		
-		GRenderer->SetRenderState(Renderer::Fog, false);
-		GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+		UseRenderState state(render2D().noBlend());
 		
 		if(ARXmenu.mda->BookBackground != NULL) {
-			GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-			GRenderer->SetRenderState(Renderer::Fog, false);
-			GRenderer->SetRenderState(Renderer::DepthWrite, false);
-			GRenderer->SetRenderState(Renderer::DepthTest, false);
-			
 			EERIEDrawBitmap2(Rectf(Vec2f(0, 0), g_size.width(), g_size.height()), 0.9f, ARXmenu.mda->BookBackground, Color::white);
 		}
 		
@@ -365,7 +352,7 @@ void ARX_Menu_Render() {
 						(g_size.center().x) * 0.82f,
 						ARXmenu.mda->flyover[FLYING_OVER],
 						Color(232 + t, 204 + t, 143 + t),
-						1000,
+						PlatformDurationMs(1000),
 						0.01f,
 						2);
 				}
@@ -510,11 +497,11 @@ void ARX_Menu_Render() {
 	}
 	
 	EERIE_LIGHT * light = lightHandleGet(torchLightHandle);
-	light->pos.x = 0.f + GInput->getMousePosAbs().x - (g_size.width() >> 1);
-	light->pos.y = 0.f + GInput->getMousePosAbs().y - (g_size.height() >> 1);
+	light->pos.x = 0.f + GInput->getMousePosition().x - (g_size.width() >> 1);
+	light->pos.y = 0.f + GInput->getMousePosition().y - (g_size.height() >> 1);
 	
 	if(pTextManage) {
-		pTextManage->Update(g_framedelay);
+		pTextManage->Update(g_platformTime.lastFrameDuration());
 		pTextManage->Render();
 	}
 	
@@ -522,14 +509,12 @@ void ARX_Menu_Render() {
 		ARX_INTERFACE_RenderCursor(true);
 	
 	if(ARXmenu.currentmode == AMCM_NEWQUEST) {
-		if(ProcessFadeInOut(bFadeInOut)) {
+		if(MenuFader_process(bFadeInOut)) {
 			switch(iFadeAction) {
 				case AMCM_OFF:
 					arxtime.resume();
 					ARX_MENU_NEW_QUEST_Clicked_QUIT();
-					iFadeAction = -1;
-					g_menuFadeActive = false;
-					fFadeInOut = 0.f;
+					MenuFader_reset();
 					
 					if(pTextManage)
 						pTextManage->Clear();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -21,6 +21,7 @@
 #define ARX_UTIL_STRING_H
 
 #include <stddef.h>
+#include <cstring>
 #include <string>
 
 namespace util {
@@ -85,7 +86,9 @@ inline bool safeGet(T & data, CTYPE * & pos, STYPE & size) {
 	if(size < sizeof(T)) {
 		return false;
 	}
-	data = *reinterpret_cast<const T *>(pos);
+	
+	std::memcpy(&data, pos, sizeof(T));
+	
 	pos += sizeof(T);
 	size -= sizeof(T);
 	return true;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -97,8 +97,7 @@ void SaveGameList::update(bool verbose) {
 		std::string name;
 		float version;
 		long level;
-		unsigned long ignored;
-		if(ARX_CHANGELEVEL_GetInfo(path, name, version, level, ignored) == -1) {
+		if(ARX_CHANGELEVEL_GetInfo(path, name, version, level) == -1) {
 			LogWarning << "Unable to get save file info for " << path;
 			continue;
 		}
@@ -130,9 +129,8 @@ void SaveGameList::update(bool verbose) {
 			// Instead, choose a unique number.
 			res::path thumbnail_res;
 			size_t i = 0;
-			std::ostringstream oss;
 			do {
-				oss.clear();
+				std::ostringstream oss;
 				oss << "thumbnail" << i << SAVEGAME_THUMBNAIL.ext();
 				thumbnail_res = res::path("save") / oss.str();
 				i++;

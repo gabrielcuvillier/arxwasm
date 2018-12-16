@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2015 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -54,7 +54,7 @@ struct RenderMaterial {
 	RenderMaterial();
 
 	bool operator<(const RenderMaterial & other) const;
-	void apply() const;
+	RenderState apply() const;
 
 	Texture * getTexture() const { return m_texture; }
 	void resetTexture() { m_texture = NULL; }

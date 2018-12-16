@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -44,6 +44,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #ifndef ARX_ANIMATION_ANIMATIONRENDER_H
 #define ARX_ANIMATION_ANIMATIONRENDER_H
 
+#include "core/TimeTypes.h"
 #include "graphics/BaseGraphicsTypes.h"
 #include "graphics/Color.h"
 #include "graphics/Math.h"
@@ -60,11 +61,11 @@ float Cedric_GetInvisibility(Entity *io);
 
 void Cedric_ApplyLightingFirstPartRefactor(Entity *io);
 
-void PopAllTriangleList(bool clear = true);
+void PopAllTriangleListOpaque(bool clear = true);
 void PopAllTriangleListTransparency();
 
 void drawQuadRTP(const RenderMaterial & mat, TexturedQuad quat);
-void drawTriangle(const RenderMaterial & mat, const TexturedVertex * vertices);
+void drawTriangle(const RenderMaterial & mat, const TexturedVertexUntransformed *vertices);
 
 struct TransformInfo {
 
@@ -106,7 +107,7 @@ void EERIEDrawAnimQuatUpdate(EERIE_3DOBJ * eobj,
                              AnimLayer * animlayer,
                              const Anglef & angle,
                              const Vec3f & pos,
-                             unsigned long time,
+                             AnimationDuration time,
                              Entity * io,
                              bool update_movement);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -48,6 +48,8 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include "platform/Time.h"
 
+PlatformTime g_platformTime;
+
 GameTime arxtime;
 
 GameTime::GameTime() {
@@ -60,7 +62,7 @@ GameTime::GameTime() {
 	m_now_us           = 0;
 	frame_time_us      = 0;
 	last_frame_time_us = 0;
-	frame_delay_ms     = 0.0f;
+	frame_delay_ms     = 0.f;
 }
 
 void GameTime::init() {
@@ -71,7 +73,7 @@ void GameTime::init() {
 	m_now_us           = 0;
 	frame_time_us      = 0;
 	last_frame_time_us = 0;
-	frame_delay_ms     = 0.0f;
+	frame_delay_ms     = 0.f;
 }
 
 void GameTime::pause() {
@@ -89,9 +91,9 @@ void GameTime::resume() {
 	}
 }
 
-void GameTime::force_time_restore(const unsigned long time) {
+void GameTime::force_time_restore(const ArxInstant time) {
 	
-	u64 requested_time = u64(time * 1000);
+	u64 requested_time = u64(toMs(time) * 1000);
 	
 	start_time = platform::getElapsedUs(requested_time);
 	m_now_us = requested_time;

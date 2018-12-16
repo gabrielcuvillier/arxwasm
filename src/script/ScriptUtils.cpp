@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -470,6 +470,8 @@ size_t initSuppressions() {
 	
 	suppress("goblin_base_0009", 1455, "setevent"); // unsupported event: combine
 	suppress("goblin_base_0009", 3864, "playanim"); // used -e flag without command
+	
+	suppress("goblin_base_0016", 2320, "playanim"); // used -e flag without command
 	
 	suppress("goblin_base_0027", 8463, "wrong]"); // space instead of _ in localisation key
 	

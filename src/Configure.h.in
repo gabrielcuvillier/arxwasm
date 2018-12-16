@@ -43,6 +43,7 @@
 #cmakedefine01 ARX_HAVE_READ
 #cmakedefine01 ARX_HAVE_CLOSE
 #cmakedefine01 ARX_HAVE_ISATTY
+#cmakedefine01 ARX_HAVE_THREADSAFE_READDIR
 #cmakedefine01 ARX_HAVE_FPATHCONF
 #cmakedefine01 ARX_HAVE_PATHCONF
 #cmakedefine01 ARX_HAVE_NAME_MAX
@@ -55,6 +56,7 @@
 // Audio backend
 #cmakedefine01 ARX_HAVE_OPENAL
 #cmakedefine01 ARX_HAVE_OPENAL_EFX
+#cmakedefine01 ARX_HAVE_OPENAL_HRTF
 
 // Input backend
 #cmakedefine01 ARX_HAVE_SDL1
@@ -64,13 +66,19 @@
 #cmakedefine01 ARX_HAVE_CRASHHANDLER_POSIX
 #cmakedefine01 ARX_HAVE_CRASHHANDLER_WINDOWS
 
+// Endianness
+#cmakedefine01 ARX_HAVE_BUILTIN_BSWAP16
+#cmakedefine01 ARX_HAVE_BUILTIN_BSWAP32
+#cmakedefine01 ARX_HAVE_BUILTIN_BSWAP64
+#cmakedefine01 ARX_HAVE_BSWAP_16
+#cmakedefine01 ARX_HAVE_BSWAP_32
+#cmakedefine01 ARX_HAVE_BSWAP_64
+
 // Misc POSIX / Linux features
 #cmakedefine01 ARX_HAVE_BACKTRACE
 #cmakedefine01 ARX_HAVE_WORDEXP
 #cmakedefine01 ARX_HAVE_UNAME
 #cmakedefine01 ARX_HAVE_GETRUSAGE
-#cmakedefine01 ARX_HAVE_POPEN
-#cmakedefine01 ARX_HAVE_PCLOSE
 #cmakedefine01 ARX_HAVE_SYSCONF
 #cmakedefine01 ARX_HAVE_GETEXECNAME
 #cmakedefine01 ARX_HAVE_SYSCTL
@@ -78,10 +86,17 @@
 #cmakedefine01 ARX_HAVE_SETENV
 #cmakedefine01 ARX_HAVE_UNSETENV
 
-// Arx components
-#cmakedefine01 BUILD_EDIT_LOADSAVE
+// Architure-specific features
+#cmakedefine01 ARX_HAVE_GET_CPUID
+#cmakedefine01 ARX_HAVE_GET_CPUID_MAX
+#cmakedefine01 ARX_HAVE_XMMINTRIN
+#cmakedefine01 ARX_HAVE_PMMINTRIN
+#cmakedefine01 ARX_HAVE_BUILTIN_IA32_FXSAVE
 
 // Build system
 #cmakedefine01 UNITY_BUILD
+
+// Defaults
+#cmakedefine01 ARX_DEBUG_GL
 
 #endif // ARX_CONFIGURE_H

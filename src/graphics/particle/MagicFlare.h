@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,8 +20,10 @@
 #ifndef ARX_GRAPHICS_PARTICLE_MAGICFLARE_H
 #define ARX_GRAPHICS_PARTICLE_MAGICFLARE_H
 
-#include "game/Entity.h"
-#include "game/Camera.h"
+#include "math/Types.h"
+
+struct EERIE_CAMERA;
+class Entity;
 
 void MagicFlareLoadTextures();
 void MagicFlareSetCamera(EERIE_CAMERA * camera);
@@ -32,8 +34,8 @@ long MagicFlareCountNonFlagged();
 void ARX_MAGICAL_FLARES_FirstInit();
 void ARX_MAGICAL_FLARES_KillAll();
 void MagicFlareChangeColor();
-void AddFlare(const Vec2s & pos, float sm, short typ, Entity * io = NULL, bool bookDraw = false);
-void FlareLine(const Vec2s &pos0, const Vec2s &pos1, Entity * io = NULL);
+void AddFlare(const Vec2f & pos, float sm, short typ, Entity * io = NULL, bool bookDraw = false);
+void FlareLine(Vec2f pos0, Vec2f pos1, Entity * io = NULL);
 void ARX_MAGICAL_FLARES_Update();
 
 #endif // ARX_GRAPHICS_PARTICLE_MAGICFLARE_H

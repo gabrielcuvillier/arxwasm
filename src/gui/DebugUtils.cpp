@@ -64,7 +64,7 @@ void DebugBox::add(std::string key, const Vec3f value) {
 
 void DebugBox::add(std::string key, const Anglef value) {
 	m_maxKeyLen = std::max(m_maxKeyLen, key.length());
-	std::string valueStr = boost::str(boost::format("%4.2f %4.2f %4.2f") % value.getYaw() % value.getPitch() % value.getRoll());
+	std::string valueStr = boost::str(boost::format("%4.2f %4.2f %4.2f") % value.getPitch() % value.getYaw() % value.getRoll());
 	m_elements.push_back(std::pair<std::string, std::string>(key, valueStr));
 }
 
@@ -84,7 +84,7 @@ void DebugBox::print() {
 	std::vector<std::pair<std::string, std::string> >::const_iterator itr;
 	for(itr = m_elements.begin(); itr != m_elements.end(); ++itr) {
 		std::stringstream out;
-		out << "│ " << std::left << std::setw(m_maxKeyLen) << std::setfill(' ') << itr->first << " " << itr->second;
+		out << "│ " << std::left << std::setw(int(m_maxKeyLen)) << std::setfill(' ') << itr->first << " " << itr->second;
 		hFontDebug->draw(lineOffset, out.str(), Color::white);
 		lineOffset.y += lineHeight;
 	}

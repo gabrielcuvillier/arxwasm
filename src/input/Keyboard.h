@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -26,6 +26,8 @@ public:
 	
 	//! Key enumeration.
 	enum Key {
+		
+		Key_Invalid = -1,
 		
 		KeyBase = 0,
 		

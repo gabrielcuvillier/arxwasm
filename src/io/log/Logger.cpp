@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -309,4 +309,4 @@ void Logger::quickShutdown() {
 	}
 }
 
-ARX_PROGRAM_OPTION("debug", "g", "Log level settings", &Logger::configure, "LEVELS");
+ARX_PROGRAM_OPTION_ARG("debug", "g", "Log level settings", &Logger::configure, "LEVELS")

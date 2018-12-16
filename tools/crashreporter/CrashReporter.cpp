@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -33,9 +33,13 @@ int main(int argc, char * argv[]) {
 	
 	Q_INIT_RESOURCE(CrashReporter);
 	
+	#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
+	QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+	#endif
+	
 	QApplication app(argc, argv);
 	
-	#if ARX_PLATFORM != ARX_PLATFORM_WIN32 && ARX_PLATFORM != ARX_PLATFORM_MACOSX
+	#if ARX_PLATFORM != ARX_PLATFORM_WIN32 && ARX_PLATFORM != ARX_PLATFORM_MACOS
 	QIcon icon = QIcon::fromTheme(arx_icon_name.c_str(), QIcon::fromTheme("dialog-error"));
 	app.setWindowIcon(icon);
 	#endif

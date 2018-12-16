@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -69,6 +69,8 @@ public:
 		: MenuPage(pos, size, NEW_QUEST)
 	{}
 	
+	~NewQuestMenuPage() { }
+	
 	void init() {
 		
 		{
@@ -110,6 +112,8 @@ public:
 	ChooseLoadOrSaveMenuPage(const Vec2f & pos, const Vec2f & size)
 		: MenuPage(pos, size, EDIT_QUEST)
 	{}
+	
+	~ChooseLoadOrSaveMenuPage() { }
 	
 	void init() {
 		
@@ -173,6 +177,8 @@ public:
 		: MenuPage(pos, size, EDIT_QUEST_LOAD)
 	{}
 	
+	~LoadMenuPage() { }
+	
 	void init() {
 		
 		{
@@ -234,7 +240,7 @@ public:
 			szMenuText += "   ";
 			TextWidget * txt = new TextWidget(BUTTON_MENUEDITQUEST_DELETE_CONFIRM, hFontMenu, szMenuText, Vec2f_ZERO);
 			txt->m_targetMenu = EDIT_QUEST_LOAD;
-			txt->SetPos(Vec2f(RATIO_X(m_size.x-10)-txt->m_rect.width(), RATIO_Y(42)));
+			txt->SetPos(Vec2f(RATIO_X(m_size.x-10)-txt->m_rect.width(), RATIO_Y(54)));
 			txt->SetCheckOff();
 			txt->lOldColor = txt->lColor;
 			txt->lColor = Color::grayb(127);
@@ -285,6 +291,8 @@ public:
 	SaveMenuPage(const Vec2f & pos, const Vec2f & size)
 		: MenuPage(pos, size, EDIT_QUEST_SAVE)
 	{}
+	
+	~SaveMenuPage() { }
 	
 	void init() {
 		
@@ -369,6 +377,8 @@ public:
 		: MenuPage(pos, size, EDIT_QUEST_SAVE_CONFIRM)
 	{}
 	
+	~SaveConfirmMenuPage() { }
+	
 	void init() {
 		
 		{
@@ -428,6 +438,8 @@ public:
 	OptionsMenuPage(const Vec2f & pos, const Vec2f & size)
 		: MenuPage(pos, size, OPTIONS)
 	{}
+	
+	~OptionsMenuPage() { }
 	
 	void init() {
 		
@@ -493,6 +505,8 @@ public:
 		fullscreenCheckbox = NULL;
 		pMenuSliderResol = NULL;
 	}
+	
+	~VideoOptionsMenuPage() { }
 	
 	CheckboxWidget * fullscreenCheckbox;
 	CycleTextWidget * pMenuSliderResol;
@@ -671,16 +685,28 @@ public:
 			addCenter(cb);
 		}
 		
-		ARX_SetAntiAliasing();
-		
 		{
+			PanelWidget * panel = new PanelWidget;
 			std::string szMenuText = getLocalised("system_menus_options_video_vsync", "VSync");
+			szMenuText += " ";
 			TextWidget * txt = new TextWidget(BUTTON_INVALID, hFontMenu, szMenuText, Vec2f(20, 0));
 			txt->SetCheckOff();
-			CheckboxWidget * cb = new CheckboxWidget(txt);
-			cb->stateChanged = boost::bind(&VideoOptionsMenuPage::onChangedVsync, this, _1);
-			cb->iState = config.video.vsync ? 1 : 0;
-			addCenter(cb);
+			panel->AddElement(txt);
+			
+			CycleTextWidget * cb = new CycleTextWidget;
+			cb->valueChanged = boost::bind(&VideoOptionsMenuPage::onChangedVSync, this, _1, _2);
+			szMenuText = getLocalised("system_menus_options_video_vsync_off", "Off");
+			cb->AddText(new TextWidget(BUTTON_INVALID, hFontMenu, szMenuText));
+			szMenuText = getLocalised("system_menus_options_video_vsync_on", "On");
+			cb->AddText(new TextWidget(BUTTON_INVALID, hFontMenu, szMenuText));
+			szMenuText = getLocalised("system_menus_options_video_vsync_auto", "Adaptive");
+			cb->AddText(new TextWidget(BUTTON_INVALID, hFontMenu, szMenuText));
+			cb->setValue(config.video.vsync < 0 ? 2 : config.video.vsync);
+			
+			cb->Move(Vec2f(RATIO_X(m_size.x-9) - cb->m_rect.width(), 0));
+			panel->AddElement(cb);
+			
+			addCenter(panel);
 		}
 		
 		{
@@ -832,11 +858,12 @@ private:
 	
 	void onChangedAntialiasing(int state) {
 		config.video.antialiasing = state ? true : false;
-		ARX_SetAntiAliasing();
 	}
 	
-	void onChangedVsync(int state) {
-		config.video.vsync = state ? true : false;
+	void onChangedVSync(int pos, const std::string & str) {
+		ARX_UNUSED(str);
+		config.video.vsync = pos > 1 ? -1 : pos;
+		mainApp->getWindow()->setVSync(config.video.vsync);
 	}
 	
 	void onChangedMaxAnisotropy(int pos, const std::string & str) {
@@ -891,6 +918,8 @@ public:
 	InterfaceOptionsMenuPage(const Vec2f & pos, const Vec2f & size)
 		: MenuPage(pos, size, OPTIONS_INTERFACE)
 	{ }
+	
+	~InterfaceOptionsMenuPage() { }
 	
 	void init() {
 		
@@ -966,6 +995,17 @@ public:
 			cb->iState = config.interface.hudScaleInteger ? 1 : 0;
 			addCenter(cb);
 		}
+
+		{
+			std::string szMenuText = getLocalised("system_menus_options_interface_scale_cursor_with_hud",
+												  "Scale cursor with HUD");
+			TextWidget * txt = new TextWidget(BUTTON_INVALID, hFontMenu, szMenuText, Vec2f(20, 0));
+			txt->SetCheckOff();
+			CheckboxWidget * cb = new CheckboxWidget(txt);
+			cb->stateChanged = boost::bind(&InterfaceOptionsMenuPage::onChangedScaleCursorWithHud, this, _1);
+			cb->iState = config.interface.scaleCursorWithHud ? 1 : 0;
+			addCenter(cb);
+		}
 		
 		{
 			PanelWidget * panel = new PanelWidget;
@@ -1023,6 +1063,10 @@ private:
 		config.interface.hudScaleInteger = state ? true : false;
 		g_hudRoot.recalcScale();
 	}
+
+	void onChangedScaleCursorWithHud(int state) {
+		config.interface.scaleCursorWithHud = state ? true : false;
+	}
 	
 	void onChangedHudScaleFilter(int pos, const std::string & str) {
 		ARX_UNUSED(str);
@@ -1040,6 +1084,8 @@ public:
 	AudioOptionsMenuPage(const Vec2f & pos, const Vec2f & size)
 		: MenuPage(pos, size, OPTIONS_AUDIO)
 	{}
+	
+	~AudioOptionsMenuPage() { }
 	
 	void init() {
 		
@@ -1152,6 +1198,48 @@ public:
 			addCenter(cb);
 		}
 		
+		audio::HRTFStatus hrtf = audio::getHRTFStatus();
+		if(hrtf != audio::HRTFUnavailable) {
+			
+			PanelWidget * panel = new PanelWidget;
+			std::string szMenuText = getLocalised("system_menus_options_audio_hrtf", "Virtual surround");
+			szMenuText += "  ";
+			TextWidget * txt = new TextWidget(BUTTON_INVALID, hFontMenu, szMenuText, Vec2f(20, 0));
+			txt->SetCheckOff();
+			panel->AddElement(txt);
+			
+			Widget * value;
+			if(hrtf == audio::HRTFRequired) {
+				value = new TextWidget(BUTTON_INVALID, hFontMenu, "Enabled");
+				value->SetCheckOff();
+			} else if(hrtf == audio::HRTFForbidden) {
+				value = new TextWidget(BUTTON_INVALID, hFontMenu, "Disabled");
+				value->SetCheckOff();
+			} else {
+				CycleTextWidget * slider = new CycleTextWidget;
+				slider->valueChanged = boost::bind(&AudioOptionsMenuPage::onChangedHRTF, this, _1, _2);
+				slider->AddText(new TextWidget(BUTTON_INVALID, hFontMenu, "Disabled"));
+				if(config.audio.hrtf == audio::HRTFDisable) {
+					slider->selectLast();
+				}
+				slider->AddText(new TextWidget(BUTTON_INVALID, hFontMenu, "Automatic"));
+				if(config.audio.hrtf == audio::HRTFDefault) {
+					slider->selectLast();
+				}
+				slider->AddText(new TextWidget(BUTTON_INVALID, hFontMenu, "Enabled"));
+				if(config.audio.hrtf == audio::HRTFEnable) {
+					slider->selectLast();
+				}
+				value = slider;
+			}
+			float fRatio    = (RATIO_X(m_size.x-9) - value->m_rect.width());
+			value->Move(Vec2f(fRatio, 0));
+			panel->AddElement(value);
+			
+			addCenter(panel);
+			
+		}
+		
 		{
 			ButtonWidget * cb = new ButtonWidget(Vec2f(20, 380), Vec2f(16, 16), "graph/interface/menus/back");
 			cb->m_targetMenu = OPTIONS;
@@ -1191,6 +1279,17 @@ private:
 		ARX_SOUND_SetReverb(config.audio.eax);
 	}
 	
+	void onChangedHRTF(int pos, const std::string & str) {
+		ARX_UNUSED(str);
+		switch(pos) {
+			case 0: config.audio.hrtf = audio::HRTFDisable; break;
+			case 1: config.audio.hrtf = audio::HRTFDefault; break;
+			case 2: config.audio.hrtf = audio::HRTFEnable; break;
+			default: ARX_DEAD_CODE();
+		}
+		audio::setHRTFEnabled(config.audio.hrtf);
+	}
+	
 	void onChangedMuteOnFocusLost(int state) {
 		config.audio.muteOnFocusLost = (state != 0);
 		if(!mainApp->getWindow()->hasFocus()) {
@@ -1207,6 +1306,8 @@ public:
 	InputOptionsMenuPage(const Vec2f & pos, const Vec2f & size)
 		: MenuPage(pos, size, OPTIONS_INPUT)
 	{}
+	
+	~InputOptionsMenuPage() { }
 	
 	void init() {
 		
@@ -1312,6 +1413,15 @@ public:
 		}
 		
 		{
+			std::string szMenuText = getLocalised("system_menus_alt_rune_recognition", "Alternate rune recognition");
+			TextWidget * txt = new TextWidget(BUTTON_INVALID, hFontMenu, szMenuText, Vec2f(20, 0));
+			CheckboxWidget * cb = new CheckboxWidget(txt);
+			cb->stateChanged = boost::bind(&InputOptionsMenuPage::onChangedAltRuneRecognition, this, _1);
+			cb->iState = config.input.useAltRuneRecognition ? 1 : 0;
+			addCenter(cb);
+		}
+		
+		{
 			ButtonWidget * cb = new ButtonWidget(Vec2f(20, 380), Vec2f(16, 16), "graph/interface/menus/back");
 			cb->m_targetMenu = OPTIONS;
 			cb->SetShortCut(Keyboard::Key_Escape);
@@ -1322,7 +1432,8 @@ public:
 private:
 	
 	void onChangedInvertMouse(int state) {
-		ARXMenu_Options_Control_SetInvertMouse((state)?true:false);
+		config.input.invertMouse = (state) ? true : false;
+		GInput->setInvertMouseY(config.input.invertMouse);
 	}
 	
 	void onChangedAutoReadyWeapon(int state) {
@@ -1334,11 +1445,13 @@ private:
 	}
 	
 	void onChangedMouseSensitivity(int value) {
-		ARXMenu_Options_Control_SetMouseSensitivity(value);
+		config.input.mouseSensitivity = glm::clamp(value, 0, 10);
+		GInput->setMouseSensitivity(config.input.mouseSensitivity);
 	}
 	
 	void onChangedMouseAcceleration(int value) {
 		config.input.mouseAcceleration = glm::clamp(value, 0, 10);
+		GInput->setMouseAcceleration(config.input.mouseAcceleration);
 	}
 	
 	void onChangedRawMouseInput(int state) {
@@ -1356,6 +1469,10 @@ private:
 	
 	void onChangedBorderTurning(int value) {
 		config.input.borderTurning = (value) ? true : false;
+	}
+	
+	void onChangedAltRuneRecognition(int value) {
+		config.input.useAltRuneRecognition = (value) ? true : false;
 	}
 	
 };
@@ -1424,6 +1541,8 @@ public:
 		: ControlOptionsPage(pos, size, OPTIONS_INPUT_CUSTOMIZE_KEYS_1)
 	{}
 	
+	~ControlOptionsMenuPage1() { }
+	
 	void init() {
 		
 		long y = static_cast<long>(RATIO_Y(8.f));
@@ -1452,6 +1571,8 @@ public:
 		addControlRow(y, CONTROLS_CUST_LOOKUP,       "system_menus_options_input_customize_controls_look_up");
 		addControlRow(y, CONTROLS_CUST_LOOKDOWN,     "system_menus_options_input_customize_controls_look_down");
 		
+		addControlRow(y, CONTROLS_CUST_MINIMAP,      "system_menus_options_input_customize_controls_bookmap", "?", "2");
+
 		{
 			ButtonWidget * cb = new ButtonWidget(Vec2f(20, 380), Vec2f(16, 16), "graph/interface/menus/back");
 			cb->m_targetMenu = OPTIONS_INPUT;
@@ -1492,6 +1613,8 @@ public:
 		: ControlOptionsPage(pos, size, OPTIONS_INPUT_CUSTOMIZE_KEYS_2)
 	{}
 	
+	~ControlOptionsMenuPage2() { }
+	
 	void init() {
 		
 		long y = static_cast<long>(RATIO_Y(8.f));
@@ -1504,14 +1627,15 @@ public:
 		addControlRow(y, CONTROLS_CUST_BOOKQUEST,         "system_menus_options_input_customize_controls_bookquest");
 		addControlRow(y, CONTROLS_CUST_DRINKPOTIONLIFE,   "system_menus_options_input_customize_controls_drink_potion_life");
 		addControlRow(y, CONTROLS_CUST_DRINKPOTIONMANA,   "system_menus_options_input_customize_controls_drink_potion_mana");
+		addControlRow(y, CONTROLS_CUST_DRINKPOTIONCURE,   "system_menus_options_input_customize_controls_drink_potion_cure", "Antidote potion");
 		addControlRow(y, CONTROLS_CUST_TORCH,             "system_menus_options_input_customize_controls_torch");
 		
 		addControlRow(y, CONTROLS_CUST_CANCELCURSPELL,    "system_menus_options_input_customize_controls_cancelcurrentspell");
 		addControlRow(y, CONTROLS_CUST_PRECAST1,          "system_menus_options_input_customize_controls_precast1");
 		addControlRow(y, CONTROLS_CUST_PRECAST2,          "system_menus_options_input_customize_controls_precast2");
 		addControlRow(y, CONTROLS_CUST_PRECAST3,          "system_menus_options_input_customize_controls_precast3");
-		addControlRow(y, CONTROLS_CUST_WEAPON,            "system_menus_options_input_customize_controls_weapon");
 		
+		addControlRow(y, CONTROLS_CUST_WEAPON,            "system_menus_options_input_customize_controls_weapon");
 		addControlRow(y, CONTROLS_CUST_UNEQUIPWEAPON,     "system_menus_options_input_customize_controls_unequipweapon");
 		
 		addControlRow(y, CONTROLS_CUST_PREVIOUS,          "system_menus_options_input_customize_controls_previous");
@@ -1520,9 +1644,11 @@ public:
 		addControlRow(y, CONTROLS_CUST_QUICKLOAD,         "system_menus_options_input_customize_controls_quickload");
 		addControlRow(y, CONTROLS_CUST_QUICKSAVE,         "system_menus_options_input_customize_controls_quicksave");
 		
-		addControlRow(y, CONTROLS_CUST_MINIMAP,           "system_menus_options_input_customize_controls_bookmap", "?", "2");
-		
 		addControlRow(y, CONTROLS_CUST_TOGGLE_FULLSCREEN, "system_menus_options_input_customize_controls_toggle_fullscreen", "Toggle fullscreen");
+		
+		if(config.input.allowConsole) {
+			addControlRow(y, CONTROLS_CUST_CONSOLE, "system_menus_options_input_customize_controls_console", "Script console");
+		}
 		
 		{
 			ButtonWidget * cb = new ButtonWidget(Vec2f(20, 380), Vec2f(16, 16), "graph/interface/menus/back");
@@ -1550,6 +1676,8 @@ public:
 	QuitConfirmMenuPage(const Vec2f & pos, const Vec2f & size)
 		: MenuPage(pos, size, QUIT)
 	{}
+	
+	~QuitConfirmMenuPage() { }
 	
 	void init() {
 		
@@ -1767,7 +1895,7 @@ void MainMenu::init()
 		version += "\"";
 	}
 
-	float verPosX = 620 - (hFontControls->getTextSize(version).x / g_sizeRatio.y);
+	float verPosX = 620 - (hFontControls->getTextSize(version).width() / g_sizeRatio.y);
 	TextWidget * txt = new TextWidget(BUTTON_INVALID, hFontControls, version, Vec2f(verPosX, 80));
 	
 	txt->SetCheckOff();
@@ -1777,7 +1905,11 @@ void MainMenu::init()
 
 void MainMenu::onClickedResumeGame(){
 	pTextManage->Clear();
-	ARXMenu_ResumeGame();
+	if(!g_canResumeGame) {
+		ARX_QuickLoad();
+	} else {
+		ARXMenu_ResumeGame();
+	}
 }
 
 void MainMenu::onClickedNewQuest() {
@@ -1797,13 +1929,13 @@ MENUSTATE MainMenu::Update() {
 		if(g_canResumeGame) {
 			m_resumeGame->SetCheckOn();
 			m_resumeGame->lColor = Color(232, 204, 142);
-		} else {
+		} else if(savegames.size() == 0) {
 			m_resumeGame->SetCheckOff();
 			m_resumeGame->lColor = Color(127, 127, 127);
 		}
 	}
 	
-	m_selected = m_widgets->getAtPos(Vec2f(GInput->getMousePosAbs()));
+	m_selected = m_widgets->getAtPos(Vec2f(GInput->getMousePosition()));
 	
 	if(m_selected && GInput->getMouseButton(Mouse::Button_0)) {
 		m_selected->OnMouseClick();
@@ -1821,8 +1953,10 @@ void MainMenu::Render() {
 	if(bNoMenu)
 		return;
 
-	if(m_background)
+	if(m_background) {
+		UseRenderState state(render2D().noBlend());
 		EERIEDrawBitmap2(Rectf(Vec2f(0, 0), g_size.width(), g_size.height()), 0.999f, m_background, Color::white);
+	}
 	
 	{Widget * w; BOOST_FOREACH(w, m_widgets->m_widgets) {
 		w->Update();

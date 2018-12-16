@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -50,6 +50,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include <stddef.h>
 
+#include "core/TimeTypes.h"
 #include "audio/AudioTypes.h"
 #include "graphics/BaseGraphicsTypes.h"
 #include "graphics/Color.h"
@@ -63,16 +64,17 @@ struct EERIEPOLY;
 struct SMY_VERTEX;
 class Entity;
 
-const size_t MAX_LIGHTS = 1200;
-const size_t MAX_DYNLIGHTS = 500;
+const size_t g_staticLightsMax = 1200;
+const size_t g_dynamicLightsMax = 500;
 
-extern EERIE_LIGHT * PDL[MAX_DYNLIGHTS];
-extern EERIE_LIGHT * GLight[MAX_LIGHTS];
-extern EERIE_LIGHT DynLight[MAX_DYNLIGHTS];
-extern size_t TOTPDL;
-extern size_t TOTIOPDL;
+extern EERIE_LIGHT * g_culledDynamicLights[g_dynamicLightsMax];
+extern EERIE_LIGHT * g_staticLights[g_staticLightsMax];
+extern EERIE_LIGHT g_dynamicLights[g_dynamicLightsMax];
+extern size_t g_culledDynamicLightsCount;
 
-ARX_HANDLE_TYPEDEF(long, LightHandle, -1)
+void culledStaticLightsReset();
+
+typedef HandleType<struct LightHandleTag, long, -1> LightHandle;
 
 enum EERIE_TYPES_EXTRAS_MODE
 {
@@ -116,10 +118,10 @@ struct EERIE_LIGHT {
 	float ex_speed;
 	float ex_flaresize;
 	LightHandle m_ignitionLightHandle;
-	unsigned long creationTime;
+	ArxInstant creationTime;
 	
 	// will start to fade before the end of duration...
-	unsigned long duration;
+	ArxDuration duration;
 	
 	audio::SourceId sample;
 	math::Quantizer m_storedFlameTime;
@@ -137,10 +139,6 @@ struct ColorMod {
 void RecalcLight(EERIE_LIGHT * el);
 
 void EERIE_LIGHT_GlobalInit();
-long EERIE_LIGHT_GetFree();
-long EERIE_LIGHT_Count();
-void EERIE_LIGHT_GlobalAdd(const EERIE_LIGHT * el);
-void EERIE_LIGHT_MoveAll(const Vec3f & trans);
 long EERIE_LIGHT_Create();
 void PrecalcIOLighting(const Vec3f & pos, float radius);
 
@@ -148,11 +146,15 @@ const LightHandle torchLightHandle = LightHandle(0);
 
 EERIE_LIGHT * lightHandleGet(LightHandle lightHandle);
 
-bool lightHandleIsValid(LightHandle num);
 LightHandle GetFreeDynLight();
-void lightHandleDestroy(LightHandle & handle);
-void endLightDelayed(LightHandle & handle, unsigned long delay);
 
+EERIE_LIGHT * dynLightCreate(LightHandle & handle);
+EERIE_LIGHT * dynLightCreate();
+
+void lightHandleDestroy(LightHandle & handle);
+void endLightDelayed(LightHandle & handle, ArxDuration delay);
+
+void resetDynLights();
 
 void ClearDynLights();
 void PrecalcDynamicLighting(long x0, long x1, long z0, long z1, const Vec3f & camPos, float camDepth);
@@ -189,8 +191,6 @@ ColorRGBA ApplyLight(const ShaderLight lights[],
                      float materialDiffuse = 1.f);
 
 void ApplyTileLights(EERIEPOLY * ep, const Vec2s & pos);
-
-void EERIERemovePrecalcLights();
 
 void TreatBackgroundDynlights();
 

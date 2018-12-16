@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -202,15 +202,14 @@ static bool IsObjectInField(PHYSICS_BOX_DATA * pbox) {
 		if(spell && spell->m_type == SPELL_CREATE_FIELD) {
 			const CreateFieldSpell * sp = static_cast<const CreateFieldSpell *>(spell);
 			
-			if(ValidIONum(sp->m_entity)) {
-				Entity * pfrm = entities[sp->m_entity];
-				
+			Entity * pfrm = entities.get(sp->m_entity);
+			if(pfrm) {
 				Cylinder cyl = Cylinder(Vec3f_ZERO, 35.f, -35.f);
 				
 				for(long k = 0; k < pbox->nb_physvert; k++) {
 					PHYSVERT * pv = &pbox->vert[k];
 					cyl.origin = pv->pos + Vec3f(0.f, 17.5f, 0.f);
-					if(CylinderPlatformCollide(cyl, pfrm) != 0.f) {
+					if(CylinderPlatformCollide(cyl, pfrm)) {
 						return true;
 					}
 				}
@@ -266,18 +265,18 @@ static bool IsFULLObjectVertexInValidPosition(PHYSICS_BOX_DATA * pbox, EERIEPOLY
 	float rad = pbox->radius;
 	
 	// TODO copy-paste background tiles
-	short tilex = pbox->vert[0].pos.x * ACTIVEBKG->Xmul;
-	short tilez = pbox->vert[0].pos.z * ACTIVEBKG->Zmul;
-	short radius = std::min(1, short(rad * (1.0f/100)) + 1);
+	int tilex = int(pbox->vert[0].pos.x * ACTIVEBKG->m_mul.x);
+	int tilez = int(pbox->vert[0].pos.z * ACTIVEBKG->m_mul.y);
+	int radius = std::min(1, short(rad * (1.0f/100)) + 1);
 	
-	short minx = std::max(tilex - radius, 0);
-	short maxx = std::min(tilex + radius, ACTIVEBKG->Xsize - 1);
-	short minz = std::max(tilez - radius, 0);
-	short maxz = std::min(tilez + radius, ACTIVEBKG->Zsize - 1);
+	int minx = std::max(tilex - radius, 0);
+	int maxx = std::min(tilex + radius, ACTIVEBKG->m_size.x - 1);
+	int minz = std::max(tilez - radius, 0);
+	int maxz = std::min(tilez + radius, ACTIVEBKG->m_size.y - 1);
 	
-	for(short z = minz; z <= maxz; z++)
-	for(short x = minx; x <= maxx; x++) {
-		EERIE_BKG_INFO & eg = ACTIVEBKG->fastdata[x][z];
+	for(int z = minz; z <= maxz; z++)
+	for(int x = minx; x <= maxx; x++) {
+		BackgroundTileData & eg = ACTIVEBKG->m_tileData[x][z];
 		
 		for(long k = 0; k < eg.nbpoly; k++) {
 			EERIEPOLY & ep = eg.polydata[k];
@@ -341,7 +340,7 @@ static void ARX_TEMPORARY_TrySound(Entity * source, Material collisionMaterial, 
 	if(source->ioflags & IO_BODY_CHUNK)
 		return;
 	
-	unsigned long now = arxtime.now_ul();
+	ArxInstant now = arxtime.now();
 	
 	if(now > source->soundtime) {
 		
@@ -361,7 +360,7 @@ static void ARX_TEMPORARY_TrySound(Entity * source, Material collisionMaterial, 
 			
 			long soundLength = ARX_SOUND_PlayCollision(material, collisionMaterial, volume, 1.f, source->pos, source);
 			
-			source->soundtime = now + (soundLength >> 4) + 50;
+			source->soundtime = now + ArxDurationMs(soundLength >> 4) + ArxDurationMs(50);
 		}
 	}
 }
@@ -468,6 +467,6 @@ void ARX_PHYSICS_BOX_ApplyModel(PHYSICS_BOX_DATA * pbox, float framediff, float 
 	pbox->stopcount = 0;
 
 	source->soundcount = 0;
-	source->soundtime = arxtime.now_ul() + 2000;
+	source->soundtime = arxtime.now() + ArxDurationMs(2000);
 }
 

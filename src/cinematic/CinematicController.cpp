@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -19,6 +19,7 @@
 
 #include "cinematic/CinematicController.h"
 
+#include "core/Application.h"
 #include "core/GameTime.h"
 
 #include "io/log/Logger.h"
@@ -37,6 +38,8 @@
 #include "graphics/Renderer.h"
 #include "input/Input.h"
 
+#include "window/RenderWindow.h"
+
 enum CinematicState {
 	Cinematic_Stopped,
 	Cinematic_StartRequested,
@@ -50,7 +53,16 @@ static std::string LAST_LAUNCHED_CINE;
 
 Cinematic			*ControlCinematique=NULL;	// 2D Cinematic Controller
 
-void cinematicPrepare(std::string name, bool preload) {
+void cinematicInit() {
+	const Vec2i & size = mainApp->getWindow()->getSize();
+	ControlCinematique = new Cinematic(size);
+}
+
+void cinematicDestroy() {
+	delete ControlCinematique, ControlCinematique = NULL;
+}
+
+void cinematicPrepare(const std::string & name, bool preload) {
 
 	WILL_LAUNCH_CINE = name;
 	CINE_PRELOAD = preload;
@@ -61,11 +73,10 @@ void cinematicRequestStart() {
 	PLAY_LOADED_CINEMATIC = Cinematic_StartRequested;
 }
 
-void DANAE_KillCinematic() {
+void cinematicKill() {
 	if(ControlCinematique && ControlCinematique->projectload) {
 		ControlCinematique->projectload = false;
 		ControlCinematique->OneTimeSceneReInit();
-		ControlCinematique->DeleteDeviceObjects();
 		PLAY_LOADED_CINEMATIC = Cinematic_Stopped;
 		CINE_PRELOAD = false;
 	}
@@ -73,7 +84,7 @@ void DANAE_KillCinematic() {
 
 Vec3f ePos;
 
-void LaunchWaitingCine() {
+void cinematicLaunchWaiting() {
 
 	// A cinematic is waiting to be played...
 	if(WILL_LAUNCH_CINE.empty()) {
@@ -86,7 +97,7 @@ void LaunchWaitingCine() {
 		ePos = ACTIVECAM->orgTrans.pos;
 	}
 
-	DANAE_KillCinematic();
+	cinematicKill();
 
 	res::path cinematic = res::path("graph/interface/illustrations") / WILL_LAUNCH_CINE;
 
@@ -128,25 +139,20 @@ bool isInCinematic() {
 			&& ControlCinematique->projectload;
 }
 
-static float LastFrameTicks = 0;
-
 // Manages Currently playing 2D cinematic
 void cinematicRender() {
-	
-	arxtime.update(false);
-	float now = arxtime.now_f();
+
+	PlatformDuration diff = g_platformTime.lastFrameDuration();
 
 	if(PLAY_LOADED_CINEMATIC == Cinematic_StartRequested) {
 		LogDebug("really starting cinematic now");
-		LastFrameTicks = now;
+		diff = PlatformDuration_ZERO;
 		PLAY_LOADED_CINEMATIC = Cinematic_Started;
 	}
 
 	PlayTrack(ControlCinematique);
-	ControlCinematique->InitDeviceObjects();
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
 
-	ControlCinematique->Render(now - LastFrameTicks);
+	ControlCinematique->Render(diff);
 
 	// end the animation
 	if(   !ControlCinematique->key
@@ -155,7 +161,6 @@ void cinematicRender() {
 		ControlCinematique->projectload=false;
 		StopSoundKeyFramer();
 		ControlCinematique->OneTimeSceneReInit();
-		ControlCinematique->DeleteDeviceObjects();
 		arxtime.resume();
 		PLAY_LOADED_CINEMATIC = Cinematic_Stopped;
 
@@ -166,6 +171,7 @@ void cinematicRender() {
 
 		// !! avant le cine end
 		if(ACTIVECAM) {
+			arx_assert(isallfinite(ePos));
 			ACTIVECAM->orgTrans.pos = ePos;
 		}
 
@@ -176,6 +182,4 @@ void cinematicRender() {
 		ARX_SPEECH_Reset();
 		SendMsgToAllIO(SM_CINE_END, LAST_LAUNCHED_CINE);
 	}
-
-	LastFrameTicks = now;
 }

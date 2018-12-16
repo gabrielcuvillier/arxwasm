@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -88,7 +88,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/Vertex.h"
 #include "graphics/data/Mesh.h"
 #include "graphics/data/TextureContainer.h"
-#include "graphics/effects/DrawEffects.h"
+#include "graphics/effects/PolyBoom.h"
 #include "graphics/effects/Halo.h"
 #include "graphics/particle/ParticleEffects.h"
 #include "graphics/texture/TextureStage.h"
@@ -128,38 +128,22 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "window/RenderWindow.h"
 
 
-extern float Original_framedelay;
 extern EERIE_3DOBJ *arrowobj;
-
-extern EntityHandle LastSelectedIONum;
-
-//-----------------------------------------------------------------------------
-struct ARX_INTERFACE_HALO_STRUCT
-{
-	Entity  * io;
-	TextureContainer * tc;
-	TextureContainer * tc2;
-	Vec2f m_pos;
-	Vec2f ratio;
-};
 
 extern TextureContainer * inventory_font;
 
-extern float PLAYER_ROTATION;
+extern AnimationDuration PLAYER_ROTATION;
 extern float SLID_VALUE;
 
-long lSLID_VALUE = 0;
+float lSLID_VALUE = 0;
 
 extern bool BLOCK_PLAYER_CONTROLS;
-extern long DeadTime;
 
 extern bool WILLRETURNTOFREELOOK;
 
 extern bool SHOW_INGAME_MINIMAP;
 
 //-----------------------------------------------------------------------------
-
-std::vector<ARX_INTERFACE_HALO_STRUCT> deferredUiHalos;
 
 E_ARX_STATE_MOUSE	eMouseState;
 Vec2s MemoMouse;
@@ -172,9 +156,7 @@ INTERFACE_TC g_bookResouces = INTERFACE_TC();
 
 gui::Note openNote;
 
-bool				bInventoryClosing = false;
-
-extern float SLID_START;
+extern PlatformInstant SLID_START;
 
 Vec2f				BOOKDEC = Vec2f(0.f, 0.f);
 
@@ -188,7 +170,7 @@ bool				DRAGGING = false;
 bool				MAGICMODE = false;
 long				SpecialCursor=0;
 
-unsigned long		COMBAT_MODE_ON_START_TIME = 0;
+ArxInstant COMBAT_MODE_ON_START_TIME = ArxInstant_ZERO;
 static long SPECIAL_DRAW_WEAPON = 0;
 bool bGCroucheToggle=false;
 
@@ -217,6 +199,8 @@ void ARX_INTERFACE_DrawNumber(const Vec2f & pos, const long num, const int _iNb,
 	v[0].p.z = v[1].p.z = v[2].p.z = v[3].p.z = 0.0000001f;
 
 	if(inventory_font) {
+		
+		GRenderer->SetTexture(0, inventory_font);
 		
 		char tx[7];
 		float ttx;
@@ -248,7 +232,6 @@ void ARX_INTERFACE_DrawNumber(const Vec2f & pos, const long num, const int _iNb,
 				ttx = 0.5f * divideY;
 				v[1].uv.y = v[0].uv.y = divideY + ttx;
 				v[2].uv.y = v[3].uv.y = divideY * 12;
-				GRenderer->SetTexture(0, inventory_font);
 
 				EERIEDRAWPRIM(Renderer::TriangleFan, v, 4);
 			}
@@ -364,13 +347,13 @@ void ARX_INTERFACE_HALO_Render(Color3f color,
 	color.b = glm::clamp(color.b * power, 0.f, 1.f);
 	Color col = Color4f(color).to<u8>();
 
+	RenderState desiredState = render2D().blendAdditive();
 	if(_lHaloType & HALO_NEGATIVE) {
-		GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
-	} else {
-		GRenderer->SetBlendFunc(BlendSrcAlpha, BlendOne);
+		desiredState.setColorKey(true); // TODO this is only needed when drawing the halo in front of items
+		desiredState.setBlend(BlendZero, BlendInvSrcColor);
 	}
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
+	UseRenderState state(desiredState);
 	
 	float x = pos.x - TextureContainer::HALO_RADIUS * ratio.x;
 	float y = pos.y - TextureContainer::HALO_RADIUS * ratio.y;
@@ -378,37 +361,6 @@ void ARX_INTERFACE_HALO_Render(Color3f color,
 	float height = haloTexture->m_size.y * ratio.y;
 	
 	EERIEDrawBitmap(Rectf(Vec2f(x, y), width, height), 0.00001f, haloTexture, col);
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-}
-
-void ARX_INTERFACE_HALO_Draw(Entity * io, TextureContainer * tc, TextureContainer * tc2, Vec2f pos, Vec2f ratio) {
-	
-	ARX_INTERFACE_HALO_STRUCT halo;
-	halo.io = io;
-	halo.tc = tc;
-	halo.tc2 = tc2;
-	halo.m_pos = pos;
-	halo.ratio = ratio;
-	
-	deferredUiHalos.push_back(halo);
-}
-
-void ReleaseHalo() {
-	
-	deferredUiHalos.clear();
-}
-
-void ARX_INTERFACE_HALO_Flush() {
-	
-	BOOST_FOREACH(ARX_INTERFACE_HALO_STRUCT & halo, deferredUiHalos) {
-		ARX_INTERFACE_HALO_Render(
-		halo.io->halo.color,
-		halo.io->halo.flags,
-		halo.tc2, halo.m_pos, halo.ratio);
-	}
-	
-	deferredUiHalos.clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -439,16 +391,16 @@ void InventoryOpenClose(unsigned long t) {
 	ARX_SOUND_PlayInterface(SND_BACKPACK, Random::getf(0.9f, 1.1f));
 
 	if((player.Interface & INTER_INVENTORY) || (player.Interface & INTER_INVENTORYALL)) {
-		bInventoryClosing = true;
+		g_playerInventoryHud.close();
 
 		if(WILLRETURNTOFREELOOK) {
 			TRUE_PLAYER_MOUSELOOK_ON = true;
-			SLID_START = arxtime.now_f();
+			SLID_START = g_platformTime.frameStart();
 			WILLRETURNTOFREELOOK = false;
 		}
 	} else {
 		player.Interface |= INTER_INVENTORY;
-		InventoryY = 100;
+		g_playerInventoryHud.resetPos();
 
 		if(TRUE_PLAYER_MOUSELOOK_ON)
 			WILLRETURNTOFREELOOK = true;
@@ -457,7 +409,7 @@ void InventoryOpenClose(unsigned long t) {
 	if(((player.Interface & INTER_INVENTORYALL) || TRUE_PLAYER_MOUSELOOK_ON) && (player.Interface & INTER_NOTE))
 		ARX_INTERFACE_NoteClose();
 
-	if(!bInventoryClosing && config.input.autoReadyWeapon == false)
+	if(!g_playerInventoryHud.isClosing() && config.input.autoReadyWeapon == false)
 		TRUE_PLAYER_MOUSELOOK_ON = false;
 }
 
@@ -498,7 +450,7 @@ void ARX_INTERFACE_NoteOpen(gui::Note::Type type, const std::string & text) {
 	}
 	
 	if(player.Interface & INTER_INVENTORYALL) {
-		bInventoryClosing = true;
+		g_playerInventoryHud.close();
 		ARX_SOUND_PlayInterface(SND_BACKPACK, Random::getf(0.9f, 1.1f));
 	}
 }
@@ -548,8 +500,8 @@ void ARX_INTERFACE_NoteManage() {
 void ResetPlayerInterface() {
 	player.Interface |= INTER_LIFE_MANA;
 	g_hudRoot.playerInterfaceFader.resetSlid();
-	lSLID_VALUE = 0;
-	SLID_START = arxtime.now_f();
+	lSLID_VALUE = 0.f;
+	SLID_START = g_platformTime.frameStart();
 }
 
 static void ReleaseInfosCombine() {
@@ -863,14 +815,14 @@ static void GetInfosCombine() {
 // 1 to force Combat Mode On
 // 0 to force Combat Mode Off
 //-----------------------------------------------------------------------------
-void ARX_INTERFACE_Combat_Mode(long i) {
+void ARX_INTERFACE_setCombatMode(ARX_INTERFACE_COMBAT_MODE i) {
 	arx_assert(entities.player());
 	arx_assert(arrowobj);
 	
 	if(i >= 1 && (player.Interface & INTER_COMBATMODE))
 		return;
 
-	if(i == 0 && !(player.Interface & INTER_COMBATMODE))
+	if(i == COMBAT_MODE_OFF && !(player.Interface & INTER_COMBATMODE))
 		return;
 
 	if((player.Interface & INTER_COMBATMODE)) {
@@ -897,7 +849,7 @@ void ARX_INTERFACE_Combat_Mode(long i) {
 
 			if(config.input.mouseLookToggle) {
 				TRUE_PLAYER_MOUSELOOK_ON = true;
-				SLID_START = arxtime.now_f();
+				SLID_START = g_platformTime.frameStart();
 			}
 		}
 
@@ -909,7 +861,7 @@ long CSEND=0;
 long MOVE_PRECEDENCE=0;
 
 
-extern unsigned long REQUEST_JUMP;
+extern ArxInstant REQUEST_JUMP;
 //-----------------------------------------------------------------------------
 void ArxGame::managePlayerControls() {
 	
@@ -993,13 +945,13 @@ void ArxGame::managePlayerControls() {
 
 			// Checks WALK_FORWARD Key Status.
 			if(GInput->actionPressed(CONTROLS_CUST_WALKFORWARD)) {
-				eyeball.pos += angleToVectorXZ(eyeball.angle.getPitch()) * 20.f * FD * 0.033f;
+				eyeball.pos += angleToVectorXZ(eyeball.angle.getYaw()) * 20.f * FD * 0.033f;
 				NOMOREMOVES=1;
 			}
 
 			// Checks WALK_BACKWARD Key Status.
 			if(GInput->actionPressed(CONTROLS_CUST_WALKBACKWARD)) {
-				eyeball.pos += angleToVectorXZ_180offset(eyeball.angle.getPitch()) * 20.f * FD * 0.033f;
+				eyeball.pos += angleToVectorXZ_180offset(eyeball.angle.getYaw()) * 20.f * FD * 0.033f;
 				NOMOREMOVES=1;
 			}
 
@@ -1008,7 +960,7 @@ void ArxGame::managePlayerControls() {
 				(GInput->actionPressed(CONTROLS_CUST_STRAFE)&&GInput->actionPressed(CONTROLS_CUST_TURNLEFT)))
 				&& !NOMOREMOVES)
 			{
-				eyeball.pos += angleToVectorXZ(eyeball.angle.getPitch() + 90.f) * 10.f * FD * 0.033f;
+				eyeball.pos += angleToVectorXZ(eyeball.angle.getYaw() + 90.f) * 10.f * FD * 0.033f;
 				NOMOREMOVES=1;			
 			}
 
@@ -1017,7 +969,7 @@ void ArxGame::managePlayerControls() {
 				(GInput->actionPressed(CONTROLS_CUST_STRAFE)&&GInput->actionPressed(CONTROLS_CUST_TURNRIGHT)))
 				&& !NOMOREMOVES)
 			{
-				eyeball.pos += angleToVectorXZ(eyeball.angle.getPitch() - 90.f) * 10.f * FD * 0.033f;
+				eyeball.pos += angleToVectorXZ(eyeball.angle.getYaw() - 90.f) * 10.f * FD * 0.033f;
 				//eyeball.pos.y+=FD*0.33f;
 				NOMOREMOVES=1;
 			}
@@ -1038,7 +990,7 @@ void ArxGame::managePlayerControls() {
 				}
 
 				if(!npc) {
-					MagicSightFader+=g_framedelay*( 1.0f / 200 );
+					MagicSightFader += toMs(g_platformTime.lastFrameDuration()) * ( 1.0f / 200 );
 
 					if(MagicSightFader > 1.f)
 						MagicSightFader = 1.f;
@@ -1079,10 +1031,10 @@ void ArxGame::managePlayerControls() {
 			}
 			
 			multi = 5.f * FD * MoveDiv * multi;
-			tm += angleToVectorXZ_180offset(player.angle.getPitch()) * multi;
+			tm += angleToVectorXZ_180offset(player.angle.getYaw()) * multi;
 
 			if(!USE_PLAYERCOLLISIONS) {
-				float t = glm::radians(player.angle.getYaw());
+				float t = glm::radians(player.angle.getPitch());
 				tm.y -= std::sin(t) * multi;
 			}
 
@@ -1105,10 +1057,10 @@ void ArxGame::managePlayerControls() {
 			}
 			
 			multi = 10.f * FD * MoveDiv * multi;
-			tm += angleToVectorXZ(player.angle.getPitch()) * multi;
+			tm += angleToVectorXZ(player.angle.getYaw()) * multi;
 
 			if(!USE_PLAYERCOLLISIONS) {
-				float t = glm::radians(player.angle.getYaw());
+				float t = glm::radians(player.angle.getPitch());
 				tm.y += std::sin(t) * multi;
 			}
 
@@ -1125,7 +1077,7 @@ void ArxGame::managePlayerControls() {
 		if(left && !NOMOREMOVES) {
 			player.m_strikeDirection=0;
 			float multi = 6.f * FD * MoveDiv;
-			tm += angleToVectorXZ(player.angle.getPitch() + 90.f) * multi;
+			tm += angleToVectorXZ(player.angle.getYaw() + 90.f) * multi;
 			
 			player.m_currentMovement |= PLAYER_MOVE_STRAFE_LEFT;
 
@@ -1140,7 +1092,7 @@ void ArxGame::managePlayerControls() {
 		if(right && !NOMOREMOVES) {
 			player.m_strikeDirection=1;
 			float multi = 6.f * FD * MoveDiv;
-			tm += angleToVectorXZ(player.angle.getPitch() - 90.f) * multi;
+			tm += angleToVectorXZ(player.angle.getYaw() - 90.f) * multi;
 			
 			player.m_currentMovement |= PLAYER_MOVE_STRAFE_RIGHT;
 
@@ -1179,8 +1131,8 @@ void ArxGame::managePlayerControls() {
 	}
 	
 	// Checks JUMP Key Status.
-	if(player.jumpphase == NotJumping && GInput->actionNowPressed(CONTROLS_CUST_JUMP)) {
-		REQUEST_JUMP = arxtime.now_ul();
+	if(player.jumpphase == NotJumping && GInput->actionNowPressed(CONTROLS_CUST_JUMP) && !player.levitate) {
+		REQUEST_JUMP = arxtime.now();
 	}
 	
 	// MAGIC
@@ -1200,6 +1152,10 @@ void ArxGame::managePlayerControls() {
 
 	if(GInput->actionNowPressed(CONTROLS_CUST_DRINKPOTIONMANA)) {
 		SendInventoryObjectCommand("graph/obj3d/textures/item_potion_mana", SM_INVENTORYUSE);
+	}
+
+	if(GInput->actionNowPressed(CONTROLS_CUST_DRINKPOTIONCURE)) {
+		SendInventoryObjectCommand("graph/obj3d/textures/item_potion_purple", SM_INVENTORYUSE);
 	}
 
 	if(GInput->actionNowPressed(CONTROLS_CUST_TORCH)) {
@@ -1276,7 +1232,7 @@ void ArxGame::managePlayerControls() {
 		for(long i = MAX_SPELLS - 1; i >= 0; i--) {
 			SpellBase * spell = spells[SpellHandle(i)];
 			
-			if(spell && spell->m_caster == PlayerEntityHandle)
+			if(spell && spell->m_caster == EntityHandle_Player)
 				if(spellicons[spell->m_type].m_hasDuration) {
 					ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE);
 					spells.endSpell(spell);
@@ -1285,7 +1241,7 @@ void ArxGame::managePlayerControls() {
 		}
 	}
 
-	if(((player.Interface & INTER_COMBATMODE) && !bIsAiming) || !player.doingmagic) {
+	if(((player.Interface & INTER_COMBATMODE) && !player.isAiming()) || !player.doingmagic) {
 		if(GInput->actionNowPressed(CONTROLS_CUST_PRECAST1)) {
 			ARX_SPELLS_Precast_Launch(PrecastHandle(0));
 		}
@@ -1323,7 +1279,7 @@ void ArxGame::managePlayerControls() {
 
 		if(bGo) {
 			if(player.Interface & INTER_COMBATMODE) {
-				ARX_INTERFACE_Combat_Mode(0);
+				ARX_INTERFACE_setCombatMode(COMBAT_MODE_OFF);
 				SPECIAL_DRAW_WEAPON=0;
 
 				if(config.input.mouseLookToggle)
@@ -1332,8 +1288,8 @@ void ArxGame::managePlayerControls() {
 				MEMO_PLAYER_MOUSELOOK_ON=TRUE_PLAYER_MOUSELOOK_ON;
 				SPECIAL_DRAW_WEAPON=1;
 				TRUE_PLAYER_MOUSELOOK_ON = true;
-				SLID_START = arxtime.now_f();
-				ARX_INTERFACE_Combat_Mode(2);
+				SLID_START = g_platformTime.frameStart();
+				ARX_INTERFACE_setCombatMode(COMBAT_MODE_DRAW_WEAPON);
 			}
 		}
 	}
@@ -1350,7 +1306,7 @@ void ArxGame::managePlayerControls() {
 				if(GInput->actionPressed(CONTROLS_CUST_FREELOOK)) {
 					if(!TRUE_PLAYER_MOUSELOOK_ON) {
 						TRUE_PLAYER_MOUSELOOK_ON = true;
-						SLID_START = arxtime.now_f();
+						SLID_START = g_platformTime.frameStart();
 					}
 				} else {
 					TRUE_PLAYER_MOUSELOOK_ON = false;
@@ -1360,12 +1316,12 @@ void ArxGame::managePlayerControls() {
 					if(!TRUE_PLAYER_MOUSELOOK_ON) {
 						ARX_INTERFACE_BookClose();
 						TRUE_PLAYER_MOUSELOOK_ON = true;
-						SLID_START = arxtime.now_f();
+						SLID_START = g_platformTime.frameStart();
 					} else {
 						TRUE_PLAYER_MOUSELOOK_ON = false;
 
 						if(player.Interface & INTER_COMBATMODE)
-							ARX_INTERFACE_Combat_Mode(0);			
+							ARX_INTERFACE_setCombatMode(COMBAT_MODE_OFF);			
 					}
 				}
 			}
@@ -1373,13 +1329,13 @@ void ArxGame::managePlayerControls() {
 	}
 
 	if((player.Interface & INTER_COMBATMODE) && GInput->actionNowReleased(CONTROLS_CUST_FREELOOK)) {
-		ARX_INTERFACE_Combat_Mode(0);
+		ARX_INTERFACE_setCombatMode(COMBAT_MODE_OFF);
 	}
 
 	// Checks INVENTORY Key Status.
 	if(GInput->actionNowPressed(CONTROLS_CUST_INVENTORY)) {
 		if(player.Interface & INTER_COMBATMODE) {
-			ARX_INTERFACE_Combat_Mode(0);
+			ARX_INTERFACE_setCombatMode(COMBAT_MODE_OFF);
 		}
 
 		bInverseInventory=!bInverseInventory;
@@ -1405,10 +1361,11 @@ void ArxGame::managePlayerControls() {
 	   && config.input.autoReadyWeapon
 	) {
 		if(eeMouseDown1()) {
-			COMBAT_MODE_ON_START_TIME = arxtime.now_ul();
+			// TODO use os time
+			COMBAT_MODE_ON_START_TIME = arxtime.now();
 		} else {
-			if(arxtime.now_f() - COMBAT_MODE_ON_START_TIME > 10) {
-				ARX_INTERFACE_Combat_Mode(1);
+			if(arxtime.now() - COMBAT_MODE_ON_START_TIME > ArxDurationMs(10)) {
+				ARX_INTERFACE_setCombatMode(COMBAT_MODE_ON);
 			}
 		}
 	}
@@ -1439,12 +1396,12 @@ void ArxGame::managePlayerControls() {
 				InventoryOpenClose(1);
 			}
 		} else {
-			if(!bInventoryClosing) {
+			if(!g_playerInventoryHud.isClosing()) {
 				g_hudRoot.mecanismIcon.reset();
 				
 				if(player.Interface & INTER_INVENTORYALL) {
 					ARX_SOUND_PlayInterface(SND_BACKPACK, Random::getf(0.9f, 1.1f));
-					bInventoryClosing = true;
+					g_playerInventoryHud.close();
 					lOldInterfaceTemp=INTER_INVENTORYALL;
 				}
 
@@ -1457,13 +1414,13 @@ void ArxGame::managePlayerControls() {
 
 				if(config.input.mouseLookToggle) {
 					TRUE_PLAYER_MOUSELOOK_ON = true;
-					SLID_START = arxtime.now_f();
+					SLID_START = g_platformTime.frameStart();
 				}
 			}
 		}
 	} else {
 		if(bInverseInventory) {
-			if(!bInventoryClosing) {
+			if(!g_playerInventoryHud.isClosing()) {
 				bRenderInCursorMode=false;
 
 				InventoryOpenClose(2);
@@ -1474,7 +1431,7 @@ void ArxGame::managePlayerControls() {
 
 				if(config.input.mouseLookToggle) {
 					TRUE_PLAYER_MOUSELOOK_ON = true;
-					SLID_START = arxtime.now_f();
+					SLID_START = g_platformTime.frameStart();
 				}
 			}
 		} else {
@@ -1498,7 +1455,7 @@ void ArxGame::managePlayerControls() {
 
 		if(bRenderInCursorMode) {
 			if(eyeball.exist != 0) {
-				spells.endByCaster(PlayerEntityHandle, SPELL_FLYING_EYE);
+				spells.endByCaster(EntityHandle_Player, SPELL_FLYING_EYE);
 			}
 		}
 	}
@@ -1672,23 +1629,14 @@ void ArxGame::manageKeyMouse() {
 	}
 	
 	LAST_PLAYER_MOUSELOOK_ON = mouselook;
-	PLAYER_ROTATION=0;
+	PLAYER_ROTATION = AnimationDuration_ZERO;
 
-	Vec2f mouseDiff = Vec2f(GInput->getMousePosRel());
-	
-	if(config.input.mouseAcceleration > 0) {
-		Vec2f speed = mouseDiff / g_framedelay;
-		Vec2f sign(speed.x < 0 ? -1.f : 1.f, speed.y < 0 ? -1.f : 1.f);
-		float exponent = 1.f + config.input.mouseAcceleration * 0.05f;
-		speed.x = (std::pow(speed.x * sign.x + 1.f, exponent) - 1.f) * sign.x;
-		speed.y = (std::pow(speed.y * sign.y + 1.f, exponent) - 1.f) * sign.y;
-		mouseDiff = speed * g_framedelay;
-	}
+	Vec2f rotation = GInput->getRelativeMouseMovement();
 	
 	ARX_Menu_Manage();
 	
 	if(bRestoreCoordMouse) {
-		DANAEMouse=GInput->getMousePosAbs();
+		DANAEMouse=GInput->getMousePosition();
 	}
 	
 	// Player/Eyeball Freelook Management
@@ -1698,78 +1646,79 @@ void ArxGame::manageKeyMouse() {
 		bool bKeySpecialMove=false;
 		
 		struct PushTime {
-			unsigned long turnLeft;
-			unsigned long turnRight;
-			unsigned long lookUp;
-			unsigned long lookDown;
+			PlatformInstant turnLeft;
+			PlatformInstant turnRight;
+			PlatformInstant lookUp;
+			PlatformInstant lookDown;
 		};
 		
-		static PushTime pushTime = {0, 0, 0, 0};
+		static PushTime pushTime = {
+			PlatformInstant_ZERO,
+			PlatformInstant_ZERO,
+			PlatformInstant_ZERO,
+			PlatformInstant_ZERO
+		};
 		
 		if(!GInput->actionPressed(CONTROLS_CUST_STRAFE)) {
-			arxtime.update();
-			const unsigned long now = arxtime.now_ul();
+			const PlatformInstant now = g_platformTime.frameStart();
 
 			if(GInput->actionPressed(CONTROLS_CUST_TURNLEFT)) {
-				if(!pushTime.turnLeft)
+				if(pushTime.turnLeft == PlatformInstant_ZERO)
 					pushTime.turnLeft = now;
 
 				bKeySpecialMove = true;
 			}
 			else
-				pushTime.turnLeft = 0;
+				pushTime.turnLeft = PlatformInstant_ZERO;
 
 			if(GInput->actionPressed(CONTROLS_CUST_TURNRIGHT)) {
-				if(!pushTime.turnRight)
+				if(pushTime.turnRight == PlatformInstant_ZERO)
 					pushTime.turnRight = now;
 
 				bKeySpecialMove = true;
 			}
 			else
-				pushTime.turnRight = 0;
+				pushTime.turnRight = PlatformInstant_ZERO;
 		}
 
 		if(USE_PLAYERCOLLISIONS) {
-			arxtime.update();
-			const unsigned long now = arxtime.now_ul();
+			const PlatformInstant now = g_platformTime.frameStart();
 
 			if(GInput->actionPressed(CONTROLS_CUST_LOOKUP)) {
-				if(!pushTime.lookUp)
+				if(pushTime.lookUp == PlatformInstant_ZERO)
 					pushTime.lookUp = now;
 
 				bKeySpecialMove = true;
 			}
 			else
-				pushTime.lookUp = 0;
+				pushTime.lookUp = PlatformInstant_ZERO;
 
 			if(GInput->actionPressed(CONTROLS_CUST_LOOKDOWN)) {
-				if(!pushTime.lookDown)
+				if(pushTime.lookDown == PlatformInstant_ZERO)
 					pushTime.lookDown = now;
 
 				bKeySpecialMove = true;
 			}
 			else
-				pushTime.lookDown = 0;
+				pushTime.lookDown = PlatformInstant_ZERO;
 		}
-
+		
 		if(bKeySpecialMove) {
-			if(pushTime.turnLeft || pushTime.turnRight) {
-				if(pushTime.turnLeft < pushTime.turnRight)
-					mouseDiff.x = 10.f;
-				else
-					mouseDiff.x = -10.f;
-			} else {
-				mouseDiff.x = 0.f;
+			
+			rotation = Vec2f_ZERO;
+			
+			if(pushTime.turnLeft != PlatformInstant_ZERO || pushTime.turnRight != PlatformInstant_ZERO) {
+				rotation.x = (pushTime.turnLeft < pushTime.turnRight) ? 1.f : -1.f;
 			}
-
-			if(pushTime.lookUp || pushTime.lookDown) {
-				if(pushTime.lookUp < pushTime.lookDown)
-					mouseDiff.y = 10.f;
-				else
-					mouseDiff.y = -10.f;
-			} else {
-				mouseDiff.y = 0.f;
+			
+			if(pushTime.lookUp != PlatformInstant_ZERO || pushTime.lookDown != PlatformInstant_ZERO) {
+				rotation.y = (pushTime.lookUp < pushTime.lookDown) ? 1.f : -1.f;
 			}
+			
+			// TODO use a separate sensitivity setting for this?
+			rotation *= (float(config.input.mouseSensitivity) + 1.f) * 0.02f;
+			rotation *= toMs(g_platformTime.lastFrameDuration());
+			
 		} else if(config.input.borderTurning) {
 			
 			// Turn the player if the curser is close to the edges
@@ -1777,17 +1726,17 @@ void ArxGame::manageKeyMouse() {
 			bool dragging = GInput->getMouseButtonRepeat(Mouse::Button_0);
 			
 			static bool mouseInBorder = false;
-			static unsigned long mouseInBorderTime = 0;
+			static PlatformInstant mouseInBorderTime = PlatformInstant_ZERO;
 			
 			if(!bRenderInCursorMode || (!dragging && !GInput->isMouseInWindow())) {
 				mouseInBorder = false;
 			} else {
 				
 				int borderSize = 10;
-				unsigned long borderDelay = 100;
+				PlatformDuration borderDelay = PlatformDurationMs(100);
 				if(!dragging && !mainApp->getWindow()->isFullScreen()) {
 					borderSize = 50;
-					borderDelay = 200;
+					borderDelay = PlatformDurationMs(200);
 				}
 				
 				int distLeft = DANAEMouse.x - g_size.left;
@@ -1800,41 +1749,42 @@ void ArxGame::manageKeyMouse() {
 				   || (!dragging && distBottom < g_size.height() / 4 && distRight <= borderSize)
 				   || (!dragging && distTop <= 4 * borderSize && distRight <= 4 * borderSize)) {
 					borderSize = 2;
-					borderDelay = 600;
+					borderDelay = PlatformDurationMs(600);
 				}
 				
-				mouseDiff = Vec2f_ZERO;
+				rotation = Vec2f_ZERO;
 				
 				if(distLeft < borderSize) {
-					float speed = 1.f - float(distLeft) / float(borderSize);
-					mouseDiff.x -= speed * g_framedelay;
+					rotation.x -= 1.f - float(distLeft) / float(borderSize);
 				}
 				
 				if(distRight < borderSize) {
-					float speed = 1.f - float(distRight) / float(borderSize);
-					mouseDiff.x += speed * g_framedelay;
+					rotation.x += 1.f - float(distRight) / float(borderSize);
 				}
 				
 				if(distTop < borderSize) {
-					float speed = 1.f - float(distTop) / float(borderSize);
-					mouseDiff.y -= speed * g_framedelay;
+					rotation.y -= 1.f - float(distTop) / float(borderSize);
 				}
 				
 				if(distBottom < borderSize) {
-					float speed = 1.f - float(distBottom) / float(borderSize);
-					mouseDiff.y += speed * g_framedelay;
+					rotation.y += 1.f - float(distBottom) / float(borderSize);
 				}
+				
+				// TODO use a separate sensitivity setting for this?
+				rotation *= (float(config.input.mouseSensitivity) + 1.f) * 0.02f;
+				rotation *= toMs(g_platformTime.lastFrameDuration());
 				
 				if(distLeft >= 3 * borderSize && distRight >= 3 * borderSize
 				   && distTop >= 3 * borderSize && distBottom >= 3 * borderSize) {
 					mouseInBorder = false;
 				} else if(!mouseInBorder) {
-					mouseInBorderTime = arxtime.now_ul();
+					mouseInBorderTime = g_platformTime.frameStart();
 					mouseInBorder = true;
 				}
 				
-				if(borderDelay > 0 && arxtime.now_ul() - mouseInBorderTime < borderDelay) {
-					mouseDiff = Vec2f_ZERO;
+				if(borderDelay > PlatformDuration_ZERO
+				   && g_platformTime.frameStart() - mouseInBorderTime < borderDelay) {
+					rotation = Vec2f_ZERO;
 				} else {
 					bKeySpecialMove = true;
 				}
@@ -1843,65 +1793,52 @@ void ArxGame::manageKeyMouse() {
 		}
 
 		if(GInput->actionPressed(CONTROLS_CUST_CENTERVIEW)) {
-			eyeball.angle.setYaw(0);
+			eyeball.angle.setPitch(0);
 			eyeball.angle.setRoll(0);
-			player.desiredangle.setYaw(0);
-			player.angle.setYaw(0);
+			player.desiredangle.setPitch(0);
+			player.angle.setPitch(0);
 			player.desiredangle.setRoll(0);
 			player.angle.setRoll(0);
 		}
-
-		float mouseSensitivity = (((float)GInput->getMouseSensitivity()) + 1.f) * 0.1f * ((640.f / (float)g_size.width()));
-		if (mouseSensitivity > 200) {
-			mouseSensitivity = 200;
-		}
-
-		mouseSensitivity *= (float)g_size.width() * ( 1.0f / 640 );
-		mouseSensitivity *= (1.0f / 5);
-		
-		Vec2f rotation = mouseDiff * mouseSensitivity;
-		
-		if(config.input.invertMouse)
-			rotation.y *= -1.f;
 		
 		if(PLAYER_MOUSELOOK_ON || bKeySpecialMove) {
 
 			if(eyeball.exist == 2) {
-				if(eyeball.angle.getYaw() < 70.f) {
-					if(eyeball.angle.getYaw() + rotation.y < 70.f)
-						eyeball.angle.setYaw(eyeball.angle.getYaw() + rotation.y);
-				} else if(eyeball.angle.getYaw() > 300.f) {
-					if(eyeball.angle.getYaw() + rotation.y > 300.f)
-						eyeball.angle.setYaw(eyeball.angle.getYaw() + rotation.y);
+				if(eyeball.angle.getPitch() < 70.f) {
+					if(eyeball.angle.getPitch() + rotation.y < 70.f)
+						eyeball.angle.setPitch(eyeball.angle.getPitch() + rotation.y);
+				} else if(eyeball.angle.getPitch() > 300.f) {
+					if(eyeball.angle.getPitch() + rotation.y > 300.f)
+						eyeball.angle.setPitch(eyeball.angle.getPitch() + rotation.y);
 				}
 
-				eyeball.angle.setYaw(MAKEANGLE(eyeball.angle.getYaw()));
-				eyeball.angle.setPitch(MAKEANGLE(eyeball.angle.getPitch() - rotation.x));
+				eyeball.angle.setPitch(MAKEANGLE(eyeball.angle.getPitch()));
+				eyeball.angle.setYaw(MAKEANGLE(eyeball.angle.getYaw() - rotation.x));
 			} else if(ARXmenu.currentmode != AMCM_NEWQUEST) {
 
-				float iangle = player.angle.getYaw();
+				float iangle = player.angle.getPitch();
 
-				player.desiredangle.setYaw(player.angle.getYaw());
-				player.desiredangle.setYaw(player.desiredangle.getYaw() + rotation.y);
-				player.desiredangle.setYaw(MAKEANGLE(player.desiredangle.getYaw()));
+				player.desiredangle.setPitch(player.angle.getPitch());
+				player.desiredangle.setPitch(player.desiredangle.getPitch() + rotation.y);
+				player.desiredangle.setPitch(MAKEANGLE(player.desiredangle.getPitch()));
 
-				if(player.desiredangle.getYaw() >= 74.9f && player.desiredangle.getYaw() <= 301.f) {
+				if(player.desiredangle.getPitch() >= 74.9f && player.desiredangle.getPitch() <= 301.f) {
 					if(iangle < 75.f)
-						player.desiredangle.setYaw(74.9f); //69
+						player.desiredangle.setPitch(74.9f); //69
 					else
-						player.desiredangle.setYaw(301.f);
+						player.desiredangle.setPitch(301.f);
 				}
 
 				if(glm::abs(rotation.y) > 2.f)
-					entities.player()->animBlend.lastanimtime = 0;
+					entities.player()->animBlend.lastanimtime = ArxInstant_ZERO;
 
 				if(rotation.x != 0.f)
 					player.m_currentMovement |= PLAYER_ROTATE;
 
-				PLAYER_ROTATION = rotation.x;
+				PLAYER_ROTATION = AnimationDurationUs(s64(rotation.x * 5.f * 1000.f));
 
-				player.desiredangle.setPitch(player.angle.getPitch());
-				player.desiredangle.setPitch(MAKEANGLE(player.desiredangle.getPitch() - rotation.x));
+				player.desiredangle.setYaw(player.angle.getYaw());
+				player.desiredangle.setYaw(MAKEANGLE(player.desiredangle.getYaw() - rotation.x));
 			}
 		}
 	}
@@ -1957,7 +1894,8 @@ void ArxGame::manageEntityDescription() {
 			Rect rDraw(x, y, w, h);
 			pTextManage->Clear();
 			if(!config.input.autoDescription) {
-				pTextManage->AddText(hFontInBook, description, rDraw, Color(232, 204, 143), 2000 + description.length()*60);
+				PlatformDuration duration = PlatformDurationMs(2000 + description.length() * 60);
+				pTextManage->AddText(hFontInBook, description, rDraw, Color(232, 204, 143), duration);
 			} else {
 				pTextManage->AddText(hFontInBook, description, rDraw, Color(232, 204, 143));
 			}
@@ -1965,8 +1903,8 @@ void ArxGame::manageEntityDescription() {
 	}
 }
 
+EntityHandle LastSelectedIONum = EntityHandle();
 
-//-----------------------------------------------------------------------------
 void ArxGame::manageEditorControls() {
 	
 	ARX_PROFILE_FUNC();
@@ -1981,17 +1919,17 @@ void ArxGame::manageEditorControls() {
 	}
 	
 	if(eeMousePressed1()) {
-		static Vec2s dragThreshold = Vec2s_ZERO;
+		static Vec2f dragThreshold = Vec2f_ZERO;
 		
 		if(eeMouseDown1()) {
 			
 			STARTDRAG = DANAEMouse;
 			DRAGGING = false;
-			dragThreshold = Vec2s_ZERO;
+			dragThreshold = Vec2f_ZERO;
 		} else {
-			dragThreshold += GInput->getMousePosRel();
+			dragThreshold += GInput->getRelativeMouseMovement();
 			if((std::abs(DANAEMouse.x - STARTDRAG.x) > 2 && std::abs(DANAEMouse.y - STARTDRAG.y) > 2)
-			   || (std::abs(dragThreshold.x) > 2 || std::abs(dragThreshold.y) > 2)) {
+			   || (std::abs(dragThreshold.x) > 0.28f || std::abs(dragThreshold.y) > 0.28f)) {
 				DRAGGING = true;
 			}
 		}
@@ -2157,7 +2095,7 @@ void ArxGame::manageEditorControls() {
 						Vec3f viewvector = angleToVector(player.angle + Anglef(0.f, ratio.x * 30.f, 0.f));
 						viewvector.y += ratio.y;
 						
-						io->soundtime=0;
+						io->soundtime = ArxInstant_ZERO;
 						io->soundcount=0;
 						
 						EERIE_PHYSICS_BOX_Launch(io->obj, io->pos, io->angle, viewvector);
@@ -2200,8 +2138,8 @@ void ArxGame::manageEditorControls() {
 			} else { // GLights
 				float fMaxdist = player.m_telekinesis ? 850 : 300;
 				
-				for(size_t i = 0; i < MAX_LIGHTS; i++) {
-					EERIE_LIGHT * light = GLight[i];
+				for(size_t i = 0; i < g_staticLightsMax; i++) {
+					EERIE_LIGHT * light = g_staticLights[i];
 					
 					if(   light
 					   && light->exist
@@ -2246,8 +2184,8 @@ void ArxGame::manageEditorControls() {
 		if(COMBINE) {
 			float fMaxdist = player.m_telekinesis ? 850 : 300;
 			
-			for(size_t i = 0; i < MAX_LIGHTS; i++) {
-				EERIE_LIGHT * light = GLight[i];
+			for(size_t i = 0; i < g_staticLightsMax; i++) {
+				EERIE_LIGHT * light = g_staticLights[i];
 				
 				if(   light
 				   && light->exist
@@ -2340,7 +2278,7 @@ void ArxGame::manageEditorControls() {
 				LastSelectedIONum = io->index();
 			} else {
 				if(LastSelectedIONum == EntityHandle())
-					LastSelectedIONum = PlayerEntityHandle;
+					LastSelectedIONum = EntityHandle_Player;
 				else
 					LastSelectedIONum = EntityHandle();
 			}

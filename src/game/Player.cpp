@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -95,11 +95,13 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include "graphics/Renderer.h"
 #include "graphics/Vertex.h"
 #include "graphics/data/TextureContainer.h"
+#include "graphics/effects/PolyBoom.h"
 #include "graphics/effects/Fade.h"
 #include "graphics/effects/Fog.h"
 #include "graphics/particle/ParticleManager.h"
 #include "graphics/particle/ParticleEffects.h"
 #include "graphics/particle/MagicFlare.h"
+#include "graphics/particle/Spark.h"
 
 #include "io/resource/ResourcePath.h"
 #include "io/resource/PakReader.h"
@@ -133,8 +135,6 @@ extern bool		GLOBAL_MAGIC_MODE;
 
 extern ParticleManager * pParticleManager;
 
-extern unsigned long LAST_JUMP_ENDTIME;
-
 static const float WORLD_GRAVITY = 0.1f;
 static const float JUMP_GRAVITY = 0.02f;
 static const float STEP_DISTANCE = 120.f;
@@ -150,24 +150,24 @@ ARXCHARACTER player;
 EERIE_3DOBJ * hero = NULL;
 float currentdistance = 0.f;
 float CURRENT_PLAYER_COLOR = 0;
-float PLAYER_ROTATION = 0;
+AnimationDuration PLAYER_ROTATION = AnimationDuration_ZERO;
 
 bool USE_PLAYERCOLLISIONS = true;
 bool BLOCK_PLAYER_CONTROLS = false;
 bool WILLRETURNTOCOMBATMODE = false;
-long DeadTime = 0;
-static unsigned long LastHungerSample = 0;
-static unsigned long ROTATE_START = 0;
+ArxDuration DeadTime = ArxDuration_ZERO;
+static ArxInstant LastHungerSample = ArxInstant_ZERO;
+static ArxInstant ROTATE_START = ArxInstant_ZERO;
 
 // Player Anims FLAGS/Vars
 ANIM_HANDLE * herowaitbook = NULL;
 ANIM_HANDLE * herowait_2h = NULL;
 
-std::vector<KEYRING_SLOT> Keyring;
+std::vector<std::string> g_playerKeyring;
 
 static unsigned long FALLING_TIME = 0;
 
-std::vector<STRUCT_QUEST> PlayerQuest;
+std::vector<std::string> g_playerQuestLogEntries;
 
 bool ARX_PLAYER_IsInFightMode() {
 	arx_assert(entities.player());
@@ -209,7 +209,7 @@ bool ARX_PLAYER_IsInFightMode() {
  * \brief Init/Reset player Keyring structures
  */
 void ARX_KEYRING_Init() {
-	Keyring.clear();
+	g_playerKeyring.clear();
 }
 
 /*!
@@ -217,9 +217,7 @@ void ARX_KEYRING_Init() {
  * \param key
  */
 void ARX_KEYRING_Add(const std::string & key) {
-	Keyring.resize(Keyring.size() + 1);
-	memset(&Keyring.back(), 0, sizeof(KEYRING_SLOT));
-	strcpy(Keyring.back().slot, key.c_str());
+	g_playerKeyring.push_back(key);
 }
 
 /*!
@@ -227,8 +225,8 @@ void ARX_KEYRING_Add(const std::string & key) {
  * \param io
  */
 void ARX_KEYRING_Combine(Entity * io) {
-	for(size_t i = 0; i < Keyring.size(); i++) {
-		if(SendIOScriptEvent(io, SM_COMBINE, Keyring[i].slot) == REFUSE) {
+	for(size_t i = 0; i < g_playerKeyring.size(); i++) {
+		if(SendIOScriptEvent(io, SM_COMBINE, g_playerKeyring[i]) == REFUSE) {
 			return;
 		}
 	}
@@ -239,7 +237,7 @@ void ARX_KEYRING_Combine(Entity * io) {
  */
 Vec3f ARX_PLAYER_FrontPos() {
 	Vec3f pos = player.pos;
-	pos += angleToVectorXZ(player.angle.getPitch()) * 100.f;
+	pos += angleToVectorXZ(player.angle.getYaw()) * 100.f;
 	pos += Vec3f(0.f, 100.f, 0.f); // XXX use -100 here ?
 	return pos;
 }
@@ -327,7 +325,7 @@ static void ARX_PLAYER_ManageTorch() {
  * \brief Init/Reset player Quest structures
  */
 void ARX_PLAYER_Quest_Init() {
-	PlayerQuest.clear();
+	g_playerQuestLogEntries.clear();
 	gui::updateQuestBook();
 }
 
@@ -398,14 +396,9 @@ void ARX_Player_Rune_Remove(RuneFlag _ulRune)
  * \param quest
  * \param _bLoad
  */
-void ARX_PLAYER_Quest_Add(const std::string & quest, bool _bLoad) {
+void ARX_PLAYER_Quest_Add(const std::string & quest) {
 	
-	PlayerQuest.push_back(STRUCT_QUEST());
-	PlayerQuest.back().ident = quest;
-	
-	if(!_bLoad)
-		g_hudRoot.bookIconGui.requestHalo();
-	
+	g_playerQuestLogEntries.push_back(quest);
 	gui::updateQuestBook();
 }
 
@@ -413,7 +406,7 @@ void ARX_PLAYER_Quest_Add(const std::string & quest, bool _bLoad) {
  * \brief Removes player invisibility by killing Invisibility spells on him
  */
 void ARX_PLAYER_Remove_Invisibility() {
-	spells.endByCaster(PlayerEntityHandle, SPELL_INVISIBILITY);
+	spells.endByCaster(EntityHandle_Player, SPELL_INVISIBILITY);
 }
 
 /* TODO use this table instead of the copied functions below!
@@ -442,31 +435,21 @@ static void ARX_PLAYER_ComputePlayerStats() {
 	player.manaPool.max = player.m_attribute.mind * (player.level + 1);
 	
 	float base_defense = player.m_skill.defense + player.m_attribute.constitution * 3;
-	float armorClass = base_defense * ( 1.0f / 10 ) - 1 ;
-	player.m_misc.armorClass = checked_range_cast<unsigned char>(armorClass);
-	
-	if(player.m_misc.armorClass < 1)
-		player.m_misc.armorClass = 1;
+	player.m_misc.armorClass = std::max(1.f, glm::floor(base_defense * 0.1f - 1));
 	
 	float base_casting = player.m_skill.casting + player.m_attribute.mind * 2.f;
-	player.m_misc.resistMagic = (unsigned char)(float)(player.m_attribute.mind * 2.f
-	                      * (1.f + base_casting * ( 1.0f / 200 )));
-
-	float resistPoison = player.m_attribute.constitution * 2 + (base_defense * ( 1.0f / 4 ));
-	player.m_misc.resistPoison = checked_range_cast<unsigned char>(resistPoison);
-
-
-	player.m_misc.damages = (player.m_attribute.strength - 10) * ( 1.0f / 2 );
+	player.m_misc.resistMagic = glm::floor(player.m_attribute.mind * 2.f * (1.f + base_casting * ( 1.0f / 200 )));
 	
-	if(player.m_misc.damages < 1.f)
-		player.m_misc.damages = 1.f;
+	player.m_misc.resistPoison = glm::floor(player.m_attribute.constitution * 2 + base_defense * 0.25f);
 	
-	player.AimTime = 1500;
+	player.m_misc.damages = std::max(1.f, (player.m_attribute.strength - 10) * 0.5f);
+	
+	player.AimTime = PlatformDurationMs(1500);
 	
 	float base_close_combat = player.m_skill.closeCombat
 	                          + player.m_attribute.dexterity + player.m_attribute.strength * 2.f;
-	player.m_misc.criticalHit = (float)(player.m_attribute.dexterity - 9) * 2.f
-	                      + base_close_combat * ( 1.0f / 5 );
+	player.m_misc.criticalHit = (player.m_attribute.dexterity - 9) * 2.f
+	                            + base_close_combat * 0.2f;
 }
 
 /*!
@@ -491,15 +474,15 @@ void ARX_PLAYER_ComputePlayerFullStats() {
 	float fCalcHandicap	= (player.m_attributeFull.dexterity - 10.f) * 20.f;
 
 	//CAST
-	player.Full_AimTime = checked_range_cast<long>(fFullAimTime);
+	player.Full_AimTime = PlatformDurationMs(fFullAimTime);
 	
-	if(player.Full_AimTime <= 0)
+	if(player.Full_AimTime <= PlatformDuration_ZERO)
 		player.Full_AimTime = player.AimTime;
 	
-	player.Full_AimTime -= checked_range_cast<long>(fCalcHandicap);
+	player.Full_AimTime -= PlatformDurationMs(fCalcHandicap);
 	
-	if(player.Full_AimTime <= 1500)
-		player.Full_AimTime = 1500;
+	if(player.Full_AimTime <= PlatformDurationMs(1500))
+		player.Full_AimTime = PlatformDurationMs(1500);
 	
 	// TODO make these calculations moddable
 	
@@ -507,33 +490,36 @@ void ARX_PLAYER_ComputePlayerFullStats() {
 	// External modifiers
 	
 	// Calculate for modifiers from spells
-		SpellBase * spell;
-		
-		spell = spells.getSpellOnTarget(PlayerEntityHandle, SPELL_ARMOR);
+	{
+		SpellBase * spell = spells.getSpellOnTarget(EntityHandle_Player, SPELL_ARMOR);
 		if(spell) {
 			player.m_miscMod.armorClass += spell->m_level;
 		}
-		
-		spell = spells.getSpellOnTarget(PlayerEntityHandle, SPELL_LOWER_ARMOR);
+	}
+	{
+		SpellBase * spell = spells.getSpellOnTarget(EntityHandle_Player, SPELL_LOWER_ARMOR);
 		if(spell) {
 			player.m_miscMod.armorClass -= spell->m_level;
 		}
-		
-		spell = spells.getSpellOnTarget(PlayerEntityHandle, SPELL_CURSE);
+	}
+	{
+		SpellBase * spell = spells.getSpellOnTarget(EntityHandle_Player, SPELL_CURSE);
 		if(spell) {
 			player.m_attributeMod.strength -= spell->m_level;
 			player.m_attributeMod.constitution -= spell->m_level;
 			player.m_attributeMod.dexterity -= spell->m_level;
 			player.m_attributeMod.mind -= spell->m_level;
 		}
-	
-		spell = spells.getSpellOnTarget(PlayerEntityHandle, SPELL_BLESS);
+	}
+	{
+		SpellBase * spell = spells.getSpellOnTarget(EntityHandle_Player, SPELL_BLESS);
 		if(spell) {
 			player.m_attributeMod.strength += spell->m_level;
 			player.m_attributeMod.dexterity += spell->m_level;
 			player.m_attributeMod.constitution += spell->m_level;
 			player.m_attributeMod.mind += spell->m_level;
 		}
+	}
 	
 	// Calculate for modifiers from cheats
 	if(cur_mr == 3) {
@@ -564,7 +550,7 @@ void ARX_PLAYER_ComputePlayerFullStats() {
 		miscMod.armorClass = 100;
 		player.m_miscMod.add(miscMod);
 		
-		player.Full_AimTime = 100;
+		player.Full_AimTime = PlatformDurationMs(100);
 	}
 	if(sp_max) {
 		PlayerAttribute attributeMod;
@@ -594,7 +580,7 @@ void ARX_PLAYER_ComputePlayerFullStats() {
 		miscMod.armorClass = 20;
 		player.m_miscMod.add(miscMod);
 		
-		player.Full_AimTime = 100;
+		player.Full_AimTime = PlatformDurationMs(100);
 	}
 	if(player.m_cheatPnuxActive) {
 		PlayerAttribute attributeMod;
@@ -1059,12 +1045,14 @@ void ARX_PLAYER_Poison(float val) {
  *
  * Updates: life/mana recovery, poison evolution, hunger, invisibility
  */
-void ARX_PLAYER_FrameCheck(float Framedelay)
+void ARX_PLAYER_FrameCheck(PlatformDuration delta)
 {
 	ARX_PROFILE_FUNC();
 	
 	//	ARX_PLAYER_QuickGeneration();
-	if(Framedelay > 0) {
+	if(delta > PlatformDuration_ZERO) {
+		float Framedelay = float(toMs(delta));
+		
 		UpdateIOInvisibility(entities.player());
 		// Natural LIFE recovery
 		float inc = 0.00008f * Framedelay * (player.m_attributeFull.constitution + player.m_attributeFull.strength * ( 1.0f / 2 ) + player.m_skillFull.defense) * ( 1.0f / 50 );
@@ -1074,9 +1062,9 @@ void ARX_PLAYER_FrameCheck(float Framedelay)
 
 			// Check for player hungry sample playing
 			if((player.hunger > 10.f && player.hunger - inc_hunger <= 10.f)
-					|| (player.hunger < 10.f && arxtime.now_f() > LastHungerSample + 180000))
+					|| (player.hunger < 10.f && arxtime.now() > LastHungerSample + ArxDurationMs(180000)))
 			{
-				LastHungerSample = arxtime.now_ul();
+				LastHungerSample = arxtime.now();
 
 				if(!BLOCK_PLAYER_CONTROLS) {
 					bool bOk = true;
@@ -1234,7 +1222,7 @@ void ARX_PLAYER_LoadHeroAnimsAndMesh(){
 	herowait_2h = EERIE_ANIMMANAGER_Load(ANIM_WAIT_TWOHANDED);
 	
 	Entity * io = new Entity("graph/obj3d/interactive/player/player", EntityInstance(-1));
-	arx_assert(io->index().handleData() == 0, "player entity didn't get index 0");
+	arx_assert_msg(io->index() == EntityHandle_Player, "player entity didn't get index 0");
 	arx_assert(entities.player() == io);
 	
 	io->obj = hero;
@@ -1303,9 +1291,9 @@ void ARX_PLAYER_BecomesDead() {
 
 	player.Interface &= ~INTER_COMBATMODE;
 	player.Interface = 0;
-	DeadTime = 0;
+	DeadTime = ArxDuration_ZERO;
 	
-	spells.endByCaster(PlayerEntityHandle);
+	spells.endByCaster(EntityHandle_Player);
 }
 
 float LASTPLAYERA = 0;
@@ -1322,16 +1310,16 @@ void ARX_PLAYER_Manage_Visual() {
 	
 	ARX_PROFILE_FUNC();
 	
-	unsigned long now = arxtime.now_ul();
+	ArxInstant now = arxtime.now();
 	
 	if(player.m_currentMovement & PLAYER_ROTATE) {
-		if(ROTATE_START == 0) {
+		if(ROTATE_START == ArxInstant_ZERO) {
 			ROTATE_START = now;
 		}
-	} else if (ROTATE_START) {
-		float elapsed = float(now) - ROTATE_START;
-		if(elapsed > 100) {
-			ROTATE_START = 0;
+	} else if(ROTATE_START != ArxInstant_ZERO) {
+		ArxDuration elapsed = now - ROTATE_START;
+		if(elapsed > ArxDurationMs(100)) {
+			ROTATE_START = ArxInstant_ZERO;
 		}
 	}
 	
@@ -1380,7 +1368,7 @@ void ARX_PLAYER_Manage_Visual() {
 	}
 	
 	if(player.lifePool.current > 0) {
-		io->angle = Anglef(0.f, 180.f - player.angle.getPitch(), 0.f);
+		io->angle = Anglef(0.f, 180.f - player.angle.getYaw(), 0.f);
 	}
 	
 	io->gameFlags |= GFLAG_ISINTREATZONE;
@@ -1443,13 +1431,13 @@ void ARX_PLAYER_Manage_Visual() {
 		request0_loop = true;
 	}
 	
-	if(ROTATE_START
-	   && player.angle.getYaw() > 60.f
-	   && player.angle.getYaw() < 180.f
+	if(ROTATE_START != ArxInstant_ZERO
+	   && player.angle.getPitch() > 60.f
+	   && player.angle.getPitch() < 180.f
 	   && LASTPLAYERA > 60.f
 	   && LASTPLAYERA < 180.f
 	) {
-		if(PLAYER_ROTATION < 0) {
+		if(PLAYER_ROTATION < AnimationDuration_ZERO) {
 			if(player.Interface & INTER_COMBATMODE)
 				request0_anim = alist[ANIM_U_TURN_LEFT_FIGHT];
 			else
@@ -1466,34 +1454,22 @@ void ARX_PLAYER_Manage_Visual() {
 		if(layer0.cur_anim == alist[ANIM_U_TURN_LEFT]
 		   || layer0.cur_anim == alist[ANIM_U_TURN_LEFT_FIGHT])
 		{
-			float fv = PLAYER_ROTATION * 5;
-			long vv = fv;
-			io->frameloss -= fv - (float)vv;
+			layer0.ctime -= PLAYER_ROTATION;
 			
-			if (io->frameloss < 0) io->frameloss = 0;
-			
-			layer0.ctime -= vv;
-			
-			if(layer0.ctime < 0)
-				layer0.ctime = 0;
+			if(layer0.ctime < AnimationDuration_ZERO)
+				layer0.ctime = AnimationDuration_ZERO;
 		}
 		else if(layer0.cur_anim == alist[ANIM_U_TURN_RIGHT]
 				 ||	layer0.cur_anim == alist[ANIM_U_TURN_RIGHT_FIGHT])
 		{
-			float fv = PLAYER_ROTATION * 5;
-			long vv = fv;
-			io->frameloss += fv - (float)vv;
+			layer0.ctime += PLAYER_ROTATION;
 			
-			if (io->frameloss < 0) io->frameloss = 0;
-			
-			layer0.ctime += vv;
-			
-			if(layer0.ctime < 0)
-				layer0.ctime = 0;
+			if(layer0.ctime < AnimationDuration_ZERO)
+				layer0.ctime = AnimationDuration_ZERO;
 		}
 	}
 	
-	LASTPLAYERA = player.angle.getYaw();
+	LASTPLAYERA = player.angle.getPitch();
 	
 	{
 	long tmove = player.m_currentMovement;
@@ -1591,13 +1567,13 @@ void ARX_PLAYER_Manage_Visual() {
 		layer3.cur_anim = NULL;
 	}
 	
-	if((player.m_currentMovement & PLAYER_CROUCH) && !(player.Last_Movement & PLAYER_CROUCH)
+	if((player.m_currentMovement & PLAYER_CROUCH) && !(player.m_lastMovement & PLAYER_CROUCH)
 			&& !player.levitate)
 	{
 		request0_anim = alist[ANIM_CROUCH_START];
 		request0_loop = false;
 	}
-	else if(!(player.m_currentMovement & PLAYER_CROUCH) && (player.Last_Movement & PLAYER_CROUCH))
+	else if(!(player.m_currentMovement & PLAYER_CROUCH) && (player.m_lastMovement & PLAYER_CROUCH))
 	{
 		request0_anim = alist[ANIM_CROUCH_END];
 		request0_loop = false;
@@ -1650,7 +1626,7 @@ void ARX_PLAYER_Manage_Visual() {
 retry:
 	;
 	
-	if(spells.ExistAnyInstanceForThisCaster(SPELL_FLYING_EYE, PlayerEntityHandle)) {
+	if(spells.ExistAnyInstanceForThisCaster(SPELL_FLYING_EYE, EntityHandle_Player)) {
 		request0_anim = alist[ANIM_MEDITATION];
 		request0_loop = true;
 		goto makechanges;
@@ -1667,7 +1643,7 @@ retry:
 				FALLING_TIME = 0;
 				player.jumpphase = JumpAscending;
 				request0_anim = alist[ANIM_JUMP_UP];
-				player.jumpstarttime = arxtime.now_ul();
+				player.jumpstarttime = arxtime.now();
 				player.jumplastposition = -1.f;
 				break;
 			}
@@ -1681,7 +1657,7 @@ retry:
 				break;
 			}
 			case JumpDescending: { // Post-synch
-				LAST_JUMP_ENDTIME = arxtime.now_ul();
+				LAST_JUMP_ENDTIME = arxtime.now();
 				if((layer0.cur_anim == alist[ANIM_JUMP_END] && (layer0.flags & EA_ANIMEND))
 				   || player.onfirmground) {
 					player.jumpphase = JumpEnd;
@@ -1692,7 +1668,7 @@ retry:
 				break;
 			}
 			case JumpEnd: { // Post-synch
-				LAST_JUMP_ENDTIME = arxtime.now_ul();
+				LAST_JUMP_ENDTIME = arxtime.now();
 				if(layer0.cur_anim == alist[ANIM_JUMP_END_PART2] && (layer0.flags & EA_ANIMEND)) {
 					AcquireLastAnim(io);
 					player.jumpphase = NotJumping;
@@ -1700,7 +1676,7 @@ retry:
 				} else if(layer0.cur_anim == alist[ANIM_JUMP_END_PART2]
 						 && glm::abs(player.physics.velocity.x)
 							 + glm::abs(player.physics.velocity.z) > (4.f/TARGET_DT)
-						 && layer0.ctime > 1) {
+						 && layer0.ctime > AnimationDurationMs(1)) {
 					AcquireLastAnim(io);
 					player.jumpphase = NotJumping;
 					goto retry;
@@ -1752,7 +1728,7 @@ retry:
 	
 nochanges:
 	;
-	player.Last_Movement = player.m_currentMovement;
+	player.m_lastMovement = player.m_currentMovement;
 }
 
 /*!
@@ -1806,8 +1782,8 @@ void ForcePlayerLookAtIO(Entity * io) {
 	}
 
 	tcam.setTargetCamera(target);
-	player.angle.setYaw(MAKEANGLE(-tcam.angle.getYaw()));
-	player.angle.setPitch(MAKEANGLE(tcam.angle.getPitch() - 180.f));
+	player.angle.setPitch(MAKEANGLE(-tcam.angle.getPitch()));
+	player.angle.setYaw(MAKEANGLE(tcam.angle.getYaw() - 180.f));
 	player.angle.setRoll(0);
 	player.desiredangle = player.angle;
 }
@@ -1819,7 +1795,7 @@ void ARX_PLAYER_Frame_Update()
 {
 	ARX_PROFILE_FUNC();
 	
-	if(spells.getSpellOnTarget(PlayerEntityHandle, SPELL_PARALYSE)) {
+	if(spells.getSpellOnTarget(EntityHandle_Player, SPELL_PARALYSE)) {
 		player.m_paralysed = true;
 	} else {
 		entities.player()->ioflags &= ~IO_FREEZESCRIPT;
@@ -1841,30 +1817,30 @@ void ARX_PLAYER_Frame_Update()
 	if(io && io->_npcdata->ex_rotate) {
 		EERIE_EXTRA_ROTATE * extraRotation = io->_npcdata->ex_rotate;
 
-		float v = player.angle.getYaw();
+		float v = player.angle.getPitch();
 
 		if(v > 160)
 			v = -(360 - v);
 
 		if(player.Interface & INTER_COMBATMODE) {
 			if (ARX_EQUIPMENT_GetPlayerWeaponType() == WEAPON_BOW) {
-				extraRotation->group_rotate[0].setYaw(0); //head
-				extraRotation->group_rotate[1].setYaw(0); //neck
-				extraRotation->group_rotate[2].setYaw(0); //chest
-				extraRotation->group_rotate[3].setYaw(v); //belt
+				extraRotation->group_rotate[0].setPitch(0); //head
+				extraRotation->group_rotate[1].setPitch(0); //neck
+				extraRotation->group_rotate[2].setPitch(0); //chest
+				extraRotation->group_rotate[3].setPitch(v); //belt
 			} else {
 				v *= ( 1.0f / 10 ); 
-				extraRotation->group_rotate[0].setYaw(v); //head
-				extraRotation->group_rotate[1].setYaw(v); //neck
-				extraRotation->group_rotate[2].setYaw(v * 4); //chest
-				extraRotation->group_rotate[3].setYaw(v * 4); //belt
+				extraRotation->group_rotate[0].setPitch(v); //head
+				extraRotation->group_rotate[1].setPitch(v); //neck
+				extraRotation->group_rotate[2].setPitch(v * 4); //chest
+				extraRotation->group_rotate[3].setPitch(v * 4); //belt
 			}
 		} else {
 			v *= ( 1.0f / 4 ); 
-			extraRotation->group_rotate[0].setYaw(v); //head
-			extraRotation->group_rotate[1].setYaw(v); //neck
-			extraRotation->group_rotate[2].setYaw(v); //chest
-			extraRotation->group_rotate[3].setYaw(v); //belt*/
+			extraRotation->group_rotate[0].setPitch(v); //head
+			extraRotation->group_rotate[1].setPitch(v); //neck
+			extraRotation->group_rotate[2].setPitch(v); //chest
+			extraRotation->group_rotate[3].setPitch(v); //belt*/
 		}
 	}
 
@@ -1873,7 +1849,7 @@ void ARX_PLAYER_Frame_Update()
 	player.TRAP_DETECT = player.m_skillFull.mecanism;
 	player.TRAP_SECRET = player.m_skillFull.intuition;
 
-	if(spells.getSpellOnTarget(PlayerEntityHandle, SPELL_DETECT_TRAP))
+	if(spells.getSpellOnTarget(EntityHandle_Player, SPELL_DETECT_TRAP))
 		player.TRAP_DETECT = 100.f;
 
 	ARX_PLAYER_ManageTorch();
@@ -1884,7 +1860,7 @@ void ARX_PLAYER_Frame_Update()
  */
 static void ARX_PLAYER_MakeStepNoise() {
 	
-	if(spells.getSpellOnTarget(PlayerEntityHandle, SPELL_LEVITATE)) {
+	if(spells.getSpellOnTarget(EntityHandle_Player, SPELL_LEVITATE)) {
 		return;
 	}
 	
@@ -1913,10 +1889,9 @@ extern float MAX_ALLOWED_PER_SECOND;
 static long LAST_FIRM_GROUND = 1;
 static long TRUE_FIRM_GROUND = 1;
 float lastposy = -9999999.f;
-unsigned long REQUEST_JUMP = 0;
-extern float Original_framedelay;
+ArxInstant REQUEST_JUMP = ArxInstant_ZERO;
 
-unsigned long LAST_JUMP_ENDTIME = 0;
+ArxInstant LAST_JUMP_ENDTIME = ArxInstant_ZERO;
 
 static bool Valid_Jump_Pos() {
 	
@@ -1956,6 +1931,19 @@ static bool Valid_Jump_Pos() {
 	return (tmp <= 50.f);
 }
 
+static void setPlayerPositionColor(){
+
+	float grnd_color = GetColorz(Vec3f(player.pos.x, player.pos.y + 90, player.pos.z)) - 15.f;
+	if(CURRENT_PLAYER_COLOR < grnd_color) {
+		CURRENT_PLAYER_COLOR += g_framedelay * (1.0f / 8);
+		CURRENT_PLAYER_COLOR = std::min(CURRENT_PLAYER_COLOR, grnd_color);
+	}
+	if(CURRENT_PLAYER_COLOR > grnd_color) {
+		CURRENT_PLAYER_COLOR -= g_framedelay * (1.0f / 4);
+		CURRENT_PLAYER_COLOR = std::max(CURRENT_PLAYER_COLOR, grnd_color);
+	}
+}
+
 void PlayerMovementIterate(float DelatTime);
 
 void ARX_PLAYER_Manage_Movement() {
@@ -1978,7 +1966,7 @@ void ARX_PLAYER_Manage_Movement() {
 
 	static float StoredTime = 0;
 
-	float DeltaTime = std::min(Original_framedelay, MAX_FRAME_TIME);
+	float DeltaTime = std::min(toMs(g_platformTime.lastFrameDuration()), MAX_FRAME_TIME);
 	DeltaTime = StoredTime + DeltaTime * speedfactor;
 	
 	if(player.jumpphase != NotJumping) {
@@ -2004,52 +1992,53 @@ void ARX_PLAYER_Manage_Movement() {
 
 void PlayerMovementIterate(float DeltaTime) {
 	
-	// A jump is requested so let's go !
-	if(REQUEST_JUMP) {
-		if((player.m_currentMovement & PLAYER_CROUCH)
-		   || player.physics.cyl.height > player.baseHeight()) {
-			float old = player.physics.cyl.height;
-			player.physics.cyl.height = player.baseHeight();
-			player.physics.cyl.origin = player.basePosition();
-			float anything = CheckAnythingInCylinder(player.physics.cyl, entities.player(),
-			                                         CFLAG_JUST_TEST);
-			if(anything < 0.f) {
-				player.m_currentMovement |= PLAYER_CROUCH;
-				player.physics.cyl.height = old;
-				REQUEST_JUMP = 0;
-			} else {
-				bGCroucheToggle = false;
-				player.m_currentMovement &= ~PLAYER_CROUCH;
-				player.physics.cyl.height = player.baseHeight();
-			}
-		}
-		
-		if(!Valid_Jump_Pos()) {
-			REQUEST_JUMP = 0;
-		}
-		
-		if(REQUEST_JUMP) {
-			float t = arxtime.now_f() - REQUEST_JUMP;
-			if(t >= 0.f && t <= 350.f) {
-				REQUEST_JUMP = 0;
-				ARX_NPC_SpawnAudibleSound(player.pos, entities.player());
-				ARX_SPEECH_Launch_No_Unicode_Seek("player_jump", entities.player());
-				player.onfirmground = false;
-				player.jumpphase = JumpStart;
-			}
-		}
-	}
-	
-	if(entities.player()->_npcdata->climb_count != 0.f && g_framedelay > 0) {
-		entities.player()->_npcdata->climb_count -= MAX_ALLOWED_PER_SECOND * g_framedelay * 0.1f;
-		if(entities.player()->_npcdata->climb_count < 0) {
-			entities.player()->_npcdata->climb_count = 0.f;
-		}
-	}
-	
 	float d = 0;
 	
 	if(USE_PLAYERCOLLISIONS) {
+		// A jump is requested so let's go !
+		if(REQUEST_JUMP != ArxInstant_ZERO) {
+			if((player.m_currentMovement & PLAYER_CROUCH)
+			   || player.physics.cyl.height > player.baseHeight()) {
+				float old = player.physics.cyl.height;
+				player.physics.cyl.height = player.baseHeight();
+				player.physics.cyl.origin = player.basePosition();
+				float anything = CheckAnythingInCylinder(player.physics.cyl, entities.player(),
+														 CFLAG_JUST_TEST);
+				if(anything < 0.f) {
+					player.m_currentMovement |= PLAYER_CROUCH;
+					player.physics.cyl.height = old;
+					REQUEST_JUMP = ArxInstant_ZERO;
+				} else {
+					bGCroucheToggle = false;
+					player.m_currentMovement &= ~PLAYER_CROUCH;
+					player.physics.cyl.height = player.baseHeight();
+				}
+			}
+			
+			if(!Valid_Jump_Pos()) {
+				REQUEST_JUMP = ArxInstant_ZERO;
+			}
+			
+			if(REQUEST_JUMP != ArxInstant_ZERO) {
+				ArxDuration t = arxtime.now() - REQUEST_JUMP;
+				if(t >= ArxDuration_ZERO && t <= ArxDurationMs(350)) {
+					REQUEST_JUMP = ArxInstant_ZERO;
+					ARX_NPC_SpawnAudibleSound(player.pos, entities.player());
+					ARX_SPEECH_Launch_No_Unicode_Seek("player_jump", entities.player());
+					player.onfirmground = false;
+					player.jumpphase = JumpStart;
+				}
+			}
+		}
+		
+		if(entities.player()->_npcdata->climb_count != 0.f && g_framedelay > 0) {
+			entities.player()->_npcdata->climb_count -= MAX_ALLOWED_PER_SECOND * g_framedelay * 0.1f;
+			if(entities.player()->_npcdata->climb_count < 0) {
+				entities.player()->_npcdata->climb_count = 0.f;
+			}
+		}
+		
+		
 		CollisionFlags levitate = 0;
 		if(player.climbing) {
 			levitate = CFLAG_LEVITATE;
@@ -2064,7 +2053,7 @@ void PlayerMovementIterate(float DeltaTime) {
 				if(anything < 0.f) {
 					player.physics.cyl.height = old;
 					
-					spells.endByTarget(PlayerEntityHandle, SPELL_LEVITATE);
+					spells.endByTarget(EntityHandle_Player, SPELL_LEVITATE);
 				}
 			}
 			
@@ -2169,10 +2158,11 @@ void PlayerMovementIterate(float DeltaTime) {
 		// Apply player impulse force
 		
 		float jump_mul = 1.f;
-		if(arxtime.now_f() - LAST_JUMP_ENDTIME < 600) {
+		ArxDuration diff = ArxDurationMs(float(toMs(arxtime.now() - LAST_JUMP_ENDTIME)) * (1.0f / GLOBAL_SLOWDOWN));
+		if(diff < ArxDurationMs(600)) {
 			jump_mul = 0.5f;
-			if(arxtime.now_f() - LAST_JUMP_ENDTIME >= 300) {
-				jump_mul += (float)(LAST_JUMP_ENDTIME + 300 - arxtime.now_f()) * (1.f / 300);
+			if(diff >= ArxDurationMs(300)) {
+				jump_mul += float(toMs(LAST_JUMP_ENDTIME - arxtime.now()) * (1.0f / GLOBAL_SLOWDOWN) + 300) * (1.f / 300);
 				if(jump_mul > 1.f) {
 					jump_mul = 1.f;
 				}
@@ -2202,8 +2192,8 @@ void PlayerMovementIterate(float DeltaTime) {
 				} else {
 					short idx = layer0.altidx_cur;
 					Vec3f mv = GetAnimTotalTranslate(layer0.cur_anim, idx);
-					float time = layer0.cur_anim->anims[idx]->anim_time;
-					scale = glm::length(mv) / time * 0.0125f;
+					AnimationDuration time = layer0.cur_anim->anims[idx]->anim_time;
+					scale = glm::length(mv) / toMsf(time) * 0.0125f;
 				}
 			}
 			
@@ -2251,7 +2241,7 @@ void PlayerMovementIterate(float DeltaTime) {
 					const float LAVA_DAMAGE = 10.f;
 					float damages = LAVA_DAMAGE * g_framedelay * 0.01f * mul;
 					damages = ARX_SPELLS_ApplyFireProtection(entities.player(), damages);
-					ARX_DAMAGES_DamagePlayer(damages, DAMAGE_TYPE_FIRE, PlayerEntityHandle);
+					ARX_DAMAGES_DamagePlayer(damages, DAMAGE_TYPE_FIRE, EntityHandle_Player);
 					ARX_DAMAGES_DamagePlayerEquipment(damages);
 
 					Vec3f pos = player.basePosition();
@@ -2286,6 +2276,10 @@ void PlayerMovementIterate(float DeltaTime) {
 		// Apply forces to velocity
 		player.physics.velocity += player.physics.forces * DeltaTime;
 		
+		if(player.levitate) {
+			player.physics.velocity.y = 0.0f;
+		}
+
 		// Apply climbing velocity
 		if(player.climbing) {
 			if(player.m_currentMovement & PLAYER_MOVE_WALK_FORWARD) {
@@ -2319,7 +2313,8 @@ void PlayerMovementIterate(float DeltaTime) {
 		   && player.jumpphase == NotJumping
 		) {
 			g_moveto = player.pos;
-			goto lasuite;
+			setPlayerPositionColor();
+			return;
 		} else {
 			
 			// Need to apply some physics/collision tests
@@ -2332,13 +2327,13 @@ void PlayerMovementIterate(float DeltaTime) {
 				
 				if(player.jumplastposition == -1.f) {
 					player.jumplastposition = 0;
-					player.jumpstarttime = arxtime.now_ul();
+					player.jumpstarttime = arxtime.now();
 				}
 				
 				const float jump_up_time = 200.f;
 				const float jump_up_height = 130.f;
-				const unsigned long now = arxtime.now_ul();
-				const unsigned long elapsed = now - player.jumpstarttime;
+				const ArxInstant now = arxtime.now();
+				const unsigned long elapsed = toMs(now - player.jumpstarttime) * (1.0f / GLOBAL_SLOWDOWN);
 				float position = glm::clamp(float(elapsed) / jump_up_time, 0.f, 1.f);
 				
 				float p = (position - player.jumplastposition) * jump_up_height;
@@ -2365,8 +2360,6 @@ void PlayerMovementIterate(float DeltaTime) {
 				if(!test && !LAST_FIRM_GROUND && !TRUE_FIRM_GROUND) {
 					player.physics.velocity.x = 0.f;
 					player.physics.velocity.z = 0.f;
-					player.physics.forces.x = 0.f;
-					player.physics.forces.z = 0.f;
 					if(FALLING_TIME > 0 && player.falling) {
 						float fh = player.pos.y - Falling_Height;
 						if(fh > 400.f) {
@@ -2431,7 +2424,7 @@ void PlayerMovementIterate(float DeltaTime) {
 		Vec3f vect = g_moveto - player.pos;
 		float divv = glm::length(vect);
 		if(divv > 0.f) {
-			float mul = g_framedelay * 0.001f * 200.f;
+			float mul = toMs(g_platformTime.lastFrameDuration()) * 0.001f * 200.f;
 			divv = mul / divv;
 			vect *= divv;
 			g_moveto = player.pos + vect;
@@ -2459,40 +2452,25 @@ void PlayerMovementIterate(float DeltaTime) {
 	// Finally update player pos !
 	player.pos = g_moveto;
 	
-lasuite:
-	;
-
-	// Get Player position color
-	float grnd_color = GetColorz(Vec3f(player.pos.x, player.pos.y + 90, player.pos.z)) - 15.f;
-	if(CURRENT_PLAYER_COLOR < grnd_color) {
-		CURRENT_PLAYER_COLOR += g_framedelay * (1.0f / 8);
-		CURRENT_PLAYER_COLOR = std::min(CURRENT_PLAYER_COLOR, grnd_color);
-	}
-	if(CURRENT_PLAYER_COLOR > grnd_color) {
-		CURRENT_PLAYER_COLOR -= g_framedelay * (1.0f / 4);
-		CURRENT_PLAYER_COLOR = std::max(CURRENT_PLAYER_COLOR, grnd_color);
-	}
-	
-	g_secondaryInventoryHud.updateFader();
+	setPlayerPositionColor();
 }
 
 /*!
  * \brief Manage Player Death Visual
  */
 void ARX_PLAYER_Manage_Death() {
-	if(DeadTime <= 2000)
+	if(DeadTime <= ArxDurationMs(2000))
 		return;
 
 	player.m_paralysed = false;
-	float ratio = (float)(DeadTime - 2000) * ( 1.0f / 5000 );
+	float ratio = toMs(DeadTime - ArxDurationMs(2000)) * ( 1.0f / 5000 );
 
 	if(ratio >= 1.f) {
 		ARX_MENU_Launch(false);
-		DeadTime = 0;
+		DeadTime = ArxDuration_ZERO;
 	}
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
+	
+	UseRenderState state(render2D().blend(BlendZero, BlendInvSrcColor));
 	EERIEDrawBitmap(Rectf(g_size), 0.000091f, NULL, Color3f::gray(ratio).to<u8>());
 }
 
@@ -2557,6 +2535,8 @@ void ARX_PLAYER_AddGold(Entity * gold) {
 }
 
 void ARX_PLAYER_Start_New_Quest() {
+	
+	LogInfo << "Starting a new playthrough";
 	
 	player.m_cheatSkinButtonClickCount = 0;
 	player.m_cheatQuickGenButtonClickCount = 0;
@@ -2626,18 +2606,17 @@ void ARX_PLAYER_Invulnerability(long flag) {
 }
 
 extern Entity * FlyingOverIO;
-extern Vec3f LastValidPlayerPos;
 
 void ARX_GAME_Reset(long type) {
 	arx_assert(entities.player());
 	
-	DeadTime = 0;
+	DeadTime = ArxDuration_ZERO;
 	
 	LastValidPlayerPos = Vec3f_ZERO;
 	
 	entities.player()->speed_modif = 0;
 	
-	LAST_JUMP_ENDTIME = 0;
+	LAST_JUMP_ENDTIME = ArxInstant_ZERO;
 	FlyingOverIO = NULL;
 	g_miniMap.mapMarkerInit();
 	ClearDynLights();
@@ -2675,7 +2654,7 @@ void ARX_GAME_Reset(long type) {
 	ARX_INTERACTIVE_ClearAllDynData();
 
 	// PolyBooms
-	ARX_BOOMS_ClearAllPolyBooms();
+	PolyBoomClear();
 
 	// Magical Flares
 	ARX_MAGICAL_FLARES_KillAll();
@@ -2717,6 +2696,7 @@ void ARX_GAME_Reset(long type) {
 
 	// Particles
 	ARX_PARTICLES_ClearAll();
+	ParticleSparkClear();
 	if(pParticleManager)
 		pParticleManager->Clear();
 
@@ -2730,7 +2710,7 @@ void ARX_GAME_Reset(long type) {
 	ARX_SPECIAL_ATTRACTORS_Reset();
 
 	// Cinematics
-	DANAE_KillCinematic();
+	cinematicKill();
 
 	// Paths
 	ARX_PATH_ClearAllControled();
@@ -2774,12 +2754,12 @@ void ARX_GAME_Reset(long type) {
 	}
 
 	// Misc Player Vars.
-	ROTATE_START = 0;
+	ROTATE_START = ArxInstant_ZERO;
 	BLOCK_PLAYER_CONTROLS = false;
 	HERO_SHOW_1ST = -1;
 	PUSH_PLAYER_FORCE = Vec3f_ZERO;
 	player.jumplastposition = 0;
-	player.jumpstarttime = 0;
+	player.jumpstarttime = ArxInstant_ZERO;
 	player.jumpphase = NotJumping;
 	player.inzone = NULL;
 
@@ -2790,7 +2770,7 @@ void ARX_GAME_Reset(long type) {
 		eyeball.exist = -100;
 	}
 	
-	entities.player()->ouch_time = 0;
+	entities.player()->ouch_time = ArxInstant_ZERO;
 	entities.player()->invisibility = 0.f;
 	
 	fadeReset();
@@ -2800,9 +2780,8 @@ void ARX_GAME_Reset(long type) {
 
 	// Missiles
 	ARX_MISSILES_ClearAll();
-
-	// IO PDL
-	TOTIOPDL = 0;
+	
+	culledStaticLightsReset();
 	
 	// Interface
 	ARX_INTERFACE_Reset();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -74,15 +74,15 @@ CCreateField::CCreateField()
 	, fglow(0.f)
 	, falpha(0.f)
 {
-	SetDuration(2000);
-	ulCurrentTime = ulDuration + 1;
+	SetDuration(ArxDurationMs(2000));
+	m_elapsed = m_duration + ArxDurationMs(1);
 	
 	tex_jelly = TextureContainer::Load("graph/obj3d/textures/(fx)_tsu3");
 }
 
 void CCreateField::Create(Vec3f aeSrc) {
 	
-	SetDuration(ulDuration);
+	SetDuration(m_duration);
 	
 	eSrc = aeSrc;
 	ysize = 0.1f;
@@ -163,9 +163,9 @@ void CCreateField::RenderSubDivFace(Vec3f * b, Vec3f * t, int b1, int b2, int t1
 	RenderQuad(b[b1], b[b2], t[t1], t[t2], 1, norm, mat);
 }
 
-void CCreateField::Update(float timeDelta)
+void CCreateField::Update(ArxDuration timeDelta)
 {
-	ulCurrentTime += timeDelta;
+	m_elapsed += timeDelta;
 }
 
 void CCreateField::Render()
@@ -173,11 +173,11 @@ void CCreateField::Render()
 	if(!VisibleSphere(Sphere(eSrc - Vec3f(0.f, 120.f, 0.f), 400.f)))
 		return;
 
-	if(ulCurrentTime >= ulDuration)
+	if(m_elapsed >= m_duration)
 		return;
 
-	float fOneOnDuration = 1.f / (float)(ulDuration);
-	falpha = 1.f - (((float)(ulCurrentTime)) * fOneOnDuration);
+	float fOneOnDuration = 1.f / toMs(m_duration);
+	falpha = 1.f - (toMs(m_elapsed) * fOneOnDuration);
 
 	if (falpha > 1.f) falpha = 1.f;
 	
@@ -197,10 +197,10 @@ void CCreateField::Render()
 		}
 	}
 
-	ysize = std::min(1.0f, ulCurrentTime * 0.001f);
+	ysize = std::min(1.0f, toMs(m_elapsed) * 0.001f);
 
 	if(ysize >= 1.0f) {
-		size = std::min(1.0f, (ulCurrentTime - 1000) * 0.001f);
+		size = std::min(1.0f, (toMs(m_elapsed) - 1000) * 0.001f);
 		size = std::max(size, 0.1f);
 	}
 
@@ -245,15 +245,14 @@ void CCreateField::Render()
 	RenderSubDivFace(b, t, 0, 3, 3, 0, mat);
 	RenderSubDivFace(b, t, 2, 1, 1, 2, mat);
 	
-	if(lightHandleIsValid(lLightId)) {
-		EERIE_LIGHT * light = lightHandleGet(lLightId);
-		
+	EERIE_LIGHT * light = lightHandleGet(lLightId);
+	if(light) {
 		light->intensity = 0.7f + 2.3f * falpha;
 		light->fallend = 500.f;
 		light->fallstart = 400.f;
 		light->rgb = Color3f(0.8f, 0.0f, 1.0f);
 		light->pos = eSrc + Vec3f(0.f, -150.f, 0.f);
-		light->duration = 800;
+		light->duration = ArxDurationMs(800);
 	}
 
 	//return falpha;

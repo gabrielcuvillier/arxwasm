@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -187,7 +187,7 @@ public:
 	Result execute(Context & context) {
 		
 		std::string inout = context.getWord();
-		const unsigned long duration = checked_range_cast<unsigned long>(context.getFloat());
+		const PlatformDuration duration = PlatformDurationMs(context.getFloat());
 		
 		if(inout == "out") {
 			
@@ -199,12 +199,12 @@ public:
 			
 			fadeRequestStart(FadeType_Out, duration);
 			
-			DebugScript(" out " << duration << ' ' << color.r << ' ' << color.g << ' ' << color.b);
+			DebugScript(" out " << toMs(duration) << ' ' << color.r << ' ' << color.g << ' ' << color.b);
 		} else if(inout == "in") {
 			
 			fadeRequestStart(FadeType_In, duration);
 			
-			DebugScript(" in " << duration);
+			DebugScript(" in " << toMs(duration));
 		} else {
 			ScriptWarning << "unexpected fade direction: " << inout;
 			return Failed;

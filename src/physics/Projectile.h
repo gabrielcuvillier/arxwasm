@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,6 +20,7 @@
 #ifndef ARX_PHYSICS_PROJECTILE_H
 #define ARX_PHYSICS_PROJECTILE_H
 
+#include "core/TimeTypes.h"
 #include "game/GameTypes.h"
 #include "graphics/GraphicsTypes.h"
 
@@ -44,7 +45,7 @@ struct Projectile {
 	float damages;
 	EERIE_3DOBJ * obj;
 	EntityHandle source;
-	unsigned long creation_time;
+	ArxInstant creation_time;
 	float poisonous;
 	Trail * m_trail;
 };

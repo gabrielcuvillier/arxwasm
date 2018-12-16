@@ -1,11 +1,14 @@
 cmake_minimum_required(VERSION 2.8)
 # compile tests tool
 
-set(CMAKE_CXX_COMPILER g++)
-set(CMAKE_C_COMPILER gcc)
-set(CMAKE_CXX_FLAGS "-m64 -std=c++11")
-set(ENABLE_TESTING TRUE)
-#set(CMAKE_CXX_FLAGS "-Wall -Werror -Wextra -Woverloaded-virtual")
+suboption(CppUnit_USE_STATIC_LIBS "Statically link CppUnit" BOOL ${USE_STATIC_LIBS})
+
+find_package(CppUnit REQUIRED)
+
+# CppUnit requires RTTI
+string(REGEX REPLACE "-fno-rtti" " " CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
+include_directories(SYSTEM ${CppUnit_INCLUDE_DIR})
 
 # TODO this is required because the debug log has too many dependencies
 add_definitions(-UARX_DEBUG)
@@ -16,7 +19,7 @@ include_directories(
 )
 
 add_executable(arxtest
-	testMain.cpp
+	TestMain.cpp
 	
 	../src/graphics/Math.cpp
 	../src/graphics/Color.h
@@ -26,20 +29,12 @@ add_executable(arxtest
 	
 	graphics/ColorTest.cpp
 	
-# TODO the logger should not be required for using the ini reader
-#	../src/platform/Platform.h
-#	../src/platform/Platform.cpp
-#	../src/platform/Lock.h
-#	../src/platform/Lock.cpp
-#	../src/platform/Environment.h
-#	../src/platform/Environment.cpp
-#	../src/io/log/LogBackend.h
-#	../src/io/log/LogBackend.cpp
-#	../src/io/log/ConsoleLogger.h
-#	../src/io/log/ConsoleLogger.cpp
-#	../src/io/log/Logger.h
-#	../src/io/log/Logger.cpp
-#	../src/io/IniReader.cpp
+	../src/io/fs/FilePath.cpp
+	io/fs/FilePathTest.cpp
+	
+	../src/io/resource/ResourcePath.cpp
+	io/resource/ResourcePathTest.cpp
+	
 	../src/io/IniSection.cpp
 	io/IniTest.h
 	io/IniTest.cpp
@@ -50,4 +45,11 @@ add_executable(arxtest
 	util/StringTest.cpp
 )
 
-target_link_libraries(arxtest cppunit)
+target_link_libraries(arxtest ${CppUnit_LIBRARIES})
+
+add_custom_target(check
+	COMMAND "$<TARGET_FILE:arxtest>"
+	DEPENDS arxtest
+	WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
+	COMMENT "Running tests" VERBATIM
+)

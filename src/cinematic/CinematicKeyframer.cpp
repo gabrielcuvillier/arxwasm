@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -495,7 +495,7 @@ static void interpolateLight(float alight, CinematicKeyframe* lightprec, Cinemat
 							+ unmoinsalight * ldep.intensiternd;
 }
 
-void GereTrack(Cinematic * c, float fpscurr, bool resized, bool play) {
+void GereTrack(Cinematic * c, PlatformDuration frameDuration, bool resized, bool play) {
 	
 	if(!CKTrack || !CKTrack->nbkey)
 		return;
@@ -615,7 +615,7 @@ consequences on light :
 			const Vec3f nextPos = next->pos;
 			const Vec3f next2Pos = ksuivsuiv->pos;
 			
-			c->pos = glm::catmullRom(prevPos, currentPos, nextPos, next2Pos, a);
+			c->pos = arx::catmullRom(prevPos, currentPos, nextPos, next2Pos, a);
 			
 			c->angz = current->angz + a * GetAngleInterpolation(current->angz, next->angz);
 			
@@ -648,8 +648,8 @@ consequences on light :
 	
 	if(play) {
 	
-	c->flTime += fpscurr;
-	CKTrack->currframe = (((float)(c->flTime)) / 1000.f) * ((float)(GetEndFrame() - GetStartFrame())) / (float)GetTimeKeyFramer();
+	c->flTime = c->flTime + frameDuration;
+	CKTrack->currframe = (float(toMs(c->flTime)) / 1000.f) * ((float)(GetEndFrame() - GetStartFrame())) / (float)GetTimeKeyFramer();
 	
 	// TODO this assert fails if you pause the gametime before a cinematic starts and unpause after
 	arx_assert(CKTrack->currframe >= 0);
@@ -657,8 +657,7 @@ consequences on light :
 	if(CKTrack->currframe > (float)CKTrack->endframe) {
 		CKTrack->currframe = (float)CKTrack->startframe;
 		c->key = NULL;
-		arxtime.update();
-		c->flTime = arxtime.now_f();
+		c->flTime = PlatformDuration_ZERO;
 	}
 	}
 }
@@ -669,7 +668,7 @@ void PlayTrack(Cinematic * c)
 		return;
 
 	CKTrack->pause = false;
-	c->flTime = 0; 
+	c->flTime = PlatformDuration_ZERO;
 }
 
 float GetTimeKeyFramer()

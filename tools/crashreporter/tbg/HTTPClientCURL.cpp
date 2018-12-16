@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -47,7 +47,7 @@ class CURLSession : public Session {
 	
 public:
 	
-	explicit CURLSession(std::string userAgent)
+	explicit CURLSession(const std::string & userAgent)
 		: m_userAgent(userAgent)
 		, m_curl(curl_easy_init())
 	{
@@ -55,7 +55,7 @@ public:
 			// Enable cookies
 			curl_easy_setopt(m_curl, CURLOPT_COOKIEFILE, "");
 		}
-	};
+	}
 	
 	~CURLSession() {
 		if(m_curl) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -206,6 +206,10 @@ public:
 		set<BlendDst, BlendSize>(dst);
 	}
 	
+	void setBlendAdditive() {
+		setBlend(BlendSrcAlpha, BlendOne);
+	}
+	
 	void disableBlend() {
 		setBlend(BlendOne, BlendZero);
 	}
@@ -214,6 +218,12 @@ public:
 	                  BlendingFactor dst = BlendInvSrcAlpha) const {
 		RenderState copy = *this;
 		copy.setBlend(src, dst);
+		return copy;
+	}
+	
+	RenderState blendAdditive() const {
+		RenderState copy = *this;
+		copy.setBlendAdditive();
 		return copy;
 	}
 	
@@ -274,7 +284,7 @@ public:
 		ColorBuffer   = (1<<0),
 		DepthBuffer   = (1<<1)
 	};
-	DECLARE_FLAGS(BufferType, BufferFlags);
+	DECLARE_FLAGS(BufferType, BufferFlags)
 	
 	enum Primitive {
 		TriangleList,
@@ -348,7 +358,6 @@ public:
 	// Fog
 	virtual void SetFogColor(Color color) = 0;
 	virtual void SetFogParams(float fogStart, float fogEnd) = 0;
-	virtual bool isFogInEyeCoordinates() = 0;
 	
 	// Rasterizer
 	virtual void SetAntialiasing(bool enable) = 0;
@@ -378,34 +387,11 @@ public:
 	void setRenderState(RenderState state) { m_state = state; }
 	RenderState getRenderState() const { return m_state; }
 	
-	// TODO remove these when all uses are changed to RenderState
-	enum RenderStateFlag {
-		AlphaBlending,
-		ColorKey,
-		DepthTest,
-		DepthWrite,
-		Fog,
-	};
-	void SetRenderState(RenderStateFlag renderState, bool enable);
-	void SetCulling(CullingMode mode) { m_state.setCull(mode); }
-	void SetDepthBias(int depthBias) { m_state.setDepthOffset(depthBias); }
-	void SetBlendFunc(BlendingFactor srcFactor, BlendingFactor dstFactor) {
-		m_srcBlend = srcFactor, m_dstBlend = dstFactor;
-		if(m_hasBlend) {
-			m_state.setBlend(srcFactor, dstFactor);
-		}
-	}
-	
 protected:
 	
 	std::vector<TextureStage *> m_TextureStages;
 	bool m_initialized;
 	RenderState m_state;
-	
-	// TODO remove these when all uses are changed to RenderState
-	bool m_hasBlend;
-	BlendingFactor m_srcBlend;
-	BlendingFactor m_dstBlend;
 	
 	void onRendererInit();
 	void onRendererShutdown();
@@ -431,7 +417,7 @@ extern Renderer * GRenderer;
  * Example usage:
  * \code
  * {
- *   UseRenderState state(RenderState().blend(BlendOne, BlendOne);
+ *   UseRenderState state(RenderState().blendAdditive();
  *   // render with additive blending
  * }
  * \endcode
@@ -461,7 +447,8 @@ inline RenderState render2D() {
 
 //! Default render state for 3D rendering
 inline RenderState render3D() {
-	return RenderState().depthTest().depthWrite().cull().colorKey();
+	// TODO only enable colorKey when needed
+	return RenderState().depthTest().depthWrite().fog().colorKey();
 }
 
 #endif // ARX_GRAPHICS_RENDERER_H

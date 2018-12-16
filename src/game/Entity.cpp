@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -104,7 +104,7 @@ Entity::Entity(const res::path & classPath, EntityInstance instance)
 	}
 	
 	animBlend.m_active = false;
-	animBlend.lastanimtime = 0;
+	animBlend.lastanimtime = ArxInstant_ZERO;
 	
 	std::memset(&bbox3D, 0, sizeof(EERIE_3D_BBOX)); // TODO use constructor
 	
@@ -118,7 +118,10 @@ Entity::Entity(const res::path & classPath, EntityInstance instance)
 	target = Vec3f_ZERO;
 	targetinfo = EntityHandle(TARGET_NONE);
 	
-	_itemdata = NULL, _fixdata = NULL, _npcdata = NULL, _camdata = NULL;
+	_itemdata = NULL;
+	_fixdata = NULL;
+	_npcdata = NULL;
+	_camdata = NULL;
 	
 	inventory = NULL;
 	show = SHOW_FLAG_IN_SCENE;
@@ -155,19 +158,18 @@ Entity::Entity(const res::path & classPath, EntityInstance instance)
 	
 	m_inventorySize = Vec2s(1, 1);
 	
-	soundtime = 0;
+	soundtime = ArxInstant_ZERO;
 	soundcount = 0;
 	
-	sfx_time = 0;
-	collide_door_time = 0;
-	ouch_time = 0;
+	sfx_time = ArxInstant_ZERO;
+	collide_door_time = ArxInstant_ZERO;
+	ouch_time = ArxInstant_ZERO;
 	dmg_sum = 0.f;
 	
 	spellcast_data = IO_SPELLCAST_DATA();
 	flarecount = 0;
 	no_collide = EntityHandle();
 	invisibility = 0.f;
-	frameloss = 0.f;
 	basespeed = 1.f;
 	
 	speed_modif = 0.f;
@@ -279,6 +281,8 @@ res::path Entity::instancePath() const {
 }
 
 void Entity::cleanReferences() {
+	
+	ARX_INTERACTIVE_DestroyIOdelayedRemove(this);
 	
 	if(DRAGINTER == this) {
 		Set_DragInter(NULL);

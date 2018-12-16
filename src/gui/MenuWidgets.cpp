@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -112,13 +112,6 @@ MainMenu *mainMenu;
 
 extern TextWidget * pMenuElementApply;
 
-float ARXTimeMenu;
-float ARXDiffTimeMenu;
-
-
-
-
-
 void ARX_QuickSave() {
 	
 	if(!g_canResumeGame) {
@@ -208,20 +201,10 @@ static void Check_Apply() {
 
 bool Menu2_Render() {
 	
-	arxtime.update(false);
-	float time = arxtime.now_f();
-	ARXDiffTimeMenu = time - ARXTimeMenu;
-	ARXTimeMenu = time;
-	
-	// this means ArxTimeMenu is reset
-	if(ARXDiffTimeMenu < 0) {
-		ARXDiffTimeMenu = 0;
-	}
-	
 	if(pMenuCursor == NULL) {
 		pMenuCursor = new MenuCursor();
 	}
-	pMenuCursor->update(ARXDiffTimeMenu);
+	pMenuCursor->update(g_platformTime.lastFrameDuration());
 	
 	GRenderer->GetTextureStage(0)->setMinFilter(TextureStage::FilterLinear);
 	GRenderer->GetTextureStage(0)->setMagFilter(TextureStage::FilterLinear);
@@ -245,10 +228,7 @@ bool Menu2_Render() {
 
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
 
-	GRenderer->SetRenderState(Renderer::Fog, false);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetRenderState(Renderer::DepthTest, false);
-	GRenderer->SetCulling(CullNone);
+	UseRenderState state(render2D());
 
 	MENUSTATE eOldMenuState=NOP;
 	MENUSTATE eM;
@@ -290,10 +270,7 @@ bool Menu2_Render() {
 		delete pWindowMenu, pWindowMenu = NULL;
 		delete mainMenu, mainMenu = NULL;
 		
-		GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 		GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
-		GRenderer->SetRenderState(Renderer::DepthWrite, true);
-		GRenderer->SetRenderState(Renderer::DepthTest, true);
 		
 		return true;
 	} else if(eMenuState != NOP) {
@@ -312,7 +289,7 @@ bool Menu2_Render() {
 			pWindowMenu->m_currentPageId=mainMenu->eOldMenuWindowState;
 		}
 
-		pWindowMenu->Update(ARXDiffTimeMenu);
+		pWindowMenu->Update(g_platformTime.lastFrameDuration());
 		MENUSTATE eMS = pWindowMenu->Render();
 		if(eMS != NOP) {
 			mainMenu->eOldMenuWindowState=eMS;
@@ -325,20 +302,17 @@ bool Menu2_Render() {
 	// If the menu needs to be reinitialized, then the text in the TextManager is probably using bad fonts that were deleted already
 	// Skip one update in this case
 	if(pTextManage && !mainMenu->bReInitAll) {
-		pTextManage->Update(ARXDiffTimeMenu);
+		pTextManage->Update(g_platformTime.lastFrameDuration());
 		pTextManage->Render();
 	}
 
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
 
-	GRenderer->SetRenderState(Renderer::Fog, false);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetCulling(CullNone);
 	pMenuCursor->DrawCursor();
 	
 	g_thumbnailCursor.render();
 	
-	if(ProcessFadeInOut(bFadeInOut)) {
+	if(MenuFader_process(bFadeInOut)) {
 		switch(iFadeAction) {
 			case AMCM_CREDITS:
 				ARX_MENU_Clicked_CREDITS();
@@ -359,12 +333,7 @@ bool Menu2_Render() {
 	GRenderer->GetTextureStage(0)->setMinFilter(TextureStage::FilterLinear);
 	GRenderer->GetTextureStage(0)->setMagFilter(TextureStage::FilterLinear);
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
-
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-	GRenderer->SetRenderState(Renderer::DepthWrite, true);
-	GRenderer->SetRenderState(Renderer::DepthTest, true);
-	GRenderer->SetCulling(CullCCW);
-
+	
 	return true;
 }
 
@@ -411,12 +380,12 @@ void CWindowMenu::add(MenuPage *page) {
 	page->m_pos = m_pos;
 }
 
-void CWindowMenu::Update(float _fDTime) {
+void CWindowMenu::Update(PlatformDuration _fDTime) {
 
 	float fCalc	= fPosXCalc + (fDist * glm::sin(glm::radians(fAngle)));
 
 	m_pos.x = checked_range_cast<int>(fCalc);
-	fAngle += _fDTime * 0.08f;
+	fAngle += float(toMs(_fDTime)) * 0.08f;
 
 	if(fAngle > 90.f)
 		fAngle = 90.f;
@@ -426,9 +395,6 @@ MENUSTATE CWindowMenu::Render() {
 	
 	if(bNoMenu)
 		return NOP;
-	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
 	
 	MENUSTATE eMS=NOP;
 	
@@ -442,15 +408,12 @@ MENUSTATE CWindowMenu::Render() {
 	}}
 	
 	// Draw backgound and border
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
-
-	EERIEDrawBitmap2(Rectf(Vec2f(m_pos.x, m_pos.y),
-	                 RATIO_X(m_background->m_size.x), RATIO_Y(m_background->m_size.y)),
-	                 0, m_background, Color::white);
-
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+	{
+		UseRenderState state(render2D().blend(BlendZero, BlendInvSrcColor));
+		EERIEDrawBitmap2(Rectf(Vec2f(m_pos.x, m_pos.y),
+		                 RATIO_X(m_background->m_size.x), RATIO_Y(m_background->m_size.y)),
+		                 0, m_background, Color::white);
+	}
 	
 	EERIEDrawBitmap2(Rectf(Vec2f(m_pos.x, m_pos.y),
 	                 RATIO_X(m_border->m_size.x), RATIO_Y(m_border->m_size.y)),
@@ -462,12 +425,12 @@ MENUSTATE CWindowMenu::Render() {
 			
 			if(g_debugInfo == InfoPanelGuiDebug)
 				page->drawDebug();
-			
+
+			if(eMS == NOP)
+				eMS = page->checkShortcuts();
 			break;
 		}
 	}}
-	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 	
 	if(eMS != NOP) {
 		m_currentPageId=eMS;
@@ -482,7 +445,8 @@ MenuPage::MenuPage(const Vec2f & pos, const Vec2f & size, MENUSTATE _eMenuState)
 	, m_selected(NULL)
 	, bEdit(false)
 	, bMouseAttack(false)
-	, m_blinkTime(0.f)
+	, m_disableShortcuts(false)
+	, m_blinkTime(PlatformDuration_ZERO)
 	, m_blink(true)
 {
 	m_size = size;
@@ -492,6 +456,8 @@ MenuPage::MenuPage(const Vec2f & pos, const Vec2f & size, MENUSTATE _eMenuState)
 	
 	eMenuState=_eMenuState;
 }
+
+MenuPage::~MenuPage() { }
 
 void MenuPage::add(Widget * widget) {
 	widget->ePlace = NOCENTER;
@@ -703,41 +669,39 @@ TextWidget * MenuPage::GetTouch(bool keyTouched, int keyId, InputKeyId* pInputKe
 		}
 
 		std::string pText;
-		if(iMouseButton & (Mouse::ButtonBase | Mouse::WheelBase))
-			pText = GInput->getKeyName(iMouseButton, true); 
-		else
+		if(iMouseButton & (Mouse::ButtonBase | Mouse::WheelBase)) {
+			if(pInputKeyId)
+				*pInputKeyId = iMouseButton;
+			pText = GInput->getKeyName(iMouseButton, true);
+		} else {
 			pText = GInput->getKeyName(keyId, true);
-
-		if(!pText.empty()) {
-			textWidget->lColorHighlight = textWidget->lOldColor;
-
-			textWidget->eState = GETTOUCH;
-			textWidget->SetText(pText);
-			
-			float iDx = m_selected->m_rect.width();
-
-			if(m_selected->ePlace) {
-				m_selected->m_rect.left = (m_rect.width() - iDx) / 2.f;
-
-				if(m_selected->m_rect.left < 0) {
-					m_selected->m_rect.left=0;
-				}
-			}
-
-			m_selected->m_rect.right=m_selected->m_rect.left+iDx;
-
-			m_selected=NULL;
-			bEdit=false;
-
-			if(iMouseButton & (Mouse::ButtonBase | Mouse::WheelBase)) {
-				if(pInputKeyId)
-					*pInputKeyId = iMouseButton;
-			}
-
-			bMouseAttack=false;
-
-			return textWidget;
 		}
+
+		if(pText.empty()) {
+			pText = "---";
+		}
+
+		textWidget->lColorHighlight = textWidget->lOldColor;
+		textWidget->eState = GETTOUCH;
+		textWidget->SetText(pText);
+
+		float iDx = m_selected->m_rect.width();
+
+		if(m_selected->ePlace) {
+			m_selected->m_rect.left = (m_rect.width() - iDx) / 2.f;
+
+			if(m_selected->m_rect.left < 0) {
+				m_selected->m_rect.left=0;
+			}
+		}
+
+		m_selected->m_rect.right=m_selected->m_rect.left+iDx;
+
+		m_selected=NULL;
+		bEdit=false;
+		bMouseAttack=false;
+
+		return textWidget;
 	}
 
 	return NULL;
@@ -754,12 +718,12 @@ MENUSTATE MenuPage::Update(Vec2f pos) {
 	// Check if mouse over
 	if(!bEdit) {
 		m_selected=NULL;
-		Widget * widget = m_children.getAtPos(Vec2f(GInput->getMousePosAbs()));
+		Widget * widget = m_children.getAtPos(Vec2f(GInput->getMousePosition()));
 		
 		if(widget) {
 			m_selected = widget;
 			
-			if(GInput->getMouseButtonDoubleClick(Mouse::Button_0, 300)) {
+			if(GInput->getMouseButtonDoubleClick(Mouse::Button_0)) {
 				MENUSTATE e = m_selected->m_targetMenu;
 				bEdit = m_selected->OnMouseDoubleClick();
 				
@@ -782,12 +746,12 @@ MENUSTATE MenuPage::Update(Vec2f pos) {
 		}
 	} else {
 		if(!m_selected) {
-			Widget * widget = m_children.getAtPos(Vec2f(GInput->getMousePosAbs()));
+			Widget * widget = m_children.getAtPos(Vec2f(GInput->getMousePosition()));
 			
 			if(widget) {
 				m_selected = widget;
 				
-				if(GInput->getMouseButtonDoubleClick(Mouse::Button_0, 300)) {
+				if(GInput->getMouseButtonDoubleClick(Mouse::Button_0)) {
 					bEdit = m_selected->OnMouseDoubleClick();
 					
 					if(bEdit)
@@ -797,14 +761,22 @@ MENUSTATE MenuPage::Update(Vec2f pos) {
 		}
 	}
 	
-	//check les shortcuts
+	return NOP;
+}
+
+MENUSTATE MenuPage::checkShortcuts() {
+
 	if(!bEdit) {
 		
 		{Widget * w; BOOST_FOREACH(w, m_children.m_widgets) {
 			arx_assert(w);
 			
-			if(w->m_shortcut != -1) {
+			if(w->m_shortcut != ActionKey::UNUSED) {
 				if(GInput->isKeyPressedNowUnPressed(w->m_shortcut)) {
+					if(m_disableShortcuts) {
+						m_disableShortcuts = false;
+						break;
+					}
 					bEdit = w->OnMouseClick();
 					m_selected = w;
 					return w->m_targetMenu;
@@ -812,7 +784,6 @@ MENUSTATE MenuPage::Update(Vec2f pos) {
 			}
 		}}
 	}
-	
 	return NOP;
 }
 
@@ -833,9 +804,11 @@ void MenuPage::Render() {
 		m_selected->RenderMouseOver();
 		
 		{
-			m_blinkTime += ARXDiffTimeMenu;
-			if(m_blinkTime > m_blinkDuration * 2)
-				m_blinkTime = 0;
+			static const PlatformDuration m_blinkDuration = PlatformDurationMs(300);
+			
+			m_blinkTime += g_platformTime.lastFrameDuration();
+			if(m_blinkTime > (m_blinkDuration + m_blinkDuration))
+				m_blinkTime = PlatformDuration_ZERO;
 			
 			m_blink = m_blinkTime > m_blinkDuration;
 		}
@@ -900,6 +873,10 @@ void MenuPage::Render() {
 				if(widget) {
 					if(!bEdit) {
 						if(widget->m_isKeybind) {
+							if(inputKeyId == Keyboard::Key_Escape) {
+								inputKeyId = ActionKey::UNUSED;
+								m_disableShortcuts = true;
+							}
 							config.setActionKey(widget->m_keybindAction, widget->m_keybindIndex, inputKeyId);
 						}
 					}

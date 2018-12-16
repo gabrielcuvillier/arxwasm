@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -56,18 +56,13 @@ void ARXMenu_Options_Video_SetDetailsQuality(int lod);
 
 // Audio options
 
-void ARXMenu_Options_Audio_SetDevice(std::string device);
+void ARXMenu_Options_Audio_SetDevice(const std::string & device);
 void ARXMenu_Options_Audio_SetMasterVolume(int volume);
 void ARXMenu_Options_Audio_SetSfxVolume(int volume);
 void ARXMenu_Options_Audio_SetSpeechVolume(int volume);
 void ARXMenu_Options_Audio_SetAmbianceVolume(int volume);
 void ARXMenu_Options_Audio_ApplyGameVolumes();
 void ARXMenu_Options_Audio_SetMuted(bool mute);
-
-// Input options
-
-void ARXMenu_Options_Control_SetInvertMouse(bool invert);
-void ARXMenu_Options_Control_SetMouseSensitivity(int sensitivity);
 
 // Resume game
 

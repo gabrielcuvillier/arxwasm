@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -78,9 +78,8 @@ void MiniMap::getData(int showLevel) {
 	
 	if(m_levels[showLevel].m_texContainer == NULL) {
 		
-		char name[256];
 		char levelMap[256];
-		GetLevelNameByNum(showLevel, name);
+		const char * name = GetLevelNameByNum(showLevel);
 		
 		sprintf(levelMap, "graph/levels/level%s/map", name);
 		m_levels[showLevel].m_texContainer = TextureContainer::Load(levelMap, TextureContainer::NoColorKey);
@@ -94,10 +93,10 @@ void MiniMap::getData(int showLevel) {
 			float minY = std::numeric_limits<float>::max();
 			float maxY = std::numeric_limits<float>::min();
 			
-			for(int z = 0; z < m_activeBkg->Zsize; z++) {
+			for(int z = 0; z < m_activeBkg->m_size.y; z++) {
 				
-				for(int x = 0; x < m_activeBkg->Xsize; x++) {
-					const EERIE_BKG_INFO & eg = m_activeBkg->fastdata[x][z];
+				for(int x = 0; x < m_activeBkg->m_size.x; x++) {
+					const BackgroundTileData & eg = m_activeBkg->m_tileData[x][z];
 					for(int k = 0; k < eg.nbpoly; k++) {
 						const EERIEPOLY & ep = eg.polydata[k];
 						
@@ -275,6 +274,8 @@ void MiniMap::purgeTexContainer() {
 
 void MiniMap::showPlayerMiniMap(int showLevel) {
 	
+	UseRenderState state(render2D());
+	
 	ARX_PROFILE_FUNC();
 	
 	const float miniMapZoom = 300.f; // zoom of the minimap
@@ -290,8 +291,6 @@ void MiniMap::showPlayerMiniMap(int showLevel) {
 	
 	if(m_levels[showLevel].m_texContainer) {
 		
-		GRenderer->SetRenderState(Renderer::DepthTest, false);
-		
 		Vec2f start = Vec2f_ZERO;
 		
 		Vec2f playerPos(0.f, 0.f);
@@ -303,7 +302,7 @@ void MiniMap::showPlayerMiniMap(int showLevel) {
 		}
 		
 		// Draw the background
-		drawBackground(showLevel, Rect(390, 135, 590, 295), start, miniMapZoom, 20.f, decal, true, 0.5f);
+		drawBackground(showLevel, miniMapRect, start, miniMapZoom, 20.f, decal, true, 0.5f);
 		
 		GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapRepeat);
 		
@@ -318,14 +317,14 @@ void MiniMap::showPlayerMiniMap(int showLevel) {
 
 void MiniMap::showBookMiniMap(int showLevel) {
 	
+	UseRenderState state(render2D());
+	
 	// First Load Minimap TC & DATA if needed
 	if(m_levels[showLevel].m_texContainer == NULL) {
 		getData(showLevel);
 	}
 	
 	if(m_levels[showLevel].m_texContainer) {
-		
-		GRenderer->SetRenderState(Renderer::DepthTest, false);
 		
 		float zoom = 900.f;
 		
@@ -352,6 +351,8 @@ void MiniMap::showBookMiniMap(int showLevel) {
 
 void MiniMap::showBookEntireMap(int showLevel) {
 	
+	UseRenderState state(render2D());
+	
 	// First Load Minimap TC & DATA if needed
 	if(m_levels[showLevel].m_texContainer == NULL) {
 		getData(showLevel);
@@ -360,8 +361,6 @@ void MiniMap::showBookEntireMap(int showLevel) {
 	if(!m_levels[showLevel].m_texContainer) {
 		return;
 	}
-	
-	GRenderer->SetRenderState(Renderer::DepthTest, false);
 	
 	float zoom = 250.f;
 	
@@ -400,8 +399,8 @@ void MiniMap::showBookEntireMap(int showLevel) {
 		}
 		
 		Vec2f pos;
-		pos.x = m_mapMarkers[i].m_pos.x * 8 * ratio * m_activeBkg->Xmul * casePos.x + start.x;
-		pos.y = m_mapMarkers[i].m_pos.y * 8 * ratio * m_activeBkg->Zmul * casePos.y + start.y;
+		pos.x = m_mapMarkers[i].m_pos.x * 8 * ratio * m_activeBkg->m_mul.x * casePos.x + start.x;
+		pos.y = m_mapMarkers[i].m_pos.y * 8 * ratio * m_activeBkg->m_mul.y * casePos.y + start.y;
 		
 		float size = 5.f * ratio;
 		verts[0].color = Color(255, 0, 0, 255).toRGBA();
@@ -463,39 +462,49 @@ void MiniMap::showBookEntireMap(int showLevel) {
 void MiniMap::revealPlayerPos(int showLevel) {
 	
 	float zoom = 250.f;
+	float maxDistance = 6.0f;
 	Vec2f start = Vec2f(140.f, 120.f);
 	Vec2f cas;
 	cas.x = zoom / MINIMAP_MAX_X;
 	cas.y = zoom / MINIMAP_MAX_Z;
 	
 	Vec2f playerPos = computePlayerPos(zoom, showLevel);
+	Vec2i playerCell = Vec2i(playerPos.x / cas.x, playerPos.y / cas.y);
+	
+	if(   playerCell.x < 0
+	   || playerCell.x >= s32(MINIMAP_MAX_X)
+	   || playerCell.y < 0
+	   || playerCell.y >= s32(MINIMAP_MAX_Z)
+	   ) {
+		return;
+	}
+	
 	playerPos += start;
 	
-	// TODO this is inefficient - we don't really need to iterate over the whole minimap!
-	// only the area around the player will be modified
-	for(size_t z = 0; z < MINIMAP_MAX_Z; z++) {
-	for(size_t x = 0; x < MINIMAP_MAX_X; x++) {
+	Vec2i startCell = playerCell - Vec2i(glm::ceil(maxDistance / cas.x));
+	Vec2i endCell = playerCell + Vec2i(glm::ceil(maxDistance / cas.y));
+
+	Vec2i maxCell = Vec2i(MINIMAP_MAX_X - 1, MINIMAP_MAX_Z - 1);
+	
+	startCell = glm::clamp(startCell, Vec2i_ZERO, maxCell);
+	endCell = glm::clamp(endCell, Vec2i_ZERO, maxCell);
+	
+	for(int z = startCell.y; z <= endCell.y; z++) {
+	for(int x = startCell.x; x <= endCell.x; x++) {
 		
 		Vec2f pos;
 		pos.x = start.x + x * cas.x;
 		pos.y = start.y + z * cas.y;
 		
 		float d = fdist(Vec2f(pos.x + cas.x * 0.5f, pos.y), playerPos);
-		if(d > 6.f) {
+		if(d >= maxDistance) {
 			continue;
 		}
 		
-		float vv = (6 - d) * (1.f / 6);
+		float revealPercent = (maxDistance - d) * (1.f / maxDistance);
+		revealPercent = arx::clamp(revealPercent * 2.0f, 0.0f, 1.0f);
 		
-		if(vv >= 0.5f) {
-			vv = 1.f;
-		} else if(vv > 0.f) {
-			vv = vv * 2.f;
-		} else {
-			vv = 0.f;
-		}
-		
-		int r = vv * 255.f;
+		int r = revealPercent * 255.f;
 		
 		int ucLevel = std::max(r, (int)m_levels[showLevel].m_revealed[x][z]);
 		m_levels[showLevel].m_revealed[x][z] = checked_range_cast<unsigned char>(ucLevel);
@@ -555,12 +564,13 @@ void MiniMap::drawBackground(int showLevel, Rect boundaries, Vec2f start, float 
 		fadeBounds.bottom = checked_range_cast<Rect::Num>((boundaries.bottom - fadeBorder) * g_sizeRatio.y);
 	}
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
+	RenderState desiredState = render2D();
 	if(invColor) {
-		GRenderer->SetBlendFunc(BlendOne, BlendInvSrcColor);
+		desiredState.setBlend(BlendOne, BlendInvSrcColor);
 	} else {
-		GRenderer->SetBlendFunc(BlendZero, BlendInvSrcColor);
+		desiredState.setBlend(BlendZero, BlendInvSrcColor);
 	}
+	UseRenderState state(desiredState);
 	GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
 	GRenderer->GetTextureStage(0)->setMinFilter(TextureStage::FilterLinear);
 	GRenderer->GetTextureStage(0)->setMagFilter(TextureStage::FilterLinear);
@@ -569,8 +579,8 @@ void MiniMap::drawBackground(int showLevel, Rect boundaries, Vec2f start, float 
 	for(int x = -2; x < int(MINIMAP_MAX_X) + 2; x++) {
 		
 		Vec2f v3;
-		v3.x = float(x) * float(m_activeBkg->Xdiv) * m_mod.x;
-		v3.y = float(z) * float(m_activeBkg->Zdiv) * m_mod.y;
+		v3.x = float(x) * float(m_activeBkg->m_tileSize.x) * m_mod.x;
+		v3.y = float(z) * float(m_activeBkg->m_tileSize.y) * m_mod.y;
 		
 		Vec2f v4;
 		v4.x = (v3.x * div) * d.x;
@@ -690,10 +700,11 @@ void MiniMap::drawBackground(int showLevel, Rect boundaries, Vec2f start, float 
 		EERIEDRAWPRIM(Renderer::TriangleList, &m_mapVertices[0], m_mapVertices.size());
 	}
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 }
 
 void MiniMap::drawPlayer(float playerSize, Vec2f playerPos, bool alphaBlending) {
+	
+	GRenderer->SetAntialiasing(true);
 	
 	TexturedVertex verts[4];
 	
@@ -703,9 +714,9 @@ void MiniMap::drawPlayer(float playerSize, Vec2f playerPos, bool alphaBlending) 
 		verts[k].p.z = 0.00001f;
 	}
 	
-	Vec2f r;
-	r.x = 0.f;
-	r.y = -playerSize * 1.8f;
+	Vec2f r1;
+	r1.x = 0.f;
+	r1.y = -playerSize * 1.8f;
 	Vec2f r2;
 	r2.x = -playerSize * (1.0f / 2);
 	r2.y = playerSize;
@@ -713,26 +724,25 @@ void MiniMap::drawPlayer(float playerSize, Vec2f playerPos, bool alphaBlending) 
 	r3.x = playerSize * (1.0f / 2);
 	r3.y = playerSize;
 	
-	float angle = glm::radians(m_player->angle.getPitch());
+	float angle = glm::radians(m_player->angle.getYaw());
 	float ca = std::cos(angle);
 	float sa = std::sin(angle);
 	
 	verts[0].p.x = (playerPos.x + r2.x * ca + r2.y * sa) * g_sizeRatio.x;
 	verts[0].p.y = (playerPos.y + r2.y * ca - r2.x * sa) * g_sizeRatio.y;
-	verts[1].p.x = (playerPos.x + r.x * ca + r.y * sa) * g_sizeRatio.x;
-	verts[1].p.y = (playerPos.y + r.y * ca - r.x * sa) * g_sizeRatio.y;
+	verts[1].p.x = (playerPos.x + r1.x * ca + r1.y * sa) * g_sizeRatio.x;
+	verts[1].p.y = (playerPos.y + r1.y * ca - r1.x * sa) * g_sizeRatio.y;
 	verts[2].p.x = (playerPos.x + r3.x * ca + r3.y * sa) * g_sizeRatio.x;
 	verts[2].p.y = (playerPos.y + r3.y * ca - r3.x * sa) * g_sizeRatio.y;
 	
 	GRenderer->ResetTexture(0);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, alphaBlending);
-	if(alphaBlending) {
-		GRenderer->SetBlendFunc(BlendOne, BlendInvSrcColor);
-	}
+	
+	UseRenderState state(alphaBlending ? render2D().blend(BlendOne, BlendInvSrcColor) : render2D());
 	
 	EERIEDRAWPRIM(Renderer::TriangleFan, verts);
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
+	GRenderer->SetAntialiasing(false);
+	
 }
 
 void MiniMap::drawDetectedEntities(int showLevel, Vec2f start, float zoom) {
@@ -751,8 +761,7 @@ void MiniMap::drawDetectedEntities(int showLevel, Vec2f start, float zoom) {
 	const Vec2f of = m_miniOffset[m_currentLevel];
 	const Vec2f of2 = m_levels[showLevel].m_ratio;
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
+	UseRenderState state(render2D().blendAdditive());
 	
 	const EntityManager &ents = *m_entities; // for convenience
 	for(size_t lnpc = 1; lnpc < ents.size(); lnpc++) {
@@ -807,7 +816,6 @@ void MiniMap::drawDetectedEntities(int showLevel, Vec2f start, float zoom) {
 		EERIEDrawBitmap(rect, 0, m_pTexDetect, Color3f(col, 0, 0).to<u8>());
 	}
 	
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 }
 
 void MiniMap::clearMarkerTexCont() {
@@ -883,6 +891,6 @@ MiniMap::MapMarkerData MiniMap::mapMarkerGet(size_t id) {
 	return m_mapMarkers[id];
 }
 
-void MiniMap::setActiveBackground(EERIE_BACKGROUND *activeBkg) {
+void MiniMap::setActiveBackground(BackgroundData *activeBkg) {
 	m_activeBkg = activeBkg;
 }

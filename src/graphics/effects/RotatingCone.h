@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -43,7 +43,7 @@ private:
 	int conenbvertex;
 	int conenbfaces;
 	Vec3f * conevertex;
-	TexturedVertex * coned3d;
+	TexturedVertexUntransformed * coned3d;
 	unsigned short * coneind;
 };
 

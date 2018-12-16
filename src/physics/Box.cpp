@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -79,8 +79,8 @@ void EERIE_PHYSICS_BOX_Launch(EERIE_3DOBJ * obj, const Vec3f & pos, const Anglef
 	for(int i = 0; i < obj->pbox->nb_physvert; i++) {
 		PHYSVERT * pv = &obj->pbox->vert[i];
 		pv->pos = pv->initpos;
-		pv->pos = VRotateY(pv->pos, angle.getPitch());
-		pv->pos = VRotateX(pv->pos, angle.getYaw());
+		pv->pos = VRotateY(pv->pos, angle.getYaw());
+		pv->pos = VRotateX(pv->pos, angle.getPitch());
 		pv->pos = VRotateZ(pv->pos, angle.getRoll());
 		pv->pos += pos;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -53,7 +53,7 @@ namespace fs { class path; }
 
 void ARX_CHANGELEVEL_Change(const std::string & level, const std::string & target, long angle);
 
-long ARX_CHANGELEVEL_GetInfo(const fs::path & savefile, std::string & name, float & version, long & level, unsigned long & time);
+long ARX_CHANGELEVEL_GetInfo(const fs::path & savefile, std::string & name, float & version, long & level);
 
 bool ARX_CHANGELEVEL_StartNew();
 

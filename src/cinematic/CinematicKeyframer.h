@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -85,7 +85,7 @@ bool DeleteTrack();
 bool AllocTrack(int sf, int ef, float fps);
 bool AddKey(const CinematicKeyframe & key);
 bool AddKeyLoad(const CinematicKeyframe & key);
-void GereTrack(Cinematic * c, float fpscurr, bool resized, bool play);
+void GereTrack(Cinematic * c, PlatformDuration frameDuration, bool resized, bool play);
 
 void PlayTrack(Cinematic * c);
 int GetStartFrame();

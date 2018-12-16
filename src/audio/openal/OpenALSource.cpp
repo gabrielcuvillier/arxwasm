@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -792,10 +792,10 @@ aalError OpenALSource::updateBuffers() {
 	time = time - read + newRead;
 	TraceAL("update: read " << read << " -> " << newRead << "  time " << oldTime << " -> " << time);
 	
-	arx_assert(time >= oldTime, "oldTime=%lu time=%lu read=%lu newRead=%d"
-	           " nbuffersProcessed=%d status=%d sourceState=%d", (unsigned long)oldTime,
-	           (unsigned long)time, (unsigned long)read, newRead, nbuffersProcessed,
-	           (int)status, sourceState);
+	arx_assert_msg(time >= oldTime, "oldTime=%lu time=%lu read=%lu newRead=%d"
+	               " nbuffersProcessed=%d status=%d sourceState=%d", (unsigned long)oldTime,
+	               (unsigned long)time, (unsigned long)read, newRead, nbuffersProcessed,
+	               (int)status, sourceState);
 	ARX_UNUSED(oldTime);
 	read = newRead;
 	

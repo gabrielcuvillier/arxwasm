@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2012-2015 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -233,6 +233,8 @@ void Note::render() {
 	if(!allocate()) {
 		return;
 	}
+	
+	UseRenderState state(render2D());
 	
 	float z = 0.000001f;
 	

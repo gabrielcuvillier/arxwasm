@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2015-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -78,7 +78,7 @@ static void getProcessSatus(platform::process_id pid, u64 & rss, u64 & startTick
 
 void CrashHandlerPOSIX::processCrashInfo() {
 	
-	#if ARX_HAVE_GETRUSAGE && ARX_PLATFORM != ARX_PLATFORM_MACOSX
+	#if ARX_HAVE_GETRUSAGE && ARX_PLATFORM != ARX_PLATFORM_MACOS
 	{
 		struct rusage usage;
 		if(getrusage(m_pCrashInfo->processId, &usage) == 0) {

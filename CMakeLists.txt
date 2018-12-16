@@ -20,8 +20,8 @@ else()
 	cmake_minimum_required(VERSION 2.8.3)
 endif()
 
-if(CMAKE_VERSION VERSION_GREATER 3.4)
-	cmake_policy(VERSION 3.4)
+if(CMAKE_VERSION VERSION_GREATER 3.7)
+	cmake_policy(VERSION 3.7)
 else()
 	cmake_policy(VERSION ${CMAKE_VERSION})
 endif()
@@ -29,9 +29,9 @@ endif()
 # Define configuration options
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-	set(MACOSX 1)
+	set(MACOS 1)
 else()
-	set(MACOSX 0)
+	set(MACOS 0)
 endif()
 
 macro(suboption _var _comment _type _default)
@@ -42,14 +42,21 @@ macro(suboption _var _comment _type _default)
 	endif()
 endmacro()
 
+option(DEVELOPER "Use build settings suitable for developers" OFF)
+
 # Components
-option(BUILD_TESTS "Build tests" OFF)
+option(BUILD_ALL OFF)
+set(default_BUILD_TESTS OFF)
+if(BUILD_ALL OR DEVELOPER)
+	set(default_BUILD_TESTS ON)
+endif()
+suboption(BUILD_TESTS "Build tests" BOOL ${default_BUILD_TESTS})
 option(BUILD_TOOLS "Build tools" ON)
 if (NACL OR EMSCRIPTEN)
     set(BUILD_TOOLS OFF)
 endif()
 set(def_BUILD_CRASHHANDLER ON)
-if(MACOSX)
+if(MACOS)
 	set(def_BUILD_CRASHHANDLER OFF)
 elseif(WIN32 AND NOT MSVC)
 	set(def_BUILD_CRASHHANDLER OFF)
@@ -57,16 +64,16 @@ elseif(NACL OR EMSCRIPTEN)
     set(def_BUILD_CRASHHANDLER OFF)
 endif()
 option(BUILD_CRASHHANDLER "Build the crash handler" ${def_BUILD_CRASHHANDLER})
-option(BUILD_CRASHREPORTER "Build the crash reporter" ${BUILD_CRASHHANDLER})
+suboption(BUILD_CRASHREPORTER "Build the crash reporter" BOOL ${BUILD_CRASHHANDLER})
 if(NOT BUILD_CRASHHANDLER)
 	set(BUILD_CRASHREPORTER OFF)
 endif()
 option(BUILD_PROFILER_INSTRUMENT "Enable instrumentation for the profiler" OFF)
-suboption(BUILD_PROFILER "Build the profiler GUI" BOOL ${BUILD_PROFILER_INSTRUMENT})
-option(BUILD_EDIT_LOADSAVE "Build save/load functions only used by the editor" ON)
-if (NACL OR EMSCRIPTEN)
-    set(BUILD_EDIT_LOADSAVE OFF)
+set(def_BUILD_PROFILER OFF)
+if(BUILD_PROFILER_INSTRUMENT OR BUILD_ALL)
+	set(def_BUILD_PROFILER ON)
 endif()
+suboption(BUILD_PROFILER "Build the profiler GUI" BOOL ${def_BUILD_PROFILER})
 option(INSTALL_BLENDER_PLUGIN "Install the Arx Libertatis blender plugin" ON)
 if (NACL OR EMSCRIPTEN)
     set(INSTALL_BLENDER_PLUGIN OFF)
@@ -95,11 +102,9 @@ endif()
 set(WITH_QT CACHE STRING "The Qt version to use: 4 or 5 or empty (use any)")
 
 # Build types
-option(DEVELOPER "Use build settings suitable for developers" OFF)
+set(default_UNITY_BUILD ON)
 if(DEVELOPER)
 	set(default_UNITY_BUILD OFF)
-else()
-	set(default_UNITY_BUILD ON)
 endif()
 
 suboption(UNITY_BUILD "Unity build" BOOL ${default_UNITY_BUILD})
@@ -126,6 +131,8 @@ suboption(DEBUG "Build with debug output" BOOL ${default_DEBUG})
 if(DEBUG)
 	add_definitions(-DARX_DEBUG=1)
 endif()
+suboption(DEBUG_GL "Enable OpenGL debug output by default" BOOL ${DEBUG})
+set(ARX_DEBUG_GL ${DEBUG_GL})
 
 # Static libs
 set(default_USE_STATIC_LIBS OFF)
@@ -143,7 +150,7 @@ suboption(ZLIB_USE_STATIC_LIBS     "Statically link ZLIB"     BOOL ${USE_STATIC_
 # Icons
 if(WIN32)
 	set(default_ICON_TYPE "ico")
-elseif(MACOSX)
+elseif(MACOS)
 	set(default_ICON_TYPE "icns")
 elseif(NACL OR EMSCRIPTEN)
 	set(default_ICON_TYPE "png")
@@ -221,7 +228,7 @@ mark_as_advanced(
 # Default runtime user and data directories
 if(WIN32)
 	set(USER_DIR          "Arx Libertatis"                CACHE STRING "User dir names")
-elseif(MACOSX)
+elseif(MACOS)
 	set(DATA_DIR          "ArxLibertatis"                 CACHE STRING "Data dir names")
 	set(DATA_DIR_PREFIXES "/Applications"                 CACHE STRING "Data dir paths")
 	set(USER_DIR          "ArxLibertatis"                 CACHE STRING "User dir names")
@@ -307,10 +314,11 @@ mark_as_advanced(
 # Helper scrips
 
 include(CheckCXXSourceCompiles)
+include(CheckIncludeFiles)
 include(CheckSymbolExists)
 include(CheckTypeSize)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake") # For custom cmake modules
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake") # For custom cmake modules
 
 include(VersionString)
 set(version_names VERSION ICON_NAME DATA_VERSION IO_LIBRARY_ABI_VERSION)
@@ -496,10 +504,8 @@ endif()
 # OpenAL
 if(USE_OPENAL)
 	find_package(OpenAL ${OPTIONAL_DEPENDENCY})
-	if(NOT EMSCRIPTEN)
-		find_package(OpenALEFX)
-	endif()
-	if(NOT MSVC AND NOT EMSCRIPTEN AND OPENAL_FOUND)
+	find_package(OpenALEFX)
+	if(NOT MSVC AND OPENAL_FOUND)
 		check_link_library(OpenAL OPENAL_LIBRARY)
 	endif()
 endif()
@@ -511,13 +517,8 @@ if(NOT ARX_HAVE_SDL AND (NOT WITH_SDL OR WITH_SDL EQUAL 2))
 	else()
 		set(SDL_OPTIONAL_DEPENDENCY ${OPTIONAL_DEPENDENCY})
 	endif()
-  # On NACL, we need SDL2main so that some initializations are done correctly
-  if (NACL)
-    set(SDL2_BUILDING_LIBRARY 0) 
-  else()
-    set(SDL2_BUILDING_LIBRARY 1)
-  endif()
-	find_package(SDL2 ${OPTIONAL_DEPENDENCY})
+	set(SDL2_BUILDING_LIBRARY 1) # we don't need SDL2main!
+	find_package(SDL2 ${SDL_OPTIONAL_DEPENDENCY})
 	if(SDL2_FOUND)
 		if(NOT MSVC)
 			check_link_library(SDL2 SDL2_LIBRARIES)
@@ -527,8 +528,8 @@ if(NOT ARX_HAVE_SDL AND (NOT WITH_SDL OR WITH_SDL EQUAL 2))
 	endif()
 endif()
 if(NOT ARX_HAVE_SDL AND (NOT WITH_SDL OR WITH_SDL EQUAL 1))
-	if(NOT MACOSX)
-		# Required to avoid linking with SDLmain except for OS X where it is necessary
+	if(NOT MACOS)
+		# Required to avoid linking with SDLmain except for macOS where it is necessary
 		# due to the need to have NSApplication correctly setup by SDLmain.
 		set(SDL_BUILDING_LIBRARY 1)
 	endif()
@@ -548,6 +549,17 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 add_definitions(-DBOOST_ALL_NO_LIB)
 # We compile with -fno-rtti and boost is not able to detect that for all compilers.
 add_definitions(-DBOOST_NO_RTTI -DBOOST_NO_TYPEID)
+# Boost 1.62 has a bug in the type_index library:
+# BOOST_TYPE_INDEX_REGISTER_CTTI_PARSING_PARAMS are wrong for 32-bit GCC builds in C++14 mode
+# This leads to a static assert when (indirectly) including <boost/type_index/ctti_type_index.hpp>
+#   /usr/include/boost/type_index/detail/compile_time_type_info.hpp:78:9: error: static assertion failed: TypeIndex library is misconfigured for your compiler. Please define BOOST_TYPE_INDEX_CTTI_USER_DEFINED_PARSING to correct values. See section 'RTTI emulation limitations' of the documentation for more information.
+# Fixed in Boost type_index commit b669f0244e4b0bf146f18e9293e6e87842f4bbe0
+if(NOT Boost_VERSION VERSION_LESS 106200 AND Boost_VERSION VERSION_LESS 106300)
+	if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+		message("Applying workaround for Boost.TypeIndex bug")
+		add_definitions("-DBOOST_NO_CXX14_CONSTEXPR")
+	endif()
+endif()
 
 find_package(GLM 0.9.5.0 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIRS})
@@ -626,6 +638,9 @@ if(MSVC)
 	set(ARX_HAVE_ALIGNED_MALLOC 1)
 	set(ARX_HAVE_ALIGNED_FREE 1)
 	
+	set(ARX_HAVE_XMMINTRIN 1)
+	set(ARX_HAVE_PMMINTRIN 1)
+
 else(MSVC)
 	
 	if(USE_STATIC_LIBS AND NOT NACL) # NACL do not support these options. With newlib, everything is static by default
@@ -642,16 +657,24 @@ else(MSVC)
 	add_cxxflag("-fvisibility-inlines-hidden")
 	
 	# Define _POSIX_C_SOURCE and _XOPEN_SOURCE for GNU systems
-	if(CMAKE_SYSTEM_NAME MATCHES "Linux" OR CMAKE_SYSTEM_NAME MATCHES "GNU"
-	   OR CMAKE_SYSTEM_NAME MATCHES "kFreeBSD")
-		set(CMAKE_REQUIRED_DEFINITIONS "-D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600")
-		add_definitions(-D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600)
-		if(CMAKE_SYSTEM_NAME MATCHES "kFreeBSD")
-			set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_BSD_SOURCE")
-			add_definitions(-D_BSD_SOURCE)
-		endif()
+	check_symbol_exists(__GLIBC__ "features.h" HAVE_GLIBC)
+	set(libc_features)
+	if(HAVE_GLIBC)
+		list(APPEND libc_features
+			-D_ISOC11_SOURCE
+			-D_POSIX_C_SOURCE=200809L
+			-D_XOPEN_SOURCE=600
+			-D_BSD_SOURCE # Required for dirfd with glibc <= 2.19
+			-D_DEFAULT_SOURCE # Required not to warn on _BSD_SOURCE with glibc >= 2.20
+			-D_ATFILE_SOURCE # Required for fstatat with glibc <= 2.9
+		)
 	endif()
-	
+	if(USE_NATIVE_FS AND NOT WIN32)
+		list(APPEND libc_features -D_FILE_OFFSET_BITS=64)
+	endif()
+	string(REPLACE ";" " " CMAKE_REQUIRED_DEFINITIONS "${libc_features}")
+	add_definitions(${libc_features})
+
 	# Check compiler builtins & language extensions
 	# These are a symbols, so we can't use check_symbol_exists
 	if(NOT ARX_HAVE_CXX11_ALIGNAS)
@@ -687,14 +710,22 @@ else(MSVC)
 	
 	check_symbol_exists(uname "sys/utsname.h" ARX_HAVE_UNAME)
 	check_symbol_exists(getrusage "sys/resource.h" ARX_HAVE_GETRUSAGE)
-	
-	check_symbol_exists(popen "stdio.h" ARX_HAVE_POPEN)
-	check_symbol_exists(pclose "stdio.h" ARX_HAVE_PCLOSE)
-	
+
 	check_symbol_exists(getexecname "stdlib.h" ARX_HAVE_GETEXECNAME)
 	check_symbol_exists(setenv "stdlib.h" ARX_HAVE_SETENV)
 	check_symbol_exists(unsetenv "stdlib.h" ARX_HAVE_UNSETENV)
 	
+	check_symbol_exists(__get_cpuid "cpuid.h" ARX_HAVE_GET_CPUID)
+	if(ARX_HAVE_GET_CPUID)
+		check_symbol_exists(__get_cpuid_max "cpuid.h" ARX_HAVE_GET_CPUID_MAX)
+	endif()
+
+	# CMake has trouble detecting _MM_SET_FLUSH_ZERO_MODE with GCC, check for the includes instead
+	check_include_files("xmmintrin.h" ARX_HAVE_XMMINTRIN)
+	check_include_files("pmmintrin.h" ARX_HAVE_PMMINTRIN)
+	# _fxsave is unreliable with GCC, use the builtin directly
+	check_builtin(ARX_HAVE_BUILTIN_IA32_FXSAVE "__builtin_ia32_fxsave")
+
 	find_library(LIBRT_LIBRARY rt)
 	
 	if(LIBRT_LIBRARY)
@@ -755,39 +786,90 @@ else(MSVC)
 	
 	check_symbol_exists(setrlimit "sys/resource.h" ARX_HAVE_SETRLIMIT)
 	
-	check_symbol_exists(sysctl "sys/sysctl.h" ARX_HAVE_SYSCTL)
-	check_symbol_exists(sysctlbyname "sys/sysctl.h" ARX_HAVE_SYSCTLBYNAME)
+	if(CMAKE_SYSTEM_NAME MATCHES "BSD")
+		check_symbol_exists(sysctl "sys/types.h;sys/sysctl.h" ARX_HAVE_SYSCTL)
+		check_symbol_exists(sysctlbyname "sys/types.h;sys/sysctl.h" ARX_HAVE_SYSCTLBYNAME)
+	endif()
+
+	if(CMAKE_CXX_COMPILER_ID STREQUAL "PathScale")
+		# EKOPath recognizes these but then fails to link
+	else()
+		check_builtin(INNOEXTRACT_HAVE_BUILTIN_BSWAP16 "__builtin_bswap16(0)")
+		check_builtin(INNOEXTRACT_HAVE_BUILTIN_BSWAP32 "__builtin_bswap32(0)")
+		check_builtin(INNOEXTRACT_HAVE_BUILTIN_BSWAP64 "__builtin_bswap64(0)")
+	endif()
+	if(NOT INNOEXTRACT_HAVE_BUILTIN_BSWAP16)
+		check_symbol_exists(bswap_16 "byteswap.h" INNOEXTRACT_HAVE_BSWAP_16)
+	endif()
+	if(NOT INNOEXTRACT_HAVE_BUILTIN_BSWAP32)
+		check_symbol_exists(bswap_32 "byteswap.h" INNOEXTRACT_HAVE_BSWAP_32)
+	endif()
+	if(NOT INNOEXTRACT_HAVE_BUILTIN_BSWAP64)
+		check_symbol_exists(bswap_64 "byteswap.h" INNOEXTRACT_HAVE_BSWAP_64)
+	endif()
 	
-	if(USE_NATIVE_FS)
+	if(USE_NATIVE_FS AND NOT WIN32)
+
+		# Whether multiple cuncurrent readdir calls with *different* directory streams are threadsafe
+		set(READDIR_IS_THREADSAFE 0)
+		if(HAVE_GLIBC)
+			# TODO Find a more portable check for this - from the glibc documentation:
+			# POSIX-1.2008 does not guarantee that readdir is thread-safe, even when access to the same
+			# dirstream is serialized. But in current implementations (including the GNU C Library),
+			# it is safe to call readdir concurrently on different dirstreams, so there is no need to
+			# use readdir_r in most multi-threaded programs.
+			# It is expected that future versions of POSIX will obsolete readdir_r and mandate the level
+			# of thread safety for readdir which is provided by the GNU C Library and other
+			# implementations today.
+			set(READDIR_IS_THREADSAFE 1)
+		endif()
 		
 		check_include_file("sys/stat.h" ARX_HAVE_SYS_STAT_H)
 		check_include_file("sys/errno.h" ARX_HAVE_SYS_ERRNO_H)
 		check_include_file("dirent.h" ARX_HAVE_DIRENT_H)
-		
-		check_symbol_exists(readdir_r "dirent.h" ARX_HAVE_READDIR_R)
-		
-		check_symbol_exists(getcwd "unistd.h" ARX_HAVE_GETCWD)
-		check_symbol_exists(fpathconf "unistd.h" ARX_HAVE_FPATHCONF)
-		check_symbol_exists(pathconf "unistd.h" ARX_HAVE_PATHCONF)
-		check_symbol_exists(_PC_NAME_MAX "unistd.h" ARX_HAVE_PC_NAME_MAX)
-		check_symbol_exists(_PC_CASE_SENSITIVE "unistd.h" ARX_HAVE_PC_CASE_SENSITIVE)
-		
+
 		check_symbol_exists(dirfd "dirent.h" ARX_HAVE_DIRFD)
-		
-		check_symbol_exists(fstatat "sys/stat.h" ARX_HAVE_FSTATAT)
-		
-		check_symbol_exists(NAME_MAX "dirent.h" ARX_HAVE_NAME_MAX)
-		
+		if(ARX_HAVE_DIRFD)
+			check_symbol_exists(fstatat "sys/stat.h" ARX_HAVE_FSTATAT)
+		endif()
+
+		# readdir_r is complicated to use and is deprecated in glibc 2.24
+		# Prefer readdir if it is know to be threadsafe
+		if(READDIR_IS_THREADSAFE)
+			check_symbol_exists(readdir "dirent.h" ARX_HAVE_THREADSAFE_READDIR)
+		endif()
+		if(NOT ARX_HAVE_THREADSAFE_READDIR)
+			check_symbol_exists(readdir_r "dirent.h" ARX_HAVE_READDIR_R)
+			check_symbol_exists(_PC_NAME_MAX "unistd.h" ARX_HAVE_PC_NAME_MAX)
+			check_symbol_exists(NAME_MAX "dirent.h" ARX_HAVE_NAME_MAX)
+			if(ARX_HAVE_DIRFD AND ARX_HAVE_PC_NAME_MAX)
+				check_symbol_exists(fpathconf "unistd.h" ARX_HAVE_FPATHCONF)
+			endif()
+		endif()
+
+		check_symbol_exists(_PC_CASE_SENSITIVE "unistd.h" ARX_HAVE_PC_CASE_SENSITIVE)
+		if(ARX_HAVE_PC_NAME_MAX OR ARX_HAVE_PC_CASE_SENSITIVE)
+			check_symbol_exists(pathconf "unistd.h" ARX_HAVE_PATHCONF)
+		endif()
+
+		check_symbol_exists(getcwd "unistd.h" ARX_HAVE_GETCWD)
+
 		if(ARX_HAVE_SYS_STAT_H AND ARX_HAVE_SYS_ERRNO_H AND ARX_HAVE_DIRENT_H
-		   AND ARX_HAVE_READDIR_R AND ARX_HAVE_GETCWD
-			 AND ((((ARX_HAVE_DIRFD AND ARX_HAVE_FPATHCONF) OR ARX_HAVE_PATHCONF)
-			       AND ARX_HAVE_PC_NAME_MAX) OR ARX_HAVE_NAME_MAX OR NACL)) # NACL have a POSIX filesystem, we just have to do a small hack
+		   AND ARX_HAVE_GETCWD
+		   AND (ARX_HAVE_THREADSAFE_READDIR
+		        OR (ARX_HAVE_READDIR_R
+		            AND (ARX_HAVE_PC_NAME_MAX
+		                   AND ((ARX_HAVE_DIRFD AND ARX_HAVE_FPATHCONF) OR ARX_HAVE_PATHCONF)
+			               OR ARX_HAVE_NAME_MAX OR NACL)
+		           )
+		       )
+		  )
 			set(ARX_HAVE_POSIX_FILESYSTEM 1)
 		elseif(STRICT_USE)
 			message(FATAL_ERROR "Missing dependencies for native filesystem backend.")
 		endif()
 		
-	endif(USE_NATIVE_FS)
+	endif()
 	
 endif(MSVC)
 
@@ -850,7 +932,6 @@ set(CORE_SOURCES
 	src/core/Localisation.cpp
 	src/core/SaveGame.cpp
 	src/core/Startup.cpp
-	src/util/cmdline/Parser.cpp # TODO: move to UTIL_SOURCES once it's used in the tools
 )
 
 set(GAME_SOURCES
@@ -868,6 +949,7 @@ set(GAME_SOURCES
 	src/game/Player.cpp
 	src/game/Spells.cpp
 	src/game/effect/Quake.cpp
+	src/game/effect/ParticleSystems.cpp
 	src/game/magic/Precast.cpp
 	src/game/magic/Rune.cpp
 	src/game/magic/RuneDraw.cpp
@@ -895,15 +977,15 @@ set(GRAPHICS_SOURCES
 	src/graphics/DrawDebug.cpp
 	src/graphics/GraphicsModes.cpp
 	src/graphics/Math.cpp
+	src/graphics/Raycast.cpp
 	src/graphics/Renderer.cpp
 	src/graphics/RenderBatcher.cpp
 	src/graphics/data/FTL.cpp
 	src/graphics/data/Mesh.cpp
 	src/graphics/data/MeshManipulation.cpp
-	src/graphics/data/BackgroundEdit.cpp
-	src/graphics/data/Progressive.cpp
 	src/graphics/data/TextureContainer.cpp
-	src/graphics/effects/DrawEffects.cpp
+	src/graphics/effects/BlobShadow.cpp
+	src/graphics/effects/Cabal.cpp
 	src/graphics/effects/Fade.cpp
 	src/graphics/effects/Field.cpp
 	src/graphics/effects/Fissure.cpp
@@ -911,8 +993,10 @@ set(GRAPHICS_SOURCES
 	src/graphics/effects/Fog.cpp
 	src/graphics/effects/SpellEffects.cpp
 	src/graphics/effects/Halo.cpp
+	src/graphics/effects/LightFlare.cpp
 	src/graphics/effects/Lightning.cpp
 	src/graphics/effects/MagicMissile.cpp
+	src/graphics/effects/PolyBoom.cpp
 	src/graphics/effects/RotatingCone.cpp
 	src/graphics/effects/Trail.cpp
 	src/graphics/font/Font.cpp
@@ -926,6 +1010,7 @@ set(GRAPHICS_SOURCES
 	src/graphics/particle/ParticleManager.cpp
 	src/graphics/particle/ParticleSystem.cpp
 	src/graphics/particle/MagicFlare.cpp
+	src/graphics/particle/Spark.cpp
 	src/graphics/spells/Spells05.cpp
 	src/graphics/texture/PackedTexture.cpp
 	src/graphics/texture/Texture.cpp
@@ -942,6 +1027,7 @@ set(GRAPHICS_OPENGL_SOURCES
 
 set(GUI_SOURCES
 	src/gui/CinematicBorder.cpp
+	src/gui/Console.cpp
 	src/gui/Credits.cpp
 	src/gui/Cursor.cpp
 	src/gui/DebugHud.cpp
@@ -975,16 +1061,17 @@ set(GUI_SOURCES
 	src/gui/widget/WidgetContainer.cpp
 )
 
-set(INPUT_SOURCES src/input/Input.cpp)
+set(INPUT_SOURCES
+	src/input/Input.cpp
+	src/input/TextInput.cpp
+)
 set(INPUT_SDL1_SOURCES src/input/SDL1InputBackend.cpp)
 set(INPUT_SDL2_SOURCES src/input/SDL2InputBackend.cpp)
 
 set(IO_SOURCES
-	src/io/Implode.cpp
 	src/io/IniReader.cpp
 	src/io/IniSection.cpp
 	src/io/IniWriter.cpp
-	src/io/IO.cpp
 	src/io/SaveBlock.cpp
 	src/io/Screenshot.cpp
 )
@@ -1024,7 +1111,6 @@ set(PHYSICS_SOURCES
 	src/physics/Anchors.cpp
 	src/physics/Attractors.cpp
 	src/physics/Box.cpp
-	src/physics/Clothes.cpp
 	src/physics/Collisions.cpp
 	src/physics/CollisionShapes.cpp
 	src/physics/Projectile.cpp
@@ -1055,13 +1141,16 @@ set(PLATFORM_EXTRA_SOURCES
 	src/platform/Dialog.cpp
 	src/platform/Thread.cpp
 )
-if(MACOSX)
+if(MACOS)
 	list(APPEND PLATFORM_EXTRA_SOURCES src/platform/Dialog.mm)
 endif()
 
 # Crash handler sources
 set(PLATFORM_CRASHHANDLER_SOURCES src/platform/CrashHandler.cpp)
-set(PLATFORM_CRASHHANDLER_IMPL_SOURCES src/platform/crashhandler/CrashHandlerImpl.cpp)
+set(PLATFORM_CRASHHANDLER_IMPL_SOURCES
+	src/platform/crashhandler/CrashHandlerImpl.cpp
+	src/platform/crashhandler/CrashProcessorImpl.cpp
+)
 set(PLATFORM_CRASHHANDLER_POSIX_SOURCES
 	src/platform/crashhandler/CrashHandlerPOSIX.cpp
 	src/platform/crashhandler/CrashProcessorPOSIX.cpp
@@ -1108,17 +1197,29 @@ set(UTIL_SOURCES
 	src/util/String.cpp
 )
 
+set(UTIL_CMDLINE_SOURCES
+	src/util/cmdline/Parser.cpp
+	src/util/cmdline/CommandLine.cpp
+)
+
+set(UTIL_MD5_SOURCES
+	src/util/MD5.cpp
+)
+
 set(WINDOW_SOURCES
 	src/window/RenderWindow.cpp
 	src/window/Window.cpp
 )
 set(WINDOW_SDL1_SOURCES src/window/SDL1Window.cpp)
 set(WINDOW_SDL2_SOURCES src/window/SDL2Window.cpp)
+if(NOT WIN32 AND NOT MACOS)
+	list(APPEND WINDOW_SDL2_SOURCES src/window/SDL2X11Util.c)
+endif()
 
 # TODO manually specify theese like we do for the tools
-file(GLOB_RECURSE ALL_INCLUDES RELATIVE ${CMAKE_SOURCE_DIR} ${SRC_DIR}/*.h)
+file(GLOB_RECURSE ALL_INCLUDES RELATIVE ${PROJECT_SOURCE_DIR} ${SRC_DIR}/*.h)
 
-include_directories(${SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR}/tools)
+include_directories(${SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/tools)
 
 
 # Check for optional / alternative subsystem implementations
@@ -1132,9 +1233,11 @@ if(USE_OPENAL AND OPENAL_FOUND)
 	if(OPENALEFX_FOUND)
 		include_directories(SYSTEM ${OPENAL_EFX_INCLUDE_DIR})
 		set(ARX_HAVE_OPENAL_EFX 1)
-	else()
-		set(ARX_HAVE_OPENAL_NOEFX 1)
 	endif()
+	set(old_CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
+	set(CMAKE_REQUIRED_INCLUDES ${OPENAL_INCLUDE_DIR})
+	check_symbol_exists(ALC_SOFT_HRTF "alext.h" ARX_HAVE_OPENAL_HRTF)
+	set(CMAKE_REQUIRED_INCLUDES ${old_CMAKE_REQUIRED_INCLUDES})
 endif()
 
 # Graphics
@@ -1240,7 +1343,7 @@ endif()
 
 # PPAPI libraries are required on NACL
 if (NACL)
-  list(APPEND BASE_LIBRARIES ${PPAPI_SIMPLE_LIBRARY})  
+  list(APPEND BASE_LIBRARIES ${PPAPI_SIMPLE_LIBRARY})
   list(APPEND BASE_LIBRARIES ${NACL_IO_LIBRARY})
   list(APPEND BASE_LIBRARIES ${PPAPI_GLES2_LIBRARY})
   list(APPEND BASE_LIBRARIES ${PPAPI_CPP_LIBRARY})
@@ -1281,6 +1384,7 @@ set(ARX_SOURCES
 	${SCENE_SOURCES}
 	${SCRIPT_SOURCES}
 	${UTIL_SOURCES}
+	${UTIL_CMDLINE_SOURCES}
 	${WINDOW_SOURCES}
 )
 
@@ -1307,35 +1411,48 @@ configure_file("${SRC_DIR}/Configure.h.in" "Configure.h" ESCAPE_QUOTES)
 configure_file("${SRC_DIR}/io/fs/PathConstants.h.in" "io/fs/PathConstants.h"
                ESCAPE_QUOTES)
 
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/platform")
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/platform")
 set(PLATFORM_CONFIG_H "platform/PlatformConfig.h")
 configure_file("${SRC_DIR}/${PLATFORM_CONFIG_H}.in" "${PLATFORM_CONFIG_H}" ESCAPE_QUOTES)
 
 set(VERSION_TEMPLATE "${SRC_DIR}/core/Version.cpp.in")
-set(VERSION_FILE     "${CMAKE_BINARY_DIR}/core/Version.cpp")
+set(VERSION_FILE     "${PROJECT_BINARY_DIR}/core/Version.cpp")
 set(VERSION_SOURCES  VERSION "VERSION" AUTHORS "AUTHORS" COPYING "COPYING")
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/core")
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/core")
 version_file("${VERSION_TEMPLATE}" "${VERSION_FILE}" "${VERSION_SOURCES}" ".git")
 list(APPEND ARX_SOURCES ${VERSION_FILE})
+list(APPEND UTIL_CMDLINE_SOURCES ${VERSION_FILE})
 
 if(WIN32)
 	set(VERSION_RC_TEMPLATE "${SRC_DIR}/core/Version.rc.in")
 	function(create_version_resource exe name)
-		set(rc_file "${CMAKE_BINARY_DIR}/${exe}-version.rc")
+		set(rc_file "${PROJECT_BINARY_DIR}/${exe}-version.rc")
 		set(rc_sources VERSION "VERSION" COPYING "COPYING")
 		if(ARGC GREATER 2)
 			list(APPEND rc_sources ${ARGV2} "${ARGV2}")
 		endif()
-		set(rc_defines
-			"-DEXE=${exe}"
-			"-DNAME=${name}"
-		)
+		set(rc_defines "-DEXE=${exe}" "-DNAME=${name}")
 		set(${exe}-version.rc "${rc_file}" PARENT_SCOPE)
 		version_file("${VERSION_RC_TEMPLATE}"
 		             "${rc_file}" "${rc_sources}" ".git" "${rc_defines}")
 	endfunction()
+	set(APPLICATION_MANIFEST_TEMPLATE "${SRC_DIR}/core/Version.manifest.in")
+	function(create_application_manifest exe)
+		set(manifest_file "${PROJECT_BINARY_DIR}/${exe}.manifest")
+		set(manifest_sources VERSION "VERSION")
+		set(manifest_defines "-DEXE=${exe}")
+		if(ARGC GREATER 1 AND ARGV1 STREQUAL "dpiaware")
+			list(APPEND manifest_defines "-DDPIAWARE=true")
+		else()
+			list(APPEND manifest_defines "-DDPIAWARE=false")
+		endif()
+		version_file("${APPLICATION_MANIFEST_TEMPLATE}"
+		             "${manifest_file}" "${manifest_sources}" ".git" "${manifest_defines}")
+		set(${exe}.manifest "${manifest_file}" PARENT_SCOPE)
+	endfunction()
 	create_version_resource(arx "${VERSION_NAME}")
-	list(APPEND ARX_SOURCES ${arx-version.rc})
+	create_application_manifest(arx dpiaware)
+	list(APPEND ARX_SOURCES ${arx-version.rc} ${arx.manifest})
 endif()
 
 
@@ -1344,6 +1461,12 @@ endif()
 add_executable_shared(arx "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
 set_binary_type(arx WIN32)
 set_binary_installdir(arx "${GAMESBINDIR}")
+
+if(Qt_VERSION VERSION_LESS 5.6)
+	set(qt_dpiaware)
+else()
+	set(qt_dpiaware dpiaware)
+endif()
 
 if(ARX_HAVE_CRASHREPORTER)
 	
@@ -1383,7 +1506,8 @@ if(ARX_HAVE_CRASHREPORTER)
 	if(WIN32)
 		list(APPEND arxcrashreporter_SOURCES ${arx-libertatis-icon.rc})
 		create_version_resource(arxcrashreporter "${VERSION_NAME} Crash Reporter")
-		list(APPEND arxcrashreporter_SOURCES ${arxcrashreporter-version.rc})
+		create_application_manifest(arxcrashreporter ${qt_dpiaware})
+		list(APPEND arxcrashreporter_SOURCES ${arxcrashreporter-version.rc} ${arxcrashreporter.manifest})
 	endif()
 	
 	set(arxcrashreporter_MANUAL_SOURCES
@@ -1405,18 +1529,18 @@ if(ARX_HAVE_CRASHREPORTER)
 		tools/crashreporter/qhexedit/QHexEditPrivate.h
 	)
 	
-	file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tools/crashreporter/resources")
+	file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/tools/crashreporter/resources")
 	if(HAVE_QT4 AND "${arx-libertatis-logo-58.png}" STREQUAL "")
 		# Create a dummy file to prevent a RCC warning
-		set(arx-libertatis-logo-58.png "${CMAKE_BINARY_DIR}/arx-libertatis-logo-58.png")
+		set(arx-libertatis-logo-58.png "${PROJECT_BINARY_DIR}/arx-libertatis-logo-58.png")
 		file(WRITE ${arx-libertatis-logo-58.png} "")
 	endif()
 	configure_file(
 		tools/crashreporter/resources/CrashReporter.qrc.in
-		${CMAKE_BINARY_DIR}/tools/crashreporter/resources/CrashReporter.qrc
+		${PROJECT_BINARY_DIR}/tools/crashreporter/resources/CrashReporter.qrc
 	)
 	qt_add_resources(arxcrashreporter_Qt_SOURCES
-		${CMAKE_BINARY_DIR}/tools/crashreporter/resources/CrashReporter.qrc
+		${PROJECT_BINARY_DIR}/tools/crashreporter/resources/CrashReporter.qrc
 	)
 	
 	list(APPEND arxcrashreporter_SOURCES ${arxcrashreporter_Qt_SOURCES})
@@ -1485,7 +1609,8 @@ if(ARX_HAVE_PROFILER)
 	if(WIN32)
 		list(APPEND arxprofiler_SOURCES ${arx-libertatis-icon.rc})
 		create_version_resource(arxprofiler "${VERSION_NAME} Profiler")
-		list(APPEND arxprofiler_SOURCES ${arxprofiler-version.rc})
+		create_application_manifest(arxprofiler ${qt_dpiaware})
+		list(APPEND arxprofiler_SOURCES ${arxprofiler-version.rc} ${arxprofiler.manifest})
 	endif()
 	
 	set(arxprofiler_MANUAL_SOURCES
@@ -1550,6 +1675,7 @@ if(BUILD_TOOLS)
 		${IO_LOGGER_SOURCES}
 		${IO_RESOURCE_SOURCES}
 		${UTIL_SOURCES}
+		${UTIL_CMDLINE_SOURCES}
 		src/core/Localisation.cpp
 		src/io/SaveBlock.cpp
 		src/io/IniReader.cpp
@@ -1564,7 +1690,8 @@ if(BUILD_TOOLS)
 	
 	if(WIN32)
 		create_version_resource(arxsavetool "${VERSION_NAME} Save File Tool")
-		list(APPEND arxsavetool_SOURCES ${arxsavetool-version.rc})
+		create_application_manifest(arxsavetool)
+		list(APPEND arxsavetool_SOURCES ${arxsavetool-version.rc} ${arxsavetool.manifest})
 	endif()
 	
 	set(arxsavetool_LIBRARIES ${BASE_LIBRARIES} ${ZLIB_LIBRARIES})
@@ -1578,12 +1705,15 @@ if(BUILD_TOOLS)
 		${IO_LOGGER_SOURCES}
 		${IO_RESOURCE_SOURCES}
 		${UTIL_SOURCES}
+		${UTIL_CMDLINE_SOURCES}
+		${UTIL_MD5_SOURCES}
 		tools/unpak/UnPak.cpp
 	)
 	
 	if(WIN32)
 		create_version_resource(arxunpak "${VERSION_NAME} PAK File Unpacker")
-		list(APPEND arxunpak_SOURCES ${arxunpak-version.rc})
+		create_application_manifest(arxunpak)
+		list(APPEND arxunpak_SOURCES ${arxunpak-version.rc} ${arxunpak.manifest})
 	endif()
 	
 	set(arxunpak_LIBRARIES ${BASE_LIBRARIES})
@@ -1634,12 +1764,12 @@ endif()
 # Custom make targets
 
 if(DOXYGEN_EXECUTABLE)
-	set(DOXYGEN_OUTPUT_DIR "${CMAKE_BINARY_DIR}/doc")
+	set(DOXYGEN_OUTPUT_DIR "${PROJECT_BINARY_DIR}/doc")
 	configure_file("scripts/Doxyfile" "Doxyfile" ESCAPE_QUOTES)
 	add_custom_target(doc
 		#build the documentation
 		COMMAND "${CMAKE_COMMAND}" -E make_directory "${DOXYGEN_OUTPUT_DIR}"
-		COMMAND "${CMAKE_COMMAND}" -E chdir ${CMAKE_SOURCE_DIR}
+		COMMAND "${CMAKE_COMMAND}" -E chdir ${PROJECT_SOURCE_DIR}
 			${DOXYGEN_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
 		COMMENT "Building doxygen documentation."
 		VERBATIM
@@ -1659,7 +1789,7 @@ set(STYLE_CHECKED_SOURCES
 add_style_check_target(style "${STYLE_CHECKED_SOURCES}" ARX)
 
 if(BUILD_TESTS)
-	add_subdirectory(tests ${CMAKE_SOURCE_DIR}/bin/tests)
+	add_subdirectory(tests "${PROJECT_BINARY_DIR}/test")
 endif()
 
 
@@ -1671,7 +1801,7 @@ else()
 install(DIRECTORY data/core/ DESTINATION "${INSTALL_DATADIR}")
 # Also tell arx where to find the not yet installed data
 # This is required to run arx from the build directory without installing
-set(arx_core_dir "${CMAKE_SOURCE_DIR}/data/core")
+set(arx_core_dir "${PROJECT_SOURCE_DIR}/data/core")
 get_filename_component(arx_core_dir "${arx_core_dir}" ABSOLUTE)
 file(TO_NATIVE_PATH "${arx_core_dir}" arx_core_dir)
 if(CMAKE_VERSION VERSION_LESS 2.8.12)
@@ -1691,7 +1821,7 @@ if(INSTALL_SCRIPTS AND NOT WIN32)
 endif()
 
 # Install icon and desktop entry
-if(NOT WIN32 AND NOT MACOSX AND NOT NACL AND NOT EMSCRIPTEN)
+if(NOT WIN32 AND NOT MACOS  AND NOT NACL AND NOT EMSCRIPTEN)
 	
 	find_program(DESKTOP_FILE_VALIDATE desktop-file-validate)
 	
@@ -1749,9 +1879,9 @@ print_configuration("Filesystem backend" FIRST
 print_configuration("Renderer"
 	ARX_HAVE_OPENGL "OpenGL"
 )
-print_configuration("Audio backend"
-	ARX_HAVE_OPENAL_NOEFX "OpenAL without EFX"
-	ARX_HAVE_OPENAL_EFX   "OpenAL with EFX"
+print_configuration("Audio features"
+	ARX_HAVE_OPENAL_EFX  "EFX"
+	ARX_HAVE_OPENAL_HRTF "HRTF"
 )
 print_configuration("Windowing"
 	ARX_HAVE_SDL2 "SDL 2"

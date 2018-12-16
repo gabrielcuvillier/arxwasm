@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -35,6 +35,11 @@
 #include <QFileInfoList>
 #include <QThread>
 #include <QByteArray>
+
+#include <QtGlobal>
+#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
+#include <QWindow>
+#endif
 
 // Boost
 #include <boost/date_time/posix_time/posix_time_types.hpp>
@@ -78,6 +83,18 @@ bool ErrorReport::Initialize() {
 		
 		// Our SharedCrashInfo will be stored in this shared memory.
 		m_pCrashInfo = (CrashInfo*)m_MemoryMappedRegion.get_address();
+		
+		#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
+		if(m_pCrashInfo->window) {
+			QWindow * window = QWindow::fromWinId(m_pCrashInfo->window);
+			if(window) {
+				window->showMinimized();
+				window->hide();
+				window->setMouseGrabEnabled(true);
+				window->setMouseGrabEnabled(false);
+			}
+		}
+		#endif
 		
 	} catch(...) {
 		m_pCrashInfo = NULL;
@@ -213,8 +230,8 @@ bool ErrorReport::SendReport(ErrorReport::IProgressNotifier* pProgressNotifier)
 		int os_id = TBG::Server::OS_Windows;
 #elif ARX_PLATFORM == ARX_PLATFORM_LINUX
 		int os_id = TBG::Server::OS_Linux;
-#elif ARX_PLATFORM == ARX_PLATFORM_MACOSX
-		int os_id = TBG::Server::OS_MacOSX;
+#elif ARX_PLATFORM == ARX_PLATFORM_MACOS
+		int os_id = TBG::Server::OS_macOS;
 #elif ARX_PLATFORM == ARX_PLATFORM_BSD
 		#if defined(__FreeBSD__)
 		int os_id = TBG::Server::OS_FreeBSD;

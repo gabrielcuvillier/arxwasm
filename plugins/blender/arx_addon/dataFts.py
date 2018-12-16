@@ -1,4 +1,4 @@
-# Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+# Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
 #
 # This file is part of Arx Libertatis.
 #
@@ -175,10 +175,13 @@ class ROOM_DIST_DATA_SAVE(LittleEndianStructure):
     ]
 
 
+from collections import namedtuple
+
+FtsData = namedtuple('FtsData', ['sceneOffset', 'textures', 'cells', 'anchors', 'portals'])
+
 import logging
 
 from ctypes import sizeof
-from .dataFts import *
 from .lib import ArxIO
 
 class FtsSerializer(object):
@@ -186,23 +189,22 @@ class FtsSerializer(object):
         self.log = logging.getLogger('FtsSerializer')
         self.ioLib = ioLib
 
-    def read_fts(self, data):
-        result = {}
-        
+    def read_fts(self, data) -> FtsData:
+        """If you want to read a fts file use read_fts_container"""
+
         pos = 0
         ftsHeader = FAST_SCENE_HEADER.from_buffer_copy(data, pos)
         pos += sizeof(FAST_SCENE_HEADER)
-        self.log.info("Fts Header version: %f" % ftsHeader.version)
-        self.log.info("Fts Header size x,z: %i,%i" % (ftsHeader.sizex, ftsHeader.sizez))
-        self.log.info("Fts Header playerpos: %f,%f,%f" % (ftsHeader.playerpos.x, ftsHeader.playerpos.y, ftsHeader.playerpos.z))
-        self.log.info("Fts Header Mscenepos: %f,%f,%f" % (ftsHeader.Mscenepos.x, ftsHeader.Mscenepos.y, ftsHeader.Mscenepos.z))
-        result["sceneOffset"] = (ftsHeader.Mscenepos.x, ftsHeader.Mscenepos.y, ftsHeader.Mscenepos.z)
-        
+        self.log.debug("Fts Header version: %f" % ftsHeader.version)
+        self.log.debug("Fts Header size x,z: %i,%i" % (ftsHeader.sizex, ftsHeader.sizez))
+        self.log.debug("Fts Header playerpos: %f,%f,%f" % (ftsHeader.playerpos.x, ftsHeader.playerpos.y, ftsHeader.playerpos.z))
+        self.log.debug("Fts Header Mscenepos: %f,%f,%f" % (ftsHeader.Mscenepos.x, ftsHeader.Mscenepos.y, ftsHeader.Mscenepos.z))
+        sceneOffset = (ftsHeader.Mscenepos.x, ftsHeader.Mscenepos.y, ftsHeader.Mscenepos.z)
+
         texturesType = FAST_TEXTURE_CONTAINER * ftsHeader.nb_textures
         textures = texturesType.from_buffer_copy(data, pos)
         pos += sizeof(texturesType)
-        result["textures"] = textures
-        self.log.info("Loaded %i textures" % len(textures))
+        self.log.debug("Loaded %i textures" % len(textures))
 
         #for i in textures:
         #    log.info(i.fic.decode('iso-8859-1'))
@@ -232,8 +234,7 @@ class FtsSerializer(object):
                     anchors = AnchorsArrayType.from_buffer_copy(data, pos)
                     pos += sizeof(AnchorsArrayType)
                     
-        result["cells"] = cells
-
+        anchors = []
         for i in range(ftsHeader.nb_anchors):
             anchor = FAST_ANCHOR_DATA.from_buffer_copy(data, pos)
             pos += sizeof(FAST_ANCHOR_DATA)
@@ -242,26 +243,28 @@ class FtsSerializer(object):
                 LinkedAnchorsArrayType = c_int32 * anchor.nb_linked
                 linked = LinkedAnchorsArrayType.from_buffer_copy(data, pos)
                 pos += sizeof(LinkedAnchorsArrayType)
+                anchors.append( ((anchor.pos.x, anchor.pos.y, anchor.pos.z), linked) )
+            else:
+                anchors.append( ((anchor.pos.x, anchor.pos.y, anchor.pos.z), []) )
         
         portals = []
         for i in range(ftsHeader.nb_portals):
             portal = EERIE_SAVE_PORTALS.from_buffer_copy(data, pos)
             pos += sizeof(EERIE_SAVE_PORTALS)
             portals.append(portal)
-        result["portals"] = portals
-            
+
         for i in range(ftsHeader.nb_rooms + 1): # Off by one in data
             room = EERIE_SAVE_ROOM_DATA.from_buffer_copy(data, pos)
             pos += sizeof(EERIE_SAVE_ROOM_DATA)
             
             if room.nb_portals > 0:
                 PortalsArrayType = c_int32 * room.nb_portals
-                portals = PortalsArrayType.from_buffer_copy(data, pos)
+                portals2 = PortalsArrayType.from_buffer_copy(data, pos)
                 pos += sizeof(PortalsArrayType)
                 
             if room.nb_polys > 0:
                 PolysArrayType = FAST_EP_DATA * room.nb_polys
-                portals = PolysArrayType.from_buffer_copy(data, pos)
+                polys2 = PolysArrayType.from_buffer_copy(data, pos)
                 pos += sizeof(PolysArrayType)
         
         for i in range(ftsHeader.nb_rooms):
@@ -269,31 +272,38 @@ class FtsSerializer(object):
                 dist = ROOM_DIST_DATA_SAVE.from_buffer_copy(data, pos)
                 pos += sizeof(ROOM_DIST_DATA_SAVE)
                 
-        self.log.info("Loaded %i bytes of %i" % (pos, len(data)))
-        return result
+        self.log.debug("Loaded %i bytes of %i" % (pos, len(data)))
 
-    def read_fts_container(self, filepath):
+        return FtsData(
+            sceneOffset=sceneOffset,
+            textures=textures,
+            cells=cells,
+            anchors=anchors,
+            portals=portals
+        )
+
+    def read_fts_container(self, filepath) -> FtsData:
         f = open(filepath, "rb")
         data = f.read()
         f.close()
 
-        self.log.info("Loaded %i bytes from file %s" % (len(data), filepath))
+        self.log.debug("Loaded %i bytes from file %s" % (len(data), filepath))
         
         pos = 0
         
         primaryHeader = UNIQUE_HEADER.from_buffer_copy(data, pos)
         pos += sizeof(UNIQUE_HEADER)
-        self.log.info("Header path: %s" % primaryHeader.path.decode('iso-8859-1'))
-        self.log.info("Header count: %i" % primaryHeader.count)
-        self.log.info("Header version: %f" % primaryHeader.version)
-        self.log.info("Header uncompressedsize: %i" % primaryHeader.uncompressedsize)
+        self.log.debug("Header path: %s" % primaryHeader.path.decode('iso-8859-1'))
+        self.log.debug("Header count: %i" % primaryHeader.count)
+        self.log.debug("Header version: %f" % primaryHeader.version)
+        self.log.debug("Header uncompressedsize: %i" % primaryHeader.uncompressedsize)
             
         secondaryHeadersType = UNIQUE_HEADER3 * primaryHeader.count
         secondaryHeaders = secondaryHeadersType.from_buffer_copy(data, pos)
         pos += sizeof(secondaryHeadersType)
         
         for h in secondaryHeaders:
-            self.log.info("Header2 path: %s" % h.path.decode('iso-8859-1'))
+            self.log.debug("Header2 path: %s" % h.path.decode('iso-8859-1'))
         
         uncompressed = self.ioLib.unpack(data[pos:])
         

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -54,18 +54,13 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 class Entity;
 namespace res { class path; }
-struct EERIE_BACKGROUND;
+struct BackgroundData;
 
 extern Vec3f g_loddpos;
 
-#if BUILD_EDIT_LOADSAVE
-namespace fs { class path; }
-long DanaeSaveLevel(const fs::path & file);
-#endif
-
 bool DanaeLoadLevel(const res::path & file, bool loadEntities = true);
 void DanaeClearLevel(long flags = 0);
-void RestoreLastLoadedLightning(EERIE_BACKGROUND & eb);
+void RestoreLastLoadedLightning(BackgroundData & eb);
 
 extern long FAST_RELEASE;
 

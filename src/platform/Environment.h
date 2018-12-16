@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -22,6 +22,9 @@
 
 #include <string>
 #include <vector>
+#include <stddef.h>
+
+#include <boost/noncopyable.hpp>
 
 #include "platform/Platform.h"
 
@@ -76,10 +79,17 @@ bool getSystemConfiguration(const std::string & name, std::string & result);
 
 /*!
  * \brief Get the path to the current running executable
- * 
+ *
  * \return the executable path if possible or an empty string otherwise
  */
 fs::path getExecutablePath();
+
+/*!
+ * \brief Get the name the executable was invoked as
+ *
+ * \return the executable name if possible or an empty string otherwise
+ */
+std::string getCommandName();
 
 /*!
  * \brief Get the full path to a helper executable
@@ -114,6 +124,53 @@ inline bool hasStdOut() { return !isFileDescriptorDisabled(1); }
 
 //! Check if standard error is open and doesn't point to /dev/null
 inline bool hasStdErr() { return !isFileDescriptorDisabled(2); }
+
+//! Check if an environment variable is set
+bool hasEnvironmentVariable(const char * name);
+
+//! Set an environment variable, overriding any existing values
+void setEnvironmentVariable(const char * name, const char * value);
+
+//! Unset an environment variable
+void unsetEnvironmentVariable(const char * name);
+
+struct EnvironmentOverride {
+	
+	const char * name;
+	const char * value;
+	
+};
+
+/*!
+ * \brief Lock around library functions that access the environment
+ *
+ * This helper allows temporarily setting environment variables that change
+ * the behavior of library functions.
+ */
+class EnvironmentLock : private boost::noncopyable {
+	
+	EnvironmentOverride * const m_overrides;
+	const size_t m_count;
+	
+	void lock();
+	void unlock();
+	
+public:
+	
+	EnvironmentLock()
+		: m_overrides(NULL)
+		, m_count(0)
+	{ lock(); }
+	
+	template <size_t N>
+	explicit EnvironmentLock(EnvironmentOverride (&overrides)[N])
+		: m_overrides(overrides)
+		, m_count(N)
+	{ lock(); }
+	
+	~EnvironmentLock() { unlock(); }
+	
+};
 
 } // namespace platform
 

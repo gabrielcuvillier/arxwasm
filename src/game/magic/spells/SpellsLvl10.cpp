@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2014-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -36,7 +36,7 @@
 
 #include "graphics/Draw.h"
 #include "graphics/Renderer.h"
-
+#include "math/RandomVector.h"
 #include "scene/GameSound.h"
 #include "scene/Interactive.h"
 
@@ -56,33 +56,32 @@ MassLightningStrikeSpell::~MassLightningStrikeSpell() {
 	pTab.clear();
 }
 
-void MassLightningStrikeSpell::Launch()
-{
+void MassLightningStrikeSpell::Launch() {
 	spells.endByType(SPELL_MASS_LIGHTNING_STRIKE);
 	
-	m_duration = 5000; // TODO probably never read
+	m_duration = ArxDurationMs(5000); // TODO probably never read
 	m_soundEffectPlayed = false;
 	
 	float beta;
-	if(m_caster == PlayerEntityHandle) {
+	if(m_caster == EntityHandle_Player) {
 		m_pos = player.pos + Vec3f(0.f, 150.f, 0.f);
-		beta = player.angle.getPitch();
+		beta = player.angle.getYaw();
 	} else {
 		Entity * io = entities[m_caster];
 		m_pos = io->pos + Vec3f(0.f, -20.f, 0.f);
-		beta = io->angle.getPitch();
+		beta = io->angle.getYaw();
 	}
 	m_pos += angleToVectorXZ(beta) * 500.f;
 	
-	unsigned long minDuration = static_cast<unsigned long>(500 * m_level);
-	unsigned long maxDuration = 0;
+	ArxDuration minDuration = ArxDurationMs(500 * m_level);
+	ArxDuration maxDuration = ArxDuration_ZERO;
 	
 	int number = glm::clamp(int(m_level), 1, 10);
 	float ft = 360.0f / number;
 	
 	for(int i = 0; i < number; i++) {
 		Vec3f target = m_pos + angleToVectorXZ(i * ft) * 500.0f;
-		unsigned long duration = minDuration + Random::getu(0, 5000);
+		ArxDuration duration = minDuration + ArxDurationMs(Random::getu(0, 5000));
 		maxDuration = std::max(maxDuration, duration);
 		
 		CLightning * lightning = new CLightning();
@@ -93,12 +92,10 @@ void MassLightningStrikeSpell::Launch()
 		pTab.push_back(lightning);
 	}
 	
-	m_duration = maxDuration + 1000;
+	m_duration = maxDuration + ArxDurationMs(1000);
 	
-	m_light = GetFreeDynLight();
-	if(lightHandleIsValid(m_light)) {
-		EERIE_LIGHT * light = lightHandleGet(m_light);
-		
+	EERIE_LIGHT * light = dynLightCreate(m_light);
+	if(light) {
 		light->intensity = 1.8f;
 		light->fallend = 850.f;
 		light->fallstart = 500.f;
@@ -110,15 +107,13 @@ void MassLightningStrikeSpell::Launch()
 	m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_LIGHTNING_LOOP, &m_pos, 1.f, ARX_SOUND_PLAY_LOOPED);
 	
 	// Draws White Flash on Screen
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
+	UseRenderState state(render2D().blend(BlendOne, BlendOne));
 	EERIEDrawBitmap(Rectf(g_size), 0.00009f, NULL, Color::white);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, false);
 }
 
 void MassLightningStrikeSpell::End() {
 	
-	endLightDelayed(m_light, 200);
+	endLightDelayed(m_light, ArxDurationMs(200));
 	
 	ARX_SOUND_Stop(m_snd_loop);
 	ARX_SOUND_PlaySFX(SND_SPELL_LIGHTNING_END);
@@ -137,7 +132,7 @@ void MassLightningStrikeSpell::Update() {
 		lightning->m_caster = m_caster;
 		lightning->m_level = m_level;
 		
-		lightning->Update(g_framedelay);
+		lightning->Update(ArxDurationMs(g_framedelay));
 	}
 	
 	for(size_t i = 0; i < pTab.size(); i++) {
@@ -146,29 +141,28 @@ void MassLightningStrikeSpell::Update() {
 	
 	Vec3f position;
 
-	position = m_pos + randomVec(-250.f, 250.f);
+	position = m_pos + arx::randomVec(-250.f, 250.f);
 	ARX_SOUND_RefreshPosition(m_snd_loop, position);
 	ARX_SOUND_RefreshVolume(m_snd_loop, 1.f);
 	ARX_SOUND_RefreshPitch(m_snd_loop, Random::getf(0.8f, 1.2f));
 	
 	if(Random::getf() > 0.62f) {
-		position = m_pos + randomVec(-250.f, 250.f);
+		position = m_pos + arx::randomVec(-250.f, 250.f);
 		ARX_SOUND_PlaySFX(SND_SPELL_SPARK, &position, Random::getf(0.8f, 1.2f));
 	}
 	
 	if(Random::getf() > 0.82f) {
-		position = m_pos + randomVec(-250.f, 250.f);
+		position = m_pos + arx::randomVec(-250.f, 250.f);
 		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, &position, Random::getf(0.8f, 1.2f));
 	}
 	
-	if(0 > (long(m_duration) - 1800) && !m_soundEffectPlayed) {
+	if(0 > (toMs(m_duration) - 1800) && !m_soundEffectPlayed) {
 		m_soundEffectPlayed = true;
 		ARX_SOUND_PlaySFX(SND_SPELL_ELECTRIC, NULL, Random::getf(0.8f, 1.2f));
 	}
-
-	if(lightHandleIsValid(m_light)) {
-		EERIE_LIGHT * light = lightHandleGet(m_light);
-		
+	
+	EERIE_LIGHT * light = lightHandleGet(m_light);
+	if(light) {
 		light->intensity = Random::getf(1.3f, 2.3f);
 	}	
 }
@@ -242,7 +236,7 @@ void ControlTargetSpell::Launch()
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_CONTROL_TARGET);
 	
-	m_duration = 1000;
+	m_duration = ArxDurationMs(1000);
 	
 	eSrc = Vec3f_ZERO;
 	eTarget = Vec3f_ZERO;
@@ -252,7 +246,7 @@ void ControlTargetSpell::Launch()
 	
 	eSrc = player.pos;
 	
-	float fBetaRad = glm::radians(player.angle.getPitch());
+	float fBetaRad = glm::radians(player.angle.getYaw());
 	float fBetaRadCos = glm::cos(fBetaRad);
 	float fBetaRadSin = glm::sin(fBetaRad);
 	
@@ -265,16 +259,6 @@ void ControlTargetSpell::Launch()
 		if(e) {
 			eTarget = e->pos;
 		}
-	}
-	
-	Vec3f h;
-	Vec3f s = eSrc;
-	Vec3f e = eSrc;
-	int i = 0;
-	while(Visible(s, e, &h) && i < 20) {
-		e.x -= fBetaRadSin * 50;
-		e.z += fBetaRadCos * 50;
-		i++;
 	}
 	
 	pathways[0] = eSrc + Vec3f(0.f, 100.f, 0.f);
@@ -296,12 +280,6 @@ void ControlTargetSpell::End() {
 
 void ControlTargetSpell::Update() {
 	
-	GRenderer->SetCulling(CullNone);
-	GRenderer->SetRenderState(Renderer::DepthWrite, false);
-	GRenderer->SetRenderState(Renderer::AlphaBlending, true);
-	GRenderer->SetBlendFunc(BlendOne, BlendOne);
-	GRenderer->SetTexture(0, tex_mm);
-
 	// -------------------
 	fTrail += 1;
 
@@ -310,14 +288,11 @@ void ControlTargetSpell::Update() {
 	int n = BEZIERPrecision;
 	float delta = 1.0f / n;
 	
-	float elapsed = arxtime.now_f() - m_timcreation;
-	float fOneOnDuration = 1.f / m_duration;
+	float elapsed = arxtime.now_f() - toMs(m_timcreation);
+	float fOneOnDuration = 1.f / toMs(m_duration);
 	
 	fTrail = (elapsed * fOneOnDuration) * 9 * (n + 2);
 
-	Vec3f v;
-	
-	Vec3f newpos = Vec3f_ZERO;
 	Vec3f lastpos = pathways[0];
 	
 	for(int i = 0; i < 9; i++) {
@@ -333,9 +308,7 @@ void ControlTargetSpell::Update() {
 
 			float t = toto * delta;
 			
-			v = glm::catmullRom(v1, v2, v3, v4, t);
-			
-			newpos = v;
+			Vec3f newpos = arx::catmullRom(v1, v2, v3, v4, t);
 			
 			if(fTrail - (i * n + toto) <= 70) {
 				float c = 1.0f - (fTrail - (i * n + toto)) / 70.0f;
@@ -345,13 +318,13 @@ void ControlTargetSpell::Update() {
 					pd->siz = 5 * c;
 					pd->tolive = Random::getu(10, 110);
 					pd->tc = tex_mm;
-					pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
-					pd->fparam = 0.0000001f;
+					pd->m_flags = FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+					pd->m_rotation = 0.0000001f;
 					pd->rgb = Color3f::gray(c);
 				}
 			}
 			
-			std::swap(lastpos, newpos);
+			lastpos = newpos;
 			
 			PARTICLE_DEF * pd = createParticle();
 			if(pd) {
@@ -359,8 +332,8 @@ void ControlTargetSpell::Update() {
 				pd->siz = 5;
 				pd->tolive = Random::getu(10, 110);
 				pd->tc = tex_mm;
-				pd->special = FADE_IN_AND_OUT | ROTATING | MODULATE_ROTATION | DISSIPATING;
-				pd->fparam = 0.0000001f;
+				pd->m_flags = FADE_IN_AND_OUT | ROTATING | DISSIPATING;
+				pd->m_rotation = 0.0000001f;
 				pd->rgb = Color3f::gray(0.1f);
 			}
 		}
@@ -374,37 +347,36 @@ FreezeTimeSpell::FreezeTimeSpell()
 	
 }
 
-bool FreezeTimeSpell::CanLaunch()
-{
+bool FreezeTimeSpell::CanLaunch() {
 	return !spells.ExistAnyInstanceForThisCaster(m_type, m_caster);
 }
 
-void FreezeTimeSpell::Launch()
-{
+void FreezeTimeSpell::Launch() {
 	ARX_SOUND_PlaySFX(SND_SPELL_FREEZETIME);
 	
 	float max_slowdown = std::max(0.f, GLOBAL_SLOWDOWN - 0.01f);
 	m_slowdown = glm::clamp(m_level * 0.08f, 0.f, max_slowdown);
 	GLOBAL_SLOWDOWN -= m_slowdown;
 	
-	m_duration = (m_launchDuration > -1) ? m_launchDuration : 200000;
+	m_duration = (m_launchDuration > ArxDuration::ofRaw(-1)) ? m_launchDuration : ArxDurationMs(200000);
 	m_hasDuration = true;
 	m_fManaCostPerSecond = 30.f * m_slowdown;
 }
 
-void FreezeTimeSpell::End()
-{
+void FreezeTimeSpell::End() {
 	GLOBAL_SLOWDOWN += m_slowdown;
-	ARX_SOUND_PlaySFX(SND_SPELL_TELEKINESIS_END, &entities[m_caster]->pos);
+	
+	Entity * caster = entities.get(m_caster);
+	if(caster) {
+		ARX_SOUND_PlaySFX(SND_SPELL_TELEKINESIS_END, &caster->pos);
+	}
 }
 
-void MassIncinerateSpell::Launch()
-{
+void MassIncinerateSpell::Launch() {
 	ARX_SOUND_PlaySFX(SND_SPELL_MASS_INCINERATE);
 	
-	m_duration = 20000;
+	m_duration = ArxDurationMs(20000);
 	
-	long nb_targets=0;
 	for(size_t ii = 0; ii < entities.size(); ii++) {
 		const EntityHandle handle = EntityHandle(ii);
 		Entity * tio = entities[handle];
@@ -422,20 +394,19 @@ void MassIncinerateSpell::Launch()
 		}
 		
 		tio->sfx_flag |= SFX_TYPE_YLSIDE_DEATH | SFX_TYPE_INCINERATE;
-		tio->sfx_time = arxtime.now_ul();
-		nb_targets++;
+		tio->sfx_time = arxtime.now();
+		
 		m_targets.push_back(tio->index());
 	}
 	
-	if(nb_targets) {
+	if(!m_targets.empty()) {
 		m_snd_loop = ARX_SOUND_PlaySFX(SND_SPELL_INCINERATE_LOOP, &m_caster_pos, 1.f, ARX_SOUND_PLAY_LOOPED);
 	} else {
 		m_snd_loop = audio::INVALID_ID;
 	}
 }
 
-void MassIncinerateSpell::End()
-{
+void MassIncinerateSpell::End() {
 	m_targets.clear();
 	ARX_SOUND_Stop(m_snd_loop);
 	ARX_SOUND_PlaySFX(SND_SPELL_INCINERATE_END);
@@ -443,31 +414,29 @@ void MassIncinerateSpell::End()
 
 void MassIncinerateSpell::Update() {
 	
-	if(ValidIONum(m_caster)) {
-		ARX_SOUND_RefreshPosition(m_snd_loop, entities[m_caster]->pos);
-	}	
+	Entity * caster = entities.get(m_caster);
+	if(caster) {
+		ARX_SOUND_RefreshPosition(m_snd_loop, caster->pos);
+	}
 }
 
 float LASTTELEPORT = 0.0F;
 
-bool TeleportSpell::CanLaunch()
-{
+bool TeleportSpell::CanLaunch() {
 	return !spells.ExistAnyInstanceForThisCaster(m_type, m_caster);
 }
 
-void TeleportSpell::Launch()
-{
-	m_duration = 7000;
+void TeleportSpell::Launch() {
+	m_duration = ArxDurationMs(7000);
 	
 	ARX_SOUND_PlaySFX(SND_SPELL_TELEPORT, &m_caster_pos);
 	
-	if(m_caster == PlayerEntityHandle) {
+	if(m_caster == EntityHandle_Player) {
 		LASTTELEPORT = 0.f;
 	}
 }
 
-void TeleportSpell::End()
-{
+void TeleportSpell::End() {
 	ARX_SOUND_PlaySFX(SND_MAGIC_FIZZLE, &m_caster_pos);
 }
 
@@ -475,8 +444,8 @@ extern Vec3f lastteleport;
 
 void TeleportSpell::Update() {
 	
-	float elapsed = arxtime.now_f() - m_timcreation;
-	float TELEPORT = elapsed / m_duration;
+	float elapsed = arxtime.now_f() - toMs(m_timcreation);
+	float TELEPORT = elapsed / toMs(m_duration);
 	
 	if(LASTTELEPORT < 0.5f && TELEPORT >= 0.5f) {
 		Vec3f pos = lastteleport;

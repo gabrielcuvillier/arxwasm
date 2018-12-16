@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -59,7 +59,7 @@ public:
 	CLightning();
 	
 	void Create(Vec3f, Vec3f);
-	void Update(float timeDelta);
+	void Update(ArxDuration timeDelta);
 	void Render();
 	
 	Vec3f m_pos;
@@ -84,7 +84,7 @@ private:
 	Vec3f m_eSrc;
 	Vec3f m_eDest;
 	TextureContainer * m_tex_light;
-	int m_iTTL;
+	ArxDuration m_iTTL;
 	
 	struct CLightningNode {
 		Vec3f pos;

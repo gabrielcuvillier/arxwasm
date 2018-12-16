@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2014 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -20,10 +20,12 @@
 #ifndef ARX_TESTS_GRAPHICS_LEGACYMATH_H
 #define ARX_TESTS_GRAPHICS_LEGACYMATH_H
 
+#include <cmath>
+
 #include "graphics/Math.h"
 
 //! Transforms a Vertex by a quaternion
-Vec3f TransformVertexQuat(const glm::quat & quat, const Vec3f & vertexin) {
+inline Vec3f TransformVertexQuat(const glm::quat & quat, const Vec3f & vertexin) {
 	
 	float rx = vertexin.x * quat.w - vertexin.y * quat.z + vertexin.z * quat.y;
 	float ry = vertexin.y * quat.w - vertexin.z * quat.x + vertexin.x * quat.z;
@@ -37,7 +39,7 @@ Vec3f TransformVertexQuat(const glm::quat & quat, const Vec3f & vertexin) {
 }
 
 //! Invert-Transform of vertex by a quaternion
-void TransformInverseVertexQuat(const glm::quat & quat, const Vec3f & vertexin, Vec3f & vertexout) {
+inline void TransformInverseVertexQuat(const glm::quat & quat, const Vec3f & vertexin, Vec3f & vertexout) {
 	
 	glm::quat rev_quat = glm::inverse(quat);
 	
@@ -61,7 +63,7 @@ void TransformInverseVertexQuat(const glm::quat & quat, const Vec3f & vertexin, 
 }
 
 //! Invert Multiply of a quaternion by another quaternion
-void Quat_Divide(glm::quat * dest, const glm::quat * q1, const glm::quat * q2) {
+inline void Quat_Divide(glm::quat * dest, const glm::quat * q1, const glm::quat * q2) {
 	dest->x = q1->w * q2->x - q1->x * q2->w - q1->y * q2->z + q1->z * q2->y;
 	dest->y = q1->w * q2->y - q1->y * q2->w - q1->z * q2->x + q1->x * q2->z;
 	dest->z = q1->w * q2->z - q1->z * q2->w - q1->x * q2->y + q1->y * q2->x;
@@ -69,14 +71,14 @@ void Quat_Divide(glm::quat * dest, const glm::quat * q1, const glm::quat * q2) {
 }
 
 //! Inverts a Quaternion
-void Quat_Reverse(glm::quat * q) {
+inline void Quat_Reverse(glm::quat * q) {
 	glm::quat qw, qr;
 	Quat_Divide(&qr, q, &qw);
 	*q = qr;
 }
 
 
-glm::quat Quat_Multiply(const glm::quat & q1, const glm::quat & q2) {
+inline glm::quat Quat_Multiply(const glm::quat & q1, const glm::quat & q2) {
 	/*
 	Fast multiplication
 
@@ -114,7 +116,7 @@ glm::quat Quat_Multiply(const glm::quat & q1, const glm::quat & q2) {
 }
 
 //! Converts a unit quaternion into a rotation matrix.
-void MatrixFromQuat(glm::mat4x4 & m, const glm::quat & quat) {
+inline void MatrixFromQuat(glm::mat4x4 & m, const glm::quat & quat) {
 	float wx, wy, wz, xx, yy, yz, xy, xz, zz, x2, y2, z2;
 
 	// calculate coefficients
@@ -148,7 +150,7 @@ void MatrixFromQuat(glm::mat4x4 & m, const glm::quat & quat) {
 }
 
 //! Converts a rotation matrix into a unit quaternion.
-void QuatFromMatrix(glm::quat & quat, const glm::mat4x4 & mat) {
+inline void QuatFromMatrix(glm::quat & quat, const glm::mat4x4 & mat) {
 	float m[4][4];
 	m[0][0] = mat[0][0];
 	m[0][1] = mat[0][1];
@@ -175,7 +177,7 @@ void QuatFromMatrix(glm::quat & quat, const glm::mat4x4 & mat) {
 	// check the diagonal
 	if (tr > 0.0f)
 	{
-		s = sqrt(tr + 1.0f);
+		s = std::sqrt(tr + 1.0f);
 		quat.w = s * ( 1.0f / 2 );
 		s = 0.5f / s;
 		quat.x = (m[1][2] - m[2][1]) * s;
@@ -194,11 +196,11 @@ void QuatFromMatrix(glm::quat & quat, const glm::mat4x4 & mat) {
 		int j = nxt[i];
 		int k = nxt[j];
 
-		s = sqrt((m[i][i] - (m[j][j] + m[k][k])) + 1.0f);
+		s = std::sqrt((m[i][i] - (m[j][j] + m[k][k])) + 1.0f);
 
 		q[i] = s * 0.5f;
 
-		if (s != 0.0) s = 0.5f / s;
+		if (s != 0.0f) s = 0.5f / s;
 
 		q[3] = (m[j][k] - m[k][j]) * s;
 		q[j] = (m[i][j] + m[j][i]) * s;
@@ -213,24 +215,24 @@ void QuatFromMatrix(glm::quat & quat, const glm::mat4x4 & mat) {
 }
 
 
-glm::quat toNonNpcRotation(const Anglef & src) {
+inline glm::quat toNonNpcRotation(const Anglef & src) {
 	Anglef ang = src;
-	ang.setYaw(360 - ang.getYaw());
+	ang.setPitch(360 - ang.getPitch());
 	
 	glm::mat4x4 mat;
 	Vec3f vect(0, 0, 1);
 	Vec3f up(0, 1, 0);
-	vect = VRotateY(vect, ang.getPitch());
-	vect = VRotateX(vect, ang.getYaw());
+	vect = VRotateY(vect, ang.getYaw());
+	vect = VRotateX(vect, ang.getPitch());
 	vect = VRotateZ(vect, ang.getRoll());
-	up = VRotateY(up, ang.getPitch());
-	up = VRotateX(up, ang.getYaw());
+	up = VRotateY(up, ang.getYaw());
+	up = VRotateX(up, ang.getPitch());
 	up = VRotateZ(up, ang.getRoll());
 	MatrixSetByVectors(mat, vect, up);
-	return glm::toQuat(mat);
+	return glm::quat_cast(mat);
 }
 
-Vec3f camEE_RT(const Vec3f & in, const EERIE_TRANSFORM & trans) {
+inline Vec3f camEE_RT(const Vec3f & in, const EERIE_TRANSFORM & trans) {
 	const Vec3f temp1 = in - trans.pos;
 	Vec3f temp2;
 	Vec3f temp3;
@@ -245,7 +247,7 @@ Vec3f camEE_RT(const Vec3f & in, const EERIE_TRANSFORM & trans) {
 	return Vec3f(temp2.x, temp2.y, temp3.z);
 }
 
-void VectorRotateY(Vec3f & _eIn, Vec3f & _eOut, float _fAngle) {
+inline void VectorRotateY(Vec3f & _eIn, Vec3f & _eOut, float _fAngle) {
 	float c = std::cos(_fAngle);
 	float s = std::sin(_fAngle);
 	_eOut.x = (_eIn.x * c) + (_eIn.z * s);
@@ -253,7 +255,7 @@ void VectorRotateY(Vec3f & _eIn, Vec3f & _eOut, float _fAngle) {
 	_eOut.z = (_eIn.z * c) - (_eIn.x * s);
 }
 
-void VectorRotateZ(Vec3f & _eIn, Vec3f & _eOut, float _fAngle) {
+inline void VectorRotateZ(Vec3f & _eIn, Vec3f & _eOut, float _fAngle) {
 	float c = std::cos(_fAngle);
 	float s = std::sin(_fAngle);
 	_eOut.x = (_eIn.x * c) + (_eIn.y * s);
@@ -262,7 +264,7 @@ void VectorRotateZ(Vec3f & _eIn, Vec3f & _eOut, float _fAngle) {
 }
 
 
-Vec2s inventorySizeFromTextureSize_1(u32 m_dwWidth, u32 m_dwHeight) {
+inline Vec2s inventorySizeFromTextureSize_1(u32 m_dwWidth, u32 m_dwHeight) {
 	Vec2s m_inventorySize;
 	
 	unsigned long w = m_dwWidth >> 5;
@@ -284,7 +286,7 @@ Vec2s inventorySizeFromTextureSize_1(u32 m_dwWidth, u32 m_dwHeight) {
 	return m_inventorySize;
 }
 
-Vec2s inventorySizeFromTextureSize_2(u32 m_dwWidth, u32 m_dwHeight) {
+inline Vec2s inventorySizeFromTextureSize_2(u32 m_dwWidth, u32 m_dwHeight) {
 	Vec2s m_inventorySize;
 
 	unsigned long w = m_dwWidth >> 5;
@@ -295,7 +297,7 @@ Vec2s inventorySizeFromTextureSize_2(u32 m_dwWidth, u32 m_dwHeight) {
 	return m_inventorySize;
 }
 
-float focalToFovLegacy(float focal) {
+inline float focalToFovLegacy(float focal) {
 	if(focal < 200)
 		return (-.34f * focal + 168.5f);
 	else if(focal < 300)

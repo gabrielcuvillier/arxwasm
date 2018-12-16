@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -46,12 +46,15 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 #include <limits>
 #include <algorithm>
 
-#include <glm/gtx/norm.hpp>
+#include <boost/foreach.hpp>
+#include <boost/unordered_map.hpp>
 
 #include "graphics/GraphicsTypes.h"
 #include "graphics/Math.h"
 #include "graphics/data/Mesh.h"
+#include "math/GtxFunctions.h"
 #include "math/Random.h"
+#include "math/RandomVector.h"
 #include "math/Vector.h"
 #include "platform/Platform.h"
 #include "physics/Anchors.h"
@@ -151,29 +154,24 @@ public:
 
 class PathFinder::ClosedNodeList {
 	
-	typedef std::vector<Node*> NodeList;
+	typedef boost::unordered_map<NodeId, Node *> NodeList;
 	NodeList nodes;
 	
 public:
 	
 	~ClosedNodeList() {
-		for(NodeList::iterator i = nodes.begin(); i != nodes.end(); ++i) {
-			delete *i;
+		BOOST_FOREACH(NodeList::value_type & entry, nodes) {
+			delete entry.second;
 		}
 	}
 	
 	void add(Node * node) {
-		nodes.push_back(node);
+		arx_assert(!contains(node->getId()));
+		nodes.insert(NodeList::value_type(node->getId(), node));
 	}
 	
 	bool contains(NodeId id) const {
-		// TODO better datastructure: set of closed node ids
-		for(NodeList::const_iterator i = nodes.begin(); i != nodes.end(); ++i) {
-			if((*i)->getId() == id) {
-				return true;
-			}
-		}
-		return false;
+		return nodes.find(id) != nodes.end();
 	}
 	
 };
@@ -207,19 +205,16 @@ bool PathFinder::move(NodeId from, NodeId to, Result & rlist, bool stealth) cons
 	
 	// Create start node and put it on open list
 	Node * node = new Node(from, NULL, 0.0f, 0.0f);
-	if(!node) {
-		return false;
-	}
 	
 	// A* main loop
 	OpenNodeList open;
 	ClosedNodeList close;
 	do {
 		
+		NodeId nid = node->getId();
+		
 		// Put node onto close list as we have now examined this node.
 		close.add(node);
-		
-		NodeId nid = node->getId();
 		
 		// If it's the goal node then we're done.
 		if(nid == to) {
@@ -283,6 +278,8 @@ bool PathFinder::flee(NodeId from, const Vec3f & danger, float safeDist, Result 
 	ClosedNodeList close;
 	do {
 		
+		NodeId nid = node->getId();
+		
 		// Put node onto close list as we have now examined this node.
 		close.add(node);
 		
@@ -291,8 +288,6 @@ bool PathFinder::flee(NodeId from, const Vec3f & danger, float safeDist, Result 
 			buildPath(*node, rlist);
 			return true;
 		}
-		
-		NodeId nid = node->getId();
 		
 		// Otherwise, generate child from current node.
 		for(short i(0); i < map_d[nid].nblinked; i++) {
@@ -390,8 +385,8 @@ PathFinder::NodeId PathFinder::getNearestNode(const Vec3f & pos) const {
 	float distance = std::numeric_limits<float>::max();
 	
 	for(size_t i = 0; i < map_s; i++) {
-		float dist = glm::distance2(map_d[i].pos, pos);
-		if(dist < distance && map_d[i].nblinked) {
+		float dist = arx::distance2(map_d[i].pos, pos);
+		if(dist < distance && map_d[i].nblinked && !(map_d[i].flags & ANCHOR_FLAG_BLOCKED)) {
 			best = i;
 			distance = dist;
 		}
@@ -417,7 +412,7 @@ bool PathFinder::lookFor(NodeId from, const Vec3f & pos, float radius, Result & 
 	unsigned long step_c = Random::getu(4, 9);
 	for(unsigned long i = 0; i < step_c; i++) {
 		
-		Vec3f pos = map_d[to].pos + randomVec(-1.f, 1.f) * radius;
+		Vec3f pos = map_d[to].pos + arx::randomVec(-1.f, 1.f) * radius;
 		
 		NodeId next = getNearestNode(pos);
 		

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -104,7 +104,7 @@ public:
 	Credits()
 		: m_background(NULL)
 		, m_scrollPosition(0.f)
-		, m_lastUpdateTime(0.f)
+		, m_lastUpdateTime(PlatformInstant_ZERO)
 		, m_firstVisibleLine(0)
 		, m_lineHeight(-1)
 		, m_windowSize(Vec2i_ZERO)
@@ -126,7 +126,7 @@ private:
 	std::string m_text;
 	
 	float m_scrollPosition;
-	float m_lastUpdateTime;
+	PlatformInstant m_lastUpdateTime;
 	
 	size_t m_firstVisibleLine;
 	int m_lineHeight;
@@ -237,8 +237,8 @@ bool Credits::init() {
 	LogDebug("Layout credits");
 	
 	// When the screen is resized, try to keep the credits scrolled to the 'same' position
-	static int anchorLine = -1;
-	static float offset;
+	int anchorLine = -1;
+	float offset;
 	typedef std::vector<CreditsLine>::iterator Iterator;
 	if(m_lineHeight != -1 && m_firstVisibleLine < m_lines.size()) {
 		// We use the first line that is still visible as our anchor
@@ -249,7 +249,7 @@ bool Credits::init() {
 		while(first != m_lines.begin() && (first - 1)->sourceLineNumber == anchorLine) {
 			--first;
 		}
-		// Find the first credits line that comes from this source line
+		// Find the last credits line that comes from this source line
 		Iterator last = it;
 		while((last + 1) != m_lines.end()
 		      && (last + 1)->sourceLineNumber == anchorLine) {
@@ -263,6 +263,7 @@ bool Credits::init() {
 	m_windowSize = g_size.size();
 	
 	layout();
+	arx_assert(m_lineHeight != -1);
 	
 	if(anchorLine >= 0) {
 		// Find the first credits line that comes from our source anchor line
@@ -284,7 +285,7 @@ bool Credits::init() {
 		}
 	}
 	
-	return m_lineHeight != -1;
+	return true;
 }
 
 void Credits::addLine(std::string & phrase, float & drawpos, int sourceLineNumber) {
@@ -328,7 +329,7 @@ void Credits::addLine(std::string & phrase, float & drawpos, int sourceLineNumbe
 		phrase = phrase.substr(n + 1);
 		
 		// Center the text on the screen
-		int linesize = hFontCredits->getTextSize(infomations.sText).x;
+		int linesize = hFontCredits->getTextSize(infomations.sText).width();
 		infomations.sPos.x = (g_size.width() - linesize) / 2;
 		
 		if(isSimpleLine) {
@@ -384,7 +385,7 @@ void Credits::addLine(std::string & phrase, float & drawpos, int sourceLineNumbe
 			}
 			bool centered = false;
 			if(s != std::string::npos && s!= 0) {
-				int firstsize = hFontCredits->getTextSize(infomations.sText.substr(0, s)).x;
+				int firstsize = hFontCredits->getTextSize(infomations.sText.substr(0, s)).width();
 				if(firstsize < g_size.width() / 2 && linesize - firstsize < g_size.width() / 2) {
 					infomations.sPos.x = g_size.width() / 2 - firstsize;
 					centered = true;
@@ -394,7 +395,7 @@ void Credits::addLine(std::string & phrase, float & drawpos, int sourceLineNumbe
 			if(p != std::string::npos) {
 				CreditsLine prefix = infomations;
 				prefix.sText.resize(p);
-				int prefixsize = hFontCredits->getTextSize(prefix.sText).x;
+				int prefixsize = hFontCredits->getTextSize(prefix.sText).width();
 				if(!centered && p != 0 && prefixsize / 2 < g_size.width() / 2
 					 && linesize - prefixsize / 2 < g_size.width() / 2) {
 					prefix.sPos.x = (g_size.width() - prefixsize) / 2;
@@ -414,7 +415,7 @@ void Credits::addLine(std::string & phrase, float & drawpos, int sourceLineNumbe
 
 void Credits::layout() {
 	
-	m_lineHeight = hFontCredits->getTextSize("aA(").y;
+	m_lineHeight = hFontCredits->getLineHeight();
 	
 	m_lines.clear();
 	
@@ -459,16 +460,15 @@ void Credits::render() {
 	}
 	
 	// Use time passed between frame to create scroll effect
-	arxtime.update(false);
-	float now = arxtime.now_f();
-	float elapsed = now - m_lastUpdateTime;
+	PlatformInstant now = g_platformTime.frameStart();
+	float elapsed = float(toMs(now - m_lastUpdateTime));
 	
-	static float lastKeyPressTime = 0.f;
-	static float lastUserScrollTime = 0.f;
+	static PlatformInstant lastKeyPressTime   = PlatformInstant_ZERO;
+	static PlatformInstant lastUserScrollTime = PlatformInstant_ZERO;
 	static float scrollDirection = 1.f;
 	
-	float keyRepeatDelay = 256.f; // delay after key press before continuous scrolling
-	float autoScrollDelay = 250.f; // ms after user input before resuming normal scrolling
+	PlatformDuration keyRepeatDelay  = PlatformDurationMs(256); // delay after key press before continuous scrolling
+	PlatformDuration autoScrollDelay = PlatformDurationMs(250); // ms after user input before resuming normal scrolling
 	
 	// Process user input
 	float userScroll = 20.f * GInput->getMouseWheelDir();
@@ -547,7 +547,7 @@ void Credits::render() {
 		ARX_MENU_LaunchAmb(AMB_MENU);
 	}
 
-	if(ProcessFadeInOut(bFadeInOut) && iFadeAction == AMCM_MAIN) {
+	if(MenuFader_process(bFadeInOut) && iFadeAction == AMCM_MAIN) {
 		reset();
 		ARXmenu.currentmode = AMCM_MAIN;
 		MenuFader_start(true, false, -1);
@@ -557,11 +557,11 @@ void Credits::render() {
 
 void Credits::reset() {
 	LogDebug("Reset credits");
-	arxtime.update(false);
-	m_lastUpdateTime = arxtime.now_f();
+	m_lastUpdateTime = g_platformTime.frameStart();
 	m_scrollPosition = 0;
 	m_firstVisibleLine = 0;
 	m_lineHeight = -1;
+	m_windowSize = Vec2i_ZERO;
 	m_lines.clear();
 	delete m_background, m_background = NULL;
 	m_text.clear();

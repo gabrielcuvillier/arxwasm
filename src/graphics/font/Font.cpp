@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -298,7 +298,7 @@ static void addGlyphVertices(std::vector<TexturedVertex> & vertices,
 }
 
 template <bool DoDraw>
-Vec2i Font::process(int x, int y, text_iterator start, text_iterator end, Color color) {
+Font::TextSize Font::process(int x, int y, text_iterator start, text_iterator end, Color color) {
 	
 	Vec2f pen(x, y);
 		
@@ -366,7 +366,6 @@ Vec2i Font::process(int x, int y, text_iterator start, text_iterator end, Color 
 		
 		// Fixed pipeline texture stage operation
 		GRenderer->GetTextureStage(0)->setColorOp(TextureStage::ArgDiffuse);
-		GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::ArgTexture);
 
 		GRenderer->GetTextureStage(0)->setWrapMode(TextureStage::WrapClamp);
 		GRenderer->GetTextureStage(0)->setMinFilter(TextureStage::FilterNearest);
@@ -384,24 +383,20 @@ Vec2i Font::process(int x, int y, text_iterator start, text_iterator end, Color 
 		TextureStage * stage = GRenderer->GetTextureStage(0);
 		stage->setColorOp(TextureStage::OpModulate,
 		                  TextureStage::ArgTexture, TextureStage::ArgCurrent);
-		stage->setAlphaOp(TextureStage::ArgTexture);
 		stage->setWrapMode(TextureStage::WrapRepeat);
 		stage->setMinFilter(TextureStage::FilterLinear);
 		stage->setMagFilter(TextureStage::FilterLinear);
 		
 	}
 	
-	int sizeX = endX - startX;
-	int sizeY = face->size->metrics.height >> 6;
-	
-	return Vec2i(sizeX, sizeY);
+	return TextSize(Vec2i(x, y), startX, endX, pen.x, getLineHeight());
 }
 
-void Font::draw(int x, int y, text_iterator start, text_iterator end, Color color) {
-	process<true>(x, y, start, end, color);
+Font::TextSize Font::draw(int x, int y, text_iterator start, text_iterator end, Color color) {
+	return process<true>(x, y, start, end, color);
 }
 
-Vec2i Font::getTextSize(text_iterator start, text_iterator end) {
+Font::TextSize Font::getTextSize(text_iterator start, text_iterator end) {
 	return process<false>(0, 0, start, end, Color::none);
 }
 

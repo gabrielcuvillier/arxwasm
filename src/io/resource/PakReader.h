@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -58,7 +58,8 @@ public:
 	enum ReleaseType {
 		Demo     = (1<<0),
 		FullGame = (1<<1),
-		Unknown  = (1<<2)
+		Unknown  = (1<<2),
+		External = (1<<3)
 	};
 	DECLARE_FLAGS(ReleaseType, ReleaseFlags)
 	

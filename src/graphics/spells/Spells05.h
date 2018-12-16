@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -57,7 +57,7 @@ public:
 	CPoisonProjectile();
 	
 	void Create(Vec3f, float afBeta = 0);
-	void Update(float timeDelta);
+	void Update(ArxDuration timeDelta);
 	void Render();
 	
 	Vec3f eSrc;

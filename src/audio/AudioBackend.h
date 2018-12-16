@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -66,6 +66,16 @@ public:
 	 * \return true if \ref setReverbEnabled will always fail.
 	 */
 	virtual bool isReverbSupported() = 0;
+	
+	/*!
+	 * Enable or disable HRTF filter.
+	 */
+	virtual aalError setHRTFEnabled(HRTFAttribute enable) = 0;
+	
+	/*!
+	 * Check if HRTF is currently enabled.
+	 */
+	virtual HRTFStatus getHRTFStatus() = 0;
 	
 	/*!
 	 * Set a unit factor to scale all other distance or velocity parameters.

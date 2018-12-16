@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -192,7 +192,7 @@ void ARXMenu_Options_Audio_SetMuted(bool mute) {
 	ARX_SOUND_MixerSetVolume(ARX_SOUND_MixerGame, volume);
 }
 
-void ARXMenu_Options_Audio_SetDevice(std::string device) {
+void ARXMenu_Options_Audio_SetDevice(const std::string & device) {
 	
 	config.audio.device = device;
 	
@@ -223,15 +223,6 @@ void ARXMenu_Options_Audio_SetDevice(std::string device) {
 	}
 
 	ARX_SOUND_PopAnimSamples();
-}
-
-void ARXMenu_Options_Control_SetInvertMouse(bool enable) {
-	config.input.invertMouse = enable;
-}
-
-void ARXMenu_Options_Control_SetMouseSensitivity(int sensitivity) {
-	config.input.mouseSensitivity = glm::clamp(sensitivity, 0, 10);
-	GInput->setMouseSensitivity(config.input.mouseSensitivity);
 }
 
 void ARXMenu_ResumeGame() {
