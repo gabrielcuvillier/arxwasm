@@ -238,16 +238,18 @@ bool SDL2Window::initialize() {
 	#endif
 
 #ifdef __EMSCRIPTEN__
-	// SDL need ES profile on emscripten
+	// Initialize ES 2.0 profile on emscripten, and do not set any other context flags (it does not work otherwise)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 #else
-    // TODO EGL and core profile are not supported yet
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-#endif
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
 
 	if(gldebug::isEnabled()) {
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 	}
+#endif
+
 
     int x = SDL_WINDOWPOS_UNDEFINED, y = SDL_WINDOWPOS_UNDEFINED;
 	Uint32 windowFlags = getSDLFlagsForMode(m_size, m_fullscreen);
@@ -423,6 +425,11 @@ void SDL2Window::setTitle(const std::string & title) {
 }
 
 bool SDL2Window::setVSync(int vsync) {
+#ifdef __EMSCRIPTEN__
+    // VSync is always activated in emscripten, because of emscripten_set_main_loop usage
+    // Sync is done with browser RequestImageFrame
+    return false;
+#else
 	if(m_window && SDL_GL_SetSwapInterval(vsync) != 0) {
 		if(vsync != 0 && vsync != 1) {
 			return setVSync(1);
@@ -431,6 +438,7 @@ bool SDL2Window::setVSync(int vsync) {
 	}
 	m_vsync = vsync;
 	return true;
+#endif
 }
 
 void SDL2Window::changeMode(DisplayMode mode, bool makeFullscreen) {
