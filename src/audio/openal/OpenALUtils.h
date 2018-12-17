@@ -22,11 +22,7 @@
 
 #include <boost/math/special_functions/fpclassify.hpp>
 
-#ifdef __EMSCRIPTEN__
-#include <AL/al.h>
-#else
 #include <al.h>
-#endif
 
 #include "math/Vector.h"
 
