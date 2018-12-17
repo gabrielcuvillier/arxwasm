@@ -82,10 +82,10 @@ public:
 	
 	virtual void run();
 
-#ifdef __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
 	// main loop for emscripten
 	virtual bool emscripten_run();
-#endif
+	#endif
 	
 private:
 	void updateTime();

@@ -246,14 +246,14 @@ bool SaveGameList::save(const std::string & name, iterator overwrite, const Imag
 
 	update();
 
-#ifdef __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
 	EM_ASM(
 			console.info('Syncing user home to persistent storage....');
 			FS.syncfs(false, function(err) {
 				console.info("Syncing done.");
 			});
 		);
-#endif
+	#endif
 	
 	return true;
 }

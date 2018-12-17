@@ -251,12 +251,12 @@ void PathFinderThread::run() {
 	BackgroundData * eb = ACTIVEBKG;
 	PathFinder pathfinder(eb->nbanchors, eb->anchors, g_staticLightsMax, (EERIE_LIGHT **)g_staticLights);
 
-#ifdef __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
 	// No more infinite loop on emscripten. The loop is simulated with emscripten_set_main_loop
 	if(!isStopRequested()) {
-#else
+	#else
     while(!isStopRequested()) {
-#endif
+	#endif
 		mutex->lock();
 
 		PATHFINDER_WORKING = 1;
@@ -375,6 +375,8 @@ void ARX_PATHFINDER_THREAD_RUN(bool bForce = false)
 	}
 }
 
+#endif
+
 void EERIE_PATHFINDER_Create() {
 	
 	if(pathfinder) {
@@ -388,9 +390,8 @@ void EERIE_PATHFINDER_Create() {
 	pathfinder = new PathFinderThread();
 	pathfinder->setThreadName("Pathfinder");
 	pathfinder->start();
-#ifdef __EMSCRIPTEN__
-	ARX_PATHFINDER_THREAD_RUN(true);
-#endif
+	#ifdef __EMSCRIPTEN__
+	ARX_PATHFINDER_THREAD_RUN(true); // First run
+	#endif
 }
 
-#endif

@@ -84,9 +84,9 @@ static GLTransformMode currentTransform;
 
 void OpenGLRenderer::initialize() {
 
-#if defined __native_client__ || defined __EMSCRIPTEN__
+	#if defined __native_client__ || defined __EMSCRIPTEN__
     LogInfo << "Not using GLEW";
-#else
+	#else
 	if(glewInit() != GLEW_OK) {
 		LogError << "GLEW init failed";
 		return;
@@ -95,7 +95,7 @@ void OpenGLRenderer::initialize() {
 	const GLubyte * glewVersion = glewGetString(GLEW_VERSION);
 	LogInfo << "Using GLEW " << glewVersion;
 	CrashHandler::setVariable("GLEW version", glewVersion);
-#endif
+	#endif
 
 	const GLubyte * glVersion = glGetString(GL_VERSION);
 	LogInfo << "Using OpenGL " << glVersion;
@@ -161,11 +161,11 @@ void OpenGLRenderer::initialize() {
 	
 	{
 		std::ostringstream oss;
-#if defined __native_client__ || defined __EMSCRIPTEN__
+		#if defined __native_client__ || defined __EMSCRIPTEN__
 		oss << "Not using GLEW" << '\n';
-#else
+		#else
 		oss << "GLEW " << glewVersion << '\n';
-#endif
+		#endif
 		const char * start = reinterpret_cast<const char *>(glVersion);
 		while(*start == ' ') {
 			start++;
@@ -230,13 +230,13 @@ void OpenGLRenderer::reinit() {
 		}
 	}
 
-#if defined __native_client__ || defined __EMSCRIPTEN__
+	#if defined __native_client__ || defined __EMSCRIPTEN__
 	// Disable usage of VertexArrays and VBOs on Native Client and Emscripten, due to issues with Regal GL library
 	// We will use traditional GL immediate mode instead
     useVertexArrays = false;
-#else
+	#else
 	useVertexArrays = true;
-#endif
+	#endif
 	
 	if(!GLEW_ARB_draw_elements_base_vertex) {
 		LogWarning << "Missing OpenGL extension ARB_draw_elements_base_vertex!";

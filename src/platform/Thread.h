@@ -105,10 +105,10 @@ public:
 	
 	static thread_id_type getCurrentThreadId();
 
-#ifdef __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
 	// Needed for thread simulation on emscripten
 	bool isStarted() { return started; }
-#endif
+	#endif
 
     /*!
 	 * \brief Disable denormals for the current thread for faster floating point operations
