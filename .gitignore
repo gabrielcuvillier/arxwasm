@@ -8,3 +8,5 @@ build
 *.orig
 arx_
 .idea
+cmake-build*
+
