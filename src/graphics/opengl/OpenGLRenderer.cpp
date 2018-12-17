@@ -44,8 +44,6 @@
 #define GLEW_EXT_texture_filter_anisotropic 1
 #define GLEW_VERSION_2_0 0
 #define GLEW_VERSION_3_0 0
-#define GLEW_ARB_shader_objects 0
-#define GLEW_ARB_vertex_program 0
 #define GLEW_ARB_buffer_storage 0
 #define GLEW_NVX_gpu_memory_info 0
 #define GLEW_ATI_meminfo 0
@@ -55,7 +53,6 @@ OpenGLRenderer::OpenGLRenderer()
 	: useVertexArrays(false)
 	, useVBOs(false)
 	, maxTextureStage(0)
-	, shader(0)
 	, m_maximumAnisotropy(1.f)
 	, m_maximumSupportedAnisotropy(1.f)
 	, m_glcull(GL_NONE)
@@ -84,58 +81,6 @@ enum GLTransformMode {
 };
 
 static GLTransformMode currentTransform;
-
-static bool checkShader(GLuint object, const char * op, GLuint check) {
-	
-	GLint status;
-	glGetObjectParameterivARB(object, check, &status);
-	if(!status) {
-		int logLength;
-		glGetObjectParameterivARB(object, GL_OBJECT_INFO_LOG_LENGTH_ARB, &logLength);
-		char * log = new char[logLength];
-		glGetInfoLogARB(object, logLength, NULL, log);
-		LogWarning << "Failed to " << op << " vertex shader: " << log;
-		delete[] log;
-		return false;
-	}
-	
-	return true;
-}
-
-static GLuint loadVertexShader(const char * source) {
-
-	GLuint shader = glCreateProgramObjectARB();
-	if(!shader) {
-		LogWarning << "Failed to create program object";
-		return 0;
-	}
-	
-	GLuint obj = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
-	if(!obj) {
-		LogWarning << "Failed to create shader object";
-		glDeleteObjectARB(shader);
-		return 0;
-	}
-	
-	glShaderSourceARB(obj, 1, &source, NULL);
-	glCompileShaderARB(obj);
-	if(!checkShader(obj, "compile", GL_OBJECT_COMPILE_STATUS_ARB)) {
-		glDeleteObjectARB(obj);
-		glDeleteObjectARB(shader);
-		return 0;
-	}
-	
-	glAttachObjectARB(shader, obj);
-	glDeleteObjectARB(obj);
-	
-	glLinkProgramARB(shader);
-	if(!checkShader(shader, "link", GL_OBJECT_LINK_STATUS_ARB)) {
-		glDeleteObjectARB(shader);
-		return 0;
-	}
-	
-	return shader;
-}
 
 void OpenGLRenderer::initialize() {
 
@@ -357,19 +302,6 @@ void OpenGLRenderer::reinit() {
 	currentTransform = GL_UnsetTransform;
 	switchVertexArray(GL_NoArray, 0, 0);
 	
-	if(useVertexArrays && useVBOs) {
-		if(!GLEW_ARB_shader_objects) {
-			LogWarning << "Missing OpenGL extension ARB_shader_objects.";
-		} else if(!GLEW_ARB_vertex_program) {
-			LogWarning << "Missing OpenGL extension ARB_vertex_program.";
-		} else {
-			shader = loadVertexShader(vertexShaderSource);
-		}
-		if(!shader) {
-			LogWarning << "Missing vertex shader, cannot use vertex arrays for pre-transformed vertices.";
-		}
-	}
-	
 	if(GLEW_EXT_texture_filter_anisotropic) {
 		GLfloat limit;
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &limit);
@@ -386,11 +318,7 @@ void OpenGLRenderer::shutdown() {
 	arx_assert(isInitialized());
 	
 	onRendererShutdown();
-	
-	if(shader) {
-		glDeleteObjectARB(shader);
-	}
-	
+
 	for(size_t i = 0; i < m_TextureStages.size(); ++i) {
 		delete m_TextureStages[i];
 	}
@@ -409,11 +337,7 @@ void OpenGLRenderer::enableTransform() {
 	if(currentTransform == GL_ModelViewProjectionTransform) {
 		return;
 	}
-	
-	if(shader) {
-		glUseProgramObjectARB(0);
-	}
-	
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(glm::value_ptr(view));
 		
@@ -428,16 +352,9 @@ void OpenGLRenderer::disableTransform() {
 	if(currentTransform == GL_NoTransform) {
 		return;
 	}
-	
-	// D3D doesn't apply any transform for D3DTLVERTEX
-	// but we still need to change from D3D to OpenGL coordinates
-	
-	if(shader) {
-		glUseProgramObjectARB(shader);
-	} else {
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-	}
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 	
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -729,7 +646,7 @@ static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
 }
 
 VertexBuffer<TexturedVertex> * OpenGLRenderer::createVertexBufferTL(size_t capacity, BufferUsage usage) {
-	if(useVBOs && shader) {
+	if(useVBOs) {
 		return createVertexBufferImpl<TexturedVertex>(this, capacity, usage); 
 	} else {
 		return new GLNoVertexBuffer<TexturedVertex>(this, capacity);
@@ -764,7 +681,7 @@ void OpenGLRenderer::drawIndexed(Primitive primitive, const TexturedVertex * ver
 	
 	beforeDraw<TexturedVertex>();
 	
-	if(useVertexArrays && shader) {
+	if(useVertexArrays) {
 		
 		bindBuffer(GL_NONE);
 		
