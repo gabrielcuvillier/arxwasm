@@ -41,26 +41,26 @@ void renderVertex(const TexturedVertex & vertex) {
 
 template <>
 void renderVertex(const SMY_VERTEX & vertex) {
-	
-	Color c = Color::fromRGBA(vertex.color);
-	glColor4ub(c.r, c.g, c.b, c.a);
 
-	glMultiTexCoord2f(GL_TEXTURE0, vertex.uv.x, vertex.uv.y);
-	
-	glVertex3f(vertex.p.x, vertex.p.y, vertex.p.z);
+    Color c = Color::fromRGBA(vertex.color);
+    glColor4ub(c.r, c.g, c.b, c.a);
+
+    glMultiTexCoord2f(GL_TEXTURE0, vertex.uv.x, vertex.uv.y);
+
+    glVertex3f(vertex.p.x, vertex.p.y, vertex.p.z);
 }
 
 template <>
 void renderVertex(const SMY_VERTEX3 & vertex) {
-	
-	Color c = Color::fromRGBA(vertex.color);
-	glColor4ub(c.r, c.g, c.b, c.a);
 
-	glMultiTexCoord2f(GL_TEXTURE0, vertex.uv[0].x, vertex.uv[0].y);
-	glMultiTexCoord2f(GL_TEXTURE1, vertex.uv[1].x, vertex.uv[1].y);
-	glMultiTexCoord2f(GL_TEXTURE2, vertex.uv[2].x, vertex.uv[2].y);
-	
-	glVertex3f(vertex.p.x, vertex.p.y, vertex.p.z);
+    Color c = Color::fromRGBA(vertex.color);
+    glColor4ub(c.r, c.g, c.b, c.a);
+
+    glMultiTexCoord2f(GL_TEXTURE0, vertex.uv[0].x, vertex.uv[0].y);
+    glMultiTexCoord2f(GL_TEXTURE1, vertex.uv[1].x, vertex.uv[1].y);
+    glMultiTexCoord2f(GL_TEXTURE2, vertex.uv[2].x, vertex.uv[2].y);
+
+    glVertex3f(vertex.p.x, vertex.p.y, vertex.p.z);
 }
 
 extern const GLenum arxToGlPrimitiveType[];
