@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Arx Libertatis Team (see the AUTHORS file)
+ * Copyright 2011-2017 Arx Libertatis Team (see the AUTHORS file)
  *
  * This file is part of Arx Libertatis.
  *
@@ -41,49 +41,32 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
 // Code: Cyril Meynier
-//   Sébastien Scieux (Zbuffer)
 //
-// Copyright (c) 1999 ARKANE Studios SA. All rights reserved
+// Copyright (c) 1999-2001 ARKANE Studios SA. All rights reserved
 
-#ifndef ARX_CORE_APPLICATION_H
-#define ARX_CORE_APPLICATION_H
+#include "physics/Anchors.h"
 
-class RenderWindow;
+#include <cstdio>
 
-extern float FPS;
+#include "ai/PathFinderManager.h"
+#include "graphics/data/Mesh.h"
 
-class Application {
+void AnchorData_ClearAll(BackgroundData * eb) {
 	
-public:
-	Application();
-	virtual ~Application();
+	//	EERIE_PATHFINDER_Release();
+	EERIE_PATHFINDER_Clear();
 	
-	virtual bool initialize() = 0;
-	virtual void shutdown();
-	
-	RenderWindow * getWindow() const { return m_MainWindow; }
-	
-	//! Ask the game to quit at the end of the current frame.
-	void quit();
-	
-	virtual void run() = 0;
-	
-	virtual void setWindowSize(bool fullscreen) = 0;
+	if(eb->anchors && eb->nbanchors) {
+		for(int j = 0; j < eb->nbanchors; j++) {
+			if(eb->anchors[j].nblinked && eb->anchors[j].linked) {
+				free(eb->anchors[j].linked);
+				eb->anchors[j].linked = NULL;
+			}
+		}
 
-	#ifdef __EMSCRIPTEN__
-	// main loop for emscripten
-	virtual bool emscripten_run() = 0;
-	#endif
+		free(eb->anchors);
+	}
 
-protected:
-	RenderWindow * m_MainWindow;
-	
-	bool m_RunLoop;
-	bool m_bReady;
-};
-
-extern Application * mainApp;
-
-void CalcFPS(bool reset = false);
-
-#endif // ARX_CORE_APPLICATION_H
+	eb->anchors = NULL;
+	eb->nbanchors = 0;
+}

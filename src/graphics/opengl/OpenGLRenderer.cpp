@@ -44,31 +44,15 @@
 #define GLEW_EXT_texture_filter_anisotropic 1
 #define GLEW_VERSION_2_0 0
 #define GLEW_VERSION_3_0 0
-#define GLEW_ARB_shader_objects 0
-#define GLEW_ARB_vertex_program 0
 #define GLEW_ARB_buffer_storage 0
 #define GLEW_NVX_gpu_memory_info 0
 #define GLEW_ATI_meminfo 0
 #endif
-  
-static const char vertexShaderSource[] = "void main() {\n"
-	"	// Convert pre-transformed D3D vertices to OpenGL vertices.\n"
-	"	float w = 1.0 / gl_Vertex.w;\n"
-	"	vec4 vertex = vec4(gl_Vertex.xyz * w, w);\n"
-	"	// We only need the projection matrix as modelview will always be identity.\n"
-	"	gl_Position = gl_ProjectionMatrix * vertex;\n"
-	"	gl_FrontColor = gl_BackColor = gl_Color;\n"
-	"	gl_TexCoord[0] = gl_MultiTexCoord0;\n"
-	"	gl_FogFragCoord = vertex.z;\n"
-	"}\n";
-
-
 
 OpenGLRenderer::OpenGLRenderer()
 	: useVertexArrays(false)
 	, useVBOs(false)
 	, maxTextureStage(0)
-	, shader(0)
 	, m_maximumAnisotropy(1.f)
 	, m_maximumSupportedAnisotropy(1.f)
 	, m_glcull(GL_NONE)
@@ -98,63 +82,11 @@ enum GLTransformMode {
 
 static GLTransformMode currentTransform;
 
-static bool checkShader(GLuint object, const char * op, GLuint check) {
-	
-	GLint status;
-	glGetObjectParameterivARB(object, check, &status);
-	if(!status) {
-		int logLength;
-		glGetObjectParameterivARB(object, GL_OBJECT_INFO_LOG_LENGTH_ARB, &logLength);
-		char * log = new char[logLength];
-		glGetInfoLogARB(object, logLength, NULL, log);
-		LogWarning << "Failed to " << op << " vertex shader: " << log;
-		delete[] log;
-		return false;
-	}
-	
-	return true;
-}
-
-static GLuint loadVertexShader(const char * source) {
-
-	GLuint shader = glCreateProgramObjectARB();
-	if(!shader) {
-		LogWarning << "Failed to create program object";
-		return 0;
-	}
-	
-	GLuint obj = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
-	if(!obj) {
-		LogWarning << "Failed to create shader object";
-		glDeleteObjectARB(shader);
-		return 0;
-	}
-	
-	glShaderSourceARB(obj, 1, &source, NULL);
-	glCompileShaderARB(obj);
-	if(!checkShader(obj, "compile", GL_OBJECT_COMPILE_STATUS_ARB)) {
-		glDeleteObjectARB(obj);
-		glDeleteObjectARB(shader);
-		return 0;
-	}
-	
-	glAttachObjectARB(shader, obj);
-	glDeleteObjectARB(obj);
-	
-	glLinkProgramARB(shader);
-	if(!checkShader(shader, "link", GL_OBJECT_LINK_STATUS_ARB)) {
-		glDeleteObjectARB(shader);
-		return 0;
-	}
-	
-	return shader;
-}
-
 void OpenGLRenderer::initialize() {
 
-#if defined __native_client__ || defined __EMSCRIPTEN__
+	#if defined __native_client__ || defined __EMSCRIPTEN__
     LogInfo << "Not using GLEW";
-#else
+	#else
 	if(glewInit() != GLEW_OK) {
 		LogError << "GLEW init failed";
 		return;
@@ -163,7 +95,7 @@ void OpenGLRenderer::initialize() {
 	const GLubyte * glewVersion = glewGetString(GLEW_VERSION);
 	LogInfo << "Using GLEW " << glewVersion;
 	CrashHandler::setVariable("GLEW version", glewVersion);
-#endif
+	#endif
 
 	const GLubyte * glVersion = glGetString(GL_VERSION);
 	LogInfo << "Using OpenGL " << glVersion;
@@ -229,11 +161,11 @@ void OpenGLRenderer::initialize() {
 	
 	{
 		std::ostringstream oss;
-#if defined __native_client__ || defined __EMSCRIPTEN__
+		#if defined __native_client__ || defined __EMSCRIPTEN__
 		oss << "Not using GLEW" << '\n';
-#else
+		#else
 		oss << "GLEW " << glewVersion << '\n';
-#endif
+		#endif
 		const char * start = reinterpret_cast<const char *>(glVersion);
 		while(*start == ' ') {
 			start++;
@@ -298,13 +230,13 @@ void OpenGLRenderer::reinit() {
 		}
 	}
 
-#if defined __native_client__ || defined __EMSCRIPTEN__
+	#if defined __native_client__ || defined __EMSCRIPTEN__
 	// Disable usage of VertexArrays and VBOs on Native Client and Emscripten, due to issues with Regal GL library
 	// We will use traditional GL immediate mode instead
     useVertexArrays = false;
-#else
+	#else
 	useVertexArrays = true;
-#endif
+	#endif
 	
 	if(!GLEW_ARB_draw_elements_base_vertex) {
 		LogWarning << "Missing OpenGL extension ARB_draw_elements_base_vertex!";
@@ -370,19 +302,6 @@ void OpenGLRenderer::reinit() {
 	currentTransform = GL_UnsetTransform;
 	switchVertexArray(GL_NoArray, 0, 0);
 	
-	if(useVertexArrays && useVBOs) {
-		if(!GLEW_ARB_shader_objects) {
-			LogWarning << "Missing OpenGL extension ARB_shader_objects.";
-		} else if(!GLEW_ARB_vertex_program) {
-			LogWarning << "Missing OpenGL extension ARB_vertex_program.";
-		} else {
-			shader = loadVertexShader(vertexShaderSource);
-		}
-		if(!shader) {
-			LogWarning << "Missing vertex shader, cannot use vertex arrays for pre-transformed vertices.";
-		}
-	}
-	
 	if(GLEW_EXT_texture_filter_anisotropic) {
 		GLfloat limit;
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &limit);
@@ -399,11 +318,7 @@ void OpenGLRenderer::shutdown() {
 	arx_assert(isInitialized());
 	
 	onRendererShutdown();
-	
-	if(shader) {
-		glDeleteObjectARB(shader);
-	}
-	
+
 	for(size_t i = 0; i < m_TextureStages.size(); ++i) {
 		delete m_TextureStages[i];
 	}
@@ -422,11 +337,7 @@ void OpenGLRenderer::enableTransform() {
 	if(currentTransform == GL_ModelViewProjectionTransform) {
 		return;
 	}
-	
-	if(shader) {
-		glUseProgramObjectARB(0);
-	}
-	
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(glm::value_ptr(view));
 		
@@ -441,16 +352,9 @@ void OpenGLRenderer::disableTransform() {
 	if(currentTransform == GL_NoTransform) {
 		return;
 	}
-	
-	// D3D doesn't apply any transform for D3DTLVERTEX
-	// but we still need to change from D3D to OpenGL coordinates
-	
-	if(shader) {
-		glUseProgramObjectARB(shader);
-	} else {
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-	}
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 	
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -742,7 +646,7 @@ static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
 }
 
 VertexBuffer<TexturedVertex> * OpenGLRenderer::createVertexBufferTL(size_t capacity, BufferUsage usage) {
-	if(useVBOs && shader) {
+	if(useVBOs) {
 		return createVertexBufferImpl<TexturedVertex>(this, capacity, usage); 
 	} else {
 		return new GLNoVertexBuffer<TexturedVertex>(this, capacity);
@@ -777,7 +681,7 @@ void OpenGLRenderer::drawIndexed(Primitive primitive, const TexturedVertex * ver
 	
 	beforeDraw<TexturedVertex>();
 	
-	if(useVertexArrays && shader) {
+	if(useVertexArrays) {
 		
 		bindBuffer(GL_NONE);
 		

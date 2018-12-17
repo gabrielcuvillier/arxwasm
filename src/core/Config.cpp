@@ -87,12 +87,12 @@ const int
 	bufferSize = 0;
 
 const bool
-#ifdef __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
 	// disable fullscreen by default on emscripten
 	fullscreen = false,
-#else
+	#else
 	fullscreen = true,
-#endif
+	#endif
 	showCrosshair = true,
 	antialiasing = true,
 	colorkeyAlphaToCoverage = true,

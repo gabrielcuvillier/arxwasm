@@ -65,7 +65,7 @@ void GLTexture2D::Upload() {
 	glBindTexture(GL_TEXTURE_2D, tex);
 	renderer->GetTextureStage(0)->current = this;
 
-#ifdef __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
 	// Regal/GLES2 does not support GL_INTENSITY textures, so convert them to L8A8
 	if(flags & Intensity) {
 		arx_assert(mFormat == Image::Format_L8);
@@ -82,7 +82,7 @@ void GLTexture2D::Upload() {
 		mFormat = Image::Format_L8A8;
 		flags &= ~Intensity;
 	}
-#endif
+	#endif
 
 	GLint internal;
 	GLenum format;
@@ -111,11 +111,11 @@ void GLTexture2D::Upload() {
 		flags &= ~HasMipmaps;
 	}
   
-#if defined __native_client__ || defined __EMSCRIPTEN__
-#pragma message( "Disabled Mimaps with OpenGL ES 2 / WebGL, as it is not supported by Regal" )
+	#if defined __native_client__ || defined __EMSCRIPTEN__
+	#pragma message( "Disabled Mimaps with OpenGL ES 2 / WebGL, as it is not supported by Regal" )
 	// To be tested again with REGAL_EMU_TEXC enabled
     flags &= ~HasMipmaps;
-#else
+	#else
 	if(hasMipmaps()) {
 		glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 		if(renderer->getMaxAnisotropy() > 1.f) {
@@ -124,7 +124,7 @@ void GLTexture2D::Upload() {
 	} else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	}
-#endif
+	#endif
 
 	// TODO handle GL_MAX_TEXTURE_SIZE
 	

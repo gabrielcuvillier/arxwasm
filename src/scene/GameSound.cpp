@@ -1639,12 +1639,12 @@ public:
 #endif
 	void run() {
 
-#ifdef __EMSCRIPTEN__
+		#ifdef __EMSCRIPTEN__
 		// No more infinite loop on emscripten. The loop is simulated with emscripten_set_main_loop
 		if(!isStopRequested()) {
-#else
+		#else
         while(!isStopRequested()) {
-#endif
+		#endif
 			ARX_PROFILE("SoundUpdate");
 			
 			sleep(ARX_SOUND_UPDATE_INTERVAL);
@@ -1684,9 +1684,9 @@ static void ARX_SOUND_LaunchUpdateThread() {
 	updateThread = new SoundUpdateThread();
 	updateThread->setThreadName("Sound Update");
 	updateThread->start();
-#ifdef __EMSCRIPTEN__
-	ARX_SOUND_THREAD_RUN(true);
-#endif
+	#ifdef __EMSCRIPTEN__
+	ARX_SOUND_THREAD_RUN(true); // First Run
+	#endif
 }
 
 static void ARX_SOUND_KillUpdateThread() {

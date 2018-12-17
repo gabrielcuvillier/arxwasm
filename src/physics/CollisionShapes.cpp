@@ -41,49 +41,61 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
 // Code: Cyril Meynier
-//   Sébastien Scieux (Zbuffer)
 //
-// Copyright (c) 1999 ARKANE Studios SA. All rights reserved
+// Copyright (c) 1999-2001 ARKANE Studios SA. All rights reserved
 
-#ifndef ARX_CORE_APPLICATION_H
-#define ARX_CORE_APPLICATION_H
+#include "physics/CollisionShapes.h"
 
-class RenderWindow;
+#include "game/Entity.h"
+#include "graphics/GraphicsTypes.h"
+#include "graphics/Math.h"
 
-extern float FPS;
 
-class Application {
+void EERIE_COLLISION_Cylinder_Create(Entity * io)
+{
+	if(!io)
+		return;
+
+	EERIE_3DOBJ * obj = io->obj;
+
+	if(!obj)
+		return;
+
+	if(obj->vertexlist.empty()) {
+		io->physics.cyl.height = 0.f;
+		return;
+	}
 	
-public:
-	Application();
-	virtual ~Application();
+	io->physics.cyl.origin = obj->vertexlist[obj->origin].v;
 	
-	virtual bool initialize() = 0;
-	virtual void shutdown();
-	
-	RenderWindow * getWindow() const { return m_MainWindow; }
-	
-	//! Ask the game to quit at the end of the current frame.
-	void quit();
-	
-	virtual void run() = 0;
-	
-	virtual void setWindowSize(bool fullscreen) = 0;
+	float d = 0.f;
+	float height = 0.f;
+	for(size_t i = 0; i < obj->vertexlist.size(); i++) {
+		if(i != obj->origin && glm::abs(io->physics.cyl.origin.y - obj->vertexlist[i].v.y) < 20.f) {
+			d = std::max(d, glm::distance(io->physics.cyl.origin, obj->vertexlist[i].v));
+		}
+		height = std::max(height, io->physics.cyl.origin.y - obj->vertexlist[i].v.y);
+	}
 
-	#ifdef __EMSCRIPTEN__
-	// main loop for emscripten
-	virtual bool emscripten_run() = 0;
-	#endif
-
-protected:
-	RenderWindow * m_MainWindow;
+	if(d == 0.f || height == 0.f) {
+		io->physics.cyl.height = 0.f;
+		return;
+	}
 	
-	bool m_RunLoop;
-	bool m_bReady;
-};
+	io->original_radius = d * 1.2f;
+	io->original_height = -height;
+	io->physics.cyl.origin = io->pos;
+	
+	if(io->original_height > -40) {
+		float v = (-io->original_height) * ( 1.0f / 40 );
+		io->original_radius *= (0.5f + v * 0.5f);
+	}
+	
+	io->original_height = glm::clamp(io->original_height, -165.f, -40.f);
+	
+	if(io->original_radius > 40.f)
+		io->original_radius = 40.f;
 
-extern Application * mainApp;
-
-void CalcFPS(bool reset = false);
-
-#endif // ARX_CORE_APPLICATION_H
+	io->physics.cyl.radius = io->original_radius * io->scale;
+	io->physics.cyl.height = io->original_height * io->scale;
+}
