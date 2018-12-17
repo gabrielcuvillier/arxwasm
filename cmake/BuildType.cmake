@@ -270,11 +270,11 @@ else(MSVC)
 	endif(SET_OPTIMIZATION_FLAGS)
 
 	  if(EMSCRIPTEN)
-		  add_ldflag("-g")
 		  add_ldflag("-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
 		  add_ldflag("-s FORCE_FILESYSTEM=1")
 		  add_ldflag("-s BINARYEN_TRAP_MODE=clamp")
-		  add_ldflag("-s ALLOW_MEMORY_GROWTH=1")
+		  #add_ldflag("-s ALLOW_MEMORY_GROWTH=1")
+		  add_ldflag("-s TOTAL_MEMORY=268435456")
 	  endif()
 
 endif(MSVC)
