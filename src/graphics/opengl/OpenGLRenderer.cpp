@@ -39,9 +39,9 @@
 #if defined __native_client__ || defined __EMSCRIPTEN__
 // On Native Client and Emscripten, tweak some GLEW definitions so that Regal GL library works correctly
 #define GLEW_ARB_texture_non_power_of_two 1
-#define GLEW_ARB_draw_elements_base_vertex 1
+#define GLEW_ARB_draw_elements_base_vertex 1	// Not clear if this is really supported by Regal
 #define GLEW_ARB_map_buffer_range 0
-#define GLEW_EXT_texture_filter_anisotropic 1
+#define GLEW_EXT_texture_filter_anisotropic 0
 #define GLEW_VERSION_2_0 0
 #define GLEW_VERSION_3_0 0
 #define GLEW_ARB_buffer_storage 0
@@ -284,7 +284,7 @@ void OpenGLRenderer::reinit() {
 	
 	glEnable(GL_BLEND);
 	m_glstate.setBlend(BlendOne, BlendZero);
-	
+
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	
@@ -559,7 +559,12 @@ static const GLenum arxToGlFillMode[] = {
 };
 
 void OpenGLRenderer::SetFillMode(FillMode mode) {
+#ifdef __EMSCRIPTEN__
+	// GAB Note Dec 2018: PolygonMode not supported by Regal. Fill is always assumed
+	;
+#else
 	glPolygonMode(GL_FRONT_AND_BACK, arxToGlFillMode[mode]);
+#endif
 }
 
 void OpenGLRenderer::setMaxAnisotropy(float value) {
