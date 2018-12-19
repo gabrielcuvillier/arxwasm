@@ -30,7 +30,7 @@
 #include "io/resource/PakReader.h"
 #include "scene/ChangeLevel.h"
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 #include "emscripten.h"	// for EM_ASM
 #endif
 
@@ -246,7 +246,7 @@ bool SaveGameList::save(const std::string & name, iterator overwrite, const Imag
 
 	update();
 
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	EM_ASM(
 			console.info('Syncing user home to persistent storage....');
 			FS.syncfs(false, function(err) {

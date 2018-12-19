@@ -42,7 +42,7 @@ namespace {
 /* Default values for config */
 namespace Default {
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 // have a larger default width and height on emscripten
 #define ARX_DEFAULT_WIDTH 800
 #define ARX_DEFAULT_HEIGHT 600
@@ -87,7 +87,7 @@ const int
 	bufferSize = 0;
 
 const bool
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	// disable fullscreen by default on emscripten
 	fullscreen = false,
 	#else

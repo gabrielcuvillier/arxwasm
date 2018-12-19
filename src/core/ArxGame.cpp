@@ -54,7 +54,7 @@ ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
 
 #include <glm/gtx/norm.hpp>
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 // For emscripten_set_main_loop() and emscripten_cancel_main_loop()
 #include "emscripten.h"
 #endif
@@ -1232,7 +1232,7 @@ void ArxGame::onToggleFullscreen(const Window & window) {
 	config.video.fullscreen = window.isFullScreen();
 }
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 
 // External functions used to simulate sound and pathfinder threads runnning (threading is disabled in emscripten)
 extern void ARX_SOUND_THREAD_RUN(bool bForce = false);

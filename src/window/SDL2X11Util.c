@@ -21,7 +21,7 @@
 
 // These functions are compiled separately to avoid namespace pollution by X11 headers
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 #else
 #include <SDL_syswm.h>
 

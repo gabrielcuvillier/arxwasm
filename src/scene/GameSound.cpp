@@ -1633,13 +1633,13 @@ static float GetSamplePresenceFactor(const res::path & name) {
 
 class SoundUpdateThread : public StoppableThread {
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 // On emscripten, the run method will be called manually to simulate thread running. It needs to be public then.
 public:
 #endif
 	void run() {
 
-		#ifdef __EMSCRIPTEN__
+		#if defined __EMSCRIPTEN__
 		// No more infinite loop on emscripten. The loop is simulated with emscripten_set_main_loop
 		if(!isStopRequested()) {
 		#else
@@ -1658,7 +1658,7 @@ public:
 
 static SoundUpdateThread * updateThread = NULL;
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 // Simulate sound thread running on emscripten. Must be called from emscripten main loop in ArxGame.cpp
 void ARX_SOUND_THREAD_RUN(bool bForce = false)
 {
@@ -1684,7 +1684,7 @@ static void ARX_SOUND_LaunchUpdateThread() {
 	updateThread = new SoundUpdateThread();
 	updateThread->setThreadName("Sound Update");
 	updateThread->start();
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	ARX_SOUND_THREAD_RUN(true); // First Run
 	#endif
 }

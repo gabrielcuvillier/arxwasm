@@ -74,7 +74,7 @@ long PATHFINDER_WORKING = 0;
 
 class PathFinderThread : public StoppableThread {
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 // On emscripten, the run method will be called manually to simulate thread running. It needs to be public then.
 public:
 #endif
@@ -251,7 +251,7 @@ void PathFinderThread::run() {
 	BackgroundData * eb = ACTIVEBKG;
 	PathFinder pathfinder(eb->nbanchors, eb->anchors, g_staticLightsMax, (EERIE_LIGHT **)g_staticLights);
 
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	// No more infinite loop on emscripten. The loop is simulated with emscripten_set_main_loop
 	if(!isStopRequested()) {
 	#else
@@ -358,7 +358,7 @@ void EERIE_PATHFINDER_Release() {
 }
 
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 // Simulate pathfinder thread running on emscripten. Must be called from emscripten main loop in ArxGame.cpp
 void ARX_PATHFINDER_THREAD_RUN(bool bForce = false)
 {
@@ -390,7 +390,7 @@ void EERIE_PATHFINDER_Create() {
 	pathfinder = new PathFinderThread();
 	pathfinder->setThreadName("Pathfinder");
 	pathfinder->start();
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	ARX_PATHFINDER_THREAD_RUN(true); // First run
 	#endif
 }

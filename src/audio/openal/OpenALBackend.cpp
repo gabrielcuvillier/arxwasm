@@ -227,9 +227,9 @@ aalError OpenALBackend::init(const char * requestedDeviceName, HRTFAttribute hrt
 		return AAL_ERROR_INIT;
 	}
   
-#ifdef __native_client__	
+	#ifdef __native_client__
 	alSetPpapiInfo(PSGetInstanceId(), PSGetInterface);	
-#endif
+	#endif
 	
 	OpenALEnvironmentOverrides overrides;
 	platform::EnvironmentLock lock(overrides.m_overrides);

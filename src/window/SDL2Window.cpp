@@ -76,8 +76,8 @@ struct ARX_SDL_SysWMinfo {
 #if defined __native_client__ || defined __EMSCRIPTEN__
 #include <GL/Regal.h>
 #if defined __native_client__
-# include <ppapi_simple/ps_main.h>
-# include <ppapi/c/ppb_opengles2.h>
+#include <ppapi_simple/ps_main.h>
+#include <ppapi/c/ppb_opengles2.h>
 #endif
 #endif
 
@@ -237,7 +237,7 @@ bool SDL2Window::initialize() {
 	SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
 	#endif
 
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	// Initialize ES 2.0 context profile on emscripten, and do not set any other context flags (it does not work otherwise)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
@@ -425,7 +425,7 @@ void SDL2Window::setTitle(const std::string & title) {
 }
 
 bool SDL2Window::setVSync(int vsync) {
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
     // VSync is always activated in emscripten, because of emscripten_set_main_loop usage
     // Sync is done with browser RequestImageFrame
     ARX_UNUSED(vsync);

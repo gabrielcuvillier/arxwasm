@@ -553,18 +553,21 @@ void OpenGLRenderer::SetAntialiasing(bool enable) {
 	m_hasMSAA = enable;
 }
 
+#if defined __EMSCRIPTEN__
+#else
 static const GLenum arxToGlFillMode[] = {
 	GL_LINE,  // FillWireframe,
 	GL_FILL,  // FillSolid
 };
+#endif
 
 void OpenGLRenderer::SetFillMode(FillMode mode) {
-#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	// GAB Note Dec 2018: PolygonMode not supported by Regal. Fill is always assumed
-	;
-#else
+	ARX_UNUSED(mode);
+	#else
 	glPolygonMode(GL_FRONT_AND_BACK, arxToGlFillMode[mode]);
-#endif
+	#endif
 }
 
 void OpenGLRenderer::setMaxAnisotropy(float value) {

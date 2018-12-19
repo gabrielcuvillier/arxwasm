@@ -82,7 +82,7 @@ public:
 	
 	virtual void run();
 
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	// main loop for emscripten
 	virtual bool emscripten_run();
 	#endif

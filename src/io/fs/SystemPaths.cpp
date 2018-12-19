@@ -285,7 +285,7 @@ static SystemPaths::InitParams cmdLineInitParams;
 
 ExitStatus SystemPaths::init() {
   
-#ifdef __native_client__
+	#ifdef __native_client__
     // On NACL, we are going to use special filesystems and directories
     
     nacl_io_init_ppapi(PSGetInstanceId(), PSGetInterface);
@@ -314,7 +314,7 @@ ExitStatus SystemPaths::init() {
     mkdir("/mnt/http/arx", S_IRWXU | S_IRWXG | S_IRWXO);
     mount("./arx","/mnt/http/arx", "httpfs", 0, "");
     
-#endif  
+	#endif
 
 	return init(cmdLineInitParams);
 }

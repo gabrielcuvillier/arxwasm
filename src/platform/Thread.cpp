@@ -52,9 +52,8 @@ void Thread::setThreadName(const std::string & _threadName) {
 	threadName = _threadName;
 }
 
-#ifdef __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 #pragma message ("Threads are not supported on emscripten. Most pthread calls will be disabled.")
-#pragma message ("Sound thread and pathfinder thread will be handled differently")
 #endif
 
 #if ARX_HAVE_PTHREADS
@@ -88,17 +87,15 @@ void Thread::start() {
 	
 	sched_param param;
 	param.sched_priority = priority;
-#if defined __native_client__ || defined __EMSCRIPTEN__
-	;
-#else
+	#if defined __native_client__ || defined __EMSCRIPTEN__
+	#else
     pthread_attr_setschedparam(&attr, &param);
-#endif
+	#endif
 
-#ifdef __EMSCRIPTEN__
-    ;
-#else
+	#if defined __EMSCRIPTEN__
+	#else
     pthread_create(&thread, NULL, entryPoint, this);
-#endif
+	#endif
 
 	pthread_attr_destroy(&attr);
 	
@@ -113,10 +110,10 @@ void Thread::setPriority(Priority _priority) {
 	int policy = SCHED_RR;
 #endif
 	
-#if defined __native_client__ || defined __EMSCRIPTEN__
+	#if defined __native_client__ || defined __EMSCRIPTEN__
     ARX_UNUSED(_priority);
     ARX_UNUSED(policy);
-#else
+	#else
 	int min = sched_get_priority_min(policy);
 	int max = sched_get_priority_max(policy);
 	
@@ -134,11 +131,10 @@ Thread::~Thread() { }
 
 void Thread::waitForCompletion() {
 	if(started) {
-#ifdef __EMSCRIPTEN__
-	    ;
-#else
+		#if defined __EMSCRIPTEN__
+		#else
 		pthread_join(thread, NULL);
-#endif
+		#endif
 	}
 }
 
@@ -177,11 +173,10 @@ void * Thread::entryPoint(void * param) {
 }
 
 void Thread::exit() {
-#ifdef __EMSCRIPTEN__
-    ;
-#else
+	#if defined __EMSCRIPTEN__
+	#else
 	pthread_exit(NULL);
-#endif
+	#endif
 }
 
 thread_id_type Thread::getCurrentThreadId() {
@@ -400,11 +395,10 @@ void Thread::sleep(unsigned milliseconds) {
 	t.tv_sec = milliseconds / 1000;
 	t.tv_nsec = (milliseconds % 1000) * 1000000;
 
-#ifdef __EMSCRIPTEN__
-	;
-#else
+	#if defined __EMSCRIPTEN__
+	#else
 	nanosleep(&t, NULL);
-#endif
+	#endif
 }
 
 #elif ARX_PLATFORM == ARX_PLATFORM_WIN32

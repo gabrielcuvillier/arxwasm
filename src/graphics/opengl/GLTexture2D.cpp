@@ -65,7 +65,7 @@ void GLTexture2D::Upload() {
 	glBindTexture(GL_TEXTURE_2D, tex);
 	renderer->GetTextureStage(0)->current = this;
 
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	// Regal/GLES2 does not support GL_INTENSITY textures, so convert them to L8A8
 	if(flags & Intensity) {
 		arx_assert(mFormat == Image::Format_L8);
@@ -113,7 +113,6 @@ void GLTexture2D::Upload() {
   
 	#if defined __native_client__ || defined __EMSCRIPTEN__
 	#pragma message( "Disabled Mimaps with OpenGL ES 2 / WebGL, as it is not supported by Regal" )
-	// To be tested again with REGAL_EMU_TEXC enabled
     flags &= ~HasMipmaps;
 	#else
 	if(hasMipmaps()) {

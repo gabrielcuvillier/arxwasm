@@ -70,7 +70,7 @@ public:
 	
 	virtual void setWindowSize(bool fullscreen) = 0;
 
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	// main loop for emscripten
 	virtual bool emscripten_run() = 0;
 	#endif

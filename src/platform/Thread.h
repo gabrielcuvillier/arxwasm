@@ -105,7 +105,7 @@ public:
 	
 	static thread_id_type getCurrentThreadId();
 
-	#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	// Needed for thread simulation on emscripten
 	bool isStarted() { return started; }
 	#endif

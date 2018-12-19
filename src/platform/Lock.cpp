@@ -34,9 +34,9 @@ Lock::~Lock() {
 
 void Lock::lock() {
 
-#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	locked = true;
-#else
+	#else
 	pthread_mutex_lock(&mutex);
 	
 	while(locked) {
@@ -47,18 +47,18 @@ void Lock::lock() {
 
 	locked = true;
 	pthread_mutex_unlock(&mutex);
-#endif
+	#endif
 }
 
 void Lock::unlock() {
-#ifdef __EMSCRIPTEN__
+	#if defined __EMSCRIPTEN__
 	locked = false;
-#else
+	#else
 	pthread_mutex_lock(&mutex);
 	locked = false;
 	pthread_cond_signal(&cond);
 	pthread_mutex_unlock(&mutex);
-#endif
+	#endif
 }
 
 #elif ARX_PLATFORM == ARX_PLATFORM_WIN32
