@@ -38,8 +38,8 @@
 
 #if defined __native_client__ || defined __EMSCRIPTEN__
 // On Native Client and Emscripten, tweak some GLEW definitions so that Regal GL library works correctly
-#define GLEW_ARB_texture_non_power_of_two 1
-#define GLEW_ARB_draw_elements_base_vertex 1	// Not clear if this is really supported by Regal
+#define GLEW_ARB_texture_non_power_of_two 0
+#define GLEW_ARB_draw_elements_base_vertex 0	// Not clear if this is really supported by Regal
 #define GLEW_ARB_map_buffer_range 0
 #define GLEW_EXT_texture_filter_anisotropic 0
 #define GLEW_VERSION_2_0 0
