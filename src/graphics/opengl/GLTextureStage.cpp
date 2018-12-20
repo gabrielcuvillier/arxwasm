@@ -256,7 +256,8 @@ void GLTextureStage::setMipMapLODBias(float bias) {
 	if(mStage != 0) {
 		glActiveTexture(GL_TEXTURE0 + mStage);
 	}
-	
+
+	// Note: this is not supported by Regal, although it does not complain. So keep it.
 	setTexEnv(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, bias);
 	
 	if(mStage != 0) {

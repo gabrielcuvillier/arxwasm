@@ -39,7 +39,7 @@
 #if defined __native_client__ || defined __EMSCRIPTEN__
 // On Native Client and Emscripten, tweak some GLEW definitions so that Regal GL library works correctly
 #define GLEW_ARB_texture_non_power_of_two 0
-#define GLEW_ARB_draw_elements_base_vertex 0	// Not clear if this is really supported by Regal
+#define GLEW_ARB_draw_elements_base_vertex 0	// This is supported by Regal, but we disable it as it is not used for now
 #define GLEW_ARB_map_buffer_range 0
 #define GLEW_EXT_texture_filter_anisotropic 0
 #define GLEW_VERSION_2_0 0
@@ -231,8 +231,7 @@ void OpenGLRenderer::reinit() {
 	}
 
 	#if defined __native_client__ || defined __EMSCRIPTEN__
-	// Disable usage of VertexArrays and VBOs on Native Client and Emscripten, due to issues with Regal GL library
-	// We will use traditional GL immediate mode instead
+	// Disable usage of VertexArrays and VBOs on Native Client and Emscripten, due to Regal not supporting MapBuffers
     useVertexArrays = false;
 	#else
 	useVertexArrays = true;

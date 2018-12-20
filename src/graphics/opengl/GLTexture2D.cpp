@@ -112,7 +112,7 @@ void GLTexture2D::Upload() {
 	}
   
 	#if defined __native_client__ || defined __EMSCRIPTEN__
-	#pragma message( "Disabled Mimaps with OpenGL ES 2 / WebGL, as it is not supported by Regal" )
+	#pragma message( "Disabled automatic mipmap generation when using Regal, as it is not supported" )
     flags &= ~HasMipmaps;
 	#else
 	if(hasMipmaps()) {

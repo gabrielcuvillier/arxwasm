@@ -29,7 +29,7 @@
 
 #if defined __native_client__ || defined __EMSCRIPTEN__
 #define GLEW_ARB_map_buffer_range 0
-#define GLEW_ARB_draw_elements_base_vertex 0
+#define GLEW_ARB_draw_elements_base_vertex 0	// This is supported by Regal, but we disable it as it is not used for now
 #define GLEW_ARB_buffer_storage 0
 #endif
 
