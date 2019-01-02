@@ -275,6 +275,7 @@ else(MSVC)
 		add_ldflag("-s BINARYEN_TRAP_MODE=clamp")
 		add_ldflag("-s TOTAL_MEMORY=134217728")
 		add_ldflag("-s FULL_ES2=1")
+		add_ldflag("-s DISABLE_EXCEPTION_CATCHING=0")
 	endif()
 
 endif(MSVC)
