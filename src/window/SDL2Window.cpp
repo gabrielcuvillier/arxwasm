@@ -240,6 +240,7 @@ bool SDL2Window::initialize() {
 	#if defined __EMSCRIPTEN__
 	// Initialize ES 2.0 context profile on emscripten, and do not set any other context flags (it does not work otherwise)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 	#else
@@ -615,6 +616,14 @@ void SDL2Window::tick() {
 }
 
 void SDL2Window::showFrame() {
+
+#ifndef __EMSCRIPTEN__
+	glClearColor(1,1,1,1);
+	glColorMask(false, false, false, true);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glColorMask(true, true, true, true);
+#endif
+
 	SDL_GL_SwapWindow(m_window);
 }
 
