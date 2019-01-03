@@ -617,7 +617,7 @@ void SDL2Window::tick() {
 
 void SDL2Window::showFrame() {
 
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 	glClearColor(1,1,1,1);
 	glColorMask(false, false, false, true);
 	glClear(GL_COLOR_BUFFER_BIT);
