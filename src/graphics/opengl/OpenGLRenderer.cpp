@@ -232,7 +232,7 @@ void OpenGLRenderer::reinit() {
 
 	#if defined __native_client__ || defined __EMSCRIPTEN__
 	// Disable usage of VertexArrays and VBOs on Native Client and Emscripten, due to Regal not supporting MapBuffers
-    useVertexArrays = false;
+    useVertexArrays = true;
 	#else
 	useVertexArrays = true;
 	#endif
@@ -632,8 +632,8 @@ static VertexBuffer<Vertex> * createVertexBufferImpl(OpenGLRenderer * renderer,
 		
 	}
 
-	if(setting.empty() || setting == "map" || setting == "map+subdata") {
-		return new GLVertexBuffer<Vertex>(renderer, capacity, usage);
+	if(setting.empty() || setting == "shadow" || setting == "shadow+subdata") {
+		return new GLShadowVertexBuffer<Vertex>(renderer, capacity, usage);
 	}
 
 	static bool warned = false;
