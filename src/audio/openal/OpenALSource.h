@@ -24,7 +24,7 @@
 
 #include <stddef.h>
 
-#include <al.h>
+#include <AL/al.h>
 
 #include "audio/AudioTypes.h"
 #include "audio/AudioSource.h"

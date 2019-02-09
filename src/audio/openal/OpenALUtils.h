@@ -22,7 +22,7 @@
 
 #include <boost/math/special_functions/fpclassify.hpp>
 
-#include <al.h>
+#include <AL/al.h>
 
 #include "math/Vector.h"
 
