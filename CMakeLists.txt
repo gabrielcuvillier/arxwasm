@@ -1,4 +1,4 @@
-project(ArxLibertatis)
+project(Arxwasm)
 
 unset(CMAKE_C_USE_RESPONSE_FILE_FOR_LIBRARIES)
 unset(CMAKE_CXX_USE_RESPONSE_FILE_FOR_LIBRARIES)
