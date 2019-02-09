@@ -232,7 +232,7 @@ void OpenGLRenderer::reinit() {
 
 	#if defined __native_client__ || defined __EMSCRIPTEN__
 	// Disable usage of VertexArrays and VBOs on Native Client and Emscripten, due to Regal not supporting MapBuffers
-    useVertexArrays = true;
+    useVertexArrays = false;
 	#else
 	useVertexArrays = true;
 	#endif
