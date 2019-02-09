@@ -564,7 +564,7 @@ public:
 			fullscreenCheckbox = cb;
 
 #ifdef __EMSCRIPTEN__
-			cb->setEnabled(false);
+      fullscreenCheckbox->SetCheckOff();
 #endif
 		}
 		
