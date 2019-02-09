@@ -176,7 +176,36 @@ bool SDL2Window::initializeFramework() {
 		#endif
 	}
 	#endif
-	
+
+#ifdef __EMSCRIPTEN__
+  		// 4:3
+			m_displayModes.push_back(Vec2i(640, 480)); // VGA
+			m_displayModes.push_back(Vec2i(800, 600)); // SVGA
+			m_displayModes.push_back(Vec2i(1024, 768)); // XGA
+			m_displayModes.push_back(Vec2i(1280, 960)); // SXGA-
+			m_displayModes.push_back(Vec2i(1600, 1200)); // UXGA
+
+			// 5:4
+	    m_displayModes.push_back(Vec2i(960, 640));
+			m_displayModes.push_back(Vec2i(1280, 1024)); // SXGA
+
+			// 16:9
+			m_displayModes.push_back(Vec2i(1280, 720)); // 720p
+			m_displayModes.push_back(Vec2i(1600, 900)); // 900p
+			m_displayModes.push_back(Vec2i(1920, 1080)); // 1080p
+			m_displayModes.push_back(Vec2i(2048, 1152)); // 2K
+			m_displayModes.push_back(Vec2i(4096, 2304)); // 4K
+			// ~16:9
+			m_displayModes.push_back(Vec2i(1360, 768)); // "HD"
+			m_displayModes.push_back(Vec2i(1366, 768)); // "HD"
+
+			// 16:10
+			m_displayModes.push_back(Vec2i(1024, 640)); // laptops
+			m_displayModes.push_back(Vec2i(1280, 800)); // WXGA
+			m_displayModes.push_back(Vec2i(1440, 900)); // WXGA+
+			m_displayModes.push_back(Vec2i(1680, 1050)); // WSXGA+
+			m_displayModes.push_back(Vec2i(1920, 1200)); // WUXGA
+#else
 	int ndisplays = SDL_GetNumVideoDisplays();
 	for(int display = 0; display < ndisplays; display++) {
 		int modes = SDL_GetNumDisplayModes(display);
@@ -187,11 +216,12 @@ bool SDL2Window::initializeFramework() {
 			}
 		}
 	}
-	
+#endif
+
 	std::sort(m_displayModes.begin(), m_displayModes.end());
 	m_displayModes.erase(std::unique(m_displayModes.begin(), m_displayModes.end()),
 	                     m_displayModes.end());
-	
+
 	s_mainWindow = this;
 	
 	SDL_SetEventFilter(eventFilter, NULL);

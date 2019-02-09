@@ -44,8 +44,8 @@ namespace Default {
 
 #if defined __EMSCRIPTEN__
 // have a larger default width and height on emscripten
-#define ARX_DEFAULT_WIDTH 800
-#define ARX_DEFAULT_HEIGHT 600
+#define ARX_DEFAULT_WIDTH 960
+#define ARX_DEFAULT_HEIGHT 640
 #else
 #define ARX_DEFAULT_WIDTH 640
 #define ARX_DEFAULT_HEIGHT 480
