@@ -107,8 +107,6 @@ void ARXMenu_Private_Options_Video_SetResolution(bool fullscreen, int _iWidth, i
 			LogInfo << "Configuring fullscreen resolution to " << DisplayMode(config.video.resolution);
 		}
 	}
-	
-	RenderWindow * window = mainApp->getWindow();
 
 #ifndef __EMSCRIPTEN__
 	if(window->isFullScreen() != fullscreen || fullscreen) {

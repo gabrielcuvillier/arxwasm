@@ -177,7 +177,10 @@ void ARX_DAMAGE_Show_Hit_Blood()
 			color = Color3f(1.f, Blood_Pos - 1.f, Blood_Pos - 1.f).to<u8>();
 		
 		UseRenderState state(render2D().blend(BlendZero, BlendSrcColor));
-		//EERIEDrawBitmap(Rectf(g_size), 0.00009f, NULL, color);
+#ifdef __EMSCRIPTEN__
+#else
+    EERIEDrawBitmap(Rectf(g_size), 0.00009f, NULL, color);
+#endif
 	} else if(Blood_Pos > 0.f) {
 		
 		if(player.poison > 1.f)
@@ -186,7 +189,10 @@ void ARX_DAMAGE_Show_Hit_Blood()
 			color = Color3f(1.f, 1.f - Blood_Pos, 1.f - Blood_Pos).to<u8>();
 		
 		UseRenderState state(render2D().blend(BlendZero, BlendSrcColor));
-		//EERIEDrawBitmap(Rectf(g_size), 0.00009f, NULL, color);
+#ifdef __EMSCRIPTEN__
+#else
+    EERIEDrawBitmap(Rectf(g_size), 0.00009f, NULL, color);
+#endif
 	}
 
 	if(Blood_Pos > 0.f) {
