@@ -89,17 +89,17 @@ inline void setVertexArray(const SMY_VERTEX * vertices, const void * ref) {
 
 template <>
 inline void setVertexArray(const SMY_VERTEX3 * vertices, const void * ref) {
-	
+
 	if(!switchVertexArray(GL_SMY_VERTEX3, ref, 3)) {
 		return;
 	}
-	
+
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, sizeof(SMY_VERTEX3), &vertices->p.x);
-	
+
 	glEnableClientState(GL_COLOR_ARRAY);
 	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(SMY_VERTEX3), &vertices->color);
-	
+
 	setVertexArrayTexCoord(0, &vertices->uv[0], sizeof(SMY_VERTEX3));
 	setVertexArrayTexCoord(1, &vertices->uv[1], sizeof(SMY_VERTEX3));
 	setVertexArrayTexCoord(2, &vertices->uv[2], sizeof(SMY_VERTEX3));
