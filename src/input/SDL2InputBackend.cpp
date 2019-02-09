@@ -50,7 +50,7 @@ SDL2InputBackend::SDL2InputBackend(SDL2Window * window) : m_window(window), m_te
 	sdlToArxKey[SDL_SCANCODE_TAB] = Keyboard::Key_Tab;
 	sdlToArxKey[SDL_SCANCODE_RETURN] = Keyboard::Key_Enter;
 	sdlToArxKey[SDL_SCANCODE_PAUSE] = Keyboard::Key_Pause;
-	sdlToArxKey[SDL_SCANCODE_ESCAPE] = Keyboard::Key_Escape;
+	sdlToArxKey[SDL_SCANCODE_HOME] = Keyboard::Key_Escape;
 	sdlToArxKey[SDL_SCANCODE_SPACE] = Keyboard::Key_Spacebar;
 	sdlToArxKey[SDL_SCANCODE_COMMA] = Keyboard::Key_Comma;
 	sdlToArxKey[SDL_SCANCODE_MINUS] = Keyboard::Key_Minus;
@@ -122,7 +122,7 @@ SDL2InputBackend::SDL2InputBackend(SDL2Window * window) : m_window(window), m_te
 	sdlToArxKey[SDL_SCANCODE_RIGHT] = Keyboard::Key_RightArrow;
 	sdlToArxKey[SDL_SCANCODE_LEFT] = Keyboard::Key_LeftArrow;
 	sdlToArxKey[SDL_SCANCODE_INSERT] = Keyboard::Key_Insert;
-	sdlToArxKey[SDL_SCANCODE_HOME] = Keyboard::Key_Home;
+	//sdlToArxKey[SDL_SCANCODE_HOME] = Keyboard::Key_Home;
 	sdlToArxKey[SDL_SCANCODE_AC_HOME] = Keyboard::Key_Home;
 	sdlToArxKey[SDL_SCANCODE_END] = Keyboard::Key_End;
 	sdlToArxKey[SDL_SCANCODE_PAGEUP] = Keyboard::Key_PageUp;

@@ -51,7 +51,7 @@ SDL1InputBackend::SDL1InputBackend() : m_textHandler(NULL) {
 	sdlToArxKey[SDLK_TAB] = Keyboard::Key_Tab;
 	sdlToArxKey[SDLK_RETURN] = Keyboard::Key_Enter;
 	sdlToArxKey[SDLK_PAUSE] = Keyboard::Key_Pause;
-	sdlToArxKey[SDLK_ESCAPE] = Keyboard::Key_Escape;
+	sdlToArxKey[SDLK_HOME] = Keyboard::Key_Escape;
 	sdlToArxKey[SDLK_SPACE] = Keyboard::Key_Spacebar;
 	sdlToArxKey[SDLK_EXCLAIM] = Keyboard::Key_1;
 	sdlToArxKey[SDLK_QUOTEDBL] = Keyboard::Key_Apostrophe;
@@ -139,7 +139,7 @@ SDL1InputBackend::SDL1InputBackend() : m_textHandler(NULL) {
 	sdlToArxKey[SDLK_RIGHT] = Keyboard::Key_RightArrow;
 	sdlToArxKey[SDLK_LEFT] = Keyboard::Key_LeftArrow;
 	sdlToArxKey[SDLK_INSERT] = Keyboard::Key_Insert;
-	sdlToArxKey[SDLK_HOME] = Keyboard::Key_Home;
+	//sdlToArxKey[SDLK_HOME] = Keyboard::Key_Home;
 	sdlToArxKey[SDLK_END] = Keyboard::Key_End;
 	sdlToArxKey[SDLK_PAGEUP] = Keyboard::Key_PageUp;
 	sdlToArxKey[SDLK_PAGEDOWN] = Keyboard::Key_PageDown;
