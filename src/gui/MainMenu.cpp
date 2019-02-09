@@ -562,6 +562,10 @@ public:
 			cb->iState = config.video.fullscreen ? 1 : 0;
 			addCenter(cb);
 			fullscreenCheckbox = cb;
+
+#ifdef __EMSCRIPTEN__
+			cb->setEnabled(false);
+#endif
 		}
 		
 		{
@@ -573,9 +577,13 @@ public:
 			panel->AddElement(txt);
 			pMenuSliderResol = new CycleTextWidget;
 			pMenuSliderResol->valueChanged = boost::bind(&VideoOptionsMenuPage::onChangedResolution, this, _1, _2);
-			
+
+#ifdef __EMSCRIPTEN__
+      pMenuSliderResol->setEnabled(true);
+#else
 			pMenuSliderResol->setEnabled(config.video.fullscreen);
-			
+#endif
+
 			const RenderWindow::DisplayModes & modes = mainApp->getWindow()->getDisplayModes();
 			for(size_t i = 0; i != modes.size(); ++i) {
 				
@@ -820,7 +828,11 @@ private:
 		newFullscreen = ((state)?true:false);
 		
 		if(pMenuSliderResol) {
-			pMenuSliderResol->setEnabled(newFullscreen);
+#ifdef __EMSCRIPTEN__
+			pMenuSliderResol->setEnabled(true);
+#else
+      pMenuSliderResol->setEnabled(newFullscreen);
+#endif
 			setMinimizeOnFocusLostState(m_minimizeOnFocusLostCheckbox, newFullscreen);
 		}
 	}

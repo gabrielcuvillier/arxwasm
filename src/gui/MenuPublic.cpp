@@ -94,7 +94,12 @@ void ARXMenu_Private_Options_Video_SetResolution(bool fullscreen, int _iWidth, i
 	}
 	
 	config.video.resolution = Vec2i(_iWidth, _iHeight);
-	
+
+#ifdef __EMSCRIPTEN__
+  // On emscripten, make the window size match the resolution
+	config.window.size = Vec2i(_iWidth, _iHeight);
+#endif
+
 	if(!fullscreen) {
 		if(config.video.resolution == Vec2i_ZERO) {
 			LogInfo << "Configuring automatic fullscreen resolution selection";
@@ -104,16 +109,19 @@ void ARXMenu_Private_Options_Video_SetResolution(bool fullscreen, int _iWidth, i
 	}
 	
 	RenderWindow * window = mainApp->getWindow();
-	
+
+#ifndef __EMSCRIPTEN__
 	if(window->isFullScreen() != fullscreen || fullscreen) {
-		
-		GRenderer->Clear(Renderer::ColorBuffer | Renderer::DepthBuffer);
-		
-		mainApp->getWindow()->showFrame();
-		
-		mainApp->setWindowSize(fullscreen);
-		
-	}
+#endif
+
+    GRenderer->Clear(Renderer::ColorBuffer | Renderer::DepthBuffer);
+
+    mainApp->getWindow()->showFrame();
+
+    mainApp->setWindowSize(fullscreen);
+#ifndef __EMSCRIPTEN__
+  }
+#endif
 }
 
 void ARXMenu_Options_Video_SetFogDistance(int _iFog) {

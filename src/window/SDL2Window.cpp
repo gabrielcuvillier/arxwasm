@@ -32,13 +32,16 @@
 #include "platform/Platform.h"
 
 #if ARX_PLATFORM == ARX_PLATFORM_WIN32
+
 #include <windows.h>
 #include <shellapi.h>
+
 #endif
 
 #if ARX_PLATFORM != ARX_PLATFORM_WIN32
 #define SDL_PROTOTYPES_ONLY 1
 #endif
+
 #include <SDL_syswm.h>
 
 #include "core/Version.h"
@@ -56,21 +59,21 @@
 // Avoid including SDL_syswm.h without SDL_PROTOTYPES_ONLY on non-Windows systems
 // it includes X11 stuff which pullutes the namespace global namespace.
 typedef enum {
-	ARX_SDL_SYSWM_UNKNOWN,
-	ARX_SDL_SYSWM_WINDOWS,
-	ARX_SDL_SYSWM_X11,
-	ARX_SDL_SYSWM_DIRECTFB,
-	ARX_SDL_SYSWM_COCOA,
-	ARX_SDL_SYSWM_UIKIT,
-	ARX_SDL_SYSWM_WAYLAND,
-	ARX_SDL_SYSWM_MIR,
-	ARX_SDL_SYSWM_WINRT,
-	ARX_SDL_SYSWM_ANDROID,
+  ARX_SDL_SYSWM_UNKNOWN,
+  ARX_SDL_SYSWM_WINDOWS,
+  ARX_SDL_SYSWM_X11,
+  ARX_SDL_SYSWM_DIRECTFB,
+  ARX_SDL_SYSWM_COCOA,
+  ARX_SDL_SYSWM_UIKIT,
+  ARX_SDL_SYSWM_WAYLAND,
+  ARX_SDL_SYSWM_MIR,
+  ARX_SDL_SYSWM_WINRT,
+  ARX_SDL_SYSWM_ANDROID,
 } ARX_SDL_SYSWM_TYPE;
 struct ARX_SDL_SysWMinfo {
-	SDL_version version;
-	ARX_SDL_SYSWM_TYPE subsystem;
-	char padding[1024];
+  SDL_version version;
+  ARX_SDL_SYSWM_TYPE subsystem;
+  char padding[1024];
 };
 
 #if defined __native_client__ || defined __EMSCRIPTEN__
@@ -81,39 +84,35 @@ struct ARX_SDL_SysWMinfo {
 #endif
 #endif
 
-SDL2Window * SDL2Window::s_mainWindow = NULL;
+SDL2Window* SDL2Window::s_mainWindow = NULL;
 
 SDL2Window::SDL2Window()
-	: m_window(NULL)
-	, m_glcontext(NULL)
-	, m_input(NULL)
-	, m_minimizeOnFocusLost(AlwaysEnabled)
-	{
-	m_renderer = new OpenGLRenderer;
+  : m_window(NULL), m_glcontext(NULL), m_input(NULL), m_minimizeOnFocusLost(AlwaysEnabled) {
+  m_renderer = new OpenGLRenderer;
 }
 
 SDL2Window::~SDL2Window() {
-	
-	if(m_input) {
-		delete m_input;
-	}
-	
-	if(m_renderer) {
-		delete m_renderer, m_renderer = NULL;
-	}
-	
-	if(m_glcontext) {
-		SDL_GL_DeleteContext(m_glcontext);
-	}
-	
-	if(m_window) {
-		SDL_DestroyWindow(m_window);
-	}
-	
-	if(s_mainWindow) {
-		SDL_Quit(), s_mainWindow = NULL;
-	}
-	
+
+  if ( m_input ) {
+    delete m_input;
+  }
+
+  if ( m_renderer ) {
+    delete m_renderer, m_renderer = NULL;
+  }
+
+  if ( m_glcontext ) {
+    SDL_GL_DeleteContext(m_glcontext);
+  }
+
+  if ( m_window ) {
+    SDL_DestroyWindow(m_window);
+  }
+
+  if ( s_mainWindow ) {
+    SDL_Quit(), s_mainWindow = NULL;
+  }
+
 }
 
 bool SDL2Window::initializeFramework() {
@@ -202,460 +201,486 @@ bool SDL2Window::initializeFramework() {
 	SDL_EventState(SDL_SYSWMEVENT,  SDL_IGNORE);
 	SDL_EventState(SDL_USEREVENT,   SDL_IGNORE);
 
-	return true;
+  return true;
 }
 
-static Uint32 getSDLFlagsForMode(const Vec2i & size, bool fullscreen) {
-	
-	Uint32 flags = 0;
-	
-	if(fullscreen) {
-		if(size == Vec2i_ZERO) {
-			flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+static Uint32 getSDLFlagsForMode(const Vec2i& size, bool fullscreen) {
+
+  Uint32 flags = 0;
+  if ( fullscreen ) {
+    if ( size == Vec2i_ZERO ) {
+      flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 		} else {
-			flags |= SDL_WINDOW_FULLSCREEN;
-		}
-	}
-	
-	return flags;
+      flags |= SDL_WINDOW_FULLSCREEN;
+    }
+  }
+
+  return flags;
 }
 
 bool SDL2Window::initialize() {
 
-	arx_assert(!m_displayModes.empty());
+  arx_assert(!m_displayModes.empty());
 
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
-	// Used on Windows to prevent software opengl fallback.
-	// The linux situation:
-	// Causes SDL to require visuals without caveats.
-	// On linux some drivers only supply multisample capable GLX Visuals
-	// with a GLX_NON_CONFORMANT_VISUAL_EXT caveat.
-	// see: https://www.opengl.org/registry/specs/EXT/visual_rating.txt
-	SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
-	#endif
+#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+  // Used on Windows to prevent software opengl fallback.
+  // The linux situation:
+  // Causes SDL to require visuals without caveats.
+  // On linux some drivers only supply multisample capable GLX Visuals
+  // with a GLX_NON_CONFORMANT_VISUAL_EXT caveat.
+  // see: https://www.opengl.org/registry/specs/EXT/visual_rating.txt
+  SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+#endif
 
-	#if defined __EMSCRIPTEN__
-	// Initialize ES 2.0 context profile on emscripten, and do not set any other context flags (it does not work otherwise)
+#if defined __EMSCRIPTEN__
+  // Initialize ES 2.0 context profile on emscripten, and do not set any other context flags (it does not work otherwise)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-	#else
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+#else
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
 
-	if(gldebug::isEnabled()) {
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
-	}
-	#endif
+  if ( gldebug::isEnabled()) {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+  }
+#endif
 
 
-    int x = SDL_WINDOWPOS_UNDEFINED, y = SDL_WINDOWPOS_UNDEFINED;
-	Uint32 windowFlags = getSDLFlagsForMode(m_size, m_fullscreen);
-	windowFlags |= SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
-	
-	for(int msaa = m_maxMSAALevel; msaa > 0; msaa--) {
-		bool lastTry = (msaa == 1);
-		
-		// Cleanup context and window from previous tries
-		if(m_glcontext) {
-			SDL_GL_DeleteContext(m_glcontext);
-			m_glcontext = NULL;
-		}
-		if(m_window) {
-			SDL_DestroyWindow(m_window);
-			m_window = NULL;
-		}
-		
-		SDL_ClearError();
-		
-		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, msaa > 1 ? 1 : 0);
-		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, msaa > 1 ? msaa : 0);
+  int x = SDL_WINDOWPOS_UNDEFINED, y = SDL_WINDOWPOS_UNDEFINED;
+  Uint32 windowFlags = getSDLFlagsForMode(m_size, m_fullscreen);
+  windowFlags |= SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
 
-        m_window = SDL_CreateWindow(m_title.c_str(), x, y, m_size.x, m_size.y, windowFlags);
-		if(!m_window) {
-			if(lastTry) {
-				LogError << "Could not create window: " << SDL_GetError();
-				return false;
-			}
-			continue;
-		}
+  for ( int msaa = m_maxMSAALevel; msaa > 0; msaa-- ) {
+    bool lastTry = ( msaa == 1 );
 
-        m_glcontext = SDL_GL_CreateContext(m_window);
-		if(!m_glcontext) {
-        	if(lastTry) {
-				LogError << "Could not create GL context: " << SDL_GetError();
-				return false;
-			}
-			continue;
-		}
+    // Cleanup context and window from previous tries
+    if ( m_glcontext ) {
+      SDL_GL_DeleteContext(m_glcontext);
+      m_glcontext = NULL;
+    }
+    if ( m_window ) {
+      SDL_DestroyWindow(m_window);
+      m_window = NULL;
+    }
 
-		// Regal GL Library setup
-		#if defined __native_client__
-        RegalMakeCurrent((int32_t)m_glcontext,(PPB_OpenGLES2*)PSGetInterface(PPB_OPENGLES2_INTERFACE));
-		#elif defined __EMSCRIPTEN__
-		RegalMakeCurrent((void*)1);
-		#endif
+    SDL_ClearError();
 
-		// Verify that the MSAA setting matches what was requested
-		int msaaEnabled, msaaValue;
-		SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &msaaEnabled);
-		SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &msaaValue);
-		if(!lastTry) {
-			if(!msaaEnabled || msaaValue < msaa) {
-				continue;
-			}
-		}
-		
-		// Verify that we actually got an accelerated context
-		(void)glGetError(); // clear error flags
-		GLint texunits = 0;
-		glGetIntegerv(GL_MAX_TEXTURE_UNITS, &texunits);
-		if(glGetError() != GL_NO_ERROR || texunits < GLint(m_minTextureUnits)) {
-			if(lastTry) {
-				m_renderer->initialize(); // Log hardware information
-				LogError << "Not enough GL texture units available: have " << texunits
-				         << ", need at least " << m_minTextureUnits;
-				return false;
-			}
-			continue;
-		}
-		
-		// All good
-		const char * system = "(unknown)";
-		{
-		  ARX_SDL_SysWMinfo info;
-			info.version.major = 2;
-			info.version.minor = 0;
-			info.version.patch = 4;
-			if(SDL_GetWindowWMInfo(m_window, reinterpret_cast<SDL_SysWMinfo *>(&info))) {
-				switch(info.subsystem) {
-					case ARX_SDL_SYSWM_UNKNOWN:   break;
-					case ARX_SDL_SYSWM_WINDOWS:   system = "Windows"; break;
-					case ARX_SDL_SYSWM_X11:       system = "X11"; break;
-					#if SDL_VERSION_ATLEAST(2, 0, 3)
-					case ARX_SDL_SYSWM_WINRT:     system = "WinRT"; break;
-					#endif
-					case ARX_SDL_SYSWM_DIRECTFB:  system = "DirectFB"; break;
-					case ARX_SDL_SYSWM_COCOA:     system = "Cocoa"; break;
-					case ARX_SDL_SYSWM_UIKIT:     system = "UIKit"; break;
-					#if SDL_VERSION_ATLEAST(2, 0, 2)
-					case ARX_SDL_SYSWM_WAYLAND:   system = "Wayland"; break;
-					case ARX_SDL_SYSWM_MIR:       system = "Mir"; break;
-					#endif
-					#if SDL_VERSION_ATLEAST(2, 0, 4)
-					case ARX_SDL_SYSWM_ANDROID:   system = "Android"; break;
-					#endif
-				}
-			}
-		}
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, msaa > 1 ? 1 : 0);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, msaa > 1 ? msaa : 0);
 
-		int red = 0, green = 0, blue = 0, alpha = 0, depth = 0, doublebuffer = 0;
-		SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &red);
-		SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &green);
-		SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &blue);
-		SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &alpha);
-		SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depth);
-		SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &doublebuffer);
-		LogInfo << "Window: " << system << " r:" << red << " g:" << green << " b:" << blue
-		        << " a:" << alpha << " depth:" << depth << " aa:" << msaa << "x"
-		        << " doublebuffer:" << doublebuffer;
-		break;
-	}
-	
-	// Use the executable icon for the window
-	#if ARX_PLATFORM == ARX_PLATFORM_WIN32
-	u64 nativeWindow = 0;
-	{
-		SDL_SysWMinfo info;
-		SDL_VERSION(&info.version);
-		if(SDL_GetWindowWMInfo(m_window, &info) && info.subsystem == SDL_SYSWM_WINDOWS) {
-			nativeWindow = u64(info.info.win.window);
-			platform::WideString filename;
-			filename.allocate(filename.capacity());
-			while(true) {
-				DWORD size = GetModuleFileNameW(NULL, filename.data(), filename.size());
-				if(size < filename.size()) {
-					filename.resize(size);
-					break;
-				}
-				filename.allocate(filename.size() * 2);
-			}
-			HICON largeIcon = 0;
-			HICON smallIcon = 0;
-			ExtractIconExW(filename, 0, &largeIcon, &smallIcon, 1);
-			if(smallIcon) {
-				SendMessage(info.info.win.window, WM_SETICON, ICON_SMALL, LPARAM(smallIcon));
-			}
-			if(largeIcon) {
-				SendMessage(info.info.win.window, WM_SETICON, ICON_BIG, LPARAM(largeIcon));
-			}
-		}
-	}
-	#elif ARX_PLATFORM != ARX_PLATFORM_MACOS && !defined __EMSCRIPTEN__
-	u64 nativeWindow = SDL2X11_getNativeWindowHandle(m_window);
-	#else
-	u64 nativeWindow = 0;
-	#endif
-	CrashHandler::setWindow(nativeWindow);
-	
-	setVSync(m_vsync);
-	
-	SDL_ShowWindow(m_window);
-	SDL_ShowCursor(SDL_DISABLE);
+    m_window = SDL_CreateWindow(m_title.c_str(), x, y, m_size.x, m_size.y, windowFlags);
+    if ( !m_window ) {
+      if ( lastTry ) {
+        LogError << "Could not create window: " << SDL_GetError();
+        return false;
+      }
+      continue;
+    }
 
-	m_renderer->initialize();
-	
-	onCreate();
-	onToggleFullscreen(m_fullscreen);
-	updateSize(true);
-	
-	onShow(true);
-	onFocus(true);
+    m_glcontext = SDL_GL_CreateContext(m_window);
+    if ( !m_glcontext ) {
+      if ( lastTry ) {
+        LogError << "Could not create GL context: " << SDL_GetError();
+        return false;
+      }
+      continue;
+    }
 
-	return true;
+    // Regal GL Library setup
+#if defined __native_client__
+    RegalMakeCurrent((int32_t)m_glcontext,(PPB_OpenGLES2*)PSGetInterface(PPB_OPENGLES2_INTERFACE));
+#elif defined __EMSCRIPTEN__
+    RegalMakeCurrent((void*)1);
+#endif
+
+    // Verify that the MSAA setting matches what was requested
+    int msaaEnabled, msaaValue;
+    SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &msaaEnabled);
+    SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &msaaValue);
+    if ( !lastTry ) {
+      if ( !msaaEnabled || msaaValue < msaa ) {
+        continue;
+      }
+    }
+
+    // Verify that we actually got an accelerated context
+    (void) glGetError(); // clear error flags
+    GLint texunits = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_UNITS, &texunits);
+    if ( glGetError() != GL_NO_ERROR || texunits < GLint(m_minTextureUnits)) {
+      if ( lastTry ) {
+        m_renderer->initialize(); // Log hardware information
+        LogError << "Not enough GL texture units available: have " << texunits
+                 << ", need at least " << m_minTextureUnits;
+        return false;
+      }
+      continue;
+    }
+
+    // All good
+    const char* system = "(unknown)";
+    {
+      ARX_SDL_SysWMinfo info;
+      info.version.major = 2;
+      info.version.minor = 0;
+      info.version.patch = 4;
+      if ( SDL_GetWindowWMInfo(m_window, reinterpret_cast<SDL_SysWMinfo*>(&info))) {
+        switch ( info.subsystem ) {
+          case ARX_SDL_SYSWM_UNKNOWN:
+            break;
+          case ARX_SDL_SYSWM_WINDOWS:
+            system = "Windows";
+            break;
+          case ARX_SDL_SYSWM_X11:
+            system = "X11";
+            break;
+#if SDL_VERSION_ATLEAST(2, 0, 3)
+            case ARX_SDL_SYSWM_WINRT:     system = "WinRT"; break;
+#endif
+          case ARX_SDL_SYSWM_DIRECTFB:
+            system = "DirectFB";
+            break;
+          case ARX_SDL_SYSWM_COCOA:
+            system = "Cocoa";
+            break;
+          case ARX_SDL_SYSWM_UIKIT:
+            system = "UIKit";
+            break;
+#if SDL_VERSION_ATLEAST(2, 0, 2)
+          case ARX_SDL_SYSWM_WAYLAND:   system = "Wayland"; break;
+          case ARX_SDL_SYSWM_MIR:       system = "Mir"; break;
+#endif
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+            case ARX_SDL_SYSWM_ANDROID:   system = "Android"; break;
+#endif
+        }
+      }
+    }
+
+    int red = 0, green = 0, blue = 0, alpha = 0, depth = 0, doublebuffer = 0;
+    SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &red);
+    SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &green);
+    SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &blue);
+    SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &alpha);
+    SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depth);
+    SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &doublebuffer);
+    LogInfo << "Window: " << system << " r:" << red << " g:" << green << " b:" << blue
+            << " a:" << alpha << " depth:" << depth << " aa:" << msaa << "x"
+            << " doublebuffer:" << doublebuffer;
+    break;
+  }
+
+  // Use the executable icon for the window
+#if ARX_PLATFORM == ARX_PLATFORM_WIN32
+  u64 nativeWindow = 0;
+  {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    if ( SDL_GetWindowWMInfo(m_window, &info) && info.subsystem == SDL_SYSWM_WINDOWS ) {
+      nativeWindow = u64(info.info.win.window);
+      platform::WideString filename;
+      filename.allocate(filename.capacity());
+      while ( true ) {
+        DWORD size = GetModuleFileNameW(NULL, filename.data(), filename.size());
+        if ( size < filename.size()) {
+          filename.resize(size);
+          break;
+        }
+        filename.allocate(filename.size() * 2);
+      }
+      HICON largeIcon = 0;
+      HICON smallIcon = 0;
+      ExtractIconExW(filename, 0, &largeIcon, &smallIcon, 1);
+      if ( smallIcon ) {
+        SendMessage(info.info.win.window, WM_SETICON, ICON_SMALL, LPARAM(smallIcon));
+      }
+      if ( largeIcon ) {
+        SendMessage(info.info.win.window, WM_SETICON, ICON_BIG, LPARAM(largeIcon));
+      }
+    }
+  }
+#elif ARX_PLATFORM != ARX_PLATFORM_MACOS && !defined __EMSCRIPTEN__
+  u64 nativeWindow = SDL2X11_getNativeWindowHandle(m_window);
+#else
+  u64 nativeWindow = 0;
+#endif
+  CrashHandler::setWindow(nativeWindow);
+
+  setVSync(m_vsync);
+
+  SDL_ShowWindow(m_window);
+  SDL_ShowCursor(SDL_DISABLE);
+
+  m_renderer->initialize();
+
+  onCreate();
+  onToggleFullscreen(m_fullscreen);
+  updateSize(true);
+
+  onShow(true);
+  onFocus(true);
+
+  return true;
 }
 
-void SDL2Window::setTitle(const std::string & title) {
-	if(m_window) {
-		SDL_SetWindowTitle(m_window, title.c_str());
-	}
-	m_title = title;
+void SDL2Window::setTitle(const std::string& title) {
+  if ( m_window ) {
+    SDL_SetWindowTitle(m_window, title.c_str());
+  }
+  m_title = title;
 }
 
 bool SDL2Window::setVSync(int vsync) {
-	#if defined __EMSCRIPTEN__
-    // VSync is always activated in emscripten, because of emscripten_set_main_loop usage
-    // Sync is done with browser RequestImageFrame
-    ARX_UNUSED(vsync);
+#if defined __EMSCRIPTEN__
+  // VSync is always activated in emscripten, because of emscripten_set_main_loop usage
+  // Sync is done with browser RequestImageFrame
+  ARX_UNUSED(vsync);
+  return false;
+#else
+  if ( m_window && SDL_GL_SetSwapInterval(vsync) != 0 ) {
+    if ( vsync != 0 && vsync != 1 ) {
+      return setVSync(1);
+    }
     return false;
-	#else
-	if(m_window && SDL_GL_SetSwapInterval(vsync) != 0) {
-		if(vsync != 0 && vsync != 1) {
-			return setVSync(1);
-		}
-		return false;
-	}
-	m_vsync = vsync;
-	return true;
-	#endif
+  }
+  m_vsync = vsync;
+  return true;
+#endif
 }
 
 void SDL2Window::changeMode(DisplayMode mode, bool makeFullscreen) {
-	
-	if(!m_window) {
-		m_size = mode.resolution;
-		m_fullscreen = makeFullscreen;
-		return;
-	}
-	
-	if(m_fullscreen == makeFullscreen && m_size == mode.resolution) {
-		return;
-	}
-	
-	bool wasFullscreen = m_fullscreen;
-	
-	m_renderer->beforeResize(false);
-	
-	if(makeFullscreen) {
-		if(wasFullscreen) {
-			// SDL will not update the window size with the new mode if already fullscreen
-			SDL_SetWindowFullscreen(m_window, 0);
-		}
-		if(mode.resolution != Vec2i_ZERO) {
-			SDL_DisplayMode sdlmode;
-			SDL_DisplayMode requested;
-			requested.driverdata = NULL;
-			requested.format = 0;
-			requested.refresh_rate = 0;
-			requested.w = mode.resolution.x;
-			requested.h = mode.resolution.y;
-			int display = SDL_GetWindowDisplayIndex(m_window);
-			if(!SDL_GetClosestDisplayMode(display, &requested, &sdlmode)) {
-				if(SDL_GetDesktopDisplayMode(display, &sdlmode)) {
-					return;
-				}
-			}
-			if(SDL_SetWindowDisplayMode(m_window, &sdlmode) < 0) {
-				return;
-			}
-		}
-	}
-	
-	Uint32 flags = getSDLFlagsForMode(mode.resolution, makeFullscreen);
-	if(SDL_SetWindowFullscreen(m_window, flags) < 0) {
-		return;
-	}
-	
-	if(!makeFullscreen) {
-		if(wasFullscreen) {
-			SDL_RestoreWindow(m_window);
-		}
-		SDL_SetWindowSize(m_window, mode.resolution.x, mode.resolution.y);
-	}
-	
-	if(wasFullscreen != makeFullscreen) {
-		onToggleFullscreen(makeFullscreen);
-	}
-	
-	if(makeFullscreen) {
-		// SDL regrettably sends resize events when a fullscreen window is minimized.
-		// Because of that we ignore all size change events when fullscreen.
-		// Instead, handle the size change here.
-		updateSize();
-	}
-	
-	tick();
+
+  if ( !m_window ) {
+    m_size = mode.resolution;
+    m_fullscreen = makeFullscreen;
+    return;
+  }
+
+  if ( m_fullscreen == makeFullscreen && m_size == mode.resolution ) {
+    return;
+  }
+
+  bool wasFullscreen = m_fullscreen;
+
+  m_renderer->beforeResize(false);
+
+  if ( makeFullscreen ) {
+    if ( wasFullscreen ) {
+      // SDL will not update the window size with the new mode if already fullscreen
+      SDL_SetWindowFullscreen(m_window, 0);
+    }
+    if ( mode.resolution != Vec2i_ZERO ) {
+      SDL_DisplayMode sdlmode;
+      SDL_DisplayMode requested;
+      requested.driverdata = NULL;
+      requested.format = 0;
+      requested.refresh_rate = 0;
+      requested.w = mode.resolution.x;
+      requested.h = mode.resolution.y;
+      int display = SDL_GetWindowDisplayIndex(m_window);
+      if ( !SDL_GetClosestDisplayMode(display, &requested, &sdlmode)) {
+        if ( SDL_GetDesktopDisplayMode(display, &sdlmode)) {
+          return;
+        }
+      }
+      if ( SDL_SetWindowDisplayMode(m_window, &sdlmode) < 0 ) {
+        return;
+      }
+    }
+  }
+
+  Uint32 flags = getSDLFlagsForMode(mode.resolution, makeFullscreen);
+  if ( SDL_SetWindowFullscreen(m_window, flags) < 0 ) {
+    return;
+  }
+
+  if ( !makeFullscreen ) {
+    if ( wasFullscreen ) {
+      SDL_RestoreWindow(m_window);
+    }
+    SDL_SetWindowSize(m_window, mode.resolution.x, mode.resolution.y);
+  }
+
+  if ( wasFullscreen != makeFullscreen ) {
+    onToggleFullscreen(makeFullscreen);
+  }
+
+  if ( makeFullscreen ) {
+    // SDL regrettably sends resize events when a fullscreen window is minimized.
+    // Because of that we ignore all size change events when fullscreen.
+    // Instead, handle the size change here.
+    updateSize();
+  }
+
+  tick();
 }
 
 void SDL2Window::updateSize(bool force) {
-	
-	Vec2i oldSize = m_size;
-	
-	int w, h;
-	SDL_GetWindowSize(m_window, &w, &h);
-	m_size = Vec2i(w, h);
-	
-	if(force || m_size != oldSize) {
-		m_renderer->afterResize();
-		m_renderer->SetViewport(Rect(m_size.x, m_size.y));
-		onResize(m_size);
-	}
+
+  Vec2i oldSize = m_size;
+
+  int w, h;
+  SDL_GetWindowSize(m_window, &w, &h);
+  m_size = Vec2i(w, h);
+
+  if ( force || m_size != oldSize ) {
+    m_renderer->afterResize();
+    m_renderer->SetViewport(Rect(m_size.x, m_size.y));
+    onResize(m_size);
+  }
 }
 
-void SDL2Window::setFullscreenMode(const DisplayMode & mode) {
-	changeMode(mode, true);
+void SDL2Window::setFullscreenMode(const DisplayMode& mode) {
+  changeMode(mode, true);
 }
 
-void SDL2Window::setWindowSize(const Vec2i & size) {
-	changeMode(size, false);
+void SDL2Window::setWindowSize(const Vec2i& size) {
+  changeMode(size, false);
 }
 
-int SDLCALL SDL2Window::eventFilter(void * userdata, SDL_Event * event) {
-	
-	ARX_UNUSED(userdata);
-	
-	// TODO support multiple windows!
-	if(s_mainWindow && event->type == SDL_QUIT) {
-		return (s_mainWindow->onClose()) ? 1 : 0;
-	}
-	
-	return 1;
+int SDLCALL SDL2Window::eventFilter(void* userdata, SDL_Event* event) {
+
+  ARX_UNUSED(userdata);
+
+  // TODO support multiple windows!
+  if ( s_mainWindow && event->type == SDL_QUIT ) {
+    return ( s_mainWindow->onClose()) ? 1 : 0;
+  }
+
+  return 1;
 }
 
 void SDL2Window::tick() {
-	
-	SDL_Event event;
-	while(SDL_PollEvent(&event)) {
-		
-		switch(event.type) {
-			
-			case SDL_WINDOWEVENT: {
-				switch(event.window.event) {
-					
-					case SDL_WINDOWEVENT_SHOWN:        onShow(true);   break;
-					case SDL_WINDOWEVENT_HIDDEN:       onShow(false);  break;
-					case SDL_WINDOWEVENT_EXPOSED:      onPaint();      break;
-					case SDL_WINDOWEVENT_MINIMIZED:    onMinimize();   break;
-					case SDL_WINDOWEVENT_MAXIMIZED:    onMaximize();   break;
-					case SDL_WINDOWEVENT_RESTORED:     onRestore();    break;
-					case SDL_WINDOWEVENT_FOCUS_GAINED: onFocus(true);  break;
-					case SDL_WINDOWEVENT_FOCUS_LOST:   onFocus(false); break;
-					
-					case SDL_WINDOWEVENT_MOVED: {
-						onMove(event.window.data1, event.window.data2);
-						break;
-					}
-					
-					case SDL_WINDOWEVENT_SIZE_CHANGED: {
-						Vec2i newSize(event.window.data1, event.window.data2);
-						if(newSize != m_size && !m_fullscreen) {
-							m_renderer->beforeResize(false);
-							updateSize();
+
+  SDL_Event event;
+  while ( SDL_PollEvent(&event)) {
+
+    switch ( event.type ) {
+
+      case SDL_WINDOWEVENT: {
+        switch ( event.window.event ) {
+
+          case SDL_WINDOWEVENT_SHOWN:
+            onShow(true);
+            break;
+          case SDL_WINDOWEVENT_HIDDEN:
+            onShow(false);
+            break;
+          case SDL_WINDOWEVENT_EXPOSED:
+            onPaint();
+            break;
+          case SDL_WINDOWEVENT_MINIMIZED:
+            onMinimize();
+            break;
+          case SDL_WINDOWEVENT_MAXIMIZED:
+            onMaximize();
+            break;
+          case SDL_WINDOWEVENT_RESTORED:
+            onRestore();
+            break;
+          case SDL_WINDOWEVENT_FOCUS_GAINED:
+            onFocus(true);
+            break;
+          case SDL_WINDOWEVENT_FOCUS_LOST:
+            onFocus(false);
+            break;
+
+          case SDL_WINDOWEVENT_MOVED: {
+            onMove(event.window.data1, event.window.data2);
+            break;
+          }
+
+          case SDL_WINDOWEVENT_SIZE_CHANGED: {
+            Vec2i newSize(event.window.data1, event.window.data2);
+            if ( newSize != m_size && !m_fullscreen ) {
+              m_renderer->beforeResize(false);
+              updateSize();
 						} else {
-							// SDL regrettably sends resize events when a fullscreen window
-							// is minimized - we'll have none of that!
-						}
-						break;
-					}
-					
-					case SDL_WINDOWEVENT_CLOSE: {
-						// The user has requested to close a single window
-						// TODO we only support one main window for now
-						break;
-					}
-					
-				}
-				break;
-			}
-			
-			case SDL_QUIT: {
-				// The user has requested to close the whole program
-				// TODO onDestroy() fits SDL_WINDOWEVENT_CLOSE better, but SDL captures Ctrl+C
-				// evenst and *only* sends the SDL_QUIT event for them while normal close
-				// generates *both* SDL_WINDOWEVENT_CLOSE and SDL_QUIT
-				onDestroy();
-				return; // abort event loop!
-			}
-			
-		}
-		
-		if(m_input) {
-			m_input->onEvent(event);
-		}
-		
-	}
-	
-	if(!m_renderer->isInitialized()) {
-		updateSize();
-		m_renderer->afterResize();
-		m_renderer->SetViewport(Rect(m_size.x, m_size.y));
-	}
+              // SDL regrettably sends resize events when a fullscreen window
+              // is minimized - we'll have none of that!
+            }
+            break;
+          }
+
+          case SDL_WINDOWEVENT_CLOSE: {
+            // The user has requested to close a single window
+            // TODO we only support one main window for now
+            break;
+          }
+
+        }
+        break;
+      }
+
+      case SDL_QUIT: {
+        // The user has requested to close the whole program
+        // TODO onDestroy() fits SDL_WINDOWEVENT_CLOSE better, but SDL captures Ctrl+C
+        // evenst and *only* sends the SDL_QUIT event for them while normal close
+        // generates *both* SDL_WINDOWEVENT_CLOSE and SDL_QUIT
+        onDestroy();
+        return; // abort event loop!
+      }
+
+    }
+
+    if ( m_input ) {
+      m_input->onEvent(event);
+    }
+
+  }
+
+  if ( !m_renderer->isInitialized()) {
+    updateSize();
+    m_renderer->afterResize();
+    m_renderer->SetViewport(Rect(m_size.x, m_size.y));
+  }
 }
 
 void SDL2Window::showFrame() {
 
 #ifdef __EMSCRIPTEN__
-	glClearColor(1,1,1,1);
-	glColorMask(false, false, false, true);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glColorMask(true, true, true, true);
+  glClearColor(1,1,1,1);
+  glColorMask(false, false, false, true);
+  glClear(GL_COLOR_BUFFER_BIT);
+  glColorMask(true, true, true, true);
 #endif
 
-	SDL_GL_SwapWindow(m_window);
+  SDL_GL_SwapWindow(m_window);
 }
 
 void SDL2Window::hide() {
-	SDL_HideWindow(m_window);
-	onShow(false);
+  SDL_HideWindow(m_window);
+  onShow(false);
 }
 
 void SDL2Window::setMinimizeOnFocusLost(bool enabled) {
-	if(m_minimizeOnFocusLost != AlwaysDisabled && m_minimizeOnFocusLost != AlwaysEnabled) {
-		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, enabled ? "1" : "0");
-		m_minimizeOnFocusLost = enabled ? Enabled : Disabled;
-	}
+  if ( m_minimizeOnFocusLost != AlwaysDisabled && m_minimizeOnFocusLost != AlwaysEnabled ) {
+    SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, enabled ? "1" : "0");
+    m_minimizeOnFocusLost = enabled ? Enabled : Disabled;
+  }
 }
 
 Window::MinimizeSetting SDL2Window::willMinimizeOnFocusLost() {
-	return m_minimizeOnFocusLost;
+  return m_minimizeOnFocusLost;
 }
 
 std::string SDL2Window::getClipboardText() {
-	char * text = SDL_GetClipboardText();
-	std::string result;
-	if(text) {
-		result = text;
-		SDL_free(text);
-	}
-	return result;
+  char* text = SDL_GetClipboardText();
+  std::string result;
+  if ( text ) {
+    result = text;
+    SDL_free(text);
+  }
+  return result;
 }
 
-InputBackend * SDL2Window::getInputBackend() {
-	if(!m_input) {
-		m_input = new SDL2InputBackend(this);
-	}
-	return m_input;
+InputBackend* SDL2Window::getInputBackend() {
+  if ( !m_input ) {
+    m_input = new SDL2InputBackend(this);
+  }
+  return m_input;
 }
