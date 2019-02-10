@@ -31,6 +31,10 @@
 #include "graphics/data/TextureContainer.h"
 #include "window/RenderWindow.h"
 
+#ifdef __EMSCRIPTEN__
+#include "emscripten.h"
+#endif
+
 static float PROGRESS_BAR_TOTAL = 0;
 static float PROGRESS_BAR_COUNT = 0;
 static float OLD_PROGRESS_BAR_COUNT = 0;
@@ -132,6 +136,10 @@ void LoadLevelScreen(long num) {
 		OLD_PROGRESS_BAR_COUNT = PROGRESS_BAR_COUNT;
 		last_progress_bar_update = platform::getTimeMs();
 	}
+
+#ifdef __EMSCRIPTEN__
+	emscripten_sleep_with_yield(0);
+#endif
 }
 
 void LoadLevelScreen() {
