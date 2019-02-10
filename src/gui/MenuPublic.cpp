@@ -109,7 +109,7 @@ void ARXMenu_Private_Options_Video_SetResolution(bool fullscreen, int _iWidth, i
 	}
 
 #ifndef __EMSCRIPTEN__
-	if(window->isFullScreen() != fullscreen || fullscreen) {
+	if(mainApp->getWindow()->isFullScreen() != fullscreen || fullscreen) {
 #endif
 
     GRenderer->Clear(Renderer::ColorBuffer | Renderer::DepthBuffer);
