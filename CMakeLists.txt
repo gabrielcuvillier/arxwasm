@@ -51,11 +51,8 @@ if (BUILD_ALL OR DEVELOPER)
   set(default_BUILD_TESTS ON)
 endif ()
 suboption(BUILD_TESTS "Build tests" BOOL ${default_BUILD_TESTS})
-option(BUILD_TOOLS "Build tools" ON)
-if (EMSCRIPTEN)
-  set(BUILD_TOOLS OFF)
-endif ()
-set(def_BUILD_CRASHHANDLER ON)
+option(BUILD_TOOLS "Build tools" OFF)
+set(def_BUILD_CRASHHANDLER OFF)
 if (MACOS)
   set(def_BUILD_CRASHHANDLER OFF)
 elseif (WIN32 AND NOT MSVC)
@@ -96,9 +93,7 @@ option(USE_NATIVE_FS "Use the native filesystem backend directly instead of boos
 
 # Alternative dependencies
 set(WITH_SDL CACHE STRING "The SDL version to use: 1 or 2 or empty (use any)")
-if (EMSCRIPTEN)
-  set(WITH_SDL 2)
-endif ()
+set(WITH_SDL 2)
 set(WITH_QT CACHE STRING "The Qt version to use: 4 or 5 or empty (use any)")
 
 # Build types
@@ -489,7 +484,7 @@ else ()
 endif ()
 
 # SDL
-if (NOT_EMSCRIPTEN)
+if (NOT EMSCRIPTEN)
   if (NOT ARX_HAVE_SDL AND (NOT WITH_SDL OR WITH_SDL EQUAL 2))
     if (NOT WITH_SDL)
       set(SDL_OPTIONAL_DEPENDENCY)
@@ -545,7 +540,16 @@ if (NOT Boost_VERSION VERSION_LESS 106200 AND Boost_VERSION VERSION_LESS 106300)
   endif ()
 endif ()
 
+# GLM: For convenience, GLM library is stored as git submodule of the current project
+# Force include directory
+if (NOT EMSCRIPTEN)
+set(GLM_ROOT_DIR          glm)
 find_package(GLM 0.9.5.0 REQUIRED)
+else()
+list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_SOURCE_DIR})
+set(GLM_ROOT_DIR          ${CMAKE_SOURCE_DIR}/glm)
+find_package(GLM 0.9.5.0 REQUIRED)
+endif()
 include_directories(SYSTEM ${GLM_INCLUDE_DIRS})
 add_definitions(-DGLM_FORCE_RADIANS)
 
@@ -1435,7 +1439,25 @@ endif ()
 # Add executables
 
 if (EMSCRIPTEN)
-  add_executable_shared(arxwasm "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
+  add_executable(arxwasm "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
+  set_target_properties(arxwasm PROPERTIES COMPILE_FLAGS "-s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "--shell-file ../data/emscripten/shell.html")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-o arxwasm.html")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s FORCE_FILESYSTEM=1")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s BINARYEN_TRAP_MODE=clamp")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s TOTAL_MEMORY=134217728")  # 128MB
+  #set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s FULL_ES2=1")             # Not needed apparently
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s EMTERPRETIFY=1")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s EMTERPRETIFY_ASYNC=1")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s EMTERPRETIFY_FILE=arxwasm.embin")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s EMTERPRETIFY_WHITELIST=[\"_main\",\"__ZL8emloopcbv\",\"__ZN7ArxGame14emscripten_runEv\",\"__Z12Menu2_Renderv\",\"__Z15ARX_Menu_Renderv\",\"__ZN7ArxGame6renderEv\",\"__Z13ARX_QuickLoadv\",\"__ZN8MainMenu19onClickedResumeGameEv\",\"__ZN5boost6detail8function26void_function_obj_invoker1INS_3_bi6bind_tIvNS_4_mfi3mf0Iv24ChooseLoadOrSaveMenuPageEENS3_5list1INS3_5valueIPS7_EEEEEEvP10TextWidgetE6invokeERNS1_15function_bufferESG_\",\"__ZN10TextWidget12OnMouseClickEv\",\"__ZN8MainMenu6UpdateEv\",\"__Z13FastSceneLoadRKN3res4pathE\",\"__Z22ARX_CHANGELEVEL_ChangeRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEES7_l\",\"__Z20ARX_CHANGELEVEL_LoadRKN2fs4pathE\",\"__ZL24ARX_CHANGELEVEL_PopLevellb\",\"__Z12ARX_SlotLoad10HandleTypeI17SavegameHandleTaglLin1EE\",\"__Z9levelInitv\",\"__Z19DANAE_StartNewQuestv\",\"__ZN7ArxGame7doFrameEv\",\"__Z14DanaeLoadLevelRKN3res4pathEb\",\"__Z15LoadLevelScreenv\",\"__Z15LoadLevelScreenl\"]")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s DISABLE_EXCEPTION_CATCHING=0")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s EXIT_RUNTIME=0")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-s ENVIRONMENT=web")
+  set_target_properties(arxwasm PROPERTIES LINK_FLAGS "-lopenal")
 else ()
   add_executable_shared(arx "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
   set_binary_type(arx WIN32)
