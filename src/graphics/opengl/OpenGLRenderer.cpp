@@ -230,12 +230,8 @@ void OpenGLRenderer::reinit() {
 		}
 	}
 
-	#ifdef __EMSCRIPTEN__
-	// Disable usage of VertexArrays and VBOs Emscripten, due to Regal not supporting MapBuffers
+	// Disable usage of VertexArrays and VBOs
   useVertexArrays = false;
-	#else
-	useVertexArrays = true;
-	#endif
 	
 	if(!GLEW_ARB_draw_elements_base_vertex) {
 		LogWarning << "Missing OpenGL extension ARB_draw_elements_base_vertex!";
