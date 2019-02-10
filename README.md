@@ -56,6 +56,11 @@ requirement only.
 
 - The “Esc” key so commonly used in old PC games have been replaced by the "Home" key, as the web is a very different 
 world. This key is used to go to the main game menu, or to skip cinematics.
+
+- The game have a very unusual control scheme. Use Right-click to toggle between the "Cursor mode" and "Mouselook mode",
+Tab to enter "Combat mode", Ctrl to enter "Magic mode", and Enter to equip an object.
+
+- FPS can be displayed using F11 key. Caution: this will interfere with the Browser key binding (usually "Fullscreen").
 	
 - Fullscreen mode is available using the "Fullscreen" button in the HTML page. Note that this will only rescale the 
 canvas to match your fullscreen resolution, and not actually resize the canvas. You may change the video resolution 
