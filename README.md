@@ -77,8 +77,8 @@ as I do not track anything from you.
 ~50MB in the data store, but this is very empirical. It might fails on some browser configurations.
 
 - As already mentioned, there is some missing visual effects (mostly on the magic side) and occasional visual glitches 
-(random fog issues, and weird looking savegames screenshots). This is due to limitations of the underlying GL emulation 
-layer used.
+(random fog issues, and weird looking savegames screenshots, no mipmaps). This is due to limitations of the underlying 
+GL emulation layer used.
 
 ## Legal
 
