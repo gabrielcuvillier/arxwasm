@@ -37,13 +37,6 @@
 #include "platform/Environment.h"
 #include "platform/ProgramOptions.h"
 
-#ifdef __native_client__
-#include <sys/mount.h>
-#include <sys/stat.h>
-#include <nacl_io/nacl_io.h>
-#include <ppapi_simple/ps_main.h>
-#endif
-
 namespace fs {
 
 SystemPaths paths;
@@ -284,37 +277,6 @@ std::vector<path> SystemPaths::getSearchPaths(bool filter) const {
 static SystemPaths::InitParams cmdLineInitParams;
 
 ExitStatus SystemPaths::init() {
-  
-	#ifdef __native_client__
-    // On NACL, we are going to use special filesystems and directories
-    
-    nacl_io_init_ppapi(PSGetInstanceId(), PSGetInterface);
-    
-		// Mount memfs on "/" 
-    umount("/");
-		mount("", "/", "memfs", 0, NULL);
-    
-    // Mount persistent html5fs on /home/user/arx", for user data access stored in local html5 filesystem
-    // Note: user data must be under "arx" subfolder of the persistent html5 filesystem root
-    mkdir("/home", S_IRWXU | S_IRWXG | S_IRWXO);
-    mkdir("/home/user", S_IRWXU | S_IRWXG | S_IRWXO);
-    mount("/", "/home/user", "html5fs", 15 * 1024 * 1024, "type=PERSISTENT");  // FS is persistent
-    mkdir("/home/user/arx", S_IRWXU | S_IRWXG | S_IRWXO);
-    
-    // Mount temporary html5fs on "/tmp/arx", for game data access stored in local html5 filesystem 
-    // Note: game data must be under "arx" subfolder of the temporary html5 filesystem root
-    mkdir("/tmp", S_IRWXU | S_IRWXG | S_IRWXO);
-    mkdir("/tmp/arx", S_IRWXU | S_IRWXG | S_IRWXO);
-    mount("/arx", "/tmp/arx", "html5fs", 0, "type=TEMPORARY");  // FS is temporary
-    
-    // Mount httpfs on "/mnt/http/arx", for game data access stored on HTTP server
-    // Note: game data must be under "arx" subfolder of the www root
-		mkdir("/mnt", S_IRWXU | S_IRWXG | S_IRWXO);
-    mkdir("/mnt/http", S_IRWXU | S_IRWXG | S_IRWXO);
-    mkdir("/mnt/http/arx", S_IRWXU | S_IRWXG | S_IRWXO);
-    mount("./arx","/mnt/http/arx", "httpfs", 0, "");
-    
-	#endif
 
 	return init(cmdLineInitParams);
 }

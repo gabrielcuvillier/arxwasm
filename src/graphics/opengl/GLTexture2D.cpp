@@ -111,7 +111,7 @@ void GLTexture2D::Upload() {
 		flags &= ~HasMipmaps;
 	}
   
-	#if defined __native_client__ || defined __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
 	#pragma message( "Disabled automatic mipmap generation when using Regal, as it is not supported" )
     flags &= ~HasMipmaps;
 	#else

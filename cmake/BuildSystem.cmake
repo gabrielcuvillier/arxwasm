@@ -483,15 +483,6 @@ function(_shared_build_add_binary bin)
 			${SHARED_BUILD_${bin}_SOURCES}
 			${SHARED_BUILD_${bin}_EXTRA}
 		)
-    
-    if (NACL)
-      if (PNACL)
-        pnacl_finalize(${bin})
-        pnacl_compress(${bin})
-      else()
-        nacl_strip(${bin})
-      endif()
-    endif()
 	endif()
 	
 	target_link_libraries(${bin} ${SHARED_BUILD_${bin}_LIBS})

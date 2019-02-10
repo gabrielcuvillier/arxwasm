@@ -21,7 +21,7 @@
 
 #include <cstring>
 
-#if defined __native_client__ || defined __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 #include <GL/Regal.h>
 #define GLEW_ARB_debug_output 0
 #else

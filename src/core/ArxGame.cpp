@@ -437,7 +437,7 @@ bool ArxGame::initWindow(RenderWindow * window) {
 	m_MainWindow->setTitle(arx_name + " " + arx_version);
 	m_MainWindow->setMinimizeOnFocusLost(config.window.minimizeOnFocusLost);
 	m_MainWindow->setMinTextureUnits(3);
-  	#if defined __native_client__ || defined __EMSCRIPTEN__
+  	#ifdef __EMSCRIPTEN__
     // Disable antialiasing on NACL and emscripten, as it do to not work at all with Regal GL Library
     m_MainWindow->setMaxMSAALevel(1);
   	#else

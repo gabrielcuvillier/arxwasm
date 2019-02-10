@@ -1,5 +1,5 @@
 
-if(NOT NACL)
+if(NOT EMSCRIPTEN)
 include(Icons)
 
 set(ICON_BINARY_DIR "${PROJECT_BINARY_DIR}/data.generated/icons")

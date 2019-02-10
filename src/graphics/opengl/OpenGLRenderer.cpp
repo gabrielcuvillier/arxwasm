@@ -36,8 +36,8 @@
 #include "platform/CrashHandler.h"
 #include "window/RenderWindow.h"
 
-#if defined __native_client__ || defined __EMSCRIPTEN__
-// On Native Client and Emscripten, tweak some GLEW definitions so that Regal GL library works correctly
+#ifdef __EMSCRIPTEN__
+// On Emscripten, tweak some GLEW definitions so that Regal GL library works correctly
 #define GLEW_ARB_texture_non_power_of_two 0
 #define GLEW_ARB_draw_elements_base_vertex 0	// This is supported by Regal, but we disable it as it is not used for now
 #define GLEW_ARB_map_buffer_range 0
@@ -84,7 +84,7 @@ static GLTransformMode currentTransform;
 
 void OpenGLRenderer::initialize() {
 
-	#if defined __native_client__ || defined __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
     LogInfo << "Not using GLEW";
 	#else
 	if(glewInit() != GLEW_OK) {
@@ -161,7 +161,7 @@ void OpenGLRenderer::initialize() {
 	
 	{
 		std::ostringstream oss;
-		#if defined __native_client__ || defined __EMSCRIPTEN__
+		#ifdef __EMSCRIPTEN__
 		oss << "Not using GLEW" << '\n';
 		#else
 		oss << "GLEW " << glewVersion << '\n';
@@ -230,9 +230,9 @@ void OpenGLRenderer::reinit() {
 		}
 	}
 
-	#if defined __native_client__ || defined __EMSCRIPTEN__
-	// Disable usage of VertexArrays and VBOs on Native Client and Emscripten, due to Regal not supporting MapBuffers
-    useVertexArrays = false;
+	#ifdef __EMSCRIPTEN__
+	// Disable usage of VertexArrays and VBOs Emscripten, due to Regal not supporting MapBuffers
+  useVertexArrays = false;
 	#else
 	useVertexArrays = true;
 	#endif

@@ -1,10 +1,15 @@
+~ARXWASM
+
+A port of Arx Libertatis to Emscripten / WebAssembly
+Author: Gabriel Cuvillier
+
+~ARX LIBERTATIS
 
 ~Thanks for playing Arx Libertatis!
 
 This version of Arx Fatalis has been created by various community members in their spare time.
 We welcome your criticism, suggestions and contributions!
 You can find us at http://arx-libertatis.org/
-
 
 ~ARX LIBERTATIS CONTRIBUTORS
 
@@ -41,10 +46,6 @@ XoD
 
 nemyax
 steinuil
-
-~WebAssembly Port
-
-Gabriel Cuvillier
 
 ~MANY THANKS TO
 All our users, testers and packagers, including

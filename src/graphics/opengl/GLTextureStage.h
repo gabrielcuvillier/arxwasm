@@ -24,7 +24,7 @@
 
 #include <map>
 
-#if defined __native_client__ || defined __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 #include <GL/Regal.h>
 #else
 #include <GL/glew.h>

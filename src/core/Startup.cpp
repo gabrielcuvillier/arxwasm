@@ -44,7 +44,7 @@
  *
  *  SDLmain needed for NACL too.
  */
-#if ARX_PLATFORM == ARX_PLATFORM_MACOS || defined __native_client__
+#if ARX_PLATFORM == ARX_PLATFORM_MACOS
 	#include <SDL_main.h>
 #else
 	#undef main /* in case SDL.h was already included */

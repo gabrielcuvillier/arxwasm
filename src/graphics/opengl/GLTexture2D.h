@@ -22,7 +22,7 @@
 
 #include <boost/intrusive/list_hook.hpp>
 
-#if defined __native_client__ || defined __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 #include <GL/Regal.h>
 #else
 #include <GL/glew.h>

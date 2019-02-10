@@ -325,8 +325,6 @@ directory_iterator::directory_iterator(const path & p) : m_buffer(NULL) {
 		}
 		#elif ARX_HAVE_NAME_MAX
 		name_max = std::max(NAME_MAX, 255);
-		#elif defined __native_client__
-    	name_max = std::max(MAXNAMLEN, 255);
 		#else
 		#  error "buffer size for readdir_r cannot be determined"
 		#endif

@@ -52,7 +52,7 @@ if (BUILD_ALL OR DEVELOPER)
 endif ()
 suboption(BUILD_TESTS "Build tests" BOOL ${default_BUILD_TESTS})
 option(BUILD_TOOLS "Build tools" ON)
-if (NACL OR EMSCRIPTEN)
+if (EMSCRIPTEN)
   set(BUILD_TOOLS OFF)
 endif ()
 set(def_BUILD_CRASHHANDLER ON)
@@ -60,7 +60,7 @@ if (MACOS)
   set(def_BUILD_CRASHHANDLER OFF)
 elseif (WIN32 AND NOT MSVC)
   set(def_BUILD_CRASHHANDLER OFF)
-elseif (NACL OR EMSCRIPTEN)
+elseif (EMSCRIPTEN)
   set(def_BUILD_CRASHHANDLER OFF)
 endif ()
 option(BUILD_CRASHHANDLER "Build the crash handler" ${def_BUILD_CRASHHANDLER})
@@ -75,7 +75,7 @@ if (BUILD_PROFILER_INSTRUMENT OR BUILD_ALL)
 endif ()
 suboption(BUILD_PROFILER "Build the profiler GUI" BOOL ${def_BUILD_PROFILER})
 option(INSTALL_BLENDER_PLUGIN "Install the Arx Libertatis blender plugin" ON)
-if (NACL OR EMSCRIPTEN)
+if (EMSCRIPTEN)
   set(INSTALL_BLENDER_PLUGIN OFF)
 endif ()
 suboption(BUILD_IO_LIBRARY "Build shared library for reading and writing arx data"
@@ -84,7 +84,7 @@ if (INSTALL_BLENDER_PLUGIN)
   set(BUILD_IO_LIBRARY ON)
 endif ()
 option(INSTALL_SCRIPTS "Install the data install script" ON)
-if (NACL OR EMSCRIPTEN)
+if (EMSCRIPTEN)
   set(INSTALL_SCRIPTS OFF)
 endif ()
 
@@ -96,7 +96,7 @@ option(USE_NATIVE_FS "Use the native filesystem backend directly instead of boos
 
 # Alternative dependencies
 set(WITH_SDL CACHE STRING "The SDL version to use: 1 or 2 or empty (use any)")
-if (NACL OR EMSCRIPTEN)
+if (EMSCRIPTEN)
   set(WITH_SDL 2)
 endif ()
 set(WITH_QT CACHE STRING "The Qt version to use: 4 or 5 or empty (use any)")
@@ -108,7 +108,7 @@ if (DEVELOPER)
 endif ()
 
 suboption(UNITY_BUILD "Unity build" BOOL ${default_UNITY_BUILD})
-if (NACL OR EMSCRIPTEN)
+if (EMSCRIPTEN)
   set(UNITY_BUILD OFF)
 endif ()
 option(DEBUG_EXTRA "Expensive debug options" OFF)
@@ -117,10 +117,6 @@ option(SET_NOISY_WARNING_FLAGS "Enable noisy compiler warnings" OFF)
 option(SET_OPTIMIZATION_FLAGS "Adjust compiler optimization flags" ON)
 
 option(USE_CXX11 "Try to use C++11 if available" ON)
-if (NACL)
-  # Disable CXX11 on NACL, because of compilation issues (GCC on NACL is a little bit outdated)
-  set(USE_CXX11 OFF)
-endif ()
 
 if (DEVELOPER OR CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(default_DEBUG ON)
@@ -136,8 +132,8 @@ set(ARX_DEBUG_GL ${DEBUG_GL})
 
 # Static libs
 set(default_USE_STATIC_LIBS OFF)
-# Win32, NACL, and EMSCRIPTEN must use static libraries
-if (WIN32 OR NACL OR EMSCRIPTEN)
+# Win32 and EMSCRIPTEN must use static libraries
+if (WIN32 OR EMSCRIPTEN)
   set(default_USE_STATIC_LIBS ON)
 endif ()
 option(USE_STATIC_LIBS "Statically link libraries" ${default_USE_STATIC_LIBS})
@@ -152,7 +148,7 @@ if (WIN32)
   set(default_ICON_TYPE "ico")
 elseif (MACOS)
   set(default_ICON_TYPE "icns")
-elseif (NACL OR EMSCRIPTEN)
+elseif (EMSCRIPTEN)
   set(default_ICON_TYPE "png")
 else ()
   set(default_ICON_TYPE "iconset")
@@ -233,21 +229,14 @@ elseif (MACOS)
   set(DATA_DIR_PREFIXES "/Applications" CACHE STRING "Data dir paths")
   set(USER_DIR "ArxLibertatis" CACHE STRING "User dir names")
   set(USER_DIR_PREFIXES "$HOME/Library/Application Support" CACHE STRING "User dir paths")
-elseif (NACL OR EMSCRIPTEN)
-  # Special data directories on NACL (corresponding to HTML5FS and HTTPFS mounts), as well as EMSCRIPTEN
+elseif (EMSCRIPTEN)
+  # Special data directories on EMSCRIPTEN
   set(DATA_DIR
       "arx"
       CACHE STRING "Data dir names"
       )
-  if (NACL)
-    set(DATA_DIR_PREFIXES
-        "/mnt/http:/tmp"
-        CACHE STRING "Data dir paths"
-        )
-  elseif (EMSCRIPTEN)
-    set(DATA_DIR_PREFIXES
-        "/data:/data_demo" CACHE STRING "Data dir paths")
-  endif ()
+  set(DATA_DIR_PREFIXES
+    "/data:/data_demo" CACHE STRING "Data dir paths")
   set(USER_DIR
       "arx"
       CACHE STRING "User dir names"
@@ -351,8 +340,8 @@ if (NOT EMSCRIPTEN)
     force_recheck_library(Threads)
     force_recheck_library(OpenAL)
     force_recheck_library(OpenGL)
-    # GLEW not supported on NACL and EMSCRIPTEN
-    if (NOT NACL AND NOT EMSCRIPTEN)
+    # GLEW not supported on EMSCRIPTEN
+    if (NOT EMSCRIPTEN)
       force_recheck_library(GLEW)
     endif ()
     force_recheck_library(Boost)
@@ -423,7 +412,6 @@ if (NOT EMSCRIPTEN)
   find_package(Freetype REQUIRED)
   has_static_libs(Freetype FREETYPE_LIBRARIES)
   if (Freetype_HAS_STATIC_LIBS)
-    if (NOT NACL AND NOT EMSCRIPTEN)
       # Freetype may require other libraries depending on how it was configured
       find_package(PkgConfig QUIET)
       pkg_check_modules(PC_Freetype freetype2)
@@ -463,16 +451,6 @@ if (NOT EMSCRIPTEN)
           endif ()
         endif ()
       endforeach ()
-    else ()
-      # On NACL and EMSCRIPTEN, we force the dependencies of Freetype to ZLIB and PNG
-      set(Freetype_LINKING_ZLIB 1)
-      list(APPEND FREETYPE_LIBRARIES ${ZLIB_LIBRARIES})
-
-      set(Freetype_LINKING_PNG 1)
-      find_package(PNG REQUIRED)
-      check_link_library(PNG PNG_LIBRARIES)
-      list(APPEND FREETYPE_LIBRARIES ${PNG_LIBRARIES})
-    endif ()
   endif ()
   use_static_libs_restore()
   if (NOT MSVC)
@@ -485,7 +463,6 @@ endif ()
 # OpenGL
 if (NOT EMSCRIPTEN)
   if (USE_OPENGL)
-    if (NOT NACL AND NOT EMSCRIPTEN)
       find_package(OpenGL ${OPTIONAL_DEPENDENCY})
       find_package(GLEW 1.5.2 ${OPTIONAL_DEPENDENCY})
       add_definitions(-DGLEW_NO_GLU)
@@ -493,19 +470,6 @@ if (NOT EMSCRIPTEN)
         check_link_library(OpenGL OPENGL_gl_LIBRARY)
         check_link_library(GLEW GLEW_LIBRARIES)
       endif ()
-    else ()
-      # Don't use find_package, as we have to use some custom GL implementation (Regal)
-
-      if (NACL)
-        #done in the toolchain file
-      elseif (EMSCRIPTEN)
-        #set(OPENGL_INCLUDE_DIR		$ENV{EMSCRIPTEN}/system/local/include)
-        #set(OPENGL_gl_LIBRARY    	$ENV{EMSCRIPTEN}/system/local/lib/libRegallib.a)
-        #set(OPENGL_LIBRARIES	    $ENV{EMSCRIPTEN}/system/local/lib/libRegallib.a)
-      endif ()
-      check_link_library(OpenGL OPENGL_gl_LIBRARY)
-      set(OPENGL_FOUND 1)
-    endif ()
   endif ()
 else ()
   set(OPENGL_FOUND 1)
@@ -663,7 +627,7 @@ if (MSVC)
 
 else (MSVC)
 
-  if (USE_STATIC_LIBS AND NOT NACL) # NACL do not support these options. With newlib, everything is static by default
+  if (USE_STATIC_LIBS)
     add_ldflag("-static-libstdc++")
     add_ldflag("-static-libgcc")
   endif ()
@@ -880,7 +844,7 @@ else (MSVC)
         OR (ARX_HAVE_READDIR_R
         AND (ARX_HAVE_PC_NAME_MAX
         AND ((ARX_HAVE_DIRFD AND ARX_HAVE_FPATHCONF) OR ARX_HAVE_PATHCONF)
-        OR ARX_HAVE_NAME_MAX OR NACL)
+        OR ARX_HAVE_NAME_MAX)
         )
         )
         )
@@ -1265,7 +1229,7 @@ if (USE_OPENAL AND OPENAL_FOUND)
 endif ()
 
 # Graphics
-if (USE_OPENGL AND OPENGL_FOUND AND (GLEW_FOUND OR NACL OR EMSCRIPTEN))
+if (USE_OPENGL AND OPENGL_FOUND AND (GLEW_FOUND OR EMSCRIPTEN))
   list(APPEND GRAPHICS_SOURCES ${GRAPHICS_OPENGL_SOURCES})
   list(APPEND ARX_LIBRARIES ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
   include_directories(SYSTEM ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIR})
@@ -1365,15 +1329,6 @@ if (LIBRT_LIBRARY AND (ARX_HAVE_CLOCK_GETTIME OR ARX_HAVE_CRASHHANDLER_POSIX))
   list(APPEND BASE_LIBRARIES ${LIBRT_LIBRARY})
 endif ()
 
-# PPAPI libraries are required on NACL
-if (NACL)
-  list(APPEND BASE_LIBRARIES ${PPAPI_SIMPLE_LIBRARY})
-  list(APPEND BASE_LIBRARIES ${NACL_IO_LIBRARY})
-  list(APPEND BASE_LIBRARIES ${PPAPI_GLES2_LIBRARY})
-  list(APPEND BASE_LIBRARIES ${PPAPI_CPP_LIBRARY})
-  list(APPEND BASE_LIBRARIES ${PPAPI_LIBRARY})
-endif ()
-
 list(APPEND ARX_LIBRARIES ${BASE_LIBRARIES})
 
 if (NOT MSVC)
@@ -1412,11 +1367,8 @@ set(ARX_SOURCES
     ${WINDOW_SOURCES}
     )
 
-# data is setup separately for emscripten
-if (NOT EMSCRIPTEN)
-  # Using include() for now as add_subdirectory causes problems with uses in qrc files
-  include(data/CMakeLists.txt)
-endif ()
+# Using include() for now as add_subdirectory causes problems with uses in qrc files
+include(data/CMakeLists.txt)
 
 # Set the icon for the Windows executable by adding this resource file to the sources
 if (WIN32)
@@ -1821,8 +1773,8 @@ if (BUILD_TESTS)
 endif ()
 
 
-if (NACL OR EMSCRIPTEN)
-  #data is setup differently for NACL and EMSCRIPTEN
+if (EMSCRIPTEN)
+  #data is setup differently for EMSCRIPTEN
 else ()
   # Install Arx Libertatis data files
   # TODO these should be zipped up once we support that
@@ -1849,7 +1801,7 @@ if (INSTALL_SCRIPTS AND NOT WIN32)
 endif ()
 
 # Install icon and desktop entry
-if (NOT WIN32 AND NOT MACOS AND NOT NACL AND NOT EMSCRIPTEN)
+if (NOT WIN32 AND NOT MACOS AND NOT EMSCRIPTEN)
 
   find_program(DESKTOP_FILE_VALIDATE desktop-file-validate)
 

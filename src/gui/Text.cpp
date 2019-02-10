@@ -308,7 +308,7 @@ bool ARX_Text_Init() {
 		return false;
 	}
 	
-	#if defined __native_client__ || defined __EMSCRIPTEN__
+	#ifdef __EMSCRIPTEN__
 	res::path debugFontFile = "misc/arx.ttf";
 	#else
     res::path debugFontFile = "misc/dejavusansmono.ttf";
