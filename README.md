@@ -39,7 +39,7 @@ The easiest way to see the game running in your browser is simply to go to the f
 
 __http://wasm.continuation-labs.com/arxdemo__
 
-This is an online demonstration of that port using the __Arx Fatalis Demo__, that you can run directly in your 
+This is an online demonstration of the project using the __Arx Fatalis Demo__, that you can run directly in your 
 browser and enjoy playing! It consists of a main HTML file embedding the Wasm module, and some Javascript code to 
 automatically fetch the Arx Fatalis Demo data.
 
