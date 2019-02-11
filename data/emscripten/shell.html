@@ -157,7 +157,7 @@
 <body>
 <div class="emscripten">
     <div id="title">
-        <b><a href="http://www.continuation-labs.com/projects/d3wasm" style="color: rgb(128,128,255)">Arxwasm</a></b> -
+        <b><a href="http://www.continuation-labs.com/projects/arxwasm" style="color: rgb(128,128,255)">Arxwasm</a></b> -
         An experimental port of <a href="https://en.wikipedia.org/wiki/Arx_Fatalis" style="color: rgb(200,200,200)">Arx Fatalis</a> to
         <a href="https://emscripten.org/" style="color: rgb(200,200,200)">Emscripten</a> / <a href="https://webassembly.org/" style="color: rgb(200,200,200)">WebAssembly</a>
     </div>
@@ -190,7 +190,7 @@
     <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
 </div>
 <div class="emscripten" id="infos" style="display: none">
-    All information about this port, including purpose, source code, technical details, and legal info can be found on the <a href="https://github.com/gabrielcuvillier/arxwasm">project</a> page.
+    All information about this port, including purpose, source code, technical details, and legal info can be found on the <a href="http://www.continuation-labs.com/projects/arxwasm">project</a> page.
 </div>
 <div class="emscripten" id="disclaimer" style="text-align: justify; margin:auto; width: 75%; display: none">
     <br>Disclaimer: <br>The Arxwasm project and this online demonstration are in no way associated with or supported by
@@ -326,16 +326,54 @@
     Module['preRun'] = [mountuserhome];
   }
 
-  console.info("Pre!");
-
   (function(d, script) {
     script = d.createElement('script');
     script.type = 'text/javascript';
-    script.async = true;
+    script.async = false;
     script.onload = function(){
       // remote script has loaded
     };
-    script.src = 'data_demo.js';
+    script.src = 'data00.js';
+    d.getElementsByTagName('head')[0].appendChild(script);
+  }(document));
+  (function(d, script) {
+    script = d.createElement('script');
+    script.type = 'text/javascript';
+    script.async = false;
+    script.onload = function(){
+      // remote script has loaded
+    };
+    script.src = 'data01.js';
+    d.getElementsByTagName('head')[0].appendChild(script);
+  }(document));
+  (function(d, script) {
+    script = d.createElement('script');
+    script.type = 'text/javascript';
+    script.async = false;
+    script.onload = function(){
+      // remote script has loaded
+    };
+    script.src = 'data02.js';
+    d.getElementsByTagName('head')[0].appendChild(script);
+  }(document));
+  (function(d, script) {
+    script = d.createElement('script');
+    script.type = 'text/javascript';
+    script.async = false;
+    script.onload = function(){
+      // remote script has loaded
+    };
+    script.src = 'data03.js';
+    d.getElementsByTagName('head')[0].appendChild(script);
+  }(document));
+  (function(d, script) {
+    script = d.createElement('script');
+    script.type = 'text/javascript';
+    script.async = false;
+    script.onload = function(){
+      // remote script has loaded
+    };
+    script.src = 'data04.js';
     d.getElementsByTagName('head')[0].appendChild(script);
   }(document));
 
