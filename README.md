@@ -133,8 +133,7 @@ https://github.com/gabrielcuvillier/arxwasm
 
 It is a fork of the [ArxLibertatis-pnacl](https://github.com/gabrielcuvillier/ArxLibertatis-pnacl) port, as explained in 
 the [previous](#history-and-future-directions) section, which is itself a fork of [Arx Libertatis](http://arx-libertatis.org) source 
-port maintained by the Arx Libertatis Team. In turn, Arx Libertatis is a fork of the Arx Fatalis GPL source code released 
-by Arkane Studios a few years ago.
+port. In turn, Arx Libertatis is a fork of the Arx Fatalis GPL source code released by Arkane Studios a few years ago.
 
 The project is using [Emscripten](https://emscripten.org). It allows to compile LLVM bytecode to WebAssembly, and 
 provide all what is necessary to have a C/C++ runtime environment on the Web. 
@@ -171,12 +170,11 @@ You can reach me at _gabriel.cuvillier@continuation-labs.com_.
 ## Disclaimer
 
 _Arxwasm, the provided online demonstration, me, and Continuation-Labs are in no way associated with or supported by 
-[Arkane Studios](https://www.arkane-studios.com) or [ZeniMax Media Inc](https://www.zenimax.com)._
+Arkane Studios or ZeniMax Media Inc._
 
 _Arx Fatalis, Arkane and related logos are registered trademarks or trademarks of ZeniMax Media Inc. in the U.S. and/or 
 other countries. All Rights Reserved._
 
-_The Arxwasm source code is a derivative work of the Arx Libertatis project, itself a derivative of the General Public 
-License source code release of Arx Fatalis._
+_The Arxwasm source code is a derivative work of the General Public License source code release of Arx Fatalis._
 
 _WebAssembly is a standard being developed by the W3C._
