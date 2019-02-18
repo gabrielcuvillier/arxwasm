@@ -1,30 +1,5 @@
 project(Arxwasm)
-
-unset(CMAKE_C_USE_RESPONSE_FILE_FOR_LIBRARIES)
-unset(CMAKE_CXX_USE_RESPONSE_FILE_FOR_LIBRARIES)
-unset(CMAKE_C_USE_RESPONSE_FILE_FOR_OBJECTS)
-unset(CMAKE_CXX_USE_RESPONSE_FILE_FOR_OBJECTS)
-unset(CMAKE_C_USE_RESPONSE_FILE_FOR_INCLUDES)
-unset(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES)
-
-if (MSVC)
-  # CMake 2.8.5 or newer is needed for CMAKE_LIBRARY_ARCHITECTURE support.
-  cmake_minimum_required(VERSION 2.8.5)
-  # Change CMAKE_LIBRARY_ARCHITECTURE to ensure the right libs are used
-  if (CMAKE_CL_64)
-    set(CMAKE_LIBRARY_ARCHITECTURE "x64")
-  else ()
-    set(CMAKE_LIBRARY_ARCHITECTURE "x86")
-  endif ()
-else ()
-  cmake_minimum_required(VERSION 2.8.3)
-endif ()
-
-if (CMAKE_VERSION VERSION_GREATER 3.7)
-  cmake_policy(VERSION 3.7)
-else ()
-  cmake_policy(VERSION ${CMAKE_VERSION})
-endif ()
+cmake_minimum_required(VERSION 3.0.0)
 
 # Define configuration options
 
@@ -157,37 +132,8 @@ else ()
   set(OPTIONAL_DEPENDENCY)
 endif ()
 
-# Install destinations
-if (CMAKE_VERSION VERSION_LESS 2.8.5)
-  set(CMAKE_INSTALL_DATAROOTDIR "share" CACHE
-      STRING "read-only architecture-independent data root (share) (relative to prefix).")
-  set(CMAKE_INSTALL_BINDIR "bin" CACHE
-      STRING "user executables (bin) (relative to prefix).")
-  set(CMAKE_INSTALL_LIBDIR "lib" CACHE
-      STRING "libraries (lib) (relative to prefix).")
-  set(CMAKE_INSTALL_LIBEXECDIR "libexec" CACHE
-      STRING "program executables (libexec) (relative to prefix).")
-  set(CMAKE_INSTALL_MANDIR "${CMAKE_INSTALL_DATAROOTDIR}/man" CACHE
-      STRING "man documentation (DATAROOTDIR/man) (relative to prefix).")
-  set(CMAKE_INSTALL_INCLUDEDIR "include" CACHE
-      STRING "C header files (include) (relative to prefix).")
-  foreach (dir BINDIR LIBDIR LIBEXECDIR DATAROOTDIR MANDIR INCLUDEDIR)
-    if (NOT IS_ABSOLUTE ${CMAKE_INSTALL_${dir}})
-      set(CMAKE_INSTALL_FULL_${dir} "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_${dir}}")
-    else ()
-      set(CMAKE_INSTALL_FULL_${dir} "${CMAKE_INSTALL_${dir}}")
-    endif ()
-  endforeach ()
-  mark_as_advanced(
-      CMAKE_INSTALL_DATAROOTDIR
-      CMAKE_INSTALL_BINDIR
-      CMAKE_INSTALL_LIBEXECDIR
-      CMAKE_INSTALL_MANDIR
-      CMAKE_INSTALL_INCLUDEDIR
-  )
-else ()
-  include(GNUInstallDirs)
-endif ()
+include(GNUInstallDirs)
+
 set(ICONDIR "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps" CACHE
     STRING "Install location for icons (relative to prefix).")
 set(ICONTHEMEDIR "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor" CACHE
@@ -1213,11 +1159,7 @@ include_directories(${SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${PROJECT_SOURCE_DIR}
 if (USE_OPENAL AND OPENAL_FOUND)
   list(APPEND AUDIO_SOURCES ${AUDIO_OPENAL_SOURCES})
   list(APPEND ARX_LIBRARIES ${OPENAL_LIBRARY})
-  #if (EMSCRIPTEN)
-  #  include_directories(SYSTEM "${OPENAL_INCLUDE_DIR}/AL")
-  #else ()
-    include_directories(SYSTEM ${OPENAL_INCLUDE_DIR})
-  #endif ()
+  include_directories(SYSTEM ${OPENAL_INCLUDE_DIR})
   set(ARX_HAVE_OPENAL 1)
   if (OPENALEFX_FOUND)
     include_directories(SYSTEM ${OPENAL_EFX_INCLUDE_DIR})
