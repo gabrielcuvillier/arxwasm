@@ -465,34 +465,44 @@ else ()
   set(SDL2_FOUND 1)
 endif ()
 
-# Boost
-find_package(Boost 1.48 REQUIRED)
+if (EMSCRIPTEN)
+  list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_SOURCE_DIR})
+endif()
+
+# Boost: On emscripten, we use boost version stored as submodule, and tied to v1.65.1 version.
+# This is because some instanciated boost templates are Emterpretified, and the mangled method names must be stable
+# (generally boost mangled names change from version to version...)
+if (EMSCRIPTEN)
+  # Stupid CMake is unable to find boost, whatever we do with BOOST_ROOT
+  #set(BOOST_ROOT ...)
+  #find_package(Boost 1.65.1 REQUIRED)
+  set(Boost_INCLUDE_DIRS .)
+else()
+  # Boost
+  find_package(Boost 1.48 REQUIRED)
+  # Boost 1.62 has a bug in the type_index library:
+  # BOOST_TYPE_INDEX_REGISTER_CTTI_PARSING_PARAMS are wrong for 32-bit GCC builds in C++14 mode
+  # This leads to a static assert when (indirectly) including <boost/type_index/ctti_type_index.hpp>
+  #   /usr/include/boost/type_index/detail/compile_time_type_info.hpp:78:9: error: static assertion failed: TypeIndex library is misconfigured for your compiler. Please define BOOST_TYPE_INDEX_CTTI_USER_DEFINED_PARSING to correct values. See section 'RTTI emulation limitations' of the documentation for more information.
+  # Fixed in Boost type_index commit b669f0244e4b0bf146f18e9293e6e87842f4bbe0
+  if (NOT Boost_VERSION VERSION_LESS 106200 AND Boost_VERSION VERSION_LESS 106300)
+    if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+      message("Applying workaround for Boost.TypeIndex bug")
+      add_definitions("-DBOOST_NO_CXX14_CONSTEXPR")
+    endif ()
+  endif ()
+endif()
+
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 add_definitions(-DBOOST_ALL_NO_LIB)
 # We compile with -fno-rtti and boost is not able to detect that for all compilers.
 add_definitions(-DBOOST_NO_RTTI -DBOOST_NO_TYPEID)
-# Boost 1.62 has a bug in the type_index library:
-# BOOST_TYPE_INDEX_REGISTER_CTTI_PARSING_PARAMS are wrong for 32-bit GCC builds in C++14 mode
-# This leads to a static assert when (indirectly) including <boost/type_index/ctti_type_index.hpp>
-#   /usr/include/boost/type_index/detail/compile_time_type_info.hpp:78:9: error: static assertion failed: TypeIndex library is misconfigured for your compiler. Please define BOOST_TYPE_INDEX_CTTI_USER_DEFINED_PARSING to correct values. See section 'RTTI emulation limitations' of the documentation for more information.
-# Fixed in Boost type_index commit b669f0244e4b0bf146f18e9293e6e87842f4bbe0
-if (NOT Boost_VERSION VERSION_LESS 106200 AND Boost_VERSION VERSION_LESS 106300)
-  if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SIZEOF_VOID_P EQUAL 4)
-    message("Applying workaround for Boost.TypeIndex bug")
-    add_definitions("-DBOOST_NO_CXX14_CONSTEXPR")
-  endif ()
-endif ()
 
-# GLM: For convenience, GLM library is stored as git submodule of the current project
-# Force include directory
-if (NOT EMSCRIPTEN)
+# GLM: GLM library is stored as git submodule of the current project
+# As Arxwasm is not up to date with upstream Arx Libertatis, GLM version 0.9.5.2 have to be used. Later versions introduced some breaking changes.
+# Hopefully Git Submodules are tied to a specific commit so CMake should find the good version
 set(GLM_ROOT_DIR          glm)
-find_package(GLM 0.9.5.0 REQUIRED)
-else()
-list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_SOURCE_DIR})
-set(GLM_ROOT_DIR          ${CMAKE_SOURCE_DIR}/glm)
 find_package(GLM 0.9.5.2 EXACT REQUIRED)
-endif()
 include_directories(SYSTEM ${GLM_INCLUDE_DIRS})
 add_definitions(-DGLM_FORCE_RADIANS)
 
