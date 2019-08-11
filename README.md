@@ -144,11 +144,7 @@ for the occasion. This library is a GL 1.x emulation layer on top of OpenGL ES 2
 
 ### How to build
 
-Building consists in cross-compilation of Arxwasm and its dependencies to WebAssembly using Emscripten.
-
-As usual with cross-compilation, the most difficult part is to correctly install and setup the build environment.
-
-If you feel brave enough to build the port yourself, detailed build instructions are located in the file [BUILD.WASM.md] (__WIP__)
+If you feel brave enough to build the port yourself, detailed build instructions are located in the file BUILD.md.
 
 ### Technical Details
 
