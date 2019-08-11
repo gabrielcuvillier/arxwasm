@@ -54,7 +54,6 @@ To do so:
   cmake .. -DCMAKE_BUILD_TYPE=Release
   make
 ```
-Packaging the data works differently for native builds. Have a look at https://github.com/dhewm/dhewm3/wiki/FAQ
 
 # Building on Windows 10
 
