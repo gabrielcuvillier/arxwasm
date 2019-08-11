@@ -1,6 +1,3 @@
 [submodule "glm"]
 	path = glm
 	url = https://github.com/g-truc/glm.git
-[submodule "boost"]
-	path = boost
-	url = https://github.com/gabrielcuvillier/libboost-includes.git
