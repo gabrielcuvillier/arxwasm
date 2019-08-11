@@ -1387,7 +1387,6 @@ if (EMSCRIPTEN)
   set(LINK_FLAGS "${LINK_FLAGS} -o arxwasm.html")
   set(LINK_FLAGS "${LINK_FLAGS} -s ASSERTIONS=0")     # Disabling assertion slightly reduce binary size
   set(LINK_FLAGS "${LINK_FLAGS} -s FORCE_FILESYSTEM=1")
-  set(LINK_FLAGS "${LINK_FLAGS} -s BINARYEN_TRAP_MODE=clamp")
   set(LINK_FLAGS "${LINK_FLAGS} -s TOTAL_MEMORY=134217728")  # 128MB
   #set(LINK_FLAGS "${LINK_FLAGS} -s FULL_ES2=1")             # Not needed apparently
   set(LINK_FLAGS "${LINK_FLAGS} -s EMTERPRETIFY=1")
