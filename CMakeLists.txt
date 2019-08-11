@@ -1379,26 +1379,20 @@ endif ()
 
 if (EMSCRIPTEN)
   add_executable(arxwasm "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
-  set_target_properties(arxwasm PROPERTIES COMPILE_FLAGS "-s USE_BOOST_HEADERS=1 -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
+  set_target_properties(arxwasm PROPERTIES COMPILE_FLAGS "-s DISABLE_EXCEPTION_CATCHING=0 -s USE_BOOST_HEADERS=1 -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
 
   set(LINK_FLAGS "${LINK_FLAGS} -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
   set(LINK_FLAGS "${LINK_FLAGS} --shell-file ../data/emscripten/shell.html")
   set(LINK_FLAGS "${LINK_FLAGS} -s MINIFY_HTML=0")
   set(LINK_FLAGS "${LINK_FLAGS} -o arxwasm.html")
-  set(LINK_FLAGS "${LINK_FLAGS} -s ASSERTIONS=0")     # Disabling assertion slightly reduce binary size
+  set(LINK_FLAGS "${LINK_FLAGS} -s ASSERTIONS=0")
   set(LINK_FLAGS "${LINK_FLAGS} -s FORCE_FILESYSTEM=1")
-  set(LINK_FLAGS "${LINK_FLAGS} -s TOTAL_MEMORY=134217728")  # 128MB
+  set(LINK_FLAGS "${LINK_FLAGS} -s TOTAL_MEMORY=134217728")  # 128MB required
   set(LINK_FLAGS "${LINK_FLAGS} -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0") # Because of SDL2 port still use the deprecated behavior
   set(LINK_FLAGS "${LINK_FLAGS} -s ASYNCIFY=1")
   # Legacy EMTERPRETIFY whitelist
   # To be replaced by ASYNCIFY_WHITELIST equivalent
   #set(LINK_FLAGS "${LINK_FLAGS} -s EMTERPRETIFY_WHITELIST=[\"_main\",\"__ZL8emloopcbv\",\"__ZN7ArxGame14emscripten_runEv\",\"__Z12Menu2_Renderv\",\"__Z15ARX_Menu_Renderv\",\"__ZN7ArxGame6renderEv\",\"__Z13ARX_QuickLoadv\",\"__ZN8MainMenu19onClickedResumeGameEv\",\"__ZN5boost6detail8function26void_function_obj_invoker1INS_3_bi6bind_tIvNS_4_mfi3mf0Iv24ChooseLoadOrSaveMenuPageEENS3_5list1INS3_5valueIPS7_EEEEEEvP10TextWidgetE6invokeERNS1_15function_bufferESG_\",\"__ZN10TextWidget12OnMouseClickEv\",\"__ZN8MainMenu6UpdateEv\",\"__Z13FastSceneLoadRKN3res4pathE\",\"__Z22ARX_CHANGELEVEL_ChangeRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEES7_l\",\"__Z20ARX_CHANGELEVEL_LoadRKN2fs4pathE\",\"__ZL24ARX_CHANGELEVEL_PopLevellb\",\"__Z12ARX_SlotLoad10HandleTypeI17SavegameHandleTaglLin1EE\",\"__Z9levelInitv\",\"__Z19DANAE_StartNewQuestv\",\"__ZN7ArxGame7doFrameEv\",\"__Z14DanaeLoadLevelRKN3res4pathEb\",\"__Z15LoadLevelScreenv\",\"__Z15LoadLevelScreenl\"]")
-  #set(LINK_FLAGS "${LINK_FLAGS} -s FULL_ES2=1")             # Not needed apparently
-  set(LINK_FLAGS "${LINK_FLAGS} -s EMTERPRETIFY=1")
-  set(LINK_FLAGS "${LINK_FLAGS} -s EMTERPRETIFY_ASYNC=1")
-  set(LINK_FLAGS "${LINK_FLAGS} -s EMTERPRETIFY_FILE=arxwasm.embin")
-  set(LINK_FLAGS "${LINK_FLAGS} -s EMTERPRETIFY_WHITELIST=[\"_main\",\"__ZL8emloopcbv\",\"__ZN7ArxGame14emscripten_runEv\",\"__Z12Menu2_Renderv\",\"__Z15ARX_Menu_Renderv\",\"__ZN7ArxGame6renderEv\",\"__Z13ARX_QuickLoadv\",\"__ZN8MainMenu19onClickedResumeGameEv\",\"__ZN5boost6detail8function26void_function_obj_invoker1INS_3_bi6bind_tIvNS_4_mfi3mf0Iv24ChooseLoadOrSaveMenuPageEENS3_5list1INS3_5valueIPS7_EEEEEEvP10TextWidgetE6invokeERNS1_15function_bufferESG_\",\"__ZN10TextWidget12OnMouseClickEv\",\"__ZN8MainMenu6UpdateEv\",\"__Z13FastSceneLoadRKN3res4pathE\",\"__Z22ARX_CHANGELEVEL_ChangeRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEES7_l\",\"__Z20ARX_CHANGELEVEL_LoadRKN2fs4pathE\",\"__ZL24ARX_CHANGELEVEL_PopLevellb\",\"__Z12ARX_SlotLoad10HandleTypeI17SavegameHandleTaglLin1EE\",\"__Z9levelInitv\",\"__Z19DANAE_StartNewQuestv\",\"__ZN7ArxGame7doFrameEv\",\"__Z14DanaeLoadLevelRKN3res4pathEb\",\"__Z15LoadLevelScreenv\",\"__Z15LoadLevelScreenl\"]")
-  set(LINK_FLAGS "${LINK_FLAGS} -s DISABLE_EXCEPTION_CATCHING=0")
   set(LINK_FLAGS "${LINK_FLAGS} -s EXIT_RUNTIME=0")
   set(LINK_FLAGS "${LINK_FLAGS} -s ENVIRONMENT=web")
   set(LINK_FLAGS "${LINK_FLAGS} -lopenal")
