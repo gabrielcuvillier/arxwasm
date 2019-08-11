@@ -466,17 +466,7 @@ else ()
 endif ()
 
 if (EMSCRIPTEN)
-  list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_SOURCE_DIR})
-endif()
-
-# Boost: On emscripten, we use boost version stored as submodule, and tied to v1.65.1 version.
-# This is because some instanciated boost templates are Emterpretified, and the mangled method names must be stable
-# (generally boost mangled names change from version to version...)
-if (EMSCRIPTEN)
-  # Stupid CMake is unable to find boost, whatever we do with BOOST_ROOT
-  #set(BOOST_ROOT ...)
-  #find_package(Boost 1.65.1 REQUIRED)
-  set(Boost_INCLUDE_DIRS .)
+  add_cxxflag("-s USE_BOOST_HEADERS=1")
 else()
   # Boost
   find_package(Boost 1.48 REQUIRED)
@@ -1393,8 +1383,9 @@ if (EMSCRIPTEN)
 
   set(LINK_FLAGS "${LINK_FLAGS} -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
   set(LINK_FLAGS "${LINK_FLAGS} --shell-file ../data/emscripten/shell.html")
+  set(LINK_FLAGS "${LINK_FLAGS} -s MINIFY_HTML=0")
   set(LINK_FLAGS "${LINK_FLAGS} -o arxwasm.html")
-  set(LINK_FLAGS "${LINK_FLAGS} -s EXTRA_EXPORTED_RUNTIME_METHODS=[\"Pointer_stringify\"]")
+  set(LINK_FLAGS "${LINK_FLAGS} -s ASSERTIONS=0")     # Disabling assertion slightly reduce binary size
   set(LINK_FLAGS "${LINK_FLAGS} -s FORCE_FILESYSTEM=1")
   set(LINK_FLAGS "${LINK_FLAGS} -s BINARYEN_TRAP_MODE=clamp")
   set(LINK_FLAGS "${LINK_FLAGS} -s TOTAL_MEMORY=134217728")  # 128MB
