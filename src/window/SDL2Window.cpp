@@ -39,7 +39,9 @@
 #endif
 
 #if ARX_PLATFORM != ARX_PLATFORM_WIN32
-#define SDL_PROTOTYPES_ONLY 1
+  #if !defined(__EMSCRIPTEN__)
+    #define SDL_PROTOTYPES_ONLY 1
+  #endif
 #endif
 
 #include <SDL_syswm.h>
