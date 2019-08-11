@@ -466,7 +466,7 @@ else ()
 endif ()
 
 if (EMSCRIPTEN)
-  add_cxxflag("-s USE_BOOST_HEADERS=1")
+  # Boost will be added as an Emscripten port
 else()
   # Boost
   find_package(Boost 1.48 REQUIRED)
@@ -1379,7 +1379,7 @@ endif ()
 
 if (EMSCRIPTEN)
   add_executable(arxwasm "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
-  set_target_properties(arxwasm PROPERTIES COMPILE_FLAGS "-s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
+  set_target_properties(arxwasm PROPERTIES COMPILE_FLAGS "-s USE_BOOST_HEADERS=1 -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
 
   set(LINK_FLAGS "${LINK_FLAGS} -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
   set(LINK_FLAGS "${LINK_FLAGS} --shell-file ../data/emscripten/shell.html")
