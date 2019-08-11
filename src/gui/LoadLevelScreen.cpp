@@ -138,7 +138,7 @@ void LoadLevelScreen(long num) {
 	}
 
 #ifdef __EMSCRIPTEN__
-	emscripten_sleep_with_yield(0);
+	emscripten_sleep(1);
 #endif
 }
 
