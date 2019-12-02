@@ -24,9 +24,8 @@
 
 #ifdef __EMSCRIPTEN__
 #include <GL/Regal.h>
-#else
-#include <GL/glew.h>
 #endif
+#include <GL/glew.h>
 
 #include "graphics/texture/Texture.h"
 #include "graphics/texture/TextureStage.h"

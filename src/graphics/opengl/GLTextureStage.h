@@ -26,9 +26,8 @@
 
 #ifdef __EMSCRIPTEN__
 #include <GL/Regal.h>
-#else
-#include <GL/glew.h>
 #endif
+#include <GL/glew.h>
 
 class OpenGLRenderer;
 class GLTexture2D;

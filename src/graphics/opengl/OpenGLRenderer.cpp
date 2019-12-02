@@ -84,9 +84,6 @@ static GLTransformMode currentTransform;
 
 void OpenGLRenderer::initialize() {
 
-	#ifdef __EMSCRIPTEN__
-    LogInfo << "Not using GLEW";
-	#else
 	if(glewInit() != GLEW_OK) {
 		LogError << "GLEW init failed";
 		return;
@@ -95,7 +92,6 @@ void OpenGLRenderer::initialize() {
 	const GLubyte * glewVersion = glewGetString(GLEW_VERSION);
 	LogInfo << "Using GLEW " << glewVersion;
 	CrashHandler::setVariable("GLEW version", glewVersion);
-	#endif
 
 	const GLubyte * glVersion = glGetString(GL_VERSION);
 	LogInfo << "Using OpenGL " << glVersion;

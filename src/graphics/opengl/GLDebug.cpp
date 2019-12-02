@@ -23,9 +23,10 @@
 
 #ifdef __EMSCRIPTEN__
 #include <GL/Regal.h>
-#define GLEW_ARB_debug_output 0
-#else
+#endif
 #include <GL/glew.h>
+#ifdef __EMSCRIPTEN__
+#define GLEW_ARB_debug_output 0
 #endif
 
 #include "io/log/Logger.h"
