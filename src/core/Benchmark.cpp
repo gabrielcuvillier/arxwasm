@@ -301,16 +301,22 @@ static void enable(util::cmdline::optional<std::string> limit) {
 			} else if(unit == "h" || unit == "hours" || unit == "hour") {
 				multiplier = 60 * 60 * 1000;
 			} else {
+#if !defined(__EMSCRIPTEN__)
 				throw util::cmdline::error(util::cmdline::error::invalid_cmd_syntax,
 				                           "unknown unit \"" + unit + "\"");
+#endif
 			}
 		}
+#if !defined(__EMSCRIPTEN__)
 		try {
+#endif
 			g_timeLimit = multiplier * boost::lexical_cast<float>(*limit);
+#if !defined(__EMSCRIPTEN__)
 		} catch(...) {
-			throw util::cmdline::error(util::cmdline::error::invalid_cmd_syntax,
-			                           "inavlid number \"" + *limit + "\"");
+		  throw util::cmdline::error(util::cmdline::error::invalid_cmd_syntax,
+		                             "inavlid number \"" + *limit + "\"");
 		}
+#endif
 	} else {
 		g_timeLimit = std::numeric_limits<u64>::max();
 	}

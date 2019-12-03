@@ -540,11 +540,15 @@ MemoryInfo getMemoryInfo() {
 			boost::trim(value);
 			
 			u64 number = 0;
+#if !defined(__EMSCRIPTEN__)
 			try {
-				number = boost::lexical_cast<u64>(value) * u64(1024);
+#endif
+			  number = boost::lexical_cast<u64>(value) * u64(1024);
+#if !defined(__EMSCRIPTEN__)
 			} catch(...) {
 				continue;
 			}
+#endif
 			
 			std::string label = line.substr(0, sep);
 			boost::trim(label);

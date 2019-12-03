@@ -163,7 +163,9 @@ void interpreter<StringType, TypeCast>::do_add(const function_type & handler,
 	typename op_name_t::const_iterator it;
 	for(it = key.begin(); it != key.end(); ++it) {
 		if(alt_name.end() != alt_name.find(*it)) {
+#if !defined(__EMSCRIPTEN__)
 			throw error(error::already_exists);
+#endif
 		}
 	}
 	
@@ -175,13 +177,17 @@ void interpreter<StringType, TypeCast>::do_add(const function_type & handler,
 	
 	typename storage_t::iterator itStorage(storage.insert
 		(typename storage_t::value_type(*key.begin(), ikey_t(handler, key))).first);
-	
+
+#if !defined(__EMSCRIPTEN__)
 	try {
+#endif
 		alt_name.insert(tmp.begin(), tmp.end());
+#if !defined(__EMSCRIPTEN__)
 	} catch(...) {
 		storage.erase(itStorage);
 		throw;
 	}
+#endif
 }
 
 template <typename StringType, typename TypeCast>
@@ -193,7 +199,9 @@ void interpreter<StringType, TypeCast>::invoke(const string_type & key,
 	typename alt_name_t::const_iterator primary_key = alt_name.find(key);
 	
 	if(alt_name.end() == primary_key) {
-		throw error(error::cmd_not_found);
+#if !defined(__EMSCRIPTEN__)
+	  throw error(error::cmd_not_found);
+#endif
 	}
 	
 	typename storage_t::const_iterator it(storage.find(primary_key->second));

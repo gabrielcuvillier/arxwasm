@@ -47,13 +47,17 @@ EntityId::EntityId(const std::string & id)
 		
 		m_instance = 0;
 		if(sep != std::string::npos) {
+#if !defined(__EMSCRIPTEN__)
 			try {
+#endif
 				m_instance = boost::lexical_cast<EntityInstance>(id.c_str() + sep + 1);
+#if !defined(__EMSCRIPTEN__)
 			} catch(...) {
 				m_className = id;
 				m_instance = -1;
 				return;
 			}
+#endif
 		}
 		
 		m_className = id.substr(0, sep);

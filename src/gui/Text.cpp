@@ -252,14 +252,18 @@ static Font * createFont(const res::path & fontFace,
 	arx_assert(fontSize > 0);
 	arx_assert(scaleFactor > 0.f);
 	arx_assert(scaleFactor < 1000.f); // TODO better maximum
-	
+
+#if !defined(__EMSCRIPTEN__)
 	try {
+#endif
 		std::string szFontSize = boost::lexical_cast<std::string>(fontSize);
 		std::string configSize = getLocalised(configSizeKey, szFontSize);
 		fontSize = boost::lexical_cast<unsigned int>(configSize);
+#if !defined(__EMSCRIPTEN__)
 	} catch(const boost::bad_lexical_cast &) {
 		LogError << "Invalid font size for: " << configSizeKey;
 	}
+#endif
 	
 	fontSize *= scaleFactor;
 

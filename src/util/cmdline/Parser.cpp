@@ -65,8 +65,9 @@ void parse(interpreter<std::string> & cli, int argc, char ** argv) {
 		
 		// Parse the option starting athe the current token
 		std::string option = *p;
+#if !defined(__EMSCRIPTEN__)
 		try {
-			
+#endif
 			const iterator original_p = p;
 			
 			iterator optend = p + 1; //< end for optional arguments
@@ -136,7 +137,9 @@ void parse(interpreter<std::string> & cli, int argc, char ** argv) {
 					
 					case LongOption: {
 						// Argument given for long option that doesn't take arguments
+#if !defined(__EMSCRIPTEN__)
 						throw error(error::invalid_arg_count, "too many arguments");
+#endif
 					}
 					
 					case ShortOption: {
@@ -148,17 +151,19 @@ void parse(interpreter<std::string> & cli, int argc, char ** argv) {
 					
 					case PositionalArguments: {
 						// Unused positional arguments
+#if !defined(__EMSCRIPTEN__)
 						throw error(error::invalid_arg_count, "too many positional arguments");
+#endif
 					}
 					
 				}
 			}
-			
+#if !defined(__EMSCRIPTEN__)
 		} catch(error & e) {
-			
+
 			std::ostringstream oss;
 			oss << "Error parsing command-line";
-			
+
 			if(option == "--") {
 				if(p != end) {
 					oss << " argument \"" << util::escapeString(*p, "\\\" '$!") << "\"";
@@ -175,10 +180,11 @@ void parse(interpreter<std::string> & cli, int argc, char ** argv) {
 					oss << ": \"" << util::escapeString(*p, "\\\" '$!") << "\"";
 				}
 			}
-			
+
 			throw error(e.m_code, oss.str());
-			
+
 		}
+#endif
 		
 	}
 	

@@ -484,6 +484,9 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 add_definitions(-DBOOST_ALL_NO_LIB)
 # We compile with -fno-rtti and boost is not able to detect that for all compilers.
 add_definitions(-DBOOST_NO_RTTI -DBOOST_NO_TYPEID)
+if (EMSCRIPTEN)
+  add_definitions(-DBOOST_NO_EXCEPTIONS)
+endif()
 
 # GLM: GLM library is stored as git submodule of the current project
 # As Arxwasm is not up to date with upstream Arx Libertatis, GLM version 0.9.5.2 have to be used. Later versions introduced some breaking changes.
@@ -1380,7 +1383,7 @@ endif ()
 
 if (EMSCRIPTEN)
   add_executable(arxwasm "${ARX_SOURCES}" "${ARX_LIBRARIES}" "${ALL_INCLUDES}")
-  set_target_properties(arxwasm PROPERTIES COMPILE_FLAGS "-s DISABLE_EXCEPTION_CATCHING=0 -s USE_BOOST_HEADERS=1 -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
+  set_target_properties(arxwasm PROPERTIES COMPILE_FLAGS "-fno-exceptions -fno-rtti -s DISABLE_EXCEPTION_CATCHING=1 -s USE_BOOST_HEADERS=1 -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
 
   set(LINK_FLAGS "${LINK_FLAGS} -s USE_REGAL=1 -s USE_LIBPNG=1 -s USE_FREETYPE=1 -s USE_ZLIB=1 -s USE_SDL=2")
   set(LINK_FLAGS "${LINK_FLAGS} --shell-file ../data/emscripten/shell.html")
@@ -1395,11 +1398,12 @@ if (EMSCRIPTEN)
   # To be replaced by ASYNCIFY_WHITELIST equivalent
   #set(LINK_FLAGS "${LINK_FLAGS} -s EMTERPRETIFY_WHITELIST=[\"_main\",\"__ZL8emloopcbv\",\"__ZN7ArxGame14emscripten_runEv\",\"__Z12Menu2_Renderv\",\"__Z15ARX_Menu_Renderv\",\"__ZN7ArxGame6renderEv\",\"__Z13ARX_QuickLoadv\",\"__ZN8MainMenu19onClickedResumeGameEv\",\"__ZN5boost6detail8function26void_function_obj_invoker1INS_3_bi6bind_tIvNS_4_mfi3mf0Iv24ChooseLoadOrSaveMenuPageEENS3_5list1INS3_5valueIPS7_EEEEEEvP10TextWidgetE6invokeERNS1_15function_bufferESG_\",\"__ZN10TextWidget12OnMouseClickEv\",\"__ZN8MainMenu6UpdateEv\",\"__Z13FastSceneLoadRKN3res4pathE\",\"__Z22ARX_CHANGELEVEL_ChangeRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEES7_l\",\"__Z20ARX_CHANGELEVEL_LoadRKN2fs4pathE\",\"__ZL24ARX_CHANGELEVEL_PopLevellb\",\"__Z12ARX_SlotLoad10HandleTypeI17SavegameHandleTaglLin1EE\",\"__Z9levelInitv\",\"__Z19DANAE_StartNewQuestv\",\"__ZN7ArxGame7doFrameEv\",\"__Z14DanaeLoadLevelRKN3res4pathEb\",\"__Z15LoadLevelScreenv\",\"__Z15LoadLevelScreenl\"]")
   set(LINK_FLAGS "${LINK_FLAGS} -s EXIT_RUNTIME=0")
-  set(LINK_FLAGS "${LINK_FLAGS} -s DISABLE_EXCEPTION_CATCHING=0")
+  set(LINK_FLAGS "${LINK_FLAGS} -s DISABLE_EXCEPTION_CATCHING=1")
   set(LINK_FLAGS "${LINK_FLAGS} -s ENVIRONMENT=web")
   set(LINK_FLAGS "${LINK_FLAGS} -lopenal")
   set(LINK_FLAGS "${LINK_FLAGS} -legl.js")
   set(LINK_FLAGS "${LINK_FLAGS} -lwebgl.js")
+  set(LINK_FLAGS "${LINK_FLAGS} -lidbfs.js")
   set_target_properties(arxwasm PROPERTIES LINK_FLAGS ${LINK_FLAGS})
 
 else ()

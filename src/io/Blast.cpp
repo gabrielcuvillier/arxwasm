@@ -93,7 +93,9 @@ static int bits(state * s, int need) {
 	while(s->bitcnt < need) {
 		if(s->left == 0) {
 			s->left = s->infun(s->inhow, &(s->in));
+#if !defined(__EMSCRIPTEN__)
 			if (s->left == 0) throw blast_truncated_error(); /* out of input */
+#endif
 		}
 		val |= (int)(*(s->in)++) << s->bitcnt;          /* load eight bits */
 		s->left--;
@@ -177,7 +179,9 @@ static int decode(state * s, huffman * h) {
 		if(left == 0) break;
 		if(s->left == 0) {
 			s->left = s->infun(s->inhow, &(s->in));
+#if !defined(__EMSCRIPTEN__)
 			if (s->left == 0) throw blast_truncated_error(); /* out of input */
+#endif
 		}
 		bitbuf = *(s->in)++;
 		s->left--;
@@ -416,11 +420,15 @@ BlastResult blast(blast_in infun, void *inhow, blast_out outfun, void *outhow) {
 	s.first = 1;
 	
 	BlastResult err;
-	try {
+#if !defined(__EMSCRIPTEN__)
+	try{
+#endif
 		err = blastDecompress(&s);
+#if !defined(__EMSCRIPTEN__)
 	} catch(const blast_truncated_error &) {
 		err = BLAST_TRUNCATED_INPUT;
 	}
+#endif
 	
 	// write any leftover output and update the error code if needed
 	if(err != 1 && s.next && s.outfun(s.outhow, s.out, s.next) && err == 0) {

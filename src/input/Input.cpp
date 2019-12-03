@@ -566,19 +566,27 @@ InputKeyId Input::getKeyId(const std::string & name) {
 	}
 	
 	if(!name.compare(0, PREFIX_KEY.length(), PREFIX_KEY)) {
-		try {
+#if !defined(__EMSCRIPTEN__)
+	  try {
+#endif
 			int key = boost::lexical_cast<int>(name.substr(PREFIX_KEY.length()));
 			return key;
+#if !defined(__EMSCRIPTEN__)
 		} catch(const boost::bad_lexical_cast &) { }
+#endif
 	}
 	
 	if(!name.compare(0, PREFIX_BUTTON.length(), PREFIX_BUTTON)) {
-		try {
+#if !defined(__EMSCRIPTEN__)
+	  try {
+#endif
 			int key = boost::lexical_cast<int>(name.substr(PREFIX_BUTTON.length()));
 			if(key >= 0 && key < Mouse::ButtonCount) {
 				return Mouse::ButtonBase + key - 1;
 			}
+#if !defined(__EMSCRIPTEN__)
 		} catch(const boost::bad_lexical_cast &) { }
+#endif
 	}
 	
 	if(keyNames.empty()) {

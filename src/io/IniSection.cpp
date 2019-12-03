@@ -45,12 +45,16 @@ int IniKey::getValue(int defaultValue) const {
 }
 
 float IniKey::getValue(float defaultValue) const {
-	
+
+#if !defined(__EMSCRIPTEN__)
 	try {
-		return boost::lexical_cast<float>(value);
+#endif
+	  return boost::lexical_cast<float>(value);
+#if !defined(__EMSCRIPTEN__)
 	} catch(boost::bad_lexical_cast &) {
 		return defaultValue;
 	}
+#endif
 }
 
 bool IniKey::getValue(bool defaultValue) const {

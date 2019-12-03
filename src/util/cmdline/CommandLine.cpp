@@ -58,11 +58,13 @@ ExitStatus parseCommandLine(int argc, char ** argv) {
 	// Register all program options in the command line interpreter
 	util::cmdline::interpreter<std::string> cli;
 	BaseOption::registerAll(cli);
-	
+
+#if !defined(__EMSCRIPTEN__)
 	try {
+#endif
 		
 		util::cmdline::parse(cli, argc, argv);
-		
+#if !defined(__EMSCRIPTEN__)
 	} catch(util::cmdline::error & e) {
 		
 		LogCritical << e.what();
@@ -71,6 +73,7 @@ ExitStatus parseCommandLine(int argc, char ** argv) {
 		
 		return ExitFailure;
 	}
+#endif
 	
 	return RunProgram;
 }

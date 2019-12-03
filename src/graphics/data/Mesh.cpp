@@ -911,7 +911,9 @@ const T * fts_read(const char * & data, const char * end, size_t n = 1) {
 	
 	if(data + toread > end) {
 		LogDebug(sizeof(T) << " * " << n << " > " << (end - data));
+#if !defined(__EMSCRIPTEN__)
 		throw file_truncated_exception();
+#endif
 	}
 	
 	const T * result = reinterpret_cast<const T *>(data);
@@ -947,9 +949,10 @@ bool FastSceneLoad(const res::path & partial_path) {
 	
 	const char * data = NULL, * end = NULL;
 	boost::scoped_array<char> bytes;
-	
+
+#if !defined(__EMSCRIPTEN__)
 	try {
-		
+#endif
 		// Load the whole file
 		LogDebug("Loading " << file);
 		size_t size;
@@ -1001,19 +1004,24 @@ bool FastSceneLoad(const res::path & partial_path) {
 		}
 		progressBarAdvance(3.f);
 		LoadLevelScreen();
-		
-		
+
+#if !defined(__EMSCRIPTEN__)
 	} catch(file_truncated_exception) {
 		LogError << "FTS: truncated file " << file;
 		return false;
 	}
-	
+#endif
+
+#if !defined(__EMSCRIPTEN__)
 	try {
+#endif
 		return loadFastScene(file, data, end);
+#if !defined(__EMSCRIPTEN__)
 	} catch(file_truncated_exception) {
 		LogError << "FTS: truncated compressed data in " << file;
 		return false;
 	}
+#endif
 }
 
 

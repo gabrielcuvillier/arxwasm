@@ -1208,9 +1208,13 @@ float GetHitValue( const std::string & name) {
 	
 	if(boost::starts_with(name, "hit_")) {
 		// Get the number after the first 4 characters in the string
+#if !defined(__EMSCRIPTEN__)
 		try {
+#endif
 			return float(boost::lexical_cast<long>(name.substr(4)));
+#if !defined(__EMSCRIPTEN__)
 		} catch(...) { /* ignore */ }
+#endif
 	}
 	
 	return -1;

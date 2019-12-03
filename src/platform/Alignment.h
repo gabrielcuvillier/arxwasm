@@ -187,7 +187,11 @@ struct aligned_allocator {
 	pointer allocate(size_type n, std::allocator<void>::const_pointer hint = 0) {
 		ARX_UNUSED(hint);
 		if(n > max_size()) {
+#if !defined(__EMSCRIPTEN__)
 			throw std::bad_alloc();
+#else
+			return NULL;
+#endif
 		}
 		return (pointer)AlignedAllocator<Alignment>::alloc_array(n * sizeof(value_type));
 	}

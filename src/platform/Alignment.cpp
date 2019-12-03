@@ -50,10 +50,12 @@ void * alloc_aligned(std::size_t alignment, std::size_t size) {
 	}
 	#else
 	#error "No aligned memory allocator available!"
-	#endif
+    #endif
+#if !defined(__EMSCRIPTEN__)
 	if(!ptr) {
 		throw std::bad_alloc();
 	}
+#endif
 	return ptr;
 }
 

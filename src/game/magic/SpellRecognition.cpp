@@ -789,11 +789,15 @@ static void handleRuneDetection(Rune rune) {
 void ARX_SPELLS_AnalyseSYMBOL() {
 	
 	long sm = 0;
+#if !defined(__EMSCRIPTEN__)
 	try {
-		sm = boost::lexical_cast<long>(SpellMoves);
+#endif
+	  sm = boost::lexical_cast<long>(SpellMoves);
+#if !defined(__EMSCRIPTEN__)
 	} catch(...) {
 		LogDebug("bad spell moves: " << SpellMoves);
 	}
+#endif
 	
 	switch(sm) {
 		

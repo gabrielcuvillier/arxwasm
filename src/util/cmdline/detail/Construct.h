@@ -48,7 +48,9 @@ template <typename SourceType, typename R>
 R construct(SourceType & arg , const R * = 0) {
 	
 	if(arg.empty()) {
+#if !defined(__EMSCRIPTEN__)
 		throw error(error::invalid_arg_count, "not enough arguments");
+#endif
 	}
 	
 	R ret(arg.template front<R>());
